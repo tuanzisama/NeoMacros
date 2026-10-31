@@ -7,6 +7,9 @@
     "ChatDisplayMixin",
     "MouseScrollMixin",
     "ClientLevelEntityMixin",
+    "ClientLevelWorldMixin",
+    "ClientChunkCacheMixin",
+    "BossUpdateMixin",
     "SoundEnginePlayMixin"
   ],
   "injectors": {

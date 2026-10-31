@@ -31,6 +31,8 @@ import ink.tuanzi.neomacros.port.NeomacrosAdapter;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
 
+import java.util.List;
+
 /**
  * The one production event wiring from adapter port sinks onto the event
  * bus: lifecycle sources, chat receive, cancellable player interactions,
@@ -87,11 +89,15 @@ public final class PortEventWiring {
 
     /**
      * Derives the local player event family from per-tick snapshots: enter /
-     * leave world, spawn / death / respawn edges, vitals deltas, and the
-     * dimension pair plus world time jumps from the world port. All queries
-     * run on the tick thread (the game main thread in production).
+     * leave world, spawn / death / respawn edges, vitals deltas, status
+     * effect changes, the nearby-entity health diff, and the dimension pair
+     * plus world time jumps from the world port. All queries run on the tick
+     * thread (the game main thread in production).
      */
     private static final class SelfStateTracker {
+
+        /** Radius around the player polled for entity health changes. */
+        private static final double ENTITY_HEALTH_RANGE = 32.0;
 
         private final EventBus bus;
         private boolean seen;
@@ -100,6 +106,8 @@ public final class PortEventWiring {
         private String lastDimension;
         private long lastTime;
         private boolean timeInitialized;
+        private final java.util.Map<java.util.UUID, Double> entityHealth = new java.util.HashMap<>();
+        private final java.util.Map<String, Integer> effectAmplifiers = new java.util.HashMap<>();
 
         SelfStateTracker(EventBus bus) {
             this.bus = bus;
@@ -125,6 +133,8 @@ public final class PortEventWiring {
             }
             last = now;
             emitWorld(adapter, now);
+            emitEntityHealth(adapter, now);
+            emitEffectChanges(adapter);
         }
 
         /** Emits player:leave from the last known snapshot, if any. */
@@ -137,6 +147,65 @@ public final class PortEventWiring {
             last = null;
             lastDimension = null;
             timeInitialized = false;
+            entityHealth.clear();
+            effectAmplifiers.clear();
+        }
+
+        /**
+         * Diffs nearby entity health against the previous tick and publishes
+         * entity:damage / entity:heal. Entities leaving the radius are
+         * forgotten so re-entering them does not replay a stale delta.
+         */
+        private void emitEntityHealth(NeomacrosAdapter adapter, PlayerSnapshot self) {
+            List<EntitySnapshot> nearby = adapter.entity().inRadius(
+                    self.pos(), ENTITY_HEALTH_RANGE,
+                    entity -> !entity.uuid().equals(self.uuid()));
+            java.util.Set<java.util.UUID> present = new java.util.HashSet<>();
+            for (EntitySnapshot entity : nearby) {
+                present.add(entity.uuid());
+                Double previous = entityHealth.put(entity.uuid(), entity.health());
+                if (previous == null || previous == entity.health()) {
+                    continue;
+                }
+                double delta = entity.health() - previous;
+                if (delta < 0) {
+                    bus.publish("entity:damage",
+                            new ink.tuanzi.neomacros.core.event.def.entity.EntityDamageEvent(
+                                    entity, (float) -delta));
+                } else {
+                    bus.publish("entity:heal",
+                            new ink.tuanzi.neomacros.core.event.def.entity.EntityHealEvent(
+                                    entity, (float) delta));
+                }
+            }
+            entityHealth.keySet().removeIf(uuid -> !present.contains(uuid));
+        }
+
+        /**
+         * Diffs the player's active status effects against the previous tick
+         * and publishes player:effect for additions, removals, and
+         * amplifier changes.
+         */
+        private void emitEffectChanges(NeomacrosAdapter adapter) {
+            java.util.Set<String> active = new java.util.HashSet<>();
+            for (ink.tuanzi.neomacros.port.model.EffectSnapshot effect : adapter.player().activeEffects()) {
+                active.add(effect.effectId());
+                Integer previous = effectAmplifiers.put(effect.effectId(), effect.amplifier());
+                if (previous == null || previous != effect.amplifier()) {
+                    bus.publish("player:effect",
+                            new ink.tuanzi.neomacros.core.event.def.player.PlayerEffectEvent(
+                                    effect.effectId(), true, effect.amplifier()));
+                }
+            }
+            effectAmplifiers.entrySet().removeIf(entry -> {
+                if (active.contains(entry.getKey())) {
+                    return false;
+                }
+                bus.publish("player:effect",
+                        new ink.tuanzi.neomacros.core.event.def.player.PlayerEffectEvent(
+                                entry.getKey(), false, entry.getValue()));
+                return true;
+            });
         }
 
         /** Emits health/hunger/air deltas and death/respawn edges. */

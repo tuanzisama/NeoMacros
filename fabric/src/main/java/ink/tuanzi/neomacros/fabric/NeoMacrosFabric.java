@@ -126,28 +126,6 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(configDir.resolve("storage"));
 
-        // Hub→Bus wiring: adapter mixin events → EventBus.publish
-        ink.tuanzi.neomacros.adapter.EntityLifecycleHub.onLoad((uuid, typeId) ->
-                bus.publish("entity:load", new ink.tuanzi.neomacros.core.event.def.entity.EntityLoadEvent(
-                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
-                                java.util.UUID.fromString(uuid), typeId, typeId,
-                                new ink.tuanzi.neomacros.port.model.Pos3d(0, 64, 0), 20))));
-        ink.tuanzi.neomacros.adapter.EntityLifecycleHub.onUnload(id ->
-                bus.publish("entity:unload", new ink.tuanzi.neomacros.core.event.def.entity.EntityUnloadEvent(
-                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
-                                java.util.UUID.fromString(id), "", "", new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0), 0))));
-        ink.tuanzi.neomacros.adapter.EntityEventHub.onDamage((uuid, amount) ->
-                bus.publish("entity:damage", new ink.tuanzi.neomacros.core.event.def.entity.EntityDamageEvent(
-                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
-                                java.util.UUID.fromString(uuid), "", "", new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0), 0), amount)));
-        ink.tuanzi.neomacros.adapter.EntityEventHub.onHeal((uuid, amount) ->
-                bus.publish("entity:heal", new ink.tuanzi.neomacros.core.event.def.entity.EntityHealEvent(
-                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
-                                java.util.UUID.fromString(uuid), "", "", new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0), 0), amount)));
-        ink.tuanzi.neomacros.adapter.SoundEventHub.register(data ->
-                bus.publish("world:sound", new ink.tuanzi.neomacros.core.event.def.world.WorldSoundEvent(
-                        data.soundId(), data.x(), data.y(), data.z(), data.volume(), data.pitch())));
-
         var commandPort = new FabricCommandPort();
         var commandApi = new CommandApi(commandPort);
         registry.registerInstance(commandApi);
@@ -204,8 +182,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 }
             });
         }
-        // Hub→Bus wiring for adapter-level event sources (entity lifecycle,
-        // world sound). These fire from mixin/hub paths, not from lifecycle.
+        // Hub→Bus wiring: adapter mixin event sources → EventBus.publish.
         ink.tuanzi.neomacros.adapter.EntityLifecycleHub.onLoad((uuid, typeId) ->
                 bus.publish("entity:load", new ink.tuanzi.neomacros.core.event.def.entity.EntityLoadEvent(
                         new ink.tuanzi.neomacros.port.model.EntitySnapshot(
@@ -219,6 +196,20 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 bus.publish("world:sound", new ink.tuanzi.neomacros.core.event.def.world.WorldSoundEvent(
                         data.soundId(), data.x(), data.y(), data.z(),
                         data.volume(), data.pitch())));
+        ink.tuanzi.neomacros.adapter.WorldEventHub.onBlockUpdate(data ->
+                bus.publish("world:blockUpdate",
+                        new ink.tuanzi.neomacros.core.event.def.world.WorldBlockUpdateEvent(
+                                data.x(), data.y(), data.z(), data.blockId())));
+        ink.tuanzi.neomacros.adapter.ChunkEventHub.onLoad((chunkX, chunkZ) ->
+                bus.publish("world:chunkLoad",
+                        new ink.tuanzi.neomacros.core.event.def.world.WorldChunkLoadEvent(chunkX, chunkZ)));
+        ink.tuanzi.neomacros.adapter.ChunkEventHub.onUnload((chunkX, chunkZ) ->
+                bus.publish("world:chunkUnload",
+                        new ink.tuanzi.neomacros.core.event.def.world.WorldChunkUnloadEvent(chunkX, chunkZ)));
+        ink.tuanzi.neomacros.adapter.BossbarHub.register(data ->
+                bus.publish("world:bossbar",
+                        new ink.tuanzi.neomacros.core.event.def.world.WorldBossbarEvent(
+                                data.uuid(), data.action(), data.name(), data.progress())));
 
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
         registerCommands(scriptsDir, modules, trustManager);

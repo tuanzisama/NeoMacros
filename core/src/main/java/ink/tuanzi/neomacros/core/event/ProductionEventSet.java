@@ -46,6 +46,10 @@ public final class ProductionEventSet {
                 // world
                 ink.tuanzi.neomacros.core.event.def.world.WorldDimensionChangeEvent.class,
                 ink.tuanzi.neomacros.core.event.def.world.WorldTimeEvent.class,
+                ink.tuanzi.neomacros.core.event.def.world.WorldBlockUpdateEvent.class,
+                ink.tuanzi.neomacros.core.event.def.world.WorldChunkLoadEvent.class,
+                ink.tuanzi.neomacros.core.event.def.world.WorldChunkUnloadEvent.class,
+                ink.tuanzi.neomacros.core.event.def.world.WorldBossbarEvent.class,
                 // entity
                 ink.tuanzi.neomacros.core.event.def.entity.EntityLoadEvent.class,
                 ink.tuanzi.neomacros.core.event.def.entity.EntityUnloadEvent.class,
