@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 /**
@@ -166,6 +167,15 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var modules = new ModuleManager(runtime, registry, viewResolver, scriptsDir,
                 message -> LOGGER.warn("neomacros scripts: {}", message));
 
+        // Error presentation chain: script failures become a throttled
+        // clickable chat line pointing at the recent-errors viewer screen.
+        var errorPresenter = new ink.tuanzi.neomacros.core.runtime.ErrorPresenter(
+                line -> adapter.chat().logClickable(
+                        "[NeoMacros] script error: " + line + " -> click to view",
+                        "/neomacros errors"),
+                3000);
+        runtime.setErrorHandler(errorPresenter::record);
+
         quitOnDone = Boolean.getBoolean("neomacros.e2e.quitOnDone");
 
         PortEventWiring.wire(adapter, bus, modules, runtime.tickClock());
@@ -217,7 +227,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                 data.uuid(), data.action(), data.name(), data.progress())));
 
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
-        registerCommands(scriptsDir, modules, trustManager);
+        registerCommands(scriptsDir, modules, trustManager, errorPresenter);
     }
 
     /** The running Minecraft version (node trimming key for ApiMC ranges). */
@@ -228,7 +238,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     }
 
     /** Registers the root {@code /neomacros} command and its subcommands. */
-    private static void registerCommands(Path scriptsDir, ModuleManager modules, TrustManager trustManager) {
+    private static void registerCommands(Path scriptsDir, ModuleManager modules, TrustManager trustManager,
+            ink.tuanzi.neomacros.core.runtime.ErrorPresenter errorPresenter) {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(literal("neomacros")
                     .then(literal("status").executes(ctx -> {
@@ -258,7 +269,31 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                         ctx.getSource().sendFeedback(Component.literal(
                                 "Trusted script hashes: " + trustManager.trustedHashes().size()));
                         return Command.SINGLE_SUCCESS;
-                    }))));
+                    })))
+                    .then(literal("errors").executes(ctx -> {
+                        var recent = errorPresenter.recent();
+                        ScriptScreen.open("Recent errors",
+                                recent.isEmpty() ? "(no recent errors)" : String.join("\n\n", recent));
+                        return Command.SINGLE_SUCCESS;
+                    }))
+                    .then(literal("open").then(argument("script",
+                                    com.mojang.brigadier.arguments.StringArgumentType.word())
+                            .executes(ctx -> {
+                                String name = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "script");
+                                var file = scriptsDir.resolve(name.endsWith(".js") ? name : name + ".js");
+                                if (!Files.exists(file)) {
+                                    ctx.getSource().sendFeedback(Component.literal(
+                                            "Script not found: " + file.getFileName()));
+                                    return 0;
+                                }
+                                try {
+                                    ScriptScreen.open(name, Files.readString(file));
+                                } catch (java.io.IOException e) {
+                                    ctx.getSource().sendFeedback(Component.literal(
+                                            "Cannot read script: " + e.getMessage()));
+                                }
+                                return Command.SINGLE_SUCCESS;
+                            }))));
         });
     }
 
