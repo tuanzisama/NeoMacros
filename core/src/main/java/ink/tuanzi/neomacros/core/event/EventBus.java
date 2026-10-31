@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -98,6 +99,42 @@ public final class EventBus {
                             + " (script surface: TypeError)");
         }
         return subscribe(name, null, false, true, null, callback);
+    }
+
+    /**
+     * Completes with the next payload of the event (matching subscriptions
+     * only; no wildcards). The future never completes unless the event fires;
+     * use the filtered variant or external timeout for bounded waiting.
+     */
+    public CompletableFuture<Object> waitFor(String name) {
+        return waitFor(name, payload -> true, Long.MAX_VALUE);
+    }
+
+    /**
+     * Completes with the next payload passing {@code filter}, or completes
+     * exceptionally after {@code timeoutMillis}. The filter runs on the
+     * subscription's dispatch surface.
+     */
+    public CompletableFuture<Object> waitFor(String name, java.util.function.Predicate<Object> filter,
+                                             long timeoutMillis) {
+        CompletableFuture<Object> future = new CompletableFuture<>();
+        Subscription sub = subscribe(name, null, false, false, payload -> {
+            if (future.isDone()) {
+                return;
+            }
+            try {
+                if (filter.test(payload)) {
+                    future.complete(payload);
+                }
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        }, null);
+        future.whenComplete((result, error) -> sub.deactivate());
+        if (timeoutMillis != Long.MAX_VALUE) {
+            future.orTimeout(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
+        }
+        return future;
     }
 
     /** Unsubscribes one subscription. */

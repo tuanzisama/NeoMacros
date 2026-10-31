@@ -28,6 +28,11 @@ public final class ContextEventLoop implements Executor, AutoCloseable {
         this.worker.start();
     }
 
+    /** Returns whether the calling thread is this loop's worker thread. */
+    public boolean isOnLoop() {
+        return Thread.currentThread() == worker;
+    }
+
     /** Enqueues the task for FIFO execution on the loop thread. */
     @Override
     public void execute(Runnable task) {
