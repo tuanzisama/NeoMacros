@@ -30,7 +30,7 @@
 | T-031 | 模块管理器 | S0 | **partially-done** | session-agent | t031-module-manager | [报告](reports/T-031.md)；全链路游戏内验证过（加载/事件/chat/命令）；遗留：clock.sleep 游戏内未落定 + 文件监视器 + 单模块 reload 命令 |
 | T-032 | 配置系统 | S0 | **done** | session-agent | t032-config | [报告](reports/T-032.md)；ConfigManager+Codec+CoreOptions+watch 接线全绿；补 T-031 遗留#2 文件监视器 |
 | T-033 | storage 模块 | S0 | **done** | session-agent | t033-storage | [报告](reports/T-033.md)；StorageApi/ModuleStorage/防抖/快照+Proxy 包装全绿；真脚本 put→get→落盘集成测试 |
-| T-040 | E2E-A 测试骨架 | S0 | pending | | | 依赖 T-031 |
+| T-040 | E2E-A 测试骨架 | S0 | **in-progress** | session-agent | t040-e2ea | 2026-10-31 认领 |
 | T-041 | E2E-G 套件骨架 | S0 | pending | | | 依赖 T-030, T-031 |
 | T-100 | 权限信任门 | S1 | pending | | | 依赖 T-031, T-033 |
 | T-101 | lane-world（world/entity/player） | S1 | pending | | | 依赖 T-030 |
