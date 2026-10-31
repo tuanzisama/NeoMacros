@@ -33,4 +33,7 @@ public interface NeomacrosAdapter {
 
     /** Returns the HUD overlay render port. */
     RenderPort render();
+
+    /** Returns the world-space shape render port. */
+    Draw3DPort draw3d();
 }

@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.adapter;
 
 import ink.tuanzi.neomacros.port.ChatPort;
+import ink.tuanzi.neomacros.port.Draw3DPort;
 import ink.tuanzi.neomacros.port.InputPort;
 import ink.tuanzi.neomacros.port.InventoryPort;
 import ink.tuanzi.neomacros.port.EntityPort;
@@ -24,6 +25,7 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
     private final FabricInputPort input = new FabricInputPort();
     private final FabricInventoryPort inventory = new FabricInventoryPort();
     private final FabricRenderPort render = new FabricRenderPort();
+    private final FabricDraw3DPort draw3d = new FabricDraw3DPort();
 
     private final FabricWorldPort world = new FabricWorldPort();
     private final FabricEntityPort entity = new FabricEntityPort();
@@ -52,6 +54,11 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
     @Override
     public RenderPort render() {
         return render;
+    }
+
+    @Override
+    public Draw3DPort draw3d() {
+        return draw3d;
     }
 
     @Override

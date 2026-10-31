@@ -38,6 +38,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +98,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 WorldApi.class, EntityApi.class, PlayerApi.class));
         registry.registerInstance(new FsApi(new GameDirFsBridge(), ioExecutor));
         registry.registerInstance(new NetApi(ioExecutor));
+        registry.registerInstance(new ink.tuanzi.neomacros.core.api.HudApi(
+                new ink.tuanzi.neomacros.adapter.FabricHudRegistry(adapter.render(), Minecraft.getInstance()::execute)));
+        registry.registerInstance(new ink.tuanzi.neomacros.core.api.render.RenderApi(
+                adapter.draw3d()));
         var inputApi = new ink.tuanzi.neomacros.core.api.InputApi(
                 new ink.tuanzi.neomacros.core.api.InputApi.InputBridge() {
                     @Override
