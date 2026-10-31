@@ -9,6 +9,8 @@ import ink.tuanzi.neomacros.core.api.EventsApi;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.bindgen.BindingRegistry;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
+import ink.tuanzi.neomacros.core.config.ConfigManager;
+import ink.tuanzi.neomacros.core.config.CoreOptions;
 import ink.tuanzi.neomacros.core.event.EventBus;
 import ink.tuanzi.neomacros.core.event.EventCatalog;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent;
@@ -54,8 +56,15 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         LOGGER.info("NeoMacros bootstrap");
-        Path scriptsDir = FabricLoader.getInstance().getConfigDir()
-                .resolve(NeoMacros.MOD_ID).resolve("scripts");
+        Path configDir = FabricLoader.getInstance().getConfigDir().resolve(NeoMacros.MOD_ID);
+        var configManager = new ConfigManager(configDir.resolve("options.json"),
+                message -> LOGGER.warn("neomacros config: {}", message));
+        var options = new CoreOptions();
+        configManager.register(options);
+        configManager.load();
+
+        Path scriptsDir = options.scriptsDir.isEmpty()
+                ? configDir.resolve("scripts") : Path.of(options.scriptsDir);
 
         var adapter = new NeomacrosAdapterImpl();
         var catalog = new EventCatalog();
@@ -68,12 +77,15 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         ScriptApiEnvironment.install(bus, adapter);
 
         ScriptEngine engine = new GraalJsEngine(new ScriptsModuleResolver(scriptsDir, registry));
-        runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, SyncWatchdog.DEFAULT_MAX_SYNC_MILLIS);
+        runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, options.maxSyncTime);
+        var extraIgnores = new java.util.ArrayList<>(EventBus.DEFAULT_WILDCARD_IGNORES);
+        extraIgnores.addAll(options.wildcardIgnoresExtra);
+        runtime.eventBus().setWildcardIgnores(extraIgnores);
 
         var modules = new ModuleManager(runtime, registry, PermissionView.ALLOW_ALL, scriptsDir,
                 message -> LOGGER.warn("neomacros scripts: {}", message));
 
-        wireEventSinks(adapter, runtime, modules);
+        wireEventSinks(adapter, runtime, modules, options);
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
         registerCommands(scriptsDir, modules);
     }
@@ -91,10 +103,13 @@ public final class NeoMacrosFabric implements ClientModInitializer {
      * client has started (before the game:start publish so scripts observe
      * it), world-phase scripts load and unload with the world session.
      */
-    private static void wireEventSinks(NeomacrosAdapterImpl adapter, ScriptRuntime rt, ModuleManager modules) {
+    private static void wireEventSinks(NeomacrosAdapterImpl adapter, ScriptRuntime rt, ModuleManager modules, CoreOptions options) {
         adapter.lifecycle().onTick(tick -> {
             rt.tickClock().tick();
             rt.eventBus().publish("tick", new TickEvent(tick));
+            if (options.scriptWatch && tick % options.scriptWatchInterval == 0) {
+                modules.checkForChanges();
+            }
         });
         adapter.lifecycle().onGameStart(() -> {
             modules.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
