@@ -109,6 +109,11 @@ class ScriptLoadIntegrationTest {
             }
 
             @Override
+            public ink.tuanzi.neomacros.port.Draw3DPort draw3d() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
             public PlayerPort player() {
                 throw new UnsupportedOperationException();
             }

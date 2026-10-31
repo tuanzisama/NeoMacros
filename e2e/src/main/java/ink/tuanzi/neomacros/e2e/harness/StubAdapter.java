@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.e2e.harness;
 
 import ink.tuanzi.neomacros.port.ChatPort;
+import ink.tuanzi.neomacros.port.Draw3DPort;
 import ink.tuanzi.neomacros.port.RenderPort;
 
 import ink.tuanzi.neomacros.port.InputPort;
@@ -95,6 +96,42 @@ public final class StubAdapter implements NeomacrosAdapter {
     @Override
     public RenderPort render() {
         throw new UnsupportedPortFeature("render");
+    }
+
+    private final StubDraw3D draw3dPort = new StubDraw3D();
+
+    @Override
+    public Draw3DPort draw3d() {
+        return draw3dPort;
+    }
+
+    /** World-space shape recorder for assertions. */
+    public static final class StubDraw3D implements Draw3DPort {
+        /** One recorded shape. */
+        public record Shape(String kind, String layerId, Pos3d a, Pos3d b, int color) {
+        }
+
+        final List<Shape> shapes = new CopyOnWriteArrayList<>();
+
+        @Override
+        public void drawBox(String layerId, Pos3d min, Pos3d max, int argbColor) {
+            shapes.add(new Shape("box", layerId, min, max, argbColor));
+        }
+
+        @Override
+        public void drawLine(String layerId, Pos3d from, Pos3d to, int argbColor) {
+            shapes.add(new Shape("line", layerId, from, to, argbColor));
+        }
+
+        @Override
+        public void clearLayer(String layerId) {
+            shapes.removeIf(shape -> shape.layerId().equals(layerId));
+        }
+
+        @Override
+        public java.util.function.Supplier<List<String>> layerIds() {
+            return () -> shapes.stream().map(Shape::layerId).distinct().toList();
+        }
     }
 
     @Override

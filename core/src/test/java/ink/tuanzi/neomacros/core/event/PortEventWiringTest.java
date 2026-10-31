@@ -387,6 +387,11 @@ class PortEventWiringTest {
         }
 
         @Override
+        public ink.tuanzi.neomacros.port.Draw3DPort draw3d() {
+            throw new UnsupportedOperationException("draw3d");
+        }
+
+        @Override
         public PlayerPort player() {
             return playerPort;
         }

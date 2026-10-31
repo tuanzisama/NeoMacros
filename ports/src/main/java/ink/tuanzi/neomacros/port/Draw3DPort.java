@@ -3,7 +3,7 @@ package ink.tuanzi.neomacros.port;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * World-space 3D rendering: wireframe boxes, lines, and block highlights.
@@ -19,4 +19,7 @@ public interface Draw3DPort {
 
     /** Removes all shapes for one layer. */
     void clearLayer(String layerId);
+
+    /** Returns all layers that currently hold shapes. */
+    Supplier<List<String>> layerIds();
 }
