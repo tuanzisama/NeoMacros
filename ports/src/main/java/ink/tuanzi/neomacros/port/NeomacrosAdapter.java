@@ -30,4 +30,7 @@ public interface NeomacrosAdapter {
 
     /** Returns the inventory query port. */
     InventoryPort inventory();
+
+    /** Returns the HUD overlay render port. */
+    RenderPort render();
 }
