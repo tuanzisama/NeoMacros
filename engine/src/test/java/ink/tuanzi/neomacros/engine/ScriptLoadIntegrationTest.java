@@ -94,6 +94,16 @@ class ScriptLoadIntegrationTest {
             }
 
             @Override
+            public ink.tuanzi.neomacros.port.InventoryPort inventory() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public ink.tuanzi.neomacros.port.InputPort input() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
             public PlayerPort player() {
                 throw new UnsupportedOperationException();
             }
