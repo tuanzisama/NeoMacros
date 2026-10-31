@@ -45,6 +45,15 @@ public final class ProductionEventSet {
                 ink.tuanzi.neomacros.core.event.def.player.PlayerDimensionChangeEvent.class,
                 // world
                 ink.tuanzi.neomacros.core.event.def.world.WorldDimensionChangeEvent.class,
-                ink.tuanzi.neomacros.core.event.def.world.WorldTimeEvent.class);
+                ink.tuanzi.neomacros.core.event.def.world.WorldTimeEvent.class,
+                // entity
+                ink.tuanzi.neomacros.core.event.def.entity.EntityLoadEvent.class,
+                ink.tuanzi.neomacros.core.event.def.entity.EntityUnloadEvent.class,
+                ink.tuanzi.neomacros.core.event.def.entity.EntityDamageEvent.class,
+                ink.tuanzi.neomacros.core.event.def.entity.EntityHealEvent.class,
+                // world extras
+                ink.tuanzi.neomacros.core.event.def.world.WorldSoundEvent.class,
+                // player extras
+                ink.tuanzi.neomacros.core.event.def.player.PlayerEffectEvent.class);
     }
 }
