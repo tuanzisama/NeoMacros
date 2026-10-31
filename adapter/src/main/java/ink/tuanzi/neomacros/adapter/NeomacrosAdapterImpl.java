@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.adapter;
 
 import ink.tuanzi.neomacros.port.ChatPort;
+import ink.tuanzi.neomacros.port.InputPort;
 import ink.tuanzi.neomacros.port.EntityPort;
 import ink.tuanzi.neomacros.port.LifecyclePort;
 import ink.tuanzi.neomacros.port.NeomacrosAdapter;
@@ -17,6 +18,7 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
 
     private final FabricLifecyclePort lifecycle = new FabricLifecyclePort();
     private final FabricChatPort chat = new FabricChatPort();
+    private final FabricInputPort input = new FabricInputPort();
 
     @Override
     public LifecyclePort lifecycle() {
@@ -26,6 +28,11 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
     @Override
     public ChatPort chat() {
         return chat;
+    }
+
+    @Override
+    public InputPort input() {
+        return input;
     }
 
     @Override
