@@ -7,6 +7,7 @@ import ink.tuanzi.neomacros.port.EntityPort;
 import ink.tuanzi.neomacros.port.LifecyclePort;
 import ink.tuanzi.neomacros.port.NeomacrosAdapter;
 import ink.tuanzi.neomacros.port.PlayerPort;
+import ink.tuanzi.neomacros.port.RenderPort;
 import ink.tuanzi.neomacros.port.UnsupportedPortFeature;
 import ink.tuanzi.neomacros.port.WorldPort;
 
@@ -22,6 +23,7 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
     private final FabricChatPort chat = new FabricChatPort();
     private final FabricInputPort input = new FabricInputPort();
     private final FabricInventoryPort inventory = new FabricInventoryPort();
+    private final FabricRenderPort render = new FabricRenderPort();
 
     @Override
     public LifecyclePort lifecycle() {
@@ -41,6 +43,11 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
     @Override
     public InventoryPort inventory() {
         return inventory;
+    }
+
+    @Override
+    public RenderPort render() {
+        return render;
     }
 
     @Override

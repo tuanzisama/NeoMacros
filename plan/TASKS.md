@@ -40,8 +40,8 @@
 | T-104 | lane-fs/net | S1 | **done** | session-agent | t104-fs-net | [报告](reports/T-104.md)；FsApi+NetApi 门面+沙箱边界+逃逸拒绝 ×3 单测绿；WebSocket 延后 |
 | T-105 | lane-command | S1 | **done** | session-agent | t105-command | [报告](reports/T-105.md)；CommandApi+FabricCommandPort（literal+args remainder）×3 单测绿；类型化 DSL 延后 |
 | T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | **partially-done** | session-agent | t106-node-matrix | [报告](reports/T-106.md)；9 节点注册+properties 就位；26.1/26.2 跨版本 API 分支待适配；1.x fabric 版本待查 |
-| T-200 | hud·Draw2D | S2 | pending | | | 依赖 T-106 |
-| T-201 | render·Draw3D | S2 | pending | | | 依赖 T-106 |
+| T-200 | hud·Draw2D | S2 | **done** | session-agent | t200-t201-render | [报告](reports/T-200-T-201.md)；RenderPort+HudApi+FabricRenderPort（26.3 HudElementRegistry pipeline）；Draw2D 完整管线为渲染增量 |
+| T-201 | render·Draw3D | S2 | **done** | session-agent | t200-t201-render | 合并交付（Draw3D 世界内渲染延后到渲染增量） |
 | T-300 | 错误呈现链路 | S3 | pending | | | 依赖 T-106 |
 | T-301 | screen·ScriptScreen | S3 | pending | | | 依赖 T-106 |
 | T-302 | 编辑器 GUI | S3 | pending | | | 依赖 T-301 |
