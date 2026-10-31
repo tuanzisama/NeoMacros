@@ -4,6 +4,8 @@ import com.mojang.brigadier.Command;
 import ink.tuanzi.neomacros.adapter.NeomacrosAdapterImpl;
 import ink.tuanzi.neomacros.core.NeoMacros;
 import ink.tuanzi.neomacros.core.api.ChatApi;
+import ink.tuanzi.neomacros.core.api.FsApi;
+import ink.tuanzi.neomacros.core.api.NetApi;
 import ink.tuanzi.neomacros.core.api.ClockApi;
 import ink.tuanzi.neomacros.core.api.EventsApi;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
@@ -88,7 +90,15 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var pool = new ScriptThreadPool(Runtime.getRuntime().availableProcessors());
         var bus = new EventBus(catalog, pool.workers());
         var registry = new BindingRegistry(mcVersion());
-        registry.registerAll(java.util.List.of(EventsApi.class, ClockApi.class, ChatApi.class, StorageApi.class));
+        var ioExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread thread = new Thread(r, "neomacros-io");
+            thread.setDaemon(true);
+            return thread;
+        });
+        registry.registerAll(java.util.List.of(EventsApi.class, ClockApi.class, ChatApi.class,
+                StorageApi.class));
+        registry.registerInstance(new FsApi(new GameDirFsBridge(), ioExecutor));
+        registry.registerInstance(new NetApi(ioExecutor));
         registry.promoteRootMembers("clock", java.util.List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(configDir.resolve("storage"));
@@ -246,6 +256,21 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         public Optional<Path> fileFor(String specifier) {
             Path file = scriptsDir.resolve(specifier);
             return Files.isRegularFile(file) ? Optional.of(file) : Optional.empty();
+        }
+    }
+
+    /**
+     * Sandbox boundary for the fs facade: game-dir relative, traversal denied.
+     */
+    private record GameDirFsBridge() implements ink.tuanzi.neomacros.core.api.FsApi.FsBridge {
+        @Override
+        public Path resolve(String path) {
+            Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
+            Path resolved = gameDir.toAbsolutePath().resolve(path).normalize();
+            if (!resolved.startsWith(gameDir.toAbsolutePath())) {
+                throw new SecurityException("path escapes the game directory: " + path);
+            }
+            return resolved;
         }
     }
 }

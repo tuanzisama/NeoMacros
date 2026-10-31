@@ -37,7 +37,7 @@
 | T-101 | lane-world（world/entity/player） | S1 | pending | | | 依赖 T-030 |
 | T-102 | lane-inventory | S1 | pending | | | 依赖 T-030 |
 | T-103 | lane-input | S1 | pending | | | 依赖 T-030 |
-| T-104 | lane-fs/net | S1 | **in-progress** | session-agent | t104-fs-net | 2026-10-31 认领 |
+| T-104 | lane-fs/net | S1 | **done** | session-agent | t104-fs-net | [报告](reports/T-104.md)；FsApi+NetApi 门面+沙箱边界+逃逸拒绝 ×3 单测绿；WebSocket 延后 |
 | T-105 | lane-command | S1 | pending | | | 依赖 T-100 |
 | T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | pending | | | 依赖 T-101~105 合入；★需求方确认点 |
 | T-200 | hud·Draw2D | S2 | pending | | | 依赖 T-106 |

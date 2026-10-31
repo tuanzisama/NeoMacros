@@ -58,6 +58,23 @@ public final class BindingRegistry {
         facades.forEach(this::register);
     }
 
+    /**
+     * Registers a pre-built facade instance (stateful facades whose
+     * constructor needs runtime wiring). Model extraction and collision
+     * checks behave exactly like {@link #register(Class)}.
+     */
+    public void registerInstance(Object facade) {
+        ApiModel.ModuleModel model = ApiModelExtractor.extractModule(facade.getClass());
+        if (modules.containsKey(model.name())) {
+            throw new IllegalStateException("module name collision: " + model.name());
+        }
+        if (model.mc() != null && !VersionRange.parse(model.mc()).test(currentMcVersion)) {
+            return;
+        }
+        modules.put(model.name(), model);
+        instances.put(model.name(), facade);
+    }
+
     /** The extracted model (module metadata; members unfiltered by permission). */
     public ApiModel model() {
         return new ApiModel(List.copyOf(modules.values()));
