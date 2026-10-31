@@ -53,11 +53,13 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(NeoMacros.MOD_ID);
 
     private static ScriptRuntime runtime;
+    private static java.nio.file.Path configDir;
+    private static boolean quitOnDone;
 
     @Override
     public void onInitializeClient() {
         LOGGER.info("NeoMacros bootstrap");
-        Path configDir = FabricLoader.getInstance().getConfigDir().resolve(NeoMacros.MOD_ID);
+        configDir = FabricLoader.getInstance().getConfigDir().resolve(NeoMacros.MOD_ID);
         var configManager = new ConfigManager(configDir.resolve("options.json"),
                 message -> LOGGER.warn("neomacros config: {}", message));
         var options = new CoreOptions();
@@ -87,6 +89,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var modules = new ModuleManager(runtime, registry, PermissionView.ALLOW_ALL, scriptsDir,
                 message -> LOGGER.warn("neomacros scripts: {}", message));
 
+        quitOnDone = Boolean.getBoolean("neomacros.e2e.quitOnDone");
+
         wireEventSinks(adapter, runtime, modules, options);
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
         registerCommands(scriptsDir, modules);
@@ -111,6 +115,13 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             rt.eventBus().publish("tick", new TickEvent(tick));
             if (options.scriptWatch && tick % options.scriptWatchInterval == 0) {
                 modules.checkForChanges();
+            }
+            if (quitOnDone && tick % 100 == 0 && tick > 0) {
+                Path resultsFile = configDir.resolve("storage").resolve("e2e-suite.json");
+                if (Files.exists(resultsFile)) {
+                    LOGGER.info("NeoMacros E2E results present; shutting down client");
+                    adapter.lifecycle().requestShutdown();
+                }
             }
         });
         adapter.lifecycle().onGameStart(() -> {

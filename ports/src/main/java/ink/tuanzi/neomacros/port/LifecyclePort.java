@@ -31,4 +31,13 @@ public interface LifecyclePort {
 
     /** Supplies whether the player is currently in a loaded world. */
     Supplier<Boolean> inWorld();
+
+    /**
+     * Requests a graceful client shutdown (test harness quit-on-done; the
+     * game may decline or delay). Implementations that cannot shut the game
+     * down throw {@link UnsupportedPortFeature}.
+     */
+    default void requestShutdown() {
+        throw new UnsupportedPortFeature("shutdown");
+    }
 }
