@@ -23,7 +23,7 @@
 | T-021 | core Runtime·线程·Engine SPI | S0 | pending | | | 依赖 T-020 |
 | T-022 | engine GraalJS PoC ★R1 | S0 | pending | | | 依赖 T-021；spike 可提前 |
 | T-023 | core ApiModel·绑定注册 | S0 | pending | | | 依赖 T-010, T-021 |
-| T-024 | 文档管线骨架（docs-builder） | S0 | pending | | | 依赖 T-010，∥支线 |
+| T-024 | 文档管线骨架（docs-builder） | S0 | **done** | session-agent | t024-docs-builder | [报告](reports/T-024.md)；双 doclet + 快照回归 + tsc 实跑全绿；骨架期约定见其 README |
 | T-030 | adapter/fabric 最小产品节点 | S0 | pending | | | 依赖 T-011, T-021 |
 | T-031 | 模块管理器 | S0 | pending | | | 依赖 T-022, T-023 |
 | T-032 | 配置系统 | S0 | pending | | | 依赖 T-021 |
