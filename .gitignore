@@ -1,0 +1,25 @@
+# Gradle
+.gradle/
+build/
+*/build/
+!docs-builder/build/  # docs-builder 为独立构建（T-024），暂不生效
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# 运行时产物
+run/
+dist/
+logs/
+hs_err_*.log
+
+# Stonecutter 控制器缓存
+.stonecutter/
+
+# 系统
+Thumbs.db
+.DS_Store

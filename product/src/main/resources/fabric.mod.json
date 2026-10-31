@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${version}",
+  "name": "NeoMacros",
+  "description": "ECMAScript scripting for Minecraft clients (Fabric only).",
+  "authors": ["tuanzi"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["ink.tuanzi.neomacros.fabric.NeoMacrosFabric"]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_min}",
+    "fabric-api": "*",
+    "minecraft": "${mc_range}",
+    "java": ">=25"
+  }
+}
