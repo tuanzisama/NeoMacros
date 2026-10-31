@@ -18,7 +18,7 @@
 | T-000 | 仓库骨架与构建脚手架 | S0 | **done** | session-agent | main | [报告](reports/T-000.md)；loom 1.19/Gradle 9.8 升级与 stonecutter 根脚本语义实证已回写架构文档 02 |
 | T-001 | CI 工作流骨架 | S0 | pending | | | 依赖 T-000 ✅ |
 | T-010 | doc-api 注解集 | S0 | **done** | session-agent | t010-doc-api | [报告](reports/T-010.md)；10 注解 + 18 单测绿 + maven 坐标已验证 |
-| T-011 | ports 中立类型与最小端口集 | S0 | pending | | | 依赖 T-000 ✅ |
+| T-011 | ports 中立类型与最小端口集 | S0 | in-progress | session-agent | t011-ports | 依赖 T-000 ✅；2026-10-31 认领（T-010 已合 main） |
 | T-020 | core 事件框架 | S0 | pending | | | 依赖 T-010, T-011 |
 | T-021 | core Runtime·线程·Engine SPI | S0 | pending | | | 依赖 T-020 |
 | T-022 | engine GraalJS PoC ★R1 | S0 | pending | | | 依赖 T-021；spike 可提前 |
