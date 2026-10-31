@@ -31,8 +31,9 @@
 | T-032 | 配置系统 | S0 | **done** | session-agent | t032-config | [报告](reports/T-032.md)；ConfigManager+Codec+CoreOptions+watch 接线全绿；补 T-031 遗留#2 文件监视器 |
 | T-033 | storage 模块 | S0 | **done** | session-agent | t033-storage | [报告](reports/T-033.md)；StorageApi/ModuleStorage/防抖/快照+Proxy 包装全绿；真脚本 put→get→落盘集成测试 |
 | T-040 | E2E-A 测试骨架 | S0 | **in-progress** | session-agent | t040-e2ea | 2026-10-31 认领 |
-| T-041 | E2E-G 套件骨架 | S0 | **in-progress** | session-agent | t041-g0-fixes | [报告](reports/T-041.md)；遗留#1 根因已定位（3 项：catalog 扫描漏子包→空目录、运行期重建 include jar→退出期懒加载 ZipException、重叠 runFabricClient 实例→"无痕消失"假象），修复分支进行中 |
-| T-100 | 权限信任门 | S1 | pending | | | 依赖 T-031, T-033 |
+| T-041 | E2E-G 套件骨架 | S0 | **done** | session-agent | t041-e2eg（收口 33f4b37→main） | [报告](reports/T-041.md)；收口：suite 5/5 ALL PASS + verifyGameE2E 绿 + 33f4b37 独立复核全绿；根因三项定性已回写 08 §8；遗留移交见报告（watchdog 接线→T-100、quitOnDone 复跑、cases 同源机制） |
+| T-100 | 权限信任门 | S1 | **in-progress** | session-agent | t100-trust | 2026-10-31 认领 |
+| T-101 | lane-world（world/entity/player） | S1 | **in-progress** | session-agent-b | t101-lane-world | 2026-10-31 认领（独立 worktree，规避主树 T-100 WIP） |
 | T-101 | lane-world（world/entity/player） | S1 | pending | | | 依赖 T-030 |
 | T-102 | lane-inventory | S1 | pending | | | 依赖 T-030 |
 | T-103 | lane-input | S1 | pending | | | 依赖 T-030 |
