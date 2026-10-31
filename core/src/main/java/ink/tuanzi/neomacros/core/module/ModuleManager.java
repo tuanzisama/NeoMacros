@@ -37,6 +37,8 @@ public final class ModuleManager implements AutoCloseable {
     private final Path scriptsDir;
     private final Consumer<String> warn;
     private final Map<String, LoadedModule> loaded = new LinkedHashMap<>();
+    private final Map<String, Long> watched = new LinkedHashMap<>();
+    private boolean watchScanInitialized;
 
     /** Creates the manager over one scripts directory. */
     public ModuleManager(ScriptRuntime runtime, BindingRegistry bindings, PermissionView permissions,
@@ -214,6 +216,50 @@ public final class ModuleManager implements AutoCloseable {
         } catch (java.util.concurrent.TimeoutException | java.util.concurrent.ExecutionException ignored) {
             // the loop is shutting down or the task failed; attribution ends here
         }
+    }
+
+    /**
+     * One watch scan: loads newly discovered scripts, reloads changed ones,
+     * and unloads deleted ones. Callers drive the cadence (a tick sink or a
+     * scheduler); scan state is kept across calls so the first scan only
+     * registers what it saw.
+     */
+    public void checkForChanges() {
+        List<Path> current = discover();
+        var seen = new java.util.HashSet<String>();
+        for (Path file : current) {
+            long mtime;
+            try {
+                mtime = Files.getLastModifiedTime(file).toMillis();
+            } catch (IOException e) {
+                continue;
+            }
+            String stem = stemOf(file);
+            seen.add(stem);
+            Long known = watched.get(stem);
+            if (known == null) {
+                watched.put(stem, mtime);
+                if (watchScanInitialized && !loaded.containsKey(stem)) {
+                    try {
+                        load(file);
+                    } catch (ScriptError e) {
+                        warn.accept("failed to load new script " + stem + ": " + e.getMessage());
+                    }
+                }
+            } else if (known != mtime) {
+                watched.put(stem, mtime);
+                if (loaded.containsKey(stem)) {
+                    reload(stem);
+                }
+            }
+        }
+        for (String stem : List.copyOf(watched.keySet())) {
+            if (!seen.contains(stem)) {
+                watched.remove(stem);
+                unload(stem);
+            }
+        }
+        watchScanInitialized = true;
     }
 
     private static String stemOf(Path file) {

@@ -24,6 +24,7 @@ tasks.withType<Test>().configureEach {
 dependencies {
     api(project(":ports"))
     api(project(":doc-api"))
+    api(libs.gson)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     // Shared dependency-guard rules from the ports test fixtures.

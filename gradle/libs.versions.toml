@@ -1,11 +1,13 @@
 # Shared dependencies only; node-specific coordinates belong in
 # versions/<mc>/gradle.properties.
 [versions]
+gson = '2.11.0'
 junit = "5.10.2"
 junitPlatform = "1.10.2"
 archunit = "1.5.1"
 
 [libraries]
+gson = { module = 'com.google.code.gson:gson', version.ref = 'gson' }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junitPlatform" }
 archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }
