@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.e2e.harness;
 
 import ink.tuanzi.neomacros.port.ChatPort;
+import ink.tuanzi.neomacros.port.RenderPort;
 import ink.tuanzi.neomacros.port.InventoryPort;
 import ink.tuanzi.neomacros.port.EntityPort;
 import ink.tuanzi.neomacros.port.LifecyclePort;
@@ -63,6 +64,11 @@ public final class StubAdapter implements NeomacrosAdapter {
     @Override
     public ink.tuanzi.neomacros.port.InventoryPort inventory() {
         throw new UnsupportedPortFeature("inventory");
+    }
+
+    @Override
+    public RenderPort render() {
+        throw new UnsupportedPortFeature("render");
     }
 
     @Override
