@@ -14,8 +14,11 @@ import org.graalvm.polyglot.io.IOAccess;
 import org.graalvm.polyglot.proxy.ProxyExecutable;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -283,6 +286,37 @@ public final class GraalJsEngine implements ScriptEngine {
             });
         }
 
+        /** Converts one guest value to its neutral Java form (scalars direct, objects/arrays enumerated). */
+        private Object asNeutral(Value value) {
+            if (value == null || value.isNull()) {
+                return null;
+            }
+            if (value.isString()) {
+                return value.asString();
+            }
+            if (value.isBoolean()) {
+                return value.asBoolean();
+            }
+            if (value.isNumber()) {
+                return value.as(Number.class);
+            }
+            if (value.hasArrayElements()) {
+                List<Object> copy = new ArrayList<>();
+                for (long i = 0; i < value.getArraySize(); i++) {
+                    copy.add(asNeutral(value.getArrayElement(i)));
+                }
+                return copy;
+            }
+            if (value.hasMembers()) {
+                Map<String, Object> copy = new LinkedHashMap<>();
+                for (String key : value.getMemberKeys()) {
+                    copy.put(key, asNeutral(value.getMember(key)));
+                }
+                return copy;
+            }
+            return value.as(Object.class);
+        }
+
         /** Recursively copies polyglot map/list views into plain Java collections. */
         private static Object snapshotValue(Object value) {
             if (value instanceof Map<?, ?> map) {
@@ -408,7 +442,7 @@ public final class GraalJsEngine implements ScriptEngine {
                     }
                     if (member instanceof ModuleBinding.PropertyMember property) {
                         try {
-                            return property.get();
+                            return guestView(property.get());
                         } catch (PolyglotException e) {
                             throw e;
                         } catch (Throwable t) {
@@ -422,7 +456,7 @@ public final class GraalJsEngine implements ScriptEngine {
                         }
                         return executable(arguments -> {
                             try {
-                                return function.invoke(convertArgs(function, arguments));
+                                return guestView(function.invoke(convertArgs(function, arguments)));
                             } catch (PolyglotException e) {
                                 throw e;
                             } catch (Throwable t) {
@@ -478,9 +512,46 @@ public final class GraalJsEngine implements ScriptEngine {
             };
         }
 
+        /**
+         * Prepares a facade result for the guest: plain-data containers are
+         * snapshotted (polyglot views must not escape) and wrapped with
+         * asValue so the guest can read them under HostAccess.NONE.
+         */
+        private Object guestView(Object result) {
+            Object plain = snapshotValue(result);
+            if (plain instanceof java.util.Map<?, ?> map) {
+                // Plain Java maps are not member-readable under HostAccess.NONE;
+                // a ProxyObject exposes keys as members the guest can read.
+                Map<String, Object> source = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    source.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+                return org.graalvm.polyglot.proxy.ProxyObject.fromMap(source);
+            }
+            if (plain instanceof java.util.List<?> list) {
+                return org.graalvm.polyglot.proxy.ProxyArray.fromList(new ArrayList<>(list));
+            }
+            return plain;
+        }
+
+        private static void probeFile(String line) {
+            try {
+                java.nio.file.Files.writeString(java.nio.file.Path.of("build/asneutral-probe.log"),
+                        line + "\n", java.nio.file.StandardOpenOption.CREATE,
+                        java.nio.file.StandardOpenOption.APPEND);
+            } catch (IOException ignored) {
+            }
+        }
+
         /** Converts guest arguments to the facade method's declared Java types. */
         private Object[] convertArgs(ModuleBinding.FunctionMember function, Value[] arguments) {
             Class<?>[] types = function.parameterTypes();
+            try {
+                java.nio.file.Files.writeString(java.nio.file.Path.of("build/convert-probe.log"),
+                        "member=" + function + " types=" + java.util.Arrays.toString(types) + "\n",
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+            } catch (IOException ignored) {
+            }
             Object[] out = new Object[types.length];
             for (int i = 0; i < types.length; i++) {
                 Value argument = i < arguments.length ? arguments[i] : null;
@@ -514,6 +585,11 @@ public final class GraalJsEngine implements ScriptEngine {
             }
             if (type.isInterface() && value.canExecute()) {
                 return adaptFunction(value, type);
+            }
+            if (type == Object.class) {
+                // Plain-data snapshot: guest objects become neutral maps/lists
+                // (Object.class mapping would hand back the raw guest object).
+                return snapshotValue(asNeutral(value));
             }
             throw new ScriptError("cannot convert argument to " + type.getName());
         }

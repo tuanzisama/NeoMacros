@@ -21,6 +21,13 @@ public final class BindingRegistry {
     private final Map<PermissionView, Map<String, ModuleBinding>> bindingCache = new java.util.IdentityHashMap<>();
     private final Map<String, List<String>> promoted = new LinkedHashMap<>();
 
+    /** JS reserved words that cannot appear as export names. */
+    private static final java.util.Set<String> JS_RESERVED_WORDS = java.util.Set.of(
+            "delete", "class", "catch", "default", "export", "extends", "function", "import",
+            "in", "instanceof", "new", "return", "super", "switch", "this", "throw", "try",
+            "typeof", "var", "void", "while", "with", "yield", "await", "const", "let",
+            "break", "case", "continue", "debugger", "do", "else", "finally", "for", "if");
+
     /** Creates the registry for the running milestone node. */
     public BindingRegistry(String currentMcVersion) {
         this.currentMcVersion = currentMcVersion;
@@ -132,6 +139,12 @@ public final class BindingRegistry {
         ApiModel.ModuleModel model = modules.get(name);
         if (model == null) {
             return Optional.empty();
+        }
+        for (ApiModel.MethodModel method : model.methods()) {
+            if (JS_RESERVED_WORDS.contains(method.name())) {
+                throw new IllegalStateException("facade method '" + method.name()
+                        + "' of module '" + name + "' is a JS reserved word; rename it");
+            }
         }
         StringBuilder source = new StringBuilder("const m = globalThis.neo.").append(name).append(";\n");
         source.append("export const ").append(name).append(" = m;\n");

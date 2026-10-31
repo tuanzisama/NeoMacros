@@ -4,6 +4,7 @@ import ink.tuanzi.neomacros.core.api.ChatApi;
 import ink.tuanzi.neomacros.core.api.ClockApi;
 import ink.tuanzi.neomacros.core.api.EventsApi;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
+import ink.tuanzi.neomacros.core.api.StorageApi;
 import ink.tuanzi.neomacros.core.api.bindgen.BindingRegistry;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
 import ink.tuanzi.neomacros.core.event.EventBus;
@@ -108,7 +109,7 @@ class ScriptLoadIntegrationTest {
         var adapter = adapterOf(chatLines);
         ScriptApiEnvironment.install(bus, adapter);
         registry = new BindingRegistry("26.3");
-        registry.registerAll(List.of(EventsApi.class, ClockApi.class, ChatApi.class));
+        registry.registerAll(List.of(EventsApi.class, ClockApi.class, ChatApi.class, StorageApi.class));
         registry.promoteRootMembers("clock", List.of("sleep", "ticks", "nextTick", "runOnMain"));
         engine = new GraalJsEngine(new ModuleResolver() {
             @Override
@@ -127,8 +128,30 @@ class ScriptLoadIntegrationTest {
 
     @AfterEach
     void tearDown() {
+        ScriptApiEnvironment.closeStorages();
         runtime.close();
         pool.close();
+    }
+
+    @Test
+    void storagePutGetPersists(@TempDir Path storageDir) throws Exception {
+        ScriptApiEnvironment.installStorage(storageDir);
+        Path file = scriptsDir.resolve("storer.js");
+        Files.writeString(file, String.join("\n",
+                "import { chat } from '@neomacros/chat';",
+                "import { storage } from '@neomacros/storage';",
+                "storage.put('count', { n: 7 });",
+                "chat.log('COUNT-' + storage.get('count').n);",
+                ""));
+
+        var manager = new ink.tuanzi.neomacros.core.module.ModuleManager(
+                runtime, registry, PermissionView.ALLOW_ALL, scriptsDir, m -> { });
+        manager.load(file);
+
+        assertTrue(chatLines.contains("log:COUNT-7"), "chat lines were: " + chatLines);
+        ScriptApiEnvironment.closeStorages();
+        assertTrue(Files.exists(storageDir.resolve("storer.json")),
+                "storage file should be flushed on closeStorages");
     }
 
     @Test

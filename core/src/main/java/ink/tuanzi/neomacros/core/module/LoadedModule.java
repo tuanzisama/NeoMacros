@@ -56,6 +56,12 @@ public final class LoadedModule implements AutoCloseable {
         return source;
     }
 
+    /** The source file stem; the stable storage key across meta resolution. */
+    public String fileStem() {
+        String name = source.getFileName().toString();
+        return name.endsWith(".js") ? name.substring(0, name.length() - 3) : name;
+    }
+
     /** The module's execution context (its event loop). */
     public ScriptContext context() {
         return context;
