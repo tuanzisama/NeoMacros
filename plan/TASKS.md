@@ -26,7 +26,7 @@
 | T-022 | engine GraalJS PoC ★R1 | S0 | **done** | session-agent | t022-graaljs-engine | [报告](reports/T-022.md)；R1 结：FileSystem SPI 原生拦截可行；R2 结：24.2.2 跑通 Java 17（预热 968→20ms）；08 §7 已回写 |
 | T-023 | core ApiModel·绑定注册 | S0 | **done** | session-agent | t023-bindgen | [报告](reports/T-023.md)；值中立绑定+ProxyObject 活属性+权限包装+节点裁剪，core 11 + 引擎集成 6 全绿；**关键路径打通，T-031 已解锁** |
 | T-024 | 文档管线骨架（docs-builder） | S0 | **done** | session-agent | t024-docs-builder | [报告](reports/T-024.md)；双 doclet + 快照回归 + tsc 实跑全绿；骨架期约定见其 README |
-| T-030 | adapter/fabric 最小产品节点 | S0 | pending | | | 依赖 T-011, T-021 |
+| T-030 | adapter/fabric 最小产品节点 | S0 | **in-progress** | session-agent | t030-product-node | 2026-10-31 认领 |
 | T-031 | 模块管理器 | S0 | pending | | | 依赖 T-022, T-023 |
 | T-032 | 配置系统 | S0 | pending | | | 依赖 T-021 |
 | T-033 | storage 模块 | S0 | pending | | | 依赖 T-023, T-032 |
