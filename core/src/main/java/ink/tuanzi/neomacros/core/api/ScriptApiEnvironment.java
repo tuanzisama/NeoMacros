@@ -1,7 +1,12 @@
 package ink.tuanzi.neomacros.core.api;
 
 import ink.tuanzi.neomacros.core.event.EventBus;
+import ink.tuanzi.neomacros.core.storage.ModuleStorage;
 import ink.tuanzi.neomacros.port.NeomacrosAdapter;
+
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Static installation point for the script-facing facade classes: the facade
@@ -14,6 +19,8 @@ public final class ScriptApiEnvironment {
 
     private static volatile EventBus bus;
     private static volatile NeomacrosAdapter adapter;
+    private static volatile Path storageDir;
+    private static final Map<String, ModuleStorage> STORAGES = new ConcurrentHashMap<>();
 
     private ScriptApiEnvironment() {
     }
@@ -22,6 +29,27 @@ public final class ScriptApiEnvironment {
     public static void install(EventBus eventBus, NeomacrosAdapter gameAdapter) {
         bus = eventBus;
         adapter = gameAdapter;
+    }
+
+    /** Installs the per-script storage directory; called once by the bootstrap. */
+    public static void installStorage(Path dir) {
+        storageDir = dir;
+    }
+
+    /** The (cached) store for one script manifest name. */
+    public static ModuleStorage storageFor(String scriptName) {
+        Path dir = storageDir;
+        if (dir == null) {
+            throw new IllegalStateException("script API environment not installed");
+        }
+        return STORAGES.computeIfAbsent(scriptName,
+                n -> new ModuleStorage(dir, n, 500, m -> { }));
+    }
+
+    /** Flushes and releases every open store (shutdown hook). */
+    public static void closeStorages() {
+        STORAGES.values().forEach(ModuleStorage::close);
+        STORAGES.clear();
     }
 
     /** The installed event bus. */

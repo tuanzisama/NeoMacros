@@ -7,6 +7,7 @@ import ink.tuanzi.neomacros.core.api.ChatApi;
 import ink.tuanzi.neomacros.core.api.ClockApi;
 import ink.tuanzi.neomacros.core.api.EventsApi;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
+import ink.tuanzi.neomacros.core.api.StorageApi;
 import ink.tuanzi.neomacros.core.api.bindgen.BindingRegistry;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
 import ink.tuanzi.neomacros.core.config.ConfigManager;
@@ -72,9 +73,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var pool = new ScriptThreadPool(Runtime.getRuntime().availableProcessors());
         var bus = new EventBus(catalog, pool.workers());
         var registry = new BindingRegistry(mcVersion());
-        registry.registerAll(java.util.List.of(EventsApi.class, ClockApi.class, ChatApi.class));
+        registry.registerAll(java.util.List.of(EventsApi.class, ClockApi.class, ChatApi.class, StorageApi.class));
         registry.promoteRootMembers("clock", java.util.List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
+        ScriptApiEnvironment.installStorage(configDir.resolve("storage"));
 
         ScriptEngine engine = new GraalJsEngine(new ScriptsModuleResolver(scriptsDir, registry));
         runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, options.maxSyncTime);
@@ -119,6 +121,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         adapter.lifecycle().onGameQuit(() -> {
             rt.eventBus().publish("game:quit", new GameQuitEvent());
             modules.unloadPhase(ScriptMeta.Lifecycle.ALWAYS);
+            ScriptApiEnvironment.closeStorages();
         });
         adapter.lifecycle().onWorldJoin(() -> {
             modules.loadPhase(ScriptMeta.Lifecycle.WORLD);
