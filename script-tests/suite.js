@@ -36,13 +36,11 @@ events.on('tick', () => {
   ticks++;
   if (ticks === 20) record('tick-20', true, 'ticks counted');
   if (ticks === 30) {
-    // T-031 leftover check: does the sleep promise settle in-game?
     clock.sleep(50).then(
       () => record('sleep-settles', true, 'sleep(50) resolved'),
       (e) => record('sleep-settles', false, 'rejected: ' + e));
   }
   if (ticks === 60) {
-    // chat:send has no game-side trigger yet (S1); registration-only case.
     try {
       events.onSync('chat:send', (ev) => false);
       record('onsync-register', true, 'registered');
@@ -51,6 +49,16 @@ events.on('tick', () => {
     }
   }
   if (ticks === 80) finish();
+});
+
+// T-101b mixin event family coverage
+import { __test } from '@neomacros/__test';
+
+events.on('entity:load', (ev) => {
+  record('entity-load', true, 'entity loaded: ' + JSON.stringify(ev));
+});
+events.on('world:sound', (ev) => {
+  record('world-sound', true, 'sound: ' + JSON.stringify(ev));
 });
 
 function finish() {

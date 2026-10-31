@@ -126,6 +126,28 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(configDir.resolve("storage"));
 
+        // Hub→Bus wiring: adapter mixin events → EventBus.publish
+        ink.tuanzi.neomacros.adapter.EntityLifecycleHub.onLoad((uuid, typeId) ->
+                bus.publish("entity:load", new ink.tuanzi.neomacros.core.event.def.entity.EntityLoadEvent(
+                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
+                                java.util.UUID.fromString(uuid), typeId, typeId,
+                                new ink.tuanzi.neomacros.port.model.Pos3d(0, 64, 0), 20))));
+        ink.tuanzi.neomacros.adapter.EntityLifecycleHub.onUnload(id ->
+                bus.publish("entity:unload", new ink.tuanzi.neomacros.core.event.def.entity.EntityUnloadEvent(
+                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
+                                java.util.UUID.fromString(id), "", "", new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0), 0))));
+        ink.tuanzi.neomacros.adapter.EntityEventHub.onDamage((uuid, amount) ->
+                bus.publish("entity:damage", new ink.tuanzi.neomacros.core.event.def.entity.EntityDamageEvent(
+                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
+                                java.util.UUID.fromString(uuid), "", "", new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0), 0), amount)));
+        ink.tuanzi.neomacros.adapter.EntityEventHub.onHeal((uuid, amount) ->
+                bus.publish("entity:heal", new ink.tuanzi.neomacros.core.event.def.entity.EntityHealEvent(
+                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
+                                java.util.UUID.fromString(uuid), "", "", new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0), 0), amount)));
+        ink.tuanzi.neomacros.adapter.SoundEventHub.register(data ->
+                bus.publish("world:sound", new ink.tuanzi.neomacros.core.event.def.world.WorldSoundEvent(
+                        data.soundId(), data.x(), data.y(), data.z(), data.volume(), data.pitch())));
+
         var commandPort = new FabricCommandPort();
         var commandApi = new CommandApi(commandPort);
         registry.registerInstance(commandApi);
