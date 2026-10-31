@@ -2,7 +2,6 @@
 .gradle/
 build/
 */build/
-!docs-builder/build/  # docs-builder 为独立构建（T-024），暂不生效
 
 # IDE
 .idea/
@@ -11,15 +10,15 @@ build/
 *.ipr
 *.iws
 
-# 运行时产物
+# Runtime artifacts
 run/
 dist/
 logs/
 hs_err_*.log
 
-# Stonecutter 控制器缓存
+# Stonecutter controller cache
 .stonecutter/
 
-# 系统
+# OS
 Thumbs.db
 .DS_Store

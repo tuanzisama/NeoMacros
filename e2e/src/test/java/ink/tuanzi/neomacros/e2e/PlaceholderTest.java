@@ -5,8 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 /**
- * 占位冒烟测试：证明 e2e 模块的测试基础设施（JUnit + Java 17 工具链）可用。
- * 真正的 E2E-A harness（E2ERuntime/StubAdapter/TestBridge）由 T-040 落地后移除本类。
+ * Smoke test proving the e2e module's test infrastructure (JUnit plus the
+ * Java 17 toolchain) works. Superseded by the E2E-A harness scenarios once
+ * they exist.
  */
 class PlaceholderTest {
     @Test

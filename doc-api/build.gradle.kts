@@ -6,7 +6,8 @@ repositories {
     mavenCentral()
 }
 
-// 版本无关模块：固定 Java 17 基线（架构文档 02 §1）
+// Version-independent module pinned to the Java 17 baseline: compiled once and
+// embedded into every product node. 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(17)
 }

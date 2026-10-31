@@ -1,11 +1,11 @@
 /**
- * core：版本无关、MC 无关的引擎核心（架构文档 03）。
+ * Version-independent scripting engine core: the {@code ScriptRuntime} hub,
+ * event framework, script lifecycle, threading model (per-context event loop
+ * plus a watchdog-guarded synchronous channel), permission trust gate,
+ * configuration, storage, and the script-facing API facades.
  *
- * <p>ScriptRuntime 枢纽、事件框架、脚本生命周期、线程模型（每 context 事件循环 +
- * SyncWatchdog）、权限信任门、配置/存储、脚本 API 门面（文档真源）。</p>
- *
- * <p>硬性约束（架构文档 08 §1 规则 1）：本模块禁止 import {@code net.minecraft.*}
- * 与 Fabric API，禁止出现 {@code //?} 预处理器 —— 违规即架构腐蚀，由 T-011 的
- * ArchUnit 守卫测试强制。</p>
+ * <p>This package must not import {@code net.minecraft.*} or Fabric APIs; all
+ * game access goes through the port interfaces in
+ * {@code ink.tuanzi.neomacros.port}.</p>
  */
 package ink.tuanzi.neomacros.core;

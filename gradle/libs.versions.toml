@@ -1,4 +1,5 @@
-# 跨版本共享依赖（架构文档 02 §6）；版本相关坐标一律放 versions/<mc>/gradle.properties
+# Shared dependencies only; node-specific coordinates belong in
+# versions/<mc>/gradle.properties.
 [versions]
 junit = "5.10.2"
 junitPlatform = "1.10.2"

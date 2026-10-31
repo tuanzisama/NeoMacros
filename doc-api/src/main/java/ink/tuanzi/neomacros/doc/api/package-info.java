@@ -1,7 +1,10 @@
 /**
- * doc-api：脚本 API 注解集（{@code @ApiModule}/{@code @ApiEvent}/{@code @ApiSince}…）。
+ * Annotation set describing the script-facing API surface
+ * ({@code @ApiModule}, {@code @ApiEvent}, {@code @ApiSince}, ...).
  *
- * <p>纯注解模块（RUNTIME retention，无任何模块依赖），是运行时绑定与 docs-builder
- * 文档生成的<b>单一真源</b>（架构文档 05 §4、07 §2）。注解定义由 T-010 落地。</p>
+ * <p>Pure annotations with runtime retention and no dependencies: the runtime
+ * binding builder and the documentation generator consume the same annotated
+ * classes, keeping bindings, generated Markdown and TypeScript definitions in
+ * sync from a single source of truth.</p>
  */
 package ink.tuanzi.neomacros.doc.api;

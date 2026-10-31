@@ -19,7 +19,9 @@ pluginManagement {
     }
 
     plugins {
-        // 1.19-SNAPSHOT：官方 26.3 示例同版本，自动处理无混淆（无需 disableObfuscation 手动开关）
+        // 1.19+ detects unobfuscated Minecraft (26.1+) on its own; do not downgrade to 1.17,
+        // which requires the fabric.loom.disableObfuscation flag and registers a different
+        // configuration set. See docs/02-build-system.md for the rationale.
         id("net.fabricmc.fabric-loom") version "1.19-SNAPSHOT" apply false
     }
 }
@@ -31,10 +33,12 @@ plugins {
 
 rootProject.name = "neomacros"
 
-// ── 版本无关模块（一次编译，Java 17 基线；架构文档 02 §1）──────────────────
+// Version-independent modules: compiled once against the Java 17 baseline and
+// embedded into every product node.
 include("doc-api", "ports", "core", "engine", "e2e")
 
-// ── 版本相关产品分支（Stonecutter 虚拟版本节点：:product:<mc>）─────────────
+// Version-dependent product branch; Stonecutter creates one virtual node per
+// entry (:product:<mc>), all driven by product/build.gradle.kts.
 include("product")
 
 stonecutter {
@@ -43,11 +47,10 @@ stonecutter {
 
     create(rootProject) {
         branch("product") {
-            // 里程碑节点（架构文档 01 §8 / 02 §2）。T-000 仅挂 26.3；
-            // 其余 8 节点在 T-106 补全（同时建 versions/<mc>/gradle.properties）。
+            // Milestone nodes (docs/02-build-system.md). Adding a 1.x node needs
+            // no script change: product/build.gradle.kts branches on
+            // access_widener_namespace from versions/<mc>/gradle.properties.
             versions("26.3")
-            // 1.x 节点加入时无需改此处脚本：product/build.gradle.kts 按
-            // versions/<mc>/gradle.properties 的 access_widener_namespace 决定是否加映射层。
         }
     }
 }

@@ -1,15 +1,15 @@
 /**
- * E2E-G 用例: T-000 bootstrap（模式: auto）
- * ============================================================
- * ⚠ 当前为占位契约：脚本运行时（engine, T-022）与测试 harness（T-041）
- *   尚未落地，本用例只能以【手动探针】方式执行：
+ * E2E-G case: T000-bootstrap (mode: auto)
  *
- *   1. `./gradlew runFabricClient` 启动到主菜单；
- *   2. 日志（run/logs/latest.log）应出现: [neomacros] NeoMacros bootstrap (T-000 skeleton)；
- *   3. 聊天输入 /neomacros → 期望回复: "NeoMacros skeleton (T-000) is loaded."
+ * Manual procedure until the script runtime and the in-game test runner are
+ * available (they replace this comment with automated assertions):
  *
- * __test 桥接契约（为 T-041 预留，届时启用）:
+ *   1. `./gradlew runFabricClient` and wait for the main menu;
+ *   2. run/logs/latest.log must contain: (neomacros) NeoMacros bootstrap;
+ *   3. type /neomacros in chat; the reply must be "NeoMacros <version> is loaded."
+ *
+ * __test bridge contract (once available):
  *   __test.report('T000-bootstrap', ok, detail)
- * 断言内容: /neomacros 已注册（命令反馈文本匹配）且 bootstrap 标记已在日志出现。
+ * Assertions: /neomacros is registered (reply text matches) and the bootstrap
+ * marker appeared in the log.
  */
-// TODO(T-041): 接入 __test 桥接后替换为自动断言，移除本注释块。
