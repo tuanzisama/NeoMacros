@@ -5,7 +5,8 @@
   "minVersion": "0.8",
   "client": [
     "ChatDisplayMixin",
-    "MouseScrollMixin"
+    "MouseScrollMixin",
+    "SoundEnginePlayMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -19,7 +19,7 @@ public abstract class ClientLevelEntityMixin {
     private void neomacros$onEntityLoad(Entity entity, CallbackInfo ci) {
         EntityLifecycleHub.fireLoad(
                 entity.getUUID().toString(),
-                net.minecraft.core.registries.BuiltInRegistries.ENTITY
+                net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE
                         .getKey(entity.getType()).toString());
     }
 
