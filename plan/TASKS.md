@@ -30,14 +30,14 @@
 | T-031 | 模块管理器 | S0 | **done** | session-agent | t031-module-manager | [报告](reports/T-031.md)；收口：sleep-settles 游戏内 PASS（真因=旧 record 的 console.log 抛错）；文件监视器由 T-032 交付；单模块 reload 移交 T-303 |
 | T-032 | 配置系统 | S0 | **done** | session-agent | t032-config | [报告](reports/T-032.md)；ConfigManager+Codec+CoreOptions+watch 接线全绿；补 T-031 遗留#2 文件监视器 |
 | T-033 | storage 模块 | S0 | **done** | session-agent | t033-storage | [报告](reports/T-033.md)；StorageApi/ModuleStorage/防抖/快照+Proxy 包装全绿；真脚本 put→get→落盘集成测试 |
-| T-040 | E2E-A 测试骨架 | S0 | **in-progress** | session-agent | t040-e2ea | 2026-10-31 认领 |
+| T-040 | E2E-A 测试骨架 | S0 | **done** | session-agent | t040-e2ea | [报告](reports/T-040.md)；8 基线场景绿；修复 payload guest 化等五项跨层缺陷 |
 | T-041 | E2E-G 套件骨架 | S0 | **done** | session-agent | t041-e2eg（收口 33f4b37→main） | [报告](reports/T-041.md)；收口：suite 5/5 ALL PASS + verifyGameE2E 绿 + 33f4b37 独立复核全绿；根因三项定性已回写 08 §8；遗留移交见报告（watchdog 接线→T-100、quitOnDone 复跑、cases 同源机制） |
 | T-100 | 权限信任门 | S1 | **done** | session-agent | t100-trust | [报告](reports/T-100.md)；TrustManager+可点击提示+trust 命令 ×5 单测绿；信任哈希口径=模块名+声明集（回写 05） |
 | T-101 | lane-world（world/entity/player） | S1 | **in-progress** | session-agent-b | t101-lane-world | 2026-10-31 认领（独立 worktree，规避主树 T-100 WIP） |
 | T-101 | lane-world（world/entity/player） | S1 | pending | | | 依赖 T-030 |
 | T-102 | lane-inventory | S1 | pending | | | 依赖 T-030 |
 | T-103 | lane-input | S1 | pending | | | 依赖 T-030 |
-| T-104 | lane-fs/net | S1 | pending | | | 依赖 T-100 |
+| T-104 | lane-fs/net | S1 | **in-progress** | session-agent | t104-fs-net | 2026-10-31 认领 |
 | T-105 | lane-command | S1 | pending | | | 依赖 T-100 |
 | T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | pending | | | 依赖 T-101~105 合入；★需求方确认点 |
 | T-200 | hud·Draw2D | S2 | pending | | | 依赖 T-106 |
