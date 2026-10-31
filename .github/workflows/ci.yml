@@ -1,0 +1,70 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: workflow lint (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runs on the GitHub runner, where the release download is reachable;
+      # lints every workflow in this repository including this one.
+      - uses: rhysd/actionlint-action@v1
+        with:
+          version: latest
+
+  compile:
+    name: compile (26.3 node + version-independent modules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Both toolchains installed so Gradle resolves them locally (Java 17 for
+      # the version-independent modules, Java 25 for the 26.3 product node).
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            17
+            25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build version-independent modules and the 26.3 node
+        run: ./gradlew :doc-api:build :ports:build :core:build :engine:build :e2e:build :product:26.3:build --console=plain
+
+  unit:
+    name: unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            17
+            25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run version-independent module tests
+        run: ./gradlew :doc-api:test :ports:test :core:test :engine:test :e2e:test --console=plain
+
+  documentation:
+    name: documentation pipeline (placeholder)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Documentation pipeline placeholder
+        run: bash scripts/ci/documentation.sh
