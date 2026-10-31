@@ -23,7 +23,7 @@
 | T-021 | core Runtime·线程·Engine SPI | S0 | pending | | | 依赖 T-020 |
 | T-022 | engine GraalJS PoC ★R1 | S0 | pending | | | 依赖 T-021；spike 可提前 |
 | T-023 | core ApiModel·绑定注册 | S0 | pending | | | 依赖 T-010, T-021 |
-| T-024 | 文档管线骨架（docs-builder） | S0 | pending | | | 依赖 T-010，∥支线 |
+| T-024 | 文档管线骨架（docs-builder） | S0 | in-progress | session-agent | t024-docs-builder | 依赖 T-010 ✅（已合 main，mavenLocal 坐标可用）；2026-10-31 认领 |
 | T-030 | adapter/fabric 最小产品节点 | S0 | pending | | | 依赖 T-011, T-021 |
 | T-031 | 模块管理器 | S0 | pending | | | 依赖 T-022, T-023 |
 | T-032 | 配置系统 | S0 | pending | | | 依赖 T-021 |
