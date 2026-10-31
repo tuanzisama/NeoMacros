@@ -71,7 +71,17 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
         var adapter = new NeomacrosAdapterImpl();
         var catalog = new EventCatalog();
-        catalog.scanPackage("ink.tuanzi.neomacros.core.event.def");
+        // Explicit registration: the classpath scanner cannot see mod classes
+        // under Knot (java.class.path does not include the mod jar), so the
+        // event list is declared here. Keep in sync with core/event/def.
+        catalog.registerAll(java.util.List.of(
+                ink.tuanzi.neomacros.core.event.def.tick.TickEvent.class,
+                ink.tuanzi.neomacros.core.event.def.chat.ChatSendEvent.class,
+                ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent.class,
+                ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent.class,
+                ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent.class,
+                ink.tuanzi.neomacros.core.event.def.lifecycle.WorldJoinEvent.class,
+                ink.tuanzi.neomacros.core.event.def.lifecycle.WorldLeaveEvent.class));
         var pool = new ScriptThreadPool(Runtime.getRuntime().availableProcessors());
         var bus = new EventBus(catalog, pool.workers());
         var registry = new BindingRegistry(mcVersion());

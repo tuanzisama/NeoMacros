@@ -4,6 +4,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * Dedicated event loop of one script context: FIFO task queue drained by the
@@ -16,13 +17,23 @@ public final class ContextEventLoop implements Executor, AutoCloseable {
     private final String name;
     private final ScheduledExecutorService delayer;
     private final LinkedBlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
+    private final Consumer<Throwable> onError;
     private volatile Thread worker;
     private volatile boolean closed;
 
     /** Creates and starts the loop thread named {@code neomacros-ctx-<name>}. */
     public ContextEventLoop(String name, ScheduledExecutorService delayer) {
+        this(name, delayer, null);
+    }
+
+    /**
+     * Creates and starts the loop thread; task failures are handed to
+     * {@code onError} (nullable) instead of killing the loop.
+     */
+    public ContextEventLoop(String name, ScheduledExecutorService delayer, Consumer<Throwable> onError) {
         this.name = name;
         this.delayer = delayer;
+        this.onError = onError != null ? onError : t -> { };
         this.worker = new Thread(this::drainForever, "neomacros-ctx-" + name);
         this.worker.setDaemon(true);
         this.worker.start();
@@ -96,7 +107,17 @@ public final class ContextEventLoop implements Executor, AutoCloseable {
             try {
                 Runnable task = queue.poll(50, TimeUnit.MILLISECONDS);
                 if (task != null) {
-                    task.run();
+                    try {
+                        task.run();
+                    } catch (Throwable t) {
+                        // A failing task (script error, binding crash) is reported
+                        // and dropped; the loop itself must survive it.
+                        try {
+                            onError.accept(t);
+                        } catch (RuntimeException ignored) {
+                            // Error reporting must never take the loop down.
+                        }
+                    }
                 }
             } catch (InterruptedException e) {
                 return;

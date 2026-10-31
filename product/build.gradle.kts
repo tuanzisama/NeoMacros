@@ -102,8 +102,8 @@ tasks.register("verifyGameE2E") {
     description = "Asserts the in-game E2E suite results"
     doLast {
         val candidates = listOf(
-            rootProject.file("run/config/neomacros/storage/e2e-suite.json"),
-            rootProject.file("product/versions/$mc/run/config/neomacros/storage/e2e-suite.json"),
+            rootProject.file("run/config/neomacros/storage/suite.json"),
+            rootProject.file("product/versions/$mc/run/config/neomacros/storage/suite.json"),
         )
         val resultsFile = candidates.firstOrNull { it.exists() }
             ?: throw GradleException(
