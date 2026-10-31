@@ -5,7 +5,7 @@
 > 2. 读执行协议 `../../neomacros-docs/09-development-plan.md`（§0 Agent 使用说明 / DoD / 泳道 / E2E 规格）；
 > 3. 在本看板认领任务：动工前标 `in-progress` + Owner/分支，完成后标 `done` 并写 `plan/reports/<ID>.md` 报告。
 >
-> 当前进度（2026-11-01 第三次审计）：**done=27, partially=3, pending=2, 全量 build 绿（26.1.2/26.2/26.3 三节点，214 tests）**。本窗口新收口：**S2 Draw3D+HUD**（FabricDraw3DPort=原版 gizmo 管线、neo.render 门面、FabricHudRegistry 修复 neo.hud 死 API）、**T-300/T-301**（ErrorPresenter 节流错误链路 + ScriptScreen 查看器 + /neomacros errors|open；修复 setErrorHandler 从未接线的静默丢失）、**T-310**（en/zh 双语 guide+api 页面，vitepress build 六页产出验证）。**仍 pending**: T-302 编辑器 GUI、T-303 管理面板。**partially**: T-001(CI 待 remote)、S2 sprite（26.3 无 blit，需 renderpearl 管线，独立增量）、T-106 1.x 节点激活（obf 映射+Java 17/21）。下一窗口优先：T-302/T-303 → S2 sprite → 1.x 节点。
+> 当前进度（2026-11-01 第四次审计）：**done=30, partially=2, pending=0, 全量 build 绿（26.1.2/26.2/26.3 三节点，214 tests）**。本窗口新收口：**T-302 ScriptEditorScreen**（MultiLineEditBox 可编辑、Save/Save+Reload、新脚本创建、保存即 checkForChanges）、**T-303 ScriptManagerScreen**（ObjectSelectionList 行列表：loaded/untrusted 标记、行点击进编辑器、New Script/Reload All/Trust Selected；**修复信任提示点击的 /neomacros trust <name> 命令此前无 handler**，新增 pendingTrusts name→hash 映射）、**S2 sprite**（DrawContext2d.sprite + GuiGraphicsExtractor.blit(GUI_TEXTURED)，此前『无 blit』判断有误——blit(RenderPipeline, Identifier,…) 存在）。**partially 仅剩**: T-001(CI 需配置 git remote，用户动作)、T-106 1.x 节点激活（obf loom 模式+Java 17/21 工具链+1.18.2 可行性 G-R3）。游戏内人工验证项（G 级）：编辑器/面板/信任链路/mixin 事件族/gizmo/sprite 目视。
 > R1/R2 已关闭（T-022，结论见 08 §7）；bindgen 完成（T-023）：值中立绑定 + ProxyObject 活属性 + 权限包装 + @ApiMC 节点裁剪，双通道同一性有脚本级测试。
 > 已解锁可认领：**T-031（模块管理器——关键路径，前置全就绪）**、**T-030**（adapter 最小产品节点；首个 adapter 代码前必做双向 chisel 验证，见 T-000 报告遗留）、**T-032**（配置系统）；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
 > 关键路径剩余：T-031 → T-040（E2E-A）→ G0。
@@ -44,8 +44,8 @@
 | T-201 | render·Draw3D | S2 | **done** | session-agent | t200-t201-render | 合并交付（Draw3D 世界内渲染延后到渲染增量） |
 | T-300 | 错误呈现链路 | S3 | **done**（v1） | session-agent | main | ErrorPresenter 节流+20 条环形历史（单测）；setErrorHandler 此前从未接线（运行时错误静默丢失）已修复；可点击聊天行 → /neomacros errors 查看器 |
 | T-301 | screen·ScriptScreen | S3 | **done**（v1 查看器） | session-agent | main | 26.3 extractRenderState 管线 + MultiLineEditBox + Done；/neomacros open <script> 显示源码；编辑能力归 T-302 |
-| T-302 | 编辑器 GUI | S3 | pending | | | 依赖 T-301 |
-| T-303 | 管理面板 | S3 | pending | | | 依赖 T-031, T-301 |
+| T-302 | 编辑器 GUI | S3 | **done** | session-agent | t302-editor-panel | ScriptEditorScreen：MultiLineEditBox 可编辑 + Save/Save+Reload + 新脚本创建，保存即 modules.checkForChanges；/neomacros edit <script> 入口（路径规范化防逃逸） |
+| T-303 | 管理面板 | S3 | **done** | session-agent | t302-editor-panel | ScriptManagerScreen：ObjectSelectionList 行列表（loaded/untrusted 标记、行点击进编辑器）+ New Script/Reload All/Trust Selected；修复 /neomacros trust <name> 无 handler 缺陷（pendingTrusts 映射） |
 | T-310 | VitePress·npm types | S3 | **partially-done** | session-agent | t310-vitepress | [报告](reports/T-310.md)；VitePress 脚手架+npm types 打包脚本就位；npm install/build 待 Node.js 环境验证 |
 
 ## 需求方确认点（agent 不得自行决策）
