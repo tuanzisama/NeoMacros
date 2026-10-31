@@ -6,6 +6,7 @@
   "client": [
     "ChatDisplayMixin",
     "MouseScrollMixin",
+    "ClientLevelEntityMixin",
     "SoundEnginePlayMixin"
   ],
   "injectors": {
