@@ -300,6 +300,25 @@ public final class GraalJsEngine implements ScriptEngine {
             if (value.isNumber()) {
                 return value.as(Number.class);
             }
+            if (value.canExecute()) {
+                // Guest functions adapt to Consumer<Object>: invoking re-enters
+                // the context loop and executes with the given host arguments.
+                Value function = value;
+                return (java.util.function.Consumer<Object[]>) args -> {
+                    Value[] callArgs = new Value[args == null ? 0 : args.length];
+                    for (int i = 0; i < callArgs.length; i++) {
+                        callArgs[i] = context.asValue(args[i]);
+                    }
+                    try {
+                        onLoop(() -> {
+                            function.execute(callArgs);
+                            return null;
+                        });
+                    } catch (ScriptError e) {
+                        throw new RuntimeException(e);
+                    }
+                };
+            }
             if (value.hasArrayElements()) {
                 List<Object> copy = new ArrayList<>();
                 for (long i = 0; i < value.getArraySize(); i++) {
