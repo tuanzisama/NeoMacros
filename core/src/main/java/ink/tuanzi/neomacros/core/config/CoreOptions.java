@@ -30,6 +30,14 @@ public final class CoreOptions implements ConfigSection {
     @Option(description = "Trusted scripts by content hash")
     public Map<String, List<String>> trust = Map.of();
 
+    public Map<String, List<String>> getTrust() {
+        return trust;
+    }
+
+    public void setTrust(Map<String, List<String>> value) {
+        trust = value;
+    }
+
     /** Script enable/disable state keyed by manifest name (management panel store). */
     @Option(description = "Script enable state by name")
     public Map<String, Boolean> autoload = Map.of();

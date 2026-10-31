@@ -94,13 +94,11 @@ public final class ConfigManager implements AutoCloseable {
     }
 
     /**
-     * Writes the merged document (schema marker + section payloads) to disk
-     * when anything changed since the last load/save.
+     * Writes the merged document (schema marker + section payloads) to disk.
+     * Unconditional: runtime code may mutate section fields (e.g. the trust
+     * table) without a dirty-flag handshake, and the write is idempotent.
      */
     public void save() {
-        if (!dirty) {
-            return;
-        }
         JsonObject root = new JsonObject();
         root.addProperty("schema", TARGET_VERSION);
         for (ConfigSection section : sections.values()) {

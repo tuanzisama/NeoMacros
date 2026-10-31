@@ -35,6 +35,16 @@ public final class FabricChatPort implements ChatPort {
     }
 
     @Override
+    public void logClickable(String text, String command) {
+        runOnMain(() -> {
+            Component line = Component.literal(text).withStyle(style -> style
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(command))
+                    .withUnderlined(true));
+            Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(line);
+        });
+    }
+
+    @Override
     public void onChatReceive(Consumer<ChatComponent> sink) {
         ChatReceiveHub.register(sink);
     }

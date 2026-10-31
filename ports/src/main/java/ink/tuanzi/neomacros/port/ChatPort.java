@@ -25,4 +25,13 @@ public interface ChatPort {
 
     /** Registers a sink invoked for every chat message the client displays. */
     void onChatReceive(Consumer<ChatComponent> sink);
+
+    /**
+     * Prints a local chat line whose click runs a client command (trust
+     * prompts and error links). Implementations without clickable-chat
+     * support degrade to {@link #log(String)}.
+     */
+    default void logClickable(String text, String command) {
+        log(text + " (run: " + command + ")");
+    }
 }

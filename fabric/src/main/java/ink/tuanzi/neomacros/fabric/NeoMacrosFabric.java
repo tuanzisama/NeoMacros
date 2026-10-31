@@ -26,8 +26,10 @@ import ink.tuanzi.neomacros.core.module.ScriptMeta;
 import ink.tuanzi.neomacros.core.runtime.ScriptEngine;
 import ink.tuanzi.neomacros.core.runtime.ScriptRuntime;
 import ink.tuanzi.neomacros.core.thread.ScriptThreadPool;
+import ink.tuanzi.neomacros.core.security.TrustManager;
 import ink.tuanzi.neomacros.engine.GraalJsEngine;
 import ink.tuanzi.neomacros.engine.ModuleResolver;
+import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -39,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -96,14 +99,36 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         extraIgnores.addAll(options.wildcardIgnoresExtra);
         runtime.eventBus().setWildcardIgnores(extraIgnores);
 
-        var modules = new ModuleManager(runtime, registry, PermissionView.ALLOW_ALL, scriptsDir,
+        var trustManager = new ink.tuanzi.neomacros.core.security.TrustManager(options);
+        trustManager.onPrompt(prompt -> {
+            String name = prompt.scriptName() != null ? prompt.scriptName() : prompt.contentHash();
+            String caps = String.join(", ", prompt.requested());
+            adapter.chat().logClickable(
+                    "[NeoMacros] script '" + name + "' requests: " + caps
+                            + " -> click to trust, or run /neomacros trust " + name,
+                    "/neomacros trust " + name);
+        });
+
+        var viewResolver = new java.util.function.BiFunction<String, List<String>, PermissionView>() {
+            @Override
+            public PermissionView apply(String scriptName, List<String> declared) {
+                String hash = ink.tuanzi.neomacros.core.security.TrustManager.hashOf(
+                        scriptName + ":" + String.join(",", declared));
+                if (trustManager.isTrusted(hash)) {
+                    return PermissionView.of(new java.util.HashSet<>(declared));
+                }
+                return PermissionView.DENY_ALL;
+            }
+        };
+
+        var modules = new ModuleManager(runtime, registry, viewResolver, scriptsDir,
                 message -> LOGGER.warn("neomacros scripts: {}", message));
 
         quitOnDone = Boolean.getBoolean("neomacros.e2e.quitOnDone");
 
         wireEventSinks(adapter, runtime, modules, options);
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
-        registerCommands(scriptsDir, modules);
+        registerCommands(scriptsDir, modules, trustManager);
     }
 
     /** The running Minecraft version (node trimming key for ApiMC ranges). */
@@ -156,7 +181,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     }
 
     /** Registers the root {@code /neomacros} command and its subcommands. */
-    private static void registerCommands(Path scriptsDir, ModuleManager modules) {
+    private static void registerCommands(Path scriptsDir, ModuleManager modules, TrustManager trustManager) {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(literal("neomacros")
                     .then(literal("status").executes(ctx -> {
@@ -181,7 +206,12 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                         ctx.getSource().sendFeedback(Component.literal(
                                 "Reloaded; " + modules.loaded().size() + " scripts loaded."));
                         return Command.SINGLE_SUCCESS;
-                    })));
+                    }))
+                    .then(literal("trust").then(literal("list").executes(ctx -> {
+                        ctx.getSource().sendFeedback(Component.literal(
+                                "Trusted script hashes: " + trustManager.trustedHashes().size()));
+                        return Command.SINGLE_SUCCESS;
+                    }))));
         });
     }
 

@@ -34,18 +34,31 @@ public final class ModuleManager implements AutoCloseable {
     private final ScriptRuntime runtime;
     private final BindingRegistry bindings;
     private final PermissionView permissions;
+    private final java.util.function.BiFunction<String, List<String>, PermissionView> viewResolver;
     private final Path scriptsDir;
     private final Consumer<String> warn;
     private final Map<String, LoadedModule> loaded = new LinkedHashMap<>();
     private final Map<String, Long> watched = new LinkedHashMap<>();
     private boolean watchScanInitialized;
 
-    /** Creates the manager over one scripts directory. */
+    /** Creates the manager over one scripts directory with a fixed permission view. */
     public ModuleManager(ScriptRuntime runtime, BindingRegistry bindings, PermissionView permissions,
+                         Path scriptsDir, Consumer<String> warn) {
+        this(runtime, bindings, (name, declared) -> permissions, scriptsDir, warn);
+    }
+
+    /**
+     * Creates the manager with a per-script view resolver (the trust gate):
+     * the resolver receives the manifest name and declared capabilities and
+     * returns the binding view for this load.
+     */
+    public ModuleManager(ScriptRuntime runtime, BindingRegistry bindings,
+                         java.util.function.BiFunction<String, List<String>, PermissionView> viewResolver,
                          Path scriptsDir, Consumer<String> warn) {
         this.runtime = runtime;
         this.bindings = bindings;
-        this.permissions = permissions;
+        this.permissions = PermissionView.ALLOW_ALL;
+        this.viewResolver = viewResolver;
         this.scriptsDir = scriptsDir;
         this.warn = warn;
     }
@@ -82,7 +95,8 @@ public final class ModuleManager implements AutoCloseable {
         try {
             ScriptEngine.EngineSession session = runtime.engine().openSession(context);
             module.sessionInstalled(session);
-            session.installBindings(bindings.neoTree(permissions));
+            session.installBindings(bindings.neoTree(
+                    viewResolver.apply(module.meta().name(), module.meta().permissions())));
             session.importModule(stem, file);
 
             Map<String, Object> metaExport = session.readExportedData("meta");
