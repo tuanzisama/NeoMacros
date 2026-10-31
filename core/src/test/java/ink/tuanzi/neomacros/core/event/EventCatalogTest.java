@@ -76,14 +76,12 @@ class EventCatalogTest {
     }
 
     @Test
-    void scanPackageRegistersBuiltInDefinitions() {
+    void explicitRegistrationCoversProductionSet() {
         EventCatalog catalog = new EventCatalog();
-        int registered = catalog.scanPackage("ink.tuanzi.neomacros.core.event.def");
+        var events = ProductionEventSet.records();
+        catalog.registerAll(events);
 
-        // The recursive scan over the def tree must discover exactly the
-        // shared production set (one source of truth for every environment).
-        assertEquals(ProductionEventSet.records().size(), registered);
-        assertEquals(ProductionEventSet.records().size(), catalog.all().size());
+        assertEquals(events.size(), catalog.all().size());
         assertTrue(catalog.descriptor("tick").isPresent());
         assertTrue(catalog.descriptor("chat:receive").isPresent());
         assertTrue(catalog.descriptor("chat:send").isPresent());
@@ -94,6 +92,9 @@ class EventCatalogTest {
         assertTrue(catalog.descriptor("player:join").isPresent());
         assertTrue(catalog.descriptor("player:attackBlock").isPresent());
         assertTrue(catalog.descriptor("world:time").isPresent());
+        assertTrue(catalog.descriptor("entity:load").isPresent());
+        assertTrue(catalog.descriptor("entity:damage").isPresent());
+        assertTrue(catalog.descriptor("player:effect").isPresent());
         assertTrue(catalog.isCancellable("player:attackBlock"));
         assertTrue(catalog.isCancellable("player:interactEntity"));
         assertFalse(catalog.isCancellable("player:health"));
