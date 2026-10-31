@@ -33,13 +33,13 @@
 | T-040 | E2E-A 测试骨架 | S0 | **done** | session-agent | t040-e2ea | [报告](reports/T-040.md)；8 基线场景绿；修复 payload guest 化等五项跨层缺陷 |
 | T-041 | E2E-G 套件骨架 | S0 | **done** | session-agent | t041-e2eg（收口 33f4b37→main） | [报告](reports/T-041.md)；收口：suite 5/5 ALL PASS + verifyGameE2E 绿 + 33f4b37 独立复核全绿；根因三项定性已回写 08 §8；遗留移交见报告（watchdog 接线→T-100、quitOnDone 复跑、cases 同源机制） |
 | T-100 | 权限信任门 | S1 | **done** | session-agent | t100-trust | [报告](reports/T-100.md)；TrustManager+可点击提示+trust 命令 ×5 单测绿；信任哈希口径=模块名+声明集（回写 05） |
-| T-101 | lane-world（world/entity/player） | S1 | **in-progress** | session-agent-b | t101-lane-world | 2026-10-31 认领（独立 worktree，规避主树 T-100 WIP） |
-| T-101 | lane-world（world/entity/player） | S1 | pending | | | 依赖 T-030 |
+| T-101 | lane-world（world/entity/player） | S1 | **partially-done** | session-agent-b | t101-lane-world | [报告](reports/T-101.md)；版本无关层全交付+player/world 事件族 17 件全绿；剩余 mixin 事件族→T-101b、游戏内 observe 待人工进世界；**合入 main 需等 T-100 提交（同改 NeoMacrosFabric）** |
+| T-101b | lane-world mixin 事件族 | S1 | pending | | | entity:load/unload/damage/heal/metadata、world:blockUpdate/chunk/sound/bossbar、player:effect；依赖 T-101 合入 |
 | T-102 | lane-inventory | S1 | pending | | | 依赖 T-030 |
 | T-103 | lane-input | S1 | **done** | session-agent | t103-input | [报告](reports/T-103.md)；InputPort+FabricInputPort（26.3 keymapping/v1 新 API）+滚轮 mixin+InputApi；输入模拟延后 |
 | T-104 | lane-fs/net | S1 | **done** | session-agent | t104-fs-net | [报告](reports/T-104.md)；FsApi+NetApi 门面+沙箱边界+逃逸拒绝 ×3 单测绿；WebSocket 延后 |
 | T-105 | lane-command | S1 | **done** | session-agent | t105-command | [报告](reports/T-105.md)；CommandApi+FabricCommandPort（literal+args remainder）×3 单测绿；类型化 DSL 延后 |
-| T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | pending | | | 依赖 T-101~105 合入；★需求方确认点 |
+| T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | **in-progress** | session-agent | t106-node-matrix | 2026-10-31 认领（T-101 由 session-b 并行，矩阵先行） |
 | T-200 | hud·Draw2D | S2 | pending | | | 依赖 T-106 |
 | T-201 | render·Draw3D | S2 | pending | | | 依赖 T-106 |
 | T-300 | 错误呈现链路 | S3 | pending | | | 依赖 T-106 |
