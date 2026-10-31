@@ -182,6 +182,22 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 }
             });
         }
+        // Hub→Bus wiring for adapter-level event sources (entity lifecycle,
+        // world sound). These fire from mixin/hub paths, not from lifecycle.
+        ink.tuanzi.neomacros.adapter.EntityLifecycleHub.onLoad((uuid, typeId) ->
+                bus.publish("entity:load", new ink.tuanzi.neomacros.core.event.def.entity.EntityLoadEvent(
+                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
+                                java.util.UUID.fromString(uuid), typeId, typeId,
+                                new ink.tuanzi.neomacros.port.model.Pos3d(0, 64, 0), 20))));
+        ink.tuanzi.neomacros.adapter.EntityLifecycleHub.onUnload(id ->
+                bus.publish("entity:unload", new ink.tuanzi.neomacros.core.event.def.entity.EntityUnloadEvent(
+                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
+                                java.util.UUID.fromString(id), "", "", new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0), 0))));
+        ink.tuanzi.neomacros.adapter.SoundEventHub.register(data ->
+                bus.publish("world:sound", new ink.tuanzi.neomacros.core.event.def.world.WorldSoundEvent(
+                        data.soundId(), data.x(), data.y(), data.z(),
+                        data.volume(), data.pitch())));
+
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
         registerCommands(scriptsDir, modules, trustManager);
     }
