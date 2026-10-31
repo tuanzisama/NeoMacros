@@ -5,9 +5,9 @@
 > 2. 读执行协议 `../../neomacros-docs/09-development-plan.md`（§0 Agent 使用说明 / DoD / 泳道 / E2E 规格）；
 > 3. 在本看板认领任务：动工前标 `in-progress` + Owner/分支，完成后标 `done` 并写 `plan/reports/<ID>.md` 报告。
 >
-> 当前进度：**T-000 done**（commit `8560466` + 注释规范更正 `3b1aa9a`，报告 [reports/T-000.md](reports/T-000.md)）。
-> 已解锁可并行认领：T-001 / T-010 / T-011 / T-024；T-022（GraalJS ESM PoC）允许提前开 spike 分支。
-> 快速自验命令（仓库根）：`./gradlew build` → `bash scripts/smoke-build.sh`。
+> 当前进度（2026-10-31 更新）：**T-000 / T-010 / T-011 / T-024 done，T-001 partially-done**（workflow 全交付，actionlint+PR 实跑两项验证待配置 git remote，见 [reports/T-001.md](reports/T-001.md)）。
+> 已解锁可认领：**T-020**（T-010+T-011 均已合 main）；T-022（GraalJS ESM PoC）仍允许提前开 spike 分支；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
+> 快速自验命令（仓库根）：`./gradlew build` → `bash scripts/smoke-build.sh`；文档管线：`./gradlew :doc-api:publishToMavenLocal && ./gradlew -p docs-builder check -PtscPath=<bin/tsc>`。
 
 > 来源：[09-开发计划书](../../neomacros-docs/09-development-plan.md)。认领协议见计划书 §0：
 > 动工前把任务标 `in-progress` 并填 Owner/分支/日期；完成后标 `done` 并在备注附报告链接。
