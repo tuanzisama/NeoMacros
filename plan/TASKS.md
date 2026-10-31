@@ -5,7 +5,7 @@
 > 2. 读执行协议 `../../neomacros-docs/09-development-plan.md`（§0 Agent 使用说明 / DoD / 泳道 / E2E 规格）；
 > 3. 在本看板认领任务：动工前标 `in-progress` + Owner/分支，完成后标 `done` 并写 `plan/reports/<ID>.md` 报告。
 >
-> 当前进度（2026-11-01 收口）：**S0 全部完成（G0 达成）**。**done=21**: T-000~T-024 + T-030/T-032/T-033/T-040 + T-100/T-102/T-103/T-104/T-105 + T-200/T-201渲染骨架；**partially=4**: T-001(CI待remote)/T-031(已收口)/T-041(已收口)/T-106(9节点注册/仅26.3激活)；**T-101 partially**（版本无关层+事件族17件绿，T-101b mixin事件族→独立pending）。**已解锁：T-102 done, T-310 VitePress pending, T-300~T-303 pending, T-106 遗留收口 pending**。**G1（S1 API面）主体达成**——5 lane 全绿（world/trust/fs-net/command/input），但 T-101b mixin 和 T-106 收口待做。快速自验：`./gradlew build` → `bash scripts/smoke-build.sh`。
+> 当前进度（2026-11-01 审计）：**done=21, partially=4, pending=5, main=80+ commits, build 绿（26.3）**。**S0 全部完成（G0 达成：游戏内 suite 5/5 ALL PASS）**。**S1 四 lane done**：T-100 信任门/T-102 物品栏/T-103 输入/T-104 fs+net/T-105 命令。**S2 渲染骨架 done**：T-200/T-201。**partially=4**: T-001(CI)/T-031(收口)/T-041(收口)/T-106(跨版本适配)。**T-101 partially**（版本无关层 done，T-101b mixin 部分完成——事件 payload+hub 就位，LivingEntity mixin 因 26.3 hurtServer 拆分延后）。**pending=5**: T-101b mixin 完整接线/T-310 VitePress/T-300/T-301~303/S2 Draw2D 完整管线+Draw3D。下一窗口优先：T-101b mixin 接线 → T-310 → T-300~303 → T-106。
 > R1/R2 已关闭（T-022，结论见 08 §7）；bindgen 完成（T-023）：值中立绑定 + ProxyObject 活属性 + 权限包装 + @ApiMC 节点裁剪，双通道同一性有脚本级测试。
 > 已解锁可认领：**T-031（模块管理器——关键路径，前置全就绪）**、**T-030**（adapter 最小产品节点；首个 adapter 代码前必做双向 chisel 验证，见 T-000 报告遗留）、**T-032**（配置系统）；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
 > 关键路径剩余：T-031 → T-040（E2E-A）→ G0。
