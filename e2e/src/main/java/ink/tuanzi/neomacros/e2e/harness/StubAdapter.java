@@ -299,6 +299,7 @@ public final class StubAdapter implements NeomacrosAdapter {
     /** Local player state over one settable snapshot plus fireable interactions. */
     public static final class StubPlayer implements PlayerPort {
         volatile PlayerSnapshot self;
+        volatile List<ink.tuanzi.neomacros.port.model.EffectSnapshot> effects = List.of();
         final List<Function<BlockInteraction, Boolean>> attackBlockSinks = new CopyOnWriteArrayList<>();
         final List<Function<EntitySnapshot, Boolean>> attackEntitySinks = new CopyOnWriteArrayList<>();
         final List<Function<BlockInteraction, Boolean>> interactBlockSinks = new CopyOnWriteArrayList<>();
@@ -307,6 +308,11 @@ public final class StubAdapter implements NeomacrosAdapter {
         /** Sets the local player snapshot (null = not in a world). */
         public void setSelf(PlayerSnapshot snapshot) {
             this.self = snapshot;
+        }
+
+        /** Sets the active status effect list served to the wiring. */
+        public void setEffects(List<ink.tuanzi.neomacros.port.model.EffectSnapshot> effects) {
+            this.effects = List.copyOf(effects);
         }
 
         /** Fires the attack-block interaction; returns the cancel verdict. */
@@ -332,6 +338,11 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public Optional<PlayerSnapshot> self() {
             return Optional.ofNullable(self);
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.EffectSnapshot> activeEffects() {
+            return effects;
         }
 
         @Override

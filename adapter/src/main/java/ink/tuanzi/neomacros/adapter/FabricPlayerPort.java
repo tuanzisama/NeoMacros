@@ -2,6 +2,7 @@ package ink.tuanzi.neomacros.adapter;
 
 import ink.tuanzi.neomacros.port.PlayerPort;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
+import ink.tuanzi.neomacros.port.model.EffectSnapshot;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
 import ink.tuanzi.neomacros.port.model.Pos3d;
@@ -63,6 +64,23 @@ public final class FabricPlayerPort implements PlayerPort {
                     player.getHealth(),
                     player.getFoodData().getFoodLevel(),
                     player.getAirSupply()));
+        });
+    }
+
+    @Override
+    public List<EffectSnapshot> activeEffects() {
+        return MainThread.run(() -> {
+            LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
+            if (player == null) {
+                return List.of();
+            }
+            return player.getActiveEffectsMap().values().stream()
+                    .map(instance -> new EffectSnapshot(
+                            BuiltInRegistries.MOB_EFFECT.getKey(
+                                    instance.getEffect().value()).toString(),
+                            instance.getAmplifier(),
+                            instance.getDuration()))
+                    .toList();
         });
     }
 

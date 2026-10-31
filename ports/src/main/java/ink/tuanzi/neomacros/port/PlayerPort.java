@@ -1,9 +1,11 @@
 package ink.tuanzi.neomacros.port;
 
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
+import ink.tuanzi.neomacros.port.model.EffectSnapshot;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -19,6 +21,12 @@ public interface PlayerPort {
 
     /** Returns a snapshot of the local player, or empty when not in a world. */
     Optional<PlayerSnapshot> self();
+
+    /**
+     * Returns the local player's currently active status effects, or an
+     * empty list when not in a world.
+     */
+    List<EffectSnapshot> activeEffects();
 
     /**
      * Registers a sink invoked when the player starts breaking a block; the

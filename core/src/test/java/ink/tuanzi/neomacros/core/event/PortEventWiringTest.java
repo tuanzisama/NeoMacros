@@ -210,6 +210,118 @@ class PortEventWiringTest {
         runtime.close();
     }
 
+    @Test
+    void entityHealthDiffPublishesDamageAndHeal() {
+        var published = new ArrayList<Published>();
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var clock = new TickClock();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-d")), clock);
+        recordAll(published, bus, catalog);
+
+        adapter.playerPort.self = snapshot(1.0);
+        var zombie = java.util.UUID.randomUUID();
+        adapter.entityPort.nearby = List.of(entity(zombie, 20.0));
+        fireTicks(adapter, clock, 1);
+        assertTrue(published.stream().noneMatch(p -> p.name().startsWith("entity:")),
+                "first sight must not fire a delta: " + names(published));
+
+        // Health drop fires entity:damage with the positive damage amount.
+        published.clear();
+        adapter.entityPort.nearby = List.of(entity(zombie, 13.0));
+        fireTicks(adapter, clock, 1);
+        var damage = published.stream()
+                .filter(p -> p.name().equals("entity:damage")).findFirst().orElseThrow();
+        var damagePayload = (ink.tuanzi.neomacros.core.event.def.entity.EntityDamageEvent) damage.payload();
+        assertEquals(zombie, damagePayload.entity().uuid());
+        assertEquals(7.0f, damagePayload.amount(), 0.001f);
+
+        // Health recovery fires entity:heal; the local player never appears.
+        published.clear();
+        adapter.entityPort.nearby = List.of(entity(zombie, 15.0));
+        fireTicks(adapter, clock, 1);
+        var heal = published.stream()
+                .filter(p -> p.name().equals("entity:heal")).findFirst().orElseThrow();
+        assertEquals(zombie,
+                ((ink.tuanzi.neomacros.core.event.def.entity.EntityHealEvent) heal.payload())
+                        .entity().uuid());
+
+        // The same health twice publishes nothing.
+        published.clear();
+        fireTicks(adapter, clock, 1);
+        assertTrue(published.stream().noneMatch(p -> p.name().startsWith("entity:")),
+                "events were: " + names(published));
+
+        // Leaving the radius clears tracking; returning replays no delta.
+        published.clear();
+        adapter.entityPort.nearby = List.of();
+        fireTicks(adapter, clock, 1);
+        adapter.entityPort.nearby = List.of(entity(zombie, 15.0));
+        fireTicks(adapter, clock, 1);
+        assertTrue(published.stream().noneMatch(p -> p.name().startsWith("entity:")),
+                "events were: " + names(published));
+        runtime.close();
+    }
+
+    @Test
+    void effectChangesPublishAddRemoveAndAmplifier() {
+        var published = new ArrayList<Published>();
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var clock = new TickClock();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-e")), clock);
+        recordAll(published, bus, catalog);
+
+        adapter.playerPort.self = snapshot(1.0);
+        fireTicks(adapter, clock, 1);
+
+        // Gaining an effect fires added=true with its amplifier.
+        published.clear();
+        adapter.playerPort.effects = List.of(effect("minecraft:speed", 0));
+        fireTicks(adapter, clock, 1);
+        var gain = published.stream()
+                .filter(p -> p.name().equals("player:effect")).findFirst().orElseThrow();
+        var gainPayload = (ink.tuanzi.neomacros.core.event.def.player.PlayerEffectEvent) gain.payload();
+        assertEquals("minecraft:speed", gainPayload.effectId());
+        assertTrue(gainPayload.added());
+        assertEquals(0, gainPayload.amplifier());
+
+        // An amplifier change fires added=true with the new amplifier.
+        published.clear();
+        adapter.playerPort.effects = List.of(effect("minecraft:speed", 1));
+        fireTicks(adapter, clock, 1);
+        assertEquals(1, published.stream().filter(p -> p.name().equals("player:effect")).count());
+
+        // Losing the effect fires added=false with the last known amplifier.
+        published.clear();
+        adapter.playerPort.effects = List.of();
+        fireTicks(adapter, clock, 1);
+        var loss = published.stream()
+                .filter(p -> p.name().equals("player:effect")).findFirst().orElseThrow();
+        var lossPayload = (ink.tuanzi.neomacros.core.event.def.player.PlayerEffectEvent) loss.payload();
+        assertEquals("minecraft:speed", lossPayload.effectId());
+        assertEquals(false, lossPayload.added());
+        assertEquals(1, lossPayload.amplifier());
+
+        // No change publishes nothing.
+        published.clear();
+        fireTicks(adapter, clock, 1);
+        assertTrue(published.stream().noneMatch(p -> p.name().equals("player:effect")),
+                "events were: " + names(published));
+        runtime.close();
+    }
+
+    private static EntitySnapshot entity(UUID uuid, double health) {
+        return new EntitySnapshot(uuid, "minecraft:zombie", "Zombie",
+                new Pos3d(1, 64, 1), health);
+    }
+
+    private static ink.tuanzi.neomacros.port.model.EffectSnapshot effect(String id, int amplifier) {
+        return new ink.tuanzi.neomacros.port.model.EffectSnapshot(id, amplifier, 200);
+    }
+
     private static void recordAll(ArrayList<Published> sink, EventBus bus, EventCatalog catalog) {
         for (var descriptor : catalog.all()) {
             String name = descriptor.name();
@@ -237,6 +349,7 @@ class PortEventWiringTest {
         final StubLifecycle lifecyclePort = new StubLifecycle();
         final StubWorld worldPort = new StubWorld();
         final StubPlayer playerPort = new StubPlayer();
+        final StubEntity entityPort = new StubEntity();
 
         @Override
         public LifecyclePort lifecycle() {
@@ -255,7 +368,7 @@ class PortEventWiringTest {
 
         @Override
         public EntityPort entity() {
-            return new StubEntity();
+            return entityPort;
         }
 
         @Override
@@ -368,19 +481,22 @@ class PortEventWiringTest {
     }
 
     private static final class StubEntity implements EntityPort {
+        volatile List<EntitySnapshot> nearby = List.of();
+
         @Override
         public Optional<EntitySnapshot> byUuid(UUID uuid) {
-            return Optional.empty();
+            return nearby.stream().filter(e -> e.uuid().equals(uuid)).findFirst();
         }
 
         @Override
         public List<EntitySnapshot> inRadius(Pos3d center, double range, java.util.function.Predicate<EntitySnapshot> filter) {
-            return List.of();
+            return nearby.stream().filter(filter).toList();
         }
     }
 
     private static final class StubPlayer implements PlayerPort {
         volatile PlayerSnapshot self;
+        volatile List<ink.tuanzi.neomacros.port.model.EffectSnapshot> effects = List.of();
         final List<Function<BlockInteraction, Boolean>> attackBlocks = new CopyOnWriteArrayList<>();
         final List<Function<EntitySnapshot, Boolean>> attackEntities = new CopyOnWriteArrayList<>();
         final List<Function<BlockInteraction, Boolean>> interactBlocks = new CopyOnWriteArrayList<>();
@@ -389,6 +505,11 @@ class PortEventWiringTest {
         @Override
         public Optional<PlayerSnapshot> self() {
             return Optional.ofNullable(self);
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.EffectSnapshot> activeEffects() {
+            return effects;
         }
 
         @Override
