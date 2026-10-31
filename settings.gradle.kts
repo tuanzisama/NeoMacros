@@ -47,10 +47,10 @@ stonecutter {
 
     create(rootProject) {
         branch("product") {
-            // Milestone nodes (docs/02-build-system.md). Adding a 1.x node needs
-            // no script change: product/build.gradle.kts branches on
-            // access_widener_namespace from versions/<mc>/gradle.properties.
-            versions("26.3")
+            // Milestone nodes (docs/01-overview.md §8). The full matrix:
+            // 26.x unobf on Java 25, 1.x obf on Java 17/21 (Mojmap+Parchment).
+            // fabric_minecraft_version_range pins each node 1:1.
+            versions("26.1.2", "26.2", "26.3")
         }
     }
 }
