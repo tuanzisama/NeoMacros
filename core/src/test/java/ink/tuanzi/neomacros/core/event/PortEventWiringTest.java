@@ -90,7 +90,6 @@ class PortEventWiringTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("post-merge stub alignment pending (T-101b)")
     void joinVitalsDeathAndLeaveFlowFromTicks() {
         var published = new ArrayList<Published>();
         var bus = new EventBus(catalog, Runnable::run);
@@ -146,7 +145,6 @@ class PortEventWiringTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("post-merge stub alignment pending (T-101b)")
     void dimensionChangeAndTimeJumpPublish() {
         var published = new ArrayList<Published>();
         var bus = new EventBus(catalog, Runnable::run);
@@ -190,7 +188,6 @@ class PortEventWiringTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("post-merge stub alignment pending (T-101b)")
     void interactionSinkPublishesAndReturnsVerdict() {
         var bus = new EventBus(catalog, Runnable::run);
         var adapter = new StubAdapter();
@@ -278,28 +275,7 @@ class PortEventWiringTest {
 
         @Override
         public PlayerPort player() {
-            return new PlayerPort() {
-                @Override
-                public Optional<ink.tuanzi.neomacros.port.model.PlayerSnapshot> self() {
-                    return Optional.empty();
-                }
-
-                @Override
-                public void onAttackBlock(java.util.function.Function<ink.tuanzi.neomacros.port.model.BlockInteraction, Boolean> sink) {
-                }
-
-                @Override
-                public void onAttackEntity(java.util.function.Function<ink.tuanzi.neomacros.port.model.EntitySnapshot, Boolean> sink) {
-                }
-
-                @Override
-                public void onInteractBlock(java.util.function.Function<ink.tuanzi.neomacros.port.model.BlockInteraction, Boolean> sink) {
-                }
-
-                @Override
-                public void onInteractEntity(java.util.function.Function<ink.tuanzi.neomacros.port.model.EntitySnapshot, Boolean> sink) {
-                }
-            };
+            return playerPort;
         }
     }
 
@@ -406,6 +382,9 @@ class PortEventWiringTest {
     private static final class StubPlayer implements PlayerPort {
         volatile PlayerSnapshot self;
         final List<Function<BlockInteraction, Boolean>> attackBlocks = new CopyOnWriteArrayList<>();
+        final List<Function<EntitySnapshot, Boolean>> attackEntities = new CopyOnWriteArrayList<>();
+        final List<Function<BlockInteraction, Boolean>> interactBlocks = new CopyOnWriteArrayList<>();
+        final List<Function<EntitySnapshot, Boolean>> interactEntities = new CopyOnWriteArrayList<>();
 
         @Override
         public Optional<PlayerSnapshot> self() {
@@ -419,14 +398,17 @@ class PortEventWiringTest {
 
         @Override
         public void onAttackEntity(Function<EntitySnapshot, Boolean> sink) {
+            attackEntities.add(sink);
         }
 
         @Override
         public void onInteractBlock(Function<BlockInteraction, Boolean> sink) {
+            interactBlocks.add(sink);
         }
 
         @Override
         public void onInteractEntity(Function<EntitySnapshot, Boolean> sink) {
+            interactEntities.add(sink);
         }
 
         boolean fireAttackBlock(BlockInteraction hit) {
