@@ -5,10 +5,10 @@
 > 2. 读执行协议 `../../neomacros-docs/09-development-plan.md`（§0 Agent 使用说明 / DoD / 泳道 / E2E 规格）；
 > 3. 在本看板认领任务：动工前标 `in-progress` + Owner/分支，完成后标 `done` 并写 `plan/reports/<ID>.md` 报告。
 >
-> 当前进度（2026-10-31 更新）：**T-000 / T-010 / T-011 / T-020 / T-021 / T-022 / T-024 done，T-001 partially-done**（workflow 全交付，actionlint+PR 实跑两项验证待配置 git remote，见 [reports/T-001.md](reports/T-001.md)）。
-> **R1/R2 已关闭**（T-022）：GraalJS 24.2.2 @ Java 17 跑通；`@neomacros/*` 原生 ESM 拦截可行（FileSystem SPI）；结论见 08 §7。
-> 已解锁可认领：**T-023**（ApiModel·绑定注册——关键路径下一环，T-031 就差它）、**T-031** 动工前置= T-023、**T-030**（adapter 最小产品节点；首个 adapter 代码前必做双向 chisel 验证，见 T-000 报告遗留）、**T-032**（配置系统）；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
-> 关键路径剩余：T-031（模块管理器）← 需 T-023；T-040（E2E-A）← 需 T-031。
+> 当前进度（2026-10-31 更新）：**T-000 / T-010 / T-011 / T-020 / T-021 / T-022 / T-023 / T-024 done，T-001 partially-done**（workflow 全交付，actionlint+PR 实跑两项验证待配置 git remote，见 [reports/T-001.md](reports/T-001.md)）。
+> R1/R2 已关闭（T-022，结论见 08 §7）；bindgen 完成（T-023）：值中立绑定 + ProxyObject 活属性 + 权限包装 + @ApiMC 节点裁剪，双通道同一性有脚本级测试。
+> 已解锁可认领：**T-031（模块管理器——关键路径，前置全就绪）**、**T-030**（adapter 最小产品节点；首个 adapter 代码前必做双向 chisel 验证，见 T-000 报告遗留）、**T-032**（配置系统）；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
+> 关键路径剩余：T-031 → T-040（E2E-A）→ G0。
 > 快速自验命令（仓库根）：`./gradlew build` → `bash scripts/smoke-build.sh`；引擎：`./gradlew :engine:test`；文档管线：`./gradlew :doc-api:publishToMavenLocal && ./gradlew -p docs-builder check -PtscPath=<bin/tsc>`。
 
 > 来源：[09-开发计划书](../../neomacros-docs/09-development-plan.md)。认领协议见计划书 §0：
