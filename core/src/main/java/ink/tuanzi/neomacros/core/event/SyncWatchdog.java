@@ -48,6 +48,15 @@ public final class SyncWatchdog implements AutoCloseable {
 
     /** Runs the callback under the budget: overdue dispatches get the subscription disabled. */
     public void guard(Subscription subscription, String eventName, Runnable invoke) {
+        guardArmed(subscription, eventName, invoke);
+    }
+
+    /** Guards a non-subscription synchronous section (e.g. a bridged main-thread task); overdue dispatches report only. */
+    public void guard(String eventName, Runnable invoke) {
+        guardArmed(null, eventName, invoke);
+    }
+
+    private void guardArmed(Subscription subscription, String eventName, Runnable invoke) {
         ArmedDispatch dispatch = new ArmedDispatch(subscription, eventName, System.nanoTime(),
                 System.currentTimeMillis() + maxSyncMillis);
         long id = sequence++;
@@ -72,7 +81,9 @@ public final class SyncWatchdog implements AutoCloseable {
                 ArmedDispatch dispatch = it.next();
                 if (now >= dispatch.deadlineMillis() && !dispatch.violationReported) {
                     dispatch.violationReported = true;
-                    dispatch.subscription().deactivate();
+                    if (dispatch.subscription() != null) {
+                        dispatch.subscription().deactivate();
+                    }
                     onViolation.accept(new Violation(dispatch.eventName(),
                             (System.nanoTime() - dispatch.startNanos()) / 1_000_000));
                 }

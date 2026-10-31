@@ -1,0 +1,43 @@
+package ink.tuanzi.neomacros.core.runtime;
+
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.Executor;
+
+/**
+ * Engine SPI implemented by the engine module (the only GraalJS
+ * implementation). The interface exists so the runtime is testable with a
+ * stub engine; engine dependencies stay isolated behind it.
+ *
+ * <p>Contract: ES module imports with {@code @neomacros/*} specifier
+ * resolution, binding-tree injection, promise settlement scheduled onto the
+ * context loop, engine exceptions translated to {@link ScriptError} (with
+ * source location), and deterministic disposal.</p>
+ */
+public interface ScriptEngine extends AutoCloseable {
+
+    /** Opens an execution session for one script context. */
+    EngineSession openSession(ScriptContext context) throws ScriptError;
+
+    /** Drops the module cache; the next import re-executes every module (reload semantics). */
+    void clearModuleCache();
+
+    /** Closes the engine and all sessions opened through it. */
+    @Override
+    void close();
+
+    /**
+     * Per-context execution surface. Every method runs on the context's event
+     * loop thread (callers funnel through {@link ScriptContext#loop()});
+     * promise settlements the engine schedules must go through the same
+     * loop's executor.
+     */
+    interface EngineSession extends AutoCloseable {
+
+        /** Injects the binding tree (the {@code neo.*} roots) into the engine context. */
+        void installBindings(Map<String, Object> bindings) throws ScriptError;
+
+        /** Imports one ES module and runs its top-level code. */
+        void importModule(String moduleName, Path sourceFile) throws ScriptError;
+    }
+}
