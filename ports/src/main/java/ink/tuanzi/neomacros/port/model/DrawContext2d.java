@@ -20,4 +20,10 @@ public interface DrawContext2d {
 
     /** Draws a 1-pixel rectangle outline. */
     void outline(int x, int y, int width, int height, int color);
+
+    /**
+     * Draws a texture scaled to the rectangle, identified as
+     * {@code namespace:path}. Invalid identifiers draw nothing.
+     */
+    void sprite(int x, int y, int width, int height, String textureId);
 }

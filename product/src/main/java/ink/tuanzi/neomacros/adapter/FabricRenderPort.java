@@ -45,6 +45,15 @@ public final class FabricRenderPort implements RenderPort {
                 public void outline(int x, int y, int width, int height, int color) {
                     extractor.outline(x, y, x + width, y + height, color);
                 }
+
+                @Override
+                public void sprite(int x, int y, int width, int height, String textureId) {
+                    var texture = Identifier.tryParse(textureId);
+                    if (texture != null) {
+                        extractor.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED,
+                                texture, x, y, 0f, 0f, width, height, width, height);
+                    }
+                }
             });
         });
     }
