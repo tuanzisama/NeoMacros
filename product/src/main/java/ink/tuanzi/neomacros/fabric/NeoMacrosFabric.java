@@ -143,8 +143,12 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         runtime.eventBus().setWildcardIgnores(extraIgnores);
 
         var trustManager = new ink.tuanzi.neomacros.core.security.TrustManager(options);
+        // Pending first-load trust requests by script name; /neomacros trust
+        // <name> and the management panel resolve the grant through this map.
+        var pendingTrusts = new java.util.concurrent.ConcurrentHashMap<String, String>();
         trustManager.onPrompt(prompt -> {
             String name = prompt.scriptName() != null ? prompt.scriptName() : prompt.contentHash();
+            pendingTrusts.put(name, prompt.contentHash());
             String caps = String.join(", ", prompt.requested());
             adapter.chat().logClickable(
                     "[NeoMacros] script '" + name + "' requests: " + caps
@@ -227,7 +231,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                 data.uuid(), data.action(), data.name(), data.progress())));
 
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
-        registerCommands(scriptsDir, modules, trustManager, errorPresenter);
+        registerCommands(scriptsDir, modules, trustManager, errorPresenter, pendingTrusts);
     }
 
     /** The running Minecraft version (node trimming key for ApiMC ranges). */
@@ -239,7 +243,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
     /** Registers the root {@code /neomacros} command and its subcommands. */
     private static void registerCommands(Path scriptsDir, ModuleManager modules, TrustManager trustManager,
-            ink.tuanzi.neomacros.core.runtime.ErrorPresenter errorPresenter) {
+            ink.tuanzi.neomacros.core.runtime.ErrorPresenter errorPresenter,
+            java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts) {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(literal("neomacros")
                     .then(literal("status").executes(ctx -> {
@@ -265,11 +270,48 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                 "Reloaded; " + modules.loaded().size() + " scripts loaded."));
                         return Command.SINGLE_SUCCESS;
                     }))
-                    .then(literal("trust").then(literal("list").executes(ctx -> {
-                        ctx.getSource().sendFeedback(Component.literal(
-                                "Trusted script hashes: " + trustManager.trustedHashes().size()));
+                    .then(literal("trust")
+                            .then(literal("list").executes(ctx -> {
+                                ctx.getSource().sendFeedback(Component.literal(
+                                        "Trusted script hashes: " + trustManager.trustedHashes().size()));
+                                return Command.SINGLE_SUCCESS;
+                            }))
+                            .then(argument("script", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                    .executes(ctx -> {
+                                        String name = com.mojang.brigadier.arguments.StringArgumentType
+                                                .getString(ctx, "script");
+                                        String hash = pendingTrusts.get(name);
+                                        if (hash == null) {
+                                            ctx.getSource().sendFeedback(Component.literal(
+                                                    "No pending trust request from: " + name));
+                                            return 0;
+                                        }
+                                        trustManager.trust(hash);
+                                        pendingTrusts.remove(name);
+                                        ctx.getSource().sendFeedback(Component.literal(
+                                                "Trusted: " + name + " (reload to apply)"));
+                                        return Command.SINGLE_SUCCESS;
+                                    })))
+                    .then(literal("edit").then(argument("script",
+                                    com.mojang.brigadier.arguments.StringArgumentType.word())
+                            .executes(ctx -> {
+                                String name = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "script");
+                                var file = scriptsDir.resolve(name.endsWith(".js") ? name : name + ".js");
+                                if (!file.normalize().startsWith(scriptsDir.normalize())) {
+                                    ctx.getSource().sendFeedback(Component.literal("Invalid script name"));
+                                    return 0;
+                                }
+                                ScriptEditorScreen.open(file, modules::checkForChanges);
+                                return Command.SINGLE_SUCCESS;
+                            })))
+                    .then(literal("panel").executes(ctx -> {
+                        ScriptManagerScreen.open(scriptsDir,
+                                () -> modules.loaded().stream()
+                                        .map(m -> m.meta().name())
+                                        .collect(java.util.stream.Collectors.toSet()),
+                                pendingTrusts, trustManager, modules::checkForChanges);
                         return Command.SINGLE_SUCCESS;
-                    })))
+                    }))
                     .then(literal("errors").executes(ctx -> {
                         var recent = errorPresenter.recent();
                         ScriptScreen.open("Recent errors",
