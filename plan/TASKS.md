@@ -46,7 +46,7 @@
 | T-301 | screen·ScriptScreen | S3 | pending | | | 依赖 T-106 |
 | T-302 | 编辑器 GUI | S3 | pending | | | 依赖 T-301 |
 | T-303 | 管理面板 | S3 | pending | | | 依赖 T-031, T-301 |
-| T-310 | VitePress·npm types | S3 | pending | | | 依赖 T-024 |
+| T-310 | VitePress·npm types | S3 | **partially-done** | session-agent | t310-vitepress | [报告](reports/T-310.md)；VitePress 脚手架+npm types 打包脚本就位；npm install/build 待 Node.js 环境验证 |
 
 ## 需求方确认点（agent 不得自行决策）
 
