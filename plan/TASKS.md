@@ -5,7 +5,7 @@
 > 2. 读执行协议 `../../neomacros-docs/09-development-plan.md`（§0 Agent 使用说明 / DoD / 泳道 / E2E 规格）；
 > 3. 在本看板认领任务：动工前标 `in-progress` + Owner/分支，完成后标 `done` 并写 `plan/reports/<ID>.md` 报告。
 >
-> 当前进度（2026-10-31 深夜收口）：**S0 全部完成（G0 达成）**——12 done；S1 done: T-100/T-103/T-104/T-105；partially: T-001/T-031已收口/T-106（26.1+26.2 API分支/1.x fabric版本）；**T-101 session-b 进行中**（独立 worktree）。已解锁：T-102 done、T-106 partially。**下一优先**：T-106 遗留（26.1/26.2 API 分支）→ S2 渲染 → S3 面板。**游戏运行期间禁止并发 gradlew build**（20:34 crash 教训）。
+> 当前进度（2026-11-01 收口）：**S0 全部完成（G0 达成）**。**done=21**: T-000~T-024 + T-030/T-032/T-033/T-040 + T-100/T-102/T-103/T-104/T-105 + T-200/T-201渲染骨架；**partially=4**: T-001(CI待remote)/T-031(已收口)/T-041(已收口)/T-106(9节点注册/仅26.3激活)；**T-101 partially**（版本无关层+事件族17件绿，T-101b mixin事件族→独立pending）。**已解锁：T-102 done, T-310 VitePress pending, T-300~T-303 pending, T-106 遗留收口 pending**。**G1（S1 API面）主体达成**——5 lane 全绿（world/trust/fs-net/command/input），但 T-101b mixin 和 T-106 收口待做。快速自验：`./gradlew build` → `bash scripts/smoke-build.sh`。
 > R1/R2 已关闭（T-022，结论见 08 §7）；bindgen 完成（T-023）：值中立绑定 + ProxyObject 活属性 + 权限包装 + @ApiMC 节点裁剪，双通道同一性有脚本级测试。
 > 已解锁可认领：**T-031（模块管理器——关键路径，前置全就绪）**、**T-030**（adapter 最小产品节点；首个 adapter 代码前必做双向 chisel 验证，见 T-000 报告遗留）、**T-032**（配置系统）；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
 > 关键路径剩余：T-031 → T-040（E2E-A）→ G0。
