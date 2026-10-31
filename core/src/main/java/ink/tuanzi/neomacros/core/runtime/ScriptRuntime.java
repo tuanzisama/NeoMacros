@@ -11,6 +11,7 @@ import ink.tuanzi.neomacros.port.NeomacrosAdapter;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Runtime hub assembling every version-independent subsystem with explicit
@@ -29,24 +30,38 @@ public final class ScriptRuntime implements AutoCloseable {
     private final MainThreadScheduler mainThread;
     private final SyncWatchdog watchdog;
     private final Map<Long, ScriptContext> contexts = new ConcurrentHashMap<>();
+    private volatile Consumer<Throwable> errorHandler = t -> { };
     private volatile boolean closed;
 
     /**
      * Assembles the runtime. The adapter may be null in engine-only
      * environments (application-level tests); production bootstrap always
      * passes the node's adapter. {@code maxSyncMillis} bounds synchronous
-     * dispatch and bridged main-thread tasks (default 500 ms).
+     * dispatch and bridged main-thread tasks (default 500 ms); the runtime
+     * owns the watchdog that enforces it.
      */
     public ScriptRuntime(ScriptEngine engine, NeomacrosAdapter adapter,
                          EventCatalog eventCatalog, EventBus eventBus,
                          ScriptThreadPool threadPool, long maxSyncMillis) {
+        this(engine, adapter, eventCatalog, eventBus, threadPool,
+                new SyncWatchdog(maxSyncMillis, violation -> { }));
+    }
+
+    /**
+     * Assembles the runtime with a caller-owned watchdog, letting the bootstrap
+     * share one watchdog between the event bus's sync channel and the runtime's
+     * main-thread bridge (and route violations to a real sink).
+     */
+    public ScriptRuntime(ScriptEngine engine, NeomacrosAdapter adapter,
+                         EventCatalog eventCatalog, EventBus eventBus,
+                         ScriptThreadPool threadPool, SyncWatchdog watchdog) {
         this.engine = engine;
         this.adapter = adapter;
         this.eventCatalog = eventCatalog;
         this.eventBus = eventBus;
         this.threadPool = threadPool;
         this.tickClock = new TickClock();
-        this.watchdog = new SyncWatchdog(maxSyncMillis, violation -> { });
+        this.watchdog = watchdog;
         this.mainThread = new MainThreadScheduler(watchdog);
         this.mainThread.bindMainThread(Thread.currentThread());
     }
@@ -91,12 +106,29 @@ public final class ScriptRuntime implements AutoCloseable {
         return engine;
     }
 
+    /**
+     * Installs the sink receiving script-side failures: context loop task
+     * errors and watchdog violations. Call before contexts are created;
+     * failures of the handler itself are ignored.
+     */
+    public void setErrorHandler(Consumer<Throwable> handler) {
+        this.errorHandler = handler != null ? handler : t -> { };
+    }
+
+    void reportError(Throwable error) {
+        try {
+            errorHandler.accept(error);
+        } catch (RuntimeException ignored) {
+            // Reporting must never become a failure source of its own.
+        }
+    }
+
     /** Creates a script context with its own dedicated event loop thread. */
     public ScriptContext createContext(String name) {
         if (closed) {
             throw new IllegalStateException("runtime is closed");
         }
-        ContextEventLoop loop = threadPool.openLoop(name);
+        ContextEventLoop loop = threadPool.openLoop(name, this::reportError);
         ScriptContext context = new ScriptContext(name, loop,
                 new AsyncPrimitives(loop, threadPool, tickClock, mainThread));
         contexts.put(context.id(), context);

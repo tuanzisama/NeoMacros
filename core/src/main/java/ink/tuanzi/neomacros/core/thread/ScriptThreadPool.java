@@ -42,7 +42,12 @@ public final class ScriptThreadPool implements AutoCloseable {
 
     /** Opens a context event loop backed by this pool's scheduler. */
     public ContextEventLoop openLoop(String contextName) {
-        return new ContextEventLoop(contextName, scheduler);
+        return openLoop(contextName, null);
+    }
+
+    /** Opens a context event loop whose task failures go to {@code onError}. */
+    public ContextEventLoop openLoop(String contextName, java.util.function.Consumer<Throwable> onError) {
+        return new ContextEventLoop(contextName, scheduler, onError);
     }
 
     /** Shuts the pool down: running work finishes, queued work is dropped. */

@@ -5,6 +5,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -15,9 +17,12 @@ import java.util.function.Supplier;
 /**
  * Lifecycle sources backed by the Fabric client lifecycle, tick, and play
  * connection events. Sinks run on the game main thread, in registration
- * order.
+ * order; a sink that throws is logged and skipped so it can neither break
+ * the remaining sinks nor crash the game's own tick/shutdown path.
  */
 public final class FabricLifecyclePort implements LifecyclePort {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(FabricLifecyclePort.class);
 
     private final List<Consumer<Long>> tickSinks = new CopyOnWriteArrayList<>();
     private final List<Runnable> gameStartSinks = new CopyOnWriteArrayList<>();
@@ -31,29 +36,38 @@ public final class FabricLifecyclePort implements LifecyclePort {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             long tick = tickCount.incrementAndGet();
             for (Consumer<Long> sink : tickSinks) {
-                sink.accept(tick);
+                runSafely("tick", () -> sink.accept(tick));
             }
         });
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             for (Runnable sink : gameStartSinks) {
-                sink.run();
+                runSafely("game-start", sink);
             }
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             for (Runnable sink : gameQuitSinks) {
-                sink.run();
+                runSafely("game-quit", sink);
             }
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             for (Runnable sink : worldJoinSinks) {
-                sink.run();
+                runSafely("world-join", sink);
             }
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             for (Runnable sink : worldLeaveSinks) {
-                sink.run();
+                runSafely("world-leave", sink);
             }
         });
+    }
+
+    /** Runs one sink, downgrading any failure to a log record. */
+    private static void runSafely(String source, Runnable sink) {
+        try {
+            sink.run();
+        } catch (Throwable t) {
+            LOGGER.error("NeoMacros lifecycle sink failed during {}; continuing", source, t);
+        }
     }
 
     @Override

@@ -11,7 +11,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Scans the classpath for classes of one package carrying a given annotation.
+ * Scans the classpath for classes of one package (subpackages included)
+ * carrying a given annotation.
  *
  * <p>Used to collect annotated event payload records and API facade classes
  * (the registration mechanism shared with the binding builder). Works over
@@ -25,9 +26,9 @@ public final class AnnotatedClassScanner {
     }
 
     /**
-     * Returns the classes directly inside {@code packageName} (subpackages
-     * excluded) that carry {@code annotation}, in name order. Classes whose
-     * loading fails are skipped; scanning never throws for individual entries.
+     * Returns the classes inside {@code packageName} (subpackages included)
+     * that carry {@code annotation}, in name order. Classes whose loading
+     * fails are skipped; scanning never throws for individual entries.
      */
     public static List<Class<?>> scan(String packageName, Class<? extends Annotation> annotation,
                                       ClassLoader loader) {
@@ -66,11 +67,13 @@ public final class AnnotatedClassScanner {
         if (!Files.isDirectory(packageDir)) {
             return;
         }
-        try (var stream = Files.list(packageDir)) {
+        try (var stream = Files.walk(packageDir)) {
             for (Path file : stream.filter(Files::isRegularFile).toList()) {
                 String fileName = file.getFileName().toString();
                 if (fileName.endsWith(".class") && !fileName.contains("$")) {
-                    names.add(packageName + "." + fileName.substring(0, fileName.length() - 6));
+                    String relative = packageDir.relativize(file).toString().replace('\\', '/');
+                    String fqcn = packageName + "." + relative.substring(0, relative.length() - 6).replace('/', '.');
+                    names.add(fqcn);
                 }
             }
         }
@@ -85,11 +88,13 @@ public final class AnnotatedClassScanner {
                 String entryName = zipEntry.getName();
                 if (!zipEntry.isDirectory()
                         && entryName.startsWith(packagePath + "/")
-                        && entryName.endsWith(".class")
-                        && !entryName.substring(packagePath.length() + 1).contains("/")) {
-                    String fileName = entryName.substring(entryName.lastIndexOf('/') + 1);
+                        && entryName.endsWith(".class")) {
+                    String relative = entryName.substring(packagePath.length() + 1);
+                    String fileName = relative.substring(relative.lastIndexOf('/') + 1);
                     if (!fileName.contains("$")) {
-                        names.add(packageName + "." + fileName.substring(0, fileName.length() - 6));
+                        String fqcn = packageName + "."
+                                + relative.substring(0, relative.length() - 6).replace('/', '.');
+                        names.add(fqcn);
                     }
                 }
             }

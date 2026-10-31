@@ -27,11 +27,11 @@
 | T-023 | core ApiModel·绑定注册 | S0 | **done** | session-agent | t023-bindgen | [报告](reports/T-023.md)；值中立绑定+ProxyObject 活属性+权限包装+节点裁剪，core 11 + 引擎集成 6 全绿；**关键路径打通，T-031 已解锁** |
 | T-024 | 文档管线骨架（docs-builder） | S0 | **done** | session-agent | t024-docs-builder | [报告](reports/T-024.md)；双 doclet + 快照回归 + tsc 实跑全绿；骨架期约定见其 README |
 | T-030 | adapter/fabric 最小产品节点 | S0 | **done** | session-agent | t030-product-node | [报告](reports/T-030.md)；Lifecycle/Chat 端口+mixin+Bootstrap 全绿；游戏内完整启动 0 mixin 错误；reload 移交 T-031 |
-| T-031 | 模块管理器 | S0 | **partially-done** | session-agent | t031-module-manager | [报告](reports/T-031.md)；全链路游戏内验证过（加载/事件/chat/命令）；遗留：clock.sleep 游戏内未落定 + 文件监视器 + 单模块 reload 命令 |
+| T-031 | 模块管理器 | S0 | **done** | session-agent | t031-module-manager | [报告](reports/T-031.md)；收口：sleep-settles 游戏内 PASS（真因=旧 record 的 console.log 抛错）；文件监视器由 T-032 交付；单模块 reload 移交 T-303 |
 | T-032 | 配置系统 | S0 | **done** | session-agent | t032-config | [报告](reports/T-032.md)；ConfigManager+Codec+CoreOptions+watch 接线全绿；补 T-031 遗留#2 文件监视器 |
 | T-033 | storage 模块 | S0 | **done** | session-agent | t033-storage | [报告](reports/T-033.md)；StorageApi/ModuleStorage/防抖/快照+Proxy 包装全绿；真脚本 put→get→落盘集成测试 |
 | T-040 | E2E-A 测试骨架 | S0 | **in-progress** | session-agent | t040-e2ea | 2026-10-31 认领 |
-| T-041 | E2E-G 套件骨架 | S0 | **partially-done** | session-agent | t041-e2eg | [报告](reports/T-041.md)；suite+quitOnDone+verifyGameE2E 交付；游戏内 2 基线 PASS；遗留：进程无痕消失+嵌套类加载 crash 合并排查 |
+| T-041 | E2E-G 套件骨架 | S0 | **in-progress** | session-agent | t041-g0-fixes | [报告](reports/T-041.md)；遗留#1 根因已定位（3 项：catalog 扫描漏子包→空目录、运行期重建 include jar→退出期懒加载 ZipException、重叠 runFabricClient 实例→"无痕消失"假象），修复分支进行中 |
 | T-100 | 权限信任门 | S1 | pending | | | 依赖 T-031, T-033 |
 | T-101 | lane-world（world/entity/player） | S1 | pending | | | 依赖 T-030 |
 | T-102 | lane-inventory | S1 | pending | | | 依赖 T-030 |
