@@ -5,7 +5,7 @@
 > 2. 读执行协议 `../../neomacros-docs/09-development-plan.md`（§0 Agent 使用说明 / DoD / 泳道 / E2E 规格）；
 > 3. 在本看板认领任务：动工前标 `in-progress` + Owner/分支，完成后标 `done` 并写 `plan/reports/<ID>.md` 报告。
 >
-> 当前进度（2026-11-01 审计）：**done=21, partially=4, pending=5, main=80+ commits, build 绿（26.3）**。**S0 全部完成（G0 达成：游戏内 suite 5/5 ALL PASS）**。**S1 四 lane done**：T-100 信任门/T-102 物品栏/T-103 输入/T-104 fs+net/T-105 命令。**S2 渲染骨架 done**：T-200/T-201。**partially=4**: T-001(CI)/T-031(收口)/T-041(收口)/T-106(跨版本适配)。**T-101 partially**（版本无关层 done，T-101b mixin 部分完成——事件 payload+hub 就位，LivingEntity mixin 因 26.3 hurtServer 拆分延后）。**pending=5**: T-101b mixin 完整接线/T-310 VitePress/T-300/T-301~303/S2 Draw2D 完整管线+Draw3D。下一窗口优先：T-101b mixin 接线 → T-310 → T-300~303 → T-106。
+> 当前进度（2026-11-01 第二次审计）：**done=24, partially=3, pending=4, 全量 build 绿（26.1.2/26.2/26.3 三节点，209 tests）**。**T-101b 全部完成**：11 件事件全交付（entity:damage/heal=per-tick 健康快照差量、world:blockUpdate/chunkLoad/chunkUnload=ClientLevel+ClientChunkCache mixin、player:effect=PlayerPort.activeEffects 差量、world:bossbar=ClientPacketListener mixin 重派发；PortEventWiringTest 5/5 绿）。**T-106 26.x 完成**：26.1.2/26.2/26.3 三节点编译绿并出 fabric jar；adapter/fabric 源码已迁入 product 分支树（Stonecutter 只预处理版本化项目自有源码，外部 srcDir 绕过管线）；跨版本差异走 product/build.gradle.kts replacements（KEYSYM→KEYBOARD、gui.hud→gui）；1.x 9 节点 fabric 版本已按 Modrinth 核实修正。**pending**: S2 Draw2D/Draw3D 完整管线、T-300 错误链路、T-301~303 面板、T-310 VitePress 收口。下一窗口优先：S2 渲染 → T-310 → T-300~303。
 > R1/R2 已关闭（T-022，结论见 08 §7）；bindgen 完成（T-023）：值中立绑定 + ProxyObject 活属性 + 权限包装 + @ApiMC 节点裁剪，双通道同一性有脚本级测试。
 > 已解锁可认领：**T-031（模块管理器——关键路径，前置全就绪）**、**T-030**（adapter 最小产品节点；首个 adapter 代码前必做双向 chisel 验证，见 T-000 报告遗留）、**T-032**（配置系统）；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
 > 关键路径剩余：T-031 → T-040（E2E-A）→ G0。
@@ -34,12 +34,12 @@
 | T-041 | E2E-G 套件骨架 | S0 | **done** | session-agent | t041-e2eg（收口 33f4b37→main） | [报告](reports/T-041.md)；收口：suite 5/5 ALL PASS + verifyGameE2E 绿 + 33f4b37 独立复核全绿；根因三项定性已回写 08 §8；遗留移交见报告（watchdog 接线→T-100、quitOnDone 复跑、cases 同源机制） |
 | T-100 | 权限信任门 | S1 | **done** | session-agent | t100-trust | [报告](reports/T-100.md)；TrustManager+可点击提示+trust 命令 ×5 单测绿；信任哈希口径=模块名+声明集（回写 05） |
 | T-101 | lane-world（world/entity/player） | S1 | **partially-done** | session-agent-b | t101-lane-world | [报告](reports/T-101.md)；版本无关层全交付+player/world 事件族 17 件全绿；剩余 mixin 事件族→T-101b、游戏内 observe 待人工进世界；**合入 main 需等 T-100 提交（同改 NeoMacrosFabric）** |
-| T-101b | lane-world mixin 事件族 | S1 | **done**（部分延后） | session-agent | t101b-mixin-events2 | [报告](reports/T-101b.md)；entity:load/unload mixin + world:sound mixin + hub wiring ✓；entity:damage/heal per-tick 差量延后 |
+| T-101b | lane-world mixin 事件族 | S1 | **done** | session-agent | t101b-mixin-events3 | [报告](reports/T-101b.md)；11 件全交付：entity:damage/heal=per-tick 健康快照差量（PortEventWiring SelfStateTracker，32 格半径、离域清位防重放）、world:blockUpdate/chunkLoad=ClientLevelWorldMixin、world:chunkUnload=ClientChunkCacheMixin、world:bossbar=BossUpdateMixin 重派发 packet、player:effect=PlayerPort.activeEffects()+EffectSnapshot 差量；新增 4 payload record 入 ProductionEventSet；修复合并产生的 hub 桥重复注册；删除死代码 EntityEventHub |
 | T-102 | lane-inventory | S1 | **done** | session-agent | t102-inventory | [报告](reports/T-102.md)；InventoryPort+FabricInventoryPort 只读查询集绿；写操作随 P1 安全评审 |
 | T-103 | lane-input | S1 | **done** | session-agent | t103-input | [报告](reports/T-103.md)；InputPort+FabricInputPort（26.3 keymapping/v1 新 API）+滚轮 mixin+InputApi；输入模拟延后 |
 | T-104 | lane-fs/net | S1 | **done** | session-agent | t104-fs-net | [报告](reports/T-104.md)；FsApi+NetApi 门面+沙箱边界+逃逸拒绝 ×3 单测绿；WebSocket 延后 |
 | T-105 | lane-command | S1 | **done** | session-agent | t105-command | [报告](reports/T-105.md)；CommandApi+FabricCommandPort（literal+args remainder）×3 单测绿；类型化 DSL 延后 |
-| T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | **partially-done** | session-agent | t106-node-matrix | [报告](reports/T-106.md)；9 节点注册+properties 就位；26.1/26.2 跨版本 API 分支待适配；1.x fabric 版本待查 |
+| T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | **partially-done**（26.x 完成） | session-agent | t106-node-matrix | 26.1.2/26.2/26.3 三节点编译绿+出 jar；adapter/fabric 源码迁入 product 分支树（Stonecutter 仅预处理版本化项目自有源码）；跨版本差异=product/build.gradle.kts replacements（KEYBOARD/KEYSYM、gui.hud/gui）；9 节点 fabric 版本已按 Modrinth 核实；1.x 激活（obf 映射+Java 17/21 工具链）与 1.18.2 可行性决策（G-R3）留后续窗口 |
 | T-200 | hud·Draw2D | S2 | **done** | session-agent | t200-t201-render | [报告](reports/T-200-T-201.md)；RenderPort+HudApi+FabricRenderPort（26.3 HudElementRegistry pipeline）；Draw2D 完整管线为渲染增量 |
 | T-201 | render·Draw3D | S2 | **done** | session-agent | t200-t201-render | 合并交付（Draw3D 世界内渲染延后到渲染增量） |
 | T-300 | 错误呈现链路 | S3 | pending | | | 依赖 T-106 |
