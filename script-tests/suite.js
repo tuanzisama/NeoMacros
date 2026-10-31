@@ -52,13 +52,14 @@ events.on('tick', () => {
 });
 
 // T-101b mixin event family coverage
-import { __test } from '@neomacros/__test';
-
-events.on('entity:load', (ev) => {
-  record('entity-load', true, 'entity loaded: ' + JSON.stringify(ev));
+events.once('entity:load', (ev) => {
+  record('entity-load', true, 'entity loaded');
 });
-events.on('world:sound', (ev) => {
-  record('world-sound', true, 'sound: ' + JSON.stringify(ev));
+events.once('world:sound', (ev) => {
+  record('world-sound', true, 'sound: ' + ev.soundId);
+});
+events.once('entity:unload', (ev) => {
+  record('entity-unload', true, 'entity unloaded');
 });
 
 function finish() {
