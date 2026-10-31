@@ -19,7 +19,7 @@
 | T-001 | CI 工作流骨架 | S0 | **partially-done** | session-agent | t001-ci | [报告](reports/T-001.md)；workflow 全交付+CI 命令本地实证；actionlint 与 PR 实跑待配置 git remote 后闭环 |
 | T-010 | doc-api 注解集 | S0 | **done** | session-agent | t010-doc-api | [报告](reports/T-010.md)；10 注解 + 18 单测绿 + maven 坐标已验证 |
 | T-011 | ports 中立类型与最小端口集 | S0 | **done** | session-agent | t011-ports | [报告](reports/T-011.md)；7 record + 5 端口 + ArchUnit 共享守卫（testFixtures） |
-| T-020 | core 事件框架 | S0 | pending | | | 依赖 T-010, T-011 |
+| T-020 | core 事件框架 | S0 | **done** | session-agent | t020-event-framework | [报告](reports/T-020.md)；双通道 bus+watchdog+通配 43 测试绿，框架包覆盖率 97.7%；P0 基础事件载荷已备 |
 | T-021 | core Runtime·线程·Engine SPI | S0 | pending | | | 依赖 T-020 |
 | T-022 | engine GraalJS PoC ★R1 | S0 | pending | | | 依赖 T-021；spike 可提前 |
 | T-023 | core ApiModel·绑定注册 | S0 | pending | | | 依赖 T-010, T-021 |
