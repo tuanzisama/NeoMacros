@@ -16,7 +16,7 @@
 | ID | 任务 | 阶段 | 状态 | Owner | 分支 | 备注 |
 |---|---|---|---|---|---|---|
 | T-000 | 仓库骨架与构建脚手架 | S0 | **done** | session-agent | main | [报告](reports/T-000.md)；loom 1.19/Gradle 9.8 升级与 stonecutter 根脚本语义实证已回写架构文档 02 |
-| T-001 | CI 工作流骨架 | S0 | pending | | | 依赖 T-000 ✅ |
+| T-001 | CI 工作流骨架 | S0 | **partially-done** | session-agent | t001-ci | [报告](reports/T-001.md)；workflow 全交付+CI 命令本地实证；actionlint 与 PR 实跑待配置 git remote 后闭环 |
 | T-010 | doc-api 注解集 | S0 | **done** | session-agent | t010-doc-api | [报告](reports/T-010.md)；10 注解 + 18 单测绿 + maven 坐标已验证 |
 | T-011 | ports 中立类型与最小端口集 | S0 | **done** | session-agent | t011-ports | [报告](reports/T-011.md)；7 record + 5 端口 + ArchUnit 共享守卫（testFixtures） |
 | T-020 | core 事件框架 | S0 | pending | | | 依赖 T-010, T-011 |
