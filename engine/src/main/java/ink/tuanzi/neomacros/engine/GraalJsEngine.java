@@ -164,6 +164,7 @@ public final class GraalJsEngine implements ScriptEngine {
         private final ScriptContext owner;
         private final Context context;
         private Value glue;
+        private Value lastNamespace;
 
         private GraalJsSession(ScriptContext owner) {
             this.owner = owner;
@@ -199,6 +200,9 @@ public final class GraalJsEngine implements ScriptEngine {
                 Value promise = context.getBindings("js").getMember("__neoModulePromise");
                 promise.getMember("then").execute(
                         executable(arguments -> {
+                            if (arguments.length > 0) {
+                                lastNamespace = arguments[0];
+                            }
                             settled.complete(null);
                             return null;
                         }),
@@ -258,12 +262,81 @@ public final class GraalJsEngine implements ScriptEngine {
         }
 
         @Override
+        public Map<String, Object> readExportedData(String exportName) throws ScriptError {
+            return onLoop(() -> {
+                if (lastNamespace == null) {
+                    return Map.of();
+                }
+                Value v = lastNamespace.getMember(exportName);
+                if (v == null || v.isNull()) {
+                    return Map.of();
+                }
+                // Snapshot inside the loop: the mapped map/list are live
+                // polyglot views that must not escape to other threads.
+                @SuppressWarnings("unchecked")
+                Map<String, Object> view = (Map<String, Object>) v.as(Map.class);
+                Map<String, Object> snapshot = new java.util.LinkedHashMap<>();
+                for (Map.Entry<String, Object> entry : view.entrySet()) {
+                    snapshot.put(entry.getKey(), snapshotValue(entry.getValue()));
+                }
+                return snapshot;
+            });
+        }
+
+        /** Recursively copies polyglot map/list views into plain Java collections. */
+        private static Object snapshotValue(Object value) {
+            if (value instanceof Map<?, ?> map) {
+                Map<String, Object> copy = new java.util.LinkedHashMap<>();
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    copy.put(String.valueOf(entry.getKey()), snapshotValue(entry.getValue()));
+                }
+                return copy;
+            }
+            if (value instanceof List<?> list) {
+                List<Object> copy = new java.util.ArrayList<>(list.size());
+                for (Object element : list) {
+                    copy.add(snapshotValue(element));
+                }
+                return copy;
+            }
+            return value;
+        }
+
+        @Override
+        public java.util.Optional<Runnable> readExportedFunction(String exportName) throws ScriptError {
+            return onLoop(() -> {
+                if (lastNamespace == null) {
+                    return java.util.Optional.<Runnable>empty();
+                }
+                Value v = lastNamespace.getMember(exportName);
+                if (v == null || v.isNull() || !v.canExecute()) {
+                    return java.util.Optional.<Runnable>empty();
+                }
+                // HostAccess.NONE forbids functional-interface mapping, so the
+                // handle re-enters the context loop and executes the guest value.
+                return java.util.Optional.of(() -> onLoop(() -> {
+                    v.execute();
+                    return null;
+                }));
+            });
+        }
+
+        @Override
         public void close() {
             context.close();
         }
 
         /** Runs one piece of guest work on the context loop, blocking the caller. */
         private <T> T onLoop(Supplier<T> work) throws ScriptError {
+            if (owner.loop().isOnLoop()) {
+                try {
+                    return work.get();
+                } catch (PolyglotException e) {
+                    throw translate("script", e);
+                } catch (Throwable t) {
+                    throw new ScriptError(t.getMessage(), t);
+                }
+            }
             CompletableFuture<T> done = new CompletableFuture<>();
             owner.loop().execute(() -> {
                 try {
@@ -439,7 +512,36 @@ public final class GraalJsEngine implements ScriptEngine {
             if (type == java.util.UUID.class) {
                 return java.util.UUID.fromString(value.asString());
             }
-            return value.asHostObject();
+            if (type.isInterface() && value.canExecute()) {
+                return adaptFunction(value, type);
+            }
+            throw new ScriptError("cannot convert argument to " + type.getName());
+        }
+
+        /**
+         * Adapts a guest function to a host functional interface: invoking the
+         * proxy re-enters the context loop and executes the guest value.
+         * Supported return types are void, boolean, and object (mapped to a
+         * neutral map).
+         */
+        private Object adaptFunction(Value function, Class<?> type) {
+            ClassLoader loader = type.getClassLoader() != null
+                    ? type.getClassLoader() : GraalJsEngine.class.getClassLoader();
+            return java.lang.reflect.Proxy.newProxyInstance(loader, new Class<?>[]{type},
+                    (proxy, method, args) -> {
+                        Value[] callArgs = new Value[args == null ? 0 : args.length];
+                        for (int i = 0; i < callArgs.length; i++) {
+                            callArgs[i] = context.asValue(args[i]);
+                        }
+                        Value result = onLoop(() -> function.execute(callArgs));
+                        if (method.getReturnType() == void.class) {
+                            return null;
+                        }
+                        if (method.getReturnType() == boolean.class) {
+                            return result.asBoolean();
+                        }
+                        return result.as(Map.class);
+                    });
         }
 
         /** Invokes an async facade function and settles the promise on the loop. */
@@ -464,6 +566,8 @@ public final class GraalJsEngine implements ScriptEngine {
             future.whenComplete((value, failure) -> owner.loop().execute(() -> {
                 if (failure != null) {
                     reject.execute(newGuestErrorHere(String.valueOf(failure)));
+                } else if (value == null) {
+                    resolve.execute();
                 } else {
                     resolve.execute(value);
                 }
@@ -480,6 +584,27 @@ public final class GraalJsEngine implements ScriptEngine {
         }
 
         private String guestMessage(Value guestValue) {
+            try {
+                if (guestValue.isHostObject()) {
+                    Object host = guestValue.asHostObject();
+                    if (host instanceof Throwable t) {
+                        var sw = new java.io.StringWriter();
+                        t.printStackTrace(new java.io.PrintWriter(sw));
+                        return sw.toString();
+                    }
+                    return String.valueOf(host);
+                }
+                Value message = guestValue.getMember("message");
+                if (message != null && !message.isNull() && message.isString()) {
+                    return message.asString();
+                }
+            } catch (Throwable ignored) {
+                // fall through to the generic rendering below
+            }
+            return String.valueOf(guestValue);
+        }
+
+        private String guestMessageLegacy(Value guestValue) {
             Value message = guestValue.getMember("message");
             if (message != null && !message.isNull() && message.isString()) {
                 return message.asString();

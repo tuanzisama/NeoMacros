@@ -111,6 +111,11 @@ public final class ModuleBinding {
     private final String name;
     private final Map<String, BindingMember> members;
 
+    /** Creates a binding from explicit members (root promotion and tests). */
+    public static ModuleBinding ofMembers(String name, Map<String, BindingMember> members) {
+        return new ModuleBinding(name, members);
+    }
+
     private ModuleBinding(String name, Map<String, BindingMember> members) {
         this.name = name;
         this.members = Map.copyOf(members);

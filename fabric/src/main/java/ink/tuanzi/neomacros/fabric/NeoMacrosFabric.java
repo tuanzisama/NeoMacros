@@ -3,6 +3,12 @@ package ink.tuanzi.neomacros.fabric;
 import com.mojang.brigadier.Command;
 import ink.tuanzi.neomacros.adapter.NeomacrosAdapterImpl;
 import ink.tuanzi.neomacros.core.NeoMacros;
+import ink.tuanzi.neomacros.core.api.ChatApi;
+import ink.tuanzi.neomacros.core.api.ClockApi;
+import ink.tuanzi.neomacros.core.api.EventsApi;
+import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
+import ink.tuanzi.neomacros.core.api.bindgen.BindingRegistry;
+import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
 import ink.tuanzi.neomacros.core.event.EventBus;
 import ink.tuanzi.neomacros.core.event.EventCatalog;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent;
@@ -12,6 +18,8 @@ import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldJoinEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldLeaveEvent;
 import ink.tuanzi.neomacros.core.event.def.tick.TickEvent;
 import ink.tuanzi.neomacros.core.event.SyncWatchdog;
+import ink.tuanzi.neomacros.core.module.ModuleManager;
+import ink.tuanzi.neomacros.core.module.ScriptMeta;
 import ink.tuanzi.neomacros.core.runtime.ScriptEngine;
 import ink.tuanzi.neomacros.core.runtime.ScriptRuntime;
 import ink.tuanzi.neomacros.core.thread.ScriptThreadPool;
@@ -54,41 +62,85 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         catalog.scanPackage("ink.tuanzi.neomacros.core.event.def");
         var pool = new ScriptThreadPool(Runtime.getRuntime().availableProcessors());
         var bus = new EventBus(catalog, pool.workers());
-        ScriptEngine engine = new GraalJsEngine(new ScriptsModuleResolver(scriptsDir));
+        var registry = new BindingRegistry(mcVersion());
+        registry.registerAll(java.util.List.of(EventsApi.class, ClockApi.class, ChatApi.class));
+        registry.promoteRootMembers("clock", java.util.List.of("sleep", "ticks", "nextTick", "runOnMain"));
+        ScriptApiEnvironment.install(bus, adapter);
+
+        ScriptEngine engine = new GraalJsEngine(new ScriptsModuleResolver(scriptsDir, registry));
         runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, SyncWatchdog.DEFAULT_MAX_SYNC_MILLIS);
 
-        wireEventSinks(adapter, runtime);
+        var modules = new ModuleManager(runtime, registry, PermissionView.ALLOW_ALL, scriptsDir,
+                message -> LOGGER.warn("neomacros scripts: {}", message));
+
+        wireEventSinks(adapter, runtime, modules);
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
-        registerCommands(scriptsDir);
+        registerCommands(scriptsDir, modules);
     }
 
-    /** Feeds the event bus from the adapter sinks (one publish per source). */
-    private static void wireEventSinks(NeomacrosAdapterImpl adapter, ScriptRuntime rt) {
+    /** The running Minecraft version (node trimming key for ApiMC ranges). */
+    private static String mcVersion() {
+        return FabricLoader.getInstance().getModContainer("minecraft")
+                .map(c -> c.getMetadata().getVersion().getFriendlyString())
+                .orElse("26.3");
+    }
+
+    /**
+     * Feeds the event bus from the adapter sinks (one publish per source) and
+     * drives the script lifecycle phases: always-phase scripts load once the
+     * client has started (before the game:start publish so scripts observe
+     * it), world-phase scripts load and unload with the world session.
+     */
+    private static void wireEventSinks(NeomacrosAdapterImpl adapter, ScriptRuntime rt, ModuleManager modules) {
         adapter.lifecycle().onTick(tick -> {
             rt.tickClock().tick();
             rt.eventBus().publish("tick", new TickEvent(tick));
         });
-        adapter.lifecycle().onGameStart(() -> rt.eventBus().publish("game:start", new GameStartEvent()));
-        adapter.lifecycle().onGameQuit(() -> rt.eventBus().publish("game:quit", new GameQuitEvent()));
-        adapter.lifecycle().onWorldJoin(() -> rt.eventBus().publish("world:join", new WorldJoinEvent()));
-        adapter.lifecycle().onWorldLeave(() -> rt.eventBus().publish("world:leave", new WorldLeaveEvent()));
+        adapter.lifecycle().onGameStart(() -> {
+            modules.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
+            LOGGER.info("NeoMacros: {} scripts loaded", modules.loaded().size());
+            rt.eventBus().publish("game:start", new GameStartEvent());
+        });
+        adapter.lifecycle().onGameQuit(() -> {
+            rt.eventBus().publish("game:quit", new GameQuitEvent());
+            modules.unloadPhase(ScriptMeta.Lifecycle.ALWAYS);
+        });
+        adapter.lifecycle().onWorldJoin(() -> {
+            modules.loadPhase(ScriptMeta.Lifecycle.WORLD);
+            rt.eventBus().publish("world:join", new WorldJoinEvent());
+        });
+        adapter.lifecycle().onWorldLeave(() -> {
+            rt.eventBus().publish("world:leave", new WorldLeaveEvent());
+            modules.unloadPhase(ScriptMeta.Lifecycle.WORLD);
+        });
         adapter.chat().onChatReceive(message -> rt.eventBus().publish("chat:receive", new ChatReceiveEvent(message)));
     }
 
     /** Registers the root {@code /neomacros} command and its subcommands. */
-    private static void registerCommands(Path scriptsDir) {
+    private static void registerCommands(Path scriptsDir, ModuleManager modules) {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(literal("neomacros")
                     .then(literal("status").executes(ctx -> {
                         ctx.getSource().sendFeedback(Component.literal(
                                 "NeoMacros " + NeoMacros.VERSION + " | events registered: "
-                                        + runtime.eventCatalog().all().size() + " | ticks: "
+                                        + runtime.eventCatalog().all().size() + " | scripts loaded: "
+                                        + modules.loaded().size() + " | ticks: "
                                         + runtime.tickClock().currentTick()));
                         return Command.SINGLE_SUCCESS;
                     }))
                     .then(literal("list").executes(ctx -> {
+                        var names = modules.loaded().stream()
+                                .map(m -> m.meta().name() + " (" + m.meta().lifecycle().name()
+                                        .toLowerCase(java.util.Locale.ROOT) + ")")
+                                .toList();
                         ctx.getSource().sendFeedback(Component.literal(
-                                "Scripts in " + scriptsDir + ": " + listScripts(scriptsDir)));
+                                "Loaded scripts: " + (names.isEmpty() ? "(none)" : String.join(", ", names))));
+                        return Command.SINGLE_SUCCESS;
+                    }))
+                    .then(literal("reload").executes(ctx -> {
+                        modules.reloadAll();
+                        ctx.getSource().sendFeedback(Component.literal(
+                                "Reloaded; " + modules.loaded().size() + " scripts loaded."));
                         return Command.SINGLE_SUCCESS;
                     })));
         });
@@ -115,10 +167,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
      * specifiers resolve through the binding registry once script loading
      * exists; file specifiers resolve to {@code <scriptsDir>/<name>.js}.
      */
-    private record ScriptsModuleResolver(Path scriptsDir) implements ModuleResolver {
+    private record ScriptsModuleResolver(Path scriptsDir, BindingRegistry registry) implements ModuleResolver {
         @Override
         public Optional<String> virtualSource(String specifier) {
-            return Optional.empty();
+            return registry.virtualSourceFor(specifier, PermissionView.ALLOW_ALL);
         }
 
         @Override

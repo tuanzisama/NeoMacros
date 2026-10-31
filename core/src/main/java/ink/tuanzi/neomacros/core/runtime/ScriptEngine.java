@@ -39,5 +39,22 @@ public interface ScriptEngine extends AutoCloseable {
 
         /** Imports one ES module and runs its top-level code. */
         void importModule(String moduleName, Path sourceFile) throws ScriptError;
+
+        /**
+         * Reads one object-valued export of the last imported module as a
+         * neutral map. Engines that cannot read exports return an empty map.
+         */
+        default Map<String, Object> readExportedData(String exportName) throws ScriptError {
+            return Map.of();
+        }
+
+        /**
+         * Reads one function-valued export of the last imported module as a
+         * runnable handle, invoked on the context loop. Engines that cannot
+         * adapt functions return empty.
+         */
+        default java.util.Optional<Runnable> readExportedFunction(String exportName) throws ScriptError {
+            return java.util.Optional.empty();
+        }
     }
 }

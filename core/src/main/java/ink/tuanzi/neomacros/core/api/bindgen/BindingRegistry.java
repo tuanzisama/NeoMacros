@@ -19,6 +19,7 @@ public final class BindingRegistry {
     private final Map<String, ApiModel.ModuleModel> modules = new LinkedHashMap<>();
     private final Map<String, Object> instances = new LinkedHashMap<>();
     private final Map<PermissionView, Map<String, ModuleBinding>> bindingCache = new java.util.IdentityHashMap<>();
+    private final Map<String, List<String>> promoted = new LinkedHashMap<>();
 
     /** Creates the registry for the running milestone node. */
     public BindingRegistry(String currentMcVersion) {
@@ -56,6 +57,27 @@ public final class BindingRegistry {
     }
 
     /**
+     * Promotes members of one module to the root of the global tree, so a
+     * module's functions are reachable as {@code neo.<member>} as well as
+     * {@code neo.<module>.<member>}. Member names must not collide with any
+     * module name.
+     */
+    public void promoteRootMembers(String moduleName, java.util.Collection<String> memberNames) {
+        ApiModel.ModuleModel model = modules.get(moduleName);
+        if (model == null) {
+            throw new IllegalStateException("unknown module: " + moduleName);
+        }
+        for (String member : memberNames) {
+            if (modules.containsKey(member)) {
+                throw new IllegalStateException("root promotion collision: '" + member
+                        + "' is also a module name");
+            }
+        }
+        promoted.put(moduleName, List.copyOf(memberNames));
+        bindingCache.clear();
+    }
+
+    /**
      * Builds the {@code neo} global tree for one permission view: module name
      * → {@link ModuleBinding}. Members outside the node's {@code @ApiMC}
      * ranges are omitted; permission-gated members render as denied members.
@@ -65,6 +87,13 @@ public final class BindingRegistry {
         for (Map.Entry<String, ApiModel.ModuleModel> entry : modules.entrySet()) {
             tree.put(entry.getKey(), bindingFor(entry.getValue(), view));
         }
+        for (Map.Entry<String, List<String>> promotion : promoted.entrySet()) {
+            ModuleBinding binding = bindingFor(modules.get(promotion.getKey()), view);
+            for (String member : promotion.getValue()) {
+                tree.put(member, ModuleBinding.ofMembers(member,
+                        Map.of(member, binding.members().get(member))));
+            }
+        }
         return tree;
     }
 
@@ -73,6 +102,54 @@ public final class BindingRegistry {
      * resolving to the same binding object the global tree exposes; empty for
      * unknown or node-filtered modules.
      */
+    public Optional<String> virtualSourceFor(String specifier, PermissionView view) {
+        String prefix = "@neomacros/";
+        if (!specifier.startsWith(prefix)) {
+            return Optional.empty();
+        }
+        String name = specifier.substring(prefix.length());
+        if (name.equals("core")) {
+            StringBuilder source = new StringBuilder();
+            for (String aggregated : List.of("events", "clock")) {
+                ApiModel.ModuleModel model = modules.get(aggregated);
+                if (model == null) {
+                    continue;
+                }
+                source.append("const m_").append(aggregated).append(" = globalThis.neo.")
+                        .append(aggregated).append(";\n");
+                source.append("export const ").append(aggregated)
+                        .append(" = m_").append(aggregated).append(";\n");
+                for (ApiModel.MethodModel method : model.methods()) {
+                    if (!method.internal()) {
+                        source.append("export const ").append(method.name())
+                                .append(" = m_").append(aggregated).append(".").append(method.name())
+                                .append(";\n");
+                    }
+                }
+            }
+            return source.isEmpty() ? Optional.empty() : Optional.of(source.toString());
+        }
+        ApiModel.ModuleModel model = modules.get(name);
+        if (model == null) {
+            return Optional.empty();
+        }
+        StringBuilder source = new StringBuilder("const m = globalThis.neo.").append(name).append(";\n");
+        source.append("export const ").append(name).append(" = m;\n");
+        for (ApiModel.MethodModel method : model.methods()) {
+            if (!method.internal()) {
+                source.append("export const ").append(method.name())
+                        .append(" = m.").append(method.name()).append(";\n");
+            }
+        }
+        for (ApiModel.PropertyModel property : model.properties()) {
+            if (!property.internal()) {
+                source.append("export let ").append(property.name())
+                        .append(" = m.").append(property.name()).append(";\n");
+            }
+        }
+        return Optional.of(source.toString());
+    }
+
     public Optional<Object> esmModule(String name, PermissionView view) {
         ApiModel.ModuleModel model = modules.get(name);
         if (model == null) {
