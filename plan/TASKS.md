@@ -22,7 +22,7 @@
 | T-011 | ports 中立类型与最小端口集 | S0 | **done** | session-agent | t011-ports | [报告](reports/T-011.md)；7 record + 5 端口 + ArchUnit 共享守卫（testFixtures） |
 | T-020 | core 事件框架 | S0 | **done** | session-agent | t020-event-framework | [报告](reports/T-020.md)；双通道 bus+watchdog+通配 43 测试绿，框架包覆盖率 97.7%；P0 基础事件载荷已备 |
 | T-021 | core Runtime·线程·Engine SPI | S0 | **done** | session-agent | t021-runtime-threading | [报告](reports/T-021.md)；Runtime/线程池/事件循环/异步原语/Engine SPI/死锁防护 39 测试绿（全量 82） |
-| T-022 | engine GraalJS PoC ★R1 | S0 | pending | | | 依赖 T-021；spike 可提前 |
+| T-022 | engine GraalJS PoC ★R1 | S0 | in-progress | session-agent | t022-graaljs-engine | 依赖 T-021 ✅（已合 main）；2026-10-31 认领；完成需回写 08 §7 R1 结论 |
 | T-023 | core ApiModel·绑定注册 | S0 | pending | | | 依赖 T-010, T-021 |
 | T-024 | 文档管线骨架（docs-builder） | S0 | **done** | session-agent | t024-docs-builder | [报告](reports/T-024.md)；双 doclet + 快照回归 + tsc 实跑全绿；骨架期约定见其 README |
 | T-030 | adapter/fabric 最小产品节点 | S0 | pending | | | 依赖 T-011, T-021 |
