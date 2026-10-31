@@ -91,3 +91,30 @@ dependencies {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
+
+// Reads the E2E-G results file (written by script-tests/suite.js through the
+// Reads the E2E-G results file (written by script-tests/suite.js through the
+// storage module) and fails when any case failed or the suite never
+// completed. Requires a finished runClient session with
+// -Dneomacros.e2e.quitOnDone=true.
+tasks.register("verifyGameE2E") {
+    group = "verification"
+    description = "Asserts the in-game E2E suite results"
+    doLast {
+        val candidates = listOf(
+            rootProject.file("run/config/neomacros/storage/e2e-suite.json"),
+            rootProject.file("product/versions/$mc/run/config/neomacros/storage/e2e-suite.json"),
+        )
+        val resultsFile = candidates.firstOrNull { it.exists() }
+            ?: throw GradleException(
+                "E2E-G results file missing; run the in-game suite first (tried $candidates)")
+        val text = resultsFile.readText(Charsets.UTF_8)
+        if (text.contains("\"pass\": false") || text.contains("\"pass\":false")) {
+            throw GradleException("E2E-G suite has failing cases; see $resultsFile")
+        }
+        if (!text.contains("suite-done")) {
+            throw GradleException("E2E-G suite did not complete; see $resultsFile")
+        }
+        println("GAME E2E PASS: $resultsFile")
+    }
+}

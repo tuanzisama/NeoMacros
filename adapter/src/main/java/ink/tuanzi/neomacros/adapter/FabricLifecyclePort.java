@@ -82,6 +82,11 @@ public final class FabricLifecyclePort implements LifecyclePort {
     }
 
     @Override
+    public void requestShutdown() {
+        Minecraft.getInstance().stop();
+    }
+
+    @Override
     public Supplier<Boolean> inWorld() {
         return () -> {
             Minecraft mc = Minecraft.getInstance();

@@ -31,7 +31,7 @@
 | T-032 | 配置系统 | S0 | **done** | session-agent | t032-config | [报告](reports/T-032.md)；ConfigManager+Codec+CoreOptions+watch 接线全绿；补 T-031 遗留#2 文件监视器 |
 | T-033 | storage 模块 | S0 | **done** | session-agent | t033-storage | [报告](reports/T-033.md)；StorageApi/ModuleStorage/防抖/快照+Proxy 包装全绿；真脚本 put→get→落盘集成测试 |
 | T-040 | E2E-A 测试骨架 | S0 | **in-progress** | session-agent | t040-e2ea | 2026-10-31 认领 |
-| T-041 | E2E-G 套件骨架 | S0 | pending | | | 依赖 T-030, T-031 |
+| T-041 | E2E-G 套件骨架 | S0 | **partially-done** | session-agent | t041-e2eg | [报告](reports/T-041.md)；suite+quitOnDone+verifyGameE2E 交付；游戏内 2 基线 PASS；遗留：进程无痕消失+嵌套类加载 crash 合并排查 |
 | T-100 | 权限信任门 | S1 | pending | | | 依赖 T-031, T-033 |
 | T-101 | lane-world（world/entity/player） | S1 | pending | | | 依赖 T-030 |
 | T-102 | lane-inventory | S1 | pending | | | 依赖 T-030 |
