@@ -10,6 +10,7 @@
   "entrypoints": {
     "client": ["ink.tuanzi.neomacros.fabric.NeoMacrosFabric"]
   },
+  "mixins": ["neomacros.mixins.json"],
   "depends": {
     "fabricloader": ">=${loader_min}",
     "fabric-api": "*",
