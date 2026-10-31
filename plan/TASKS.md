@@ -5,7 +5,7 @@
 > 2. 读执行协议 `../../neomacros-docs/09-development-plan.md`（§0 Agent 使用说明 / DoD / 泳道 / E2E 规格）；
 > 3. 在本看板认领任务：动工前标 `in-progress` + Owner/分支，完成后标 `done` 并写 `plan/reports/<ID>.md` 报告。
 >
-> 当前进度（2026-11-01 第二次审计）：**done=24, partially=3, pending=4, 全量 build 绿（26.1.2/26.2/26.3 三节点，209 tests）**。**T-101b 全部完成**：11 件事件全交付（entity:damage/heal=per-tick 健康快照差量、world:blockUpdate/chunkLoad/chunkUnload=ClientLevel+ClientChunkCache mixin、player:effect=PlayerPort.activeEffects 差量、world:bossbar=ClientPacketListener mixin 重派发；PortEventWiringTest 5/5 绿）。**T-106 26.x 完成**：26.1.2/26.2/26.3 三节点编译绿并出 fabric jar；adapter/fabric 源码已迁入 product 分支树（Stonecutter 只预处理版本化项目自有源码，外部 srcDir 绕过管线）；跨版本差异走 product/build.gradle.kts replacements（KEYSYM→KEYBOARD、gui.hud→gui）；1.x 9 节点 fabric 版本已按 Modrinth 核实修正。**pending**: S2 Draw2D/Draw3D 完整管线、T-300 错误链路、T-301~303 面板、T-310 VitePress 收口。下一窗口优先：S2 渲染 → T-310 → T-300~303。
+> 当前进度（2026-11-01 第三次审计）：**done=27, partially=3, pending=2, 全量 build 绿（26.1.2/26.2/26.3 三节点，214 tests）**。本窗口新收口：**S2 Draw3D+HUD**（FabricDraw3DPort=原版 gizmo 管线、neo.render 门面、FabricHudRegistry 修复 neo.hud 死 API）、**T-300/T-301**（ErrorPresenter 节流错误链路 + ScriptScreen 查看器 + /neomacros errors|open；修复 setErrorHandler 从未接线的静默丢失）、**T-310**（en/zh 双语 guide+api 页面，vitepress build 六页产出验证）。**仍 pending**: T-302 编辑器 GUI、T-303 管理面板。**partially**: T-001(CI 待 remote)、S2 sprite（26.3 无 blit，需 renderpearl 管线，独立增量）、T-106 1.x 节点激活（obf 映射+Java 17/21）。下一窗口优先：T-302/T-303 → S2 sprite → 1.x 节点。
 > R1/R2 已关闭（T-022，结论见 08 §7）；bindgen 完成（T-023）：值中立绑定 + ProxyObject 活属性 + 权限包装 + @ApiMC 节点裁剪，双通道同一性有脚本级测试。
 > 已解锁可认领：**T-031（模块管理器——关键路径，前置全就绪）**、**T-030**（adapter 最小产品节点；首个 adapter 代码前必做双向 chisel 验证，见 T-000 报告遗留）、**T-032**（配置系统）；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
 > 关键路径剩余：T-031 → T-040（E2E-A）→ G0。
@@ -42,8 +42,8 @@
 | T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | **partially-done**（26.x 完成） | session-agent | t106-node-matrix | 26.1.2/26.2/26.3 三节点编译绿+出 jar；adapter/fabric 源码迁入 product 分支树（Stonecutter 仅预处理版本化项目自有源码）；跨版本差异=product/build.gradle.kts replacements（KEYBOARD/KEYSYM、gui.hud/gui）；9 节点 fabric 版本已按 Modrinth 核实；1.x 激活（obf 映射+Java 17/21 工具链）与 1.18.2 可行性决策（G-R3）留后续窗口 |
 | T-200 | hud·Draw2D | S2 | **done** | session-agent | t200-t201-render | [报告](reports/T-200-T-201.md)；RenderPort+HudApi+FabricRenderPort（26.3 HudElementRegistry pipeline）；Draw2D 完整管线为渲染增量 |
 | T-201 | render·Draw3D | S2 | **done** | session-agent | t200-t201-render | 合并交付（Draw3D 世界内渲染延后到渲染增量） |
-| T-300 | 错误呈现链路 | S3 | pending | | | 依赖 T-106 |
-| T-301 | screen·ScriptScreen | S3 | pending | | | 依赖 T-106 |
+| T-300 | 错误呈现链路 | S3 | **done**（v1） | session-agent | main | ErrorPresenter 节流+20 条环形历史（单测）；setErrorHandler 此前从未接线（运行时错误静默丢失）已修复；可点击聊天行 → /neomacros errors 查看器 |
+| T-301 | screen·ScriptScreen | S3 | **done**（v1 查看器） | session-agent | main | 26.3 extractRenderState 管线 + MultiLineEditBox + Done；/neomacros open <script> 显示源码；编辑能力归 T-302 |
 | T-302 | 编辑器 GUI | S3 | pending | | | 依赖 T-301 |
 | T-303 | 管理面板 | S3 | pending | | | 依赖 T-031, T-301 |
 | T-310 | VitePress·npm types | S3 | **partially-done** | session-agent | t310-vitepress | [报告](reports/T-310.md)；VitePress 脚手架+npm types 打包脚本就位；npm install/build 待 Node.js 环境验证 |
