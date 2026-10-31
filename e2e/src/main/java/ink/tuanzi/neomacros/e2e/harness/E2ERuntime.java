@@ -5,16 +5,15 @@ import ink.tuanzi.neomacros.core.api.ClockApi;
 import ink.tuanzi.neomacros.core.api.EventsApi;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.StorageApi;
+import ink.tuanzi.neomacros.core.api.entity.EntityApi;
+import ink.tuanzi.neomacros.core.api.player.PlayerApi;
+import ink.tuanzi.neomacros.core.api.world.WorldApi;
 import ink.tuanzi.neomacros.core.api.bindgen.BindingRegistry;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
 import ink.tuanzi.neomacros.core.event.EventBus;
-import ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent;
-import ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent;
-import ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent;
-import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldJoinEvent;
-import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldLeaveEvent;
-import ink.tuanzi.neomacros.core.event.def.tick.TickEvent;
 import ink.tuanzi.neomacros.core.event.EventCatalog;
+import ink.tuanzi.neomacros.core.event.PortEventWiring;
+import ink.tuanzi.neomacros.core.event.ProductionEventSet;
 import ink.tuanzi.neomacros.core.module.ModuleManager;
 import ink.tuanzi.neomacros.core.module.ScriptMeta;
 import ink.tuanzi.neomacros.core.runtime.ScriptEngine;
@@ -60,21 +59,14 @@ public final class E2ERuntime implements AutoCloseable {
     public static E2ERuntime create(Path scriptsDir, Path storageDir) {
         var adapter = new StubAdapter();
         var catalog = new EventCatalog();
-        catalog.registerAll(List.of(
-                ink.tuanzi.neomacros.core.event.def.tick.TickEvent.class,
-                ink.tuanzi.neomacros.core.event.def.chat.ChatSendEvent.class,
-                ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent.class,
-                ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent.class,
-                ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent.class,
-                ink.tuanzi.neomacros.core.event.def.lifecycle.WorldJoinEvent.class,
-                ink.tuanzi.neomacros.core.event.def.lifecycle.WorldLeaveEvent.class));
+        catalog.registerAll(ProductionEventSet.records());
         var pool = new ScriptThreadPool(2);
         // Synchronous executor: publishes dispatch inline, keeping scenarios deterministic.
         var bus = new EventBus(catalog, Runnable::run);
         var registry = new BindingRegistry("26.3");
         var bridge = new TestBridge();
         registry.registerAll(List.of(EventsApi.class, ClockApi.class, ChatApi.class,
-                StorageApi.class, TestBridge.class));
+                StorageApi.class, TestBridge.class, WorldApi.class, EntityApi.class, PlayerApi.class));
         registry.promoteRootMembers("clock", List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(storageDir);
@@ -91,41 +83,29 @@ public final class E2ERuntime implements AutoCloseable {
             }
         });
         var runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, 500);
+        // Script-side failures must surface in test output, never vanish.
+        runtime.setErrorHandler(error -> {
+            log("SCRIPT-ERROR " + error);
+            StringBuilder trace = new StringBuilder();
+            for (Throwable t = error; t != null; t = t.getCause()) {
+                trace.append("  caused by ").append(t).append('\n');
+                for (StackTraceElement frame : t.getStackTrace()) {
+                    trace.append("    at ").append(frame).append('\n');
+                    if (trace.length() > 4000) {
+                        break;
+                    }
+                }
+            }
+            log(trace.toString());
+        });
         var modules = new ModuleManager(runtime, registry, PermissionView.ALLOW_ALL,
                 scriptsDir, m -> log("WARN " + m));
 
-        wireEventSinks(adapter, runtime, modules);
+        PortEventWiring.wire(adapter, bus, modules, runtime.tickClock());
 
         var harness = new E2ERuntime(adapter, runtime, registry, modules,
                 (TestBridge) registry.instance("__test"), catalog);
         return harness;
-    }
-
-    /** The production event wiring, reproduced over the stub adapter. */
-    private static void wireEventSinks(StubAdapter adapter, ScriptRuntime rt,
-                                       ModuleManager modules) {
-        adapter.lifecyclePort().onTick(tick -> {
-            rt.tickClock().tick();
-            rt.eventBus().publish("tick", new TickEvent(tick));
-        });
-        adapter.lifecyclePort().onGameStart(() -> {
-            modules.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
-            rt.eventBus().publish("game:start", new GameStartEvent());
-        });
-        adapter.lifecyclePort().onGameQuit(() -> {
-            rt.eventBus().publish("game:quit", new GameQuitEvent());
-            modules.unloadPhase(ScriptMeta.Lifecycle.ALWAYS);
-        });
-        adapter.lifecyclePort().onWorldJoin(() -> {
-            modules.loadPhase(ScriptMeta.Lifecycle.WORLD);
-            rt.eventBus().publish("world:join", new WorldJoinEvent());
-        });
-        adapter.lifecyclePort().onWorldLeave(() -> {
-            rt.eventBus().publish("world:leave", new WorldLeaveEvent());
-            modules.unloadPhase(ScriptMeta.Lifecycle.WORLD);
-        });
-        adapter.chatPort().onChatReceive(message ->
-                rt.eventBus().publish("chat:receive", new ChatReceiveEvent(message)));
     }
 
     /** The stub adapter (event injection + output assertions). */

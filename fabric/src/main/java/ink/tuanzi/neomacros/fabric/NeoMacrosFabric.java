@@ -5,36 +5,35 @@ import ink.tuanzi.neomacros.adapter.FabricCommandPort;
 import ink.tuanzi.neomacros.adapter.NeomacrosAdapterImpl;
 import ink.tuanzi.neomacros.core.NeoMacros;
 import ink.tuanzi.neomacros.core.api.ChatApi;
+import ink.tuanzi.neomacros.core.api.ClockApi;
 import ink.tuanzi.neomacros.core.api.CommandApi;
+import ink.tuanzi.neomacros.core.api.entity.EntityApi;
+import ink.tuanzi.neomacros.core.api.EventsApi;
 import ink.tuanzi.neomacros.core.api.FsApi;
 import ink.tuanzi.neomacros.core.api.InputApi;
 import ink.tuanzi.neomacros.core.api.NetApi;
-import ink.tuanzi.neomacros.core.api.ClockApi;
-import ink.tuanzi.neomacros.core.api.EventsApi;
+import ink.tuanzi.neomacros.core.api.player.PlayerApi;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.StorageApi;
+import ink.tuanzi.neomacros.core.api.world.WorldApi;
 import ink.tuanzi.neomacros.core.api.bindgen.BindingRegistry;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
 import ink.tuanzi.neomacros.core.config.ConfigManager;
 import ink.tuanzi.neomacros.core.config.CoreOptions;
 import ink.tuanzi.neomacros.core.event.EventBus;
 import ink.tuanzi.neomacros.core.event.EventCatalog;
-import ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent;
-import ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent;
-import ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent;
-import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldJoinEvent;
-import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldLeaveEvent;
-import ink.tuanzi.neomacros.core.event.def.tick.TickEvent;
+import ink.tuanzi.neomacros.core.event.Payloads;
+import ink.tuanzi.neomacros.core.event.PortEventWiring;
+import ink.tuanzi.neomacros.core.event.ProductionEventSet;
 import ink.tuanzi.neomacros.core.event.SyncWatchdog;
 import ink.tuanzi.neomacros.core.module.ModuleManager;
 import ink.tuanzi.neomacros.core.module.ScriptMeta;
 import ink.tuanzi.neomacros.core.runtime.ScriptEngine;
 import ink.tuanzi.neomacros.core.runtime.ScriptRuntime;
-import ink.tuanzi.neomacros.core.thread.ScriptThreadPool;
 import ink.tuanzi.neomacros.core.security.TrustManager;
+import ink.tuanzi.neomacros.core.thread.ScriptThreadPool;
 import ink.tuanzi.neomacros.engine.GraalJsEngine;
 import ink.tuanzi.neomacros.engine.ModuleResolver;
-import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -80,26 +79,22 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var adapter = new NeomacrosAdapterImpl();
         var catalog = new EventCatalog();
         // Explicit registration: the classpath scanner cannot see mod classes
-        // under Knot (java.class.path does not include the mod jar), so the
-        // event list is declared here. Keep in sync with core/event/def.
-        catalog.registerAll(java.util.List.of(
-                ink.tuanzi.neomacros.core.event.def.tick.TickEvent.class,
-                ink.tuanzi.neomacros.core.event.def.chat.ChatSendEvent.class,
-                ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent.class,
-                ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent.class,
-                ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent.class,
-                ink.tuanzi.neomacros.core.event.def.lifecycle.WorldJoinEvent.class,
-                ink.tuanzi.neomacros.core.event.def.lifecycle.WorldLeaveEvent.class));
+        // in nested-jar deployments (java.class.path is not mod-resolved), so
+        // the event list comes from the shared production set. Keep in sync
+        // with core/event/def.
+        catalog.registerAll(ProductionEventSet.records());
         var pool = new ScriptThreadPool(Runtime.getRuntime().availableProcessors());
         var bus = new EventBus(catalog, pool.workers());
         var registry = new BindingRegistry(mcVersion());
+
         var ioExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
             Thread thread = new Thread(r, "neomacros-io");
             thread.setDaemon(true);
             return thread;
         });
-        registry.registerAll(java.util.List.of(EventsApi.class, ClockApi.class, ChatApi.class,
-                StorageApi.class));
+        registry.registerAll(java.util.List.of(
+                EventsApi.class, ClockApi.class, ChatApi.class, StorageApi.class,
+                WorldApi.class, EntityApi.class, PlayerApi.class));
         registry.registerInstance(new FsApi(new GameDirFsBridge(), ioExecutor));
         registry.registerInstance(new NetApi(ioExecutor));
         var inputApi = new ink.tuanzi.neomacros.core.api.InputApi(
@@ -168,7 +163,25 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
         quitOnDone = Boolean.getBoolean("neomacros.e2e.quitOnDone");
 
-        wireEventSinks(adapter, runtime, modules, options);
+        PortEventWiring.wire(adapter, bus, modules, runtime.tickClock());
+        // Fabric-local extras ride as additional sinks: the scripts-loaded log,
+        // the config-driven script file watch, and the E2E quit-on-done poll.
+        adapter.lifecycle().onGameStart(() ->
+                LOGGER.info("NeoMacros: {} scripts loaded", modules.loaded().size()));
+        adapter.lifecycle().onTick(tick -> {
+            if (options.scriptWatch && tick % options.scriptWatchInterval == 0) {
+                modules.checkForChanges();
+            }
+        });
+        if (quitOnDone) {
+            adapter.lifecycle().onTick(tick -> {
+                if (tick % 100 == 0 && tick > 0
+                        && Files.exists(configDir.resolve("storage").resolve("e2e-suite.json"))) {
+                    LOGGER.info("NeoMacros E2E results present; shutting down client");
+                    adapter.lifecycle().requestShutdown();
+                }
+            });
+        }
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
         registerCommands(scriptsDir, modules, trustManager);
     }
@@ -178,48 +191,6 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         return FabricLoader.getInstance().getModContainer("minecraft")
                 .map(c -> c.getMetadata().getVersion().getFriendlyString())
                 .orElse("26.3");
-    }
-
-    /**
-     * Feeds the event bus from the adapter sinks (one publish per source) and
-     * drives the script lifecycle phases: always-phase scripts load once the
-     * client has started (before the game:start publish so scripts observe
-     * it), world-phase scripts load and unload with the world session.
-     */
-    private static void wireEventSinks(NeomacrosAdapterImpl adapter, ScriptRuntime rt, ModuleManager modules, CoreOptions options) {
-        adapter.lifecycle().onTick(tick -> {
-            rt.tickClock().tick();
-            rt.eventBus().publish("tick", new TickEvent(tick));
-            if (options.scriptWatch && tick % options.scriptWatchInterval == 0) {
-                modules.checkForChanges();
-            }
-            if (quitOnDone && tick % 100 == 0 && tick > 0) {
-                Path resultsFile = configDir.resolve("storage").resolve("e2e-suite.json");
-                if (Files.exists(resultsFile)) {
-                    LOGGER.info("NeoMacros E2E results present; shutting down client");
-                    adapter.lifecycle().requestShutdown();
-                }
-            }
-        });
-        adapter.lifecycle().onGameStart(() -> {
-            modules.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
-            LOGGER.info("NeoMacros: {} scripts loaded", modules.loaded().size());
-            rt.eventBus().publish("game:start", new GameStartEvent());
-        });
-        adapter.lifecycle().onGameQuit(() -> {
-            rt.eventBus().publish("game:quit", new GameQuitEvent());
-            modules.unloadPhase(ScriptMeta.Lifecycle.ALWAYS);
-            ScriptApiEnvironment.closeStorages();
-        });
-        adapter.lifecycle().onWorldJoin(() -> {
-            modules.loadPhase(ScriptMeta.Lifecycle.WORLD);
-            rt.eventBus().publish("world:join", new WorldJoinEvent());
-        });
-        adapter.lifecycle().onWorldLeave(() -> {
-            rt.eventBus().publish("world:leave", new WorldLeaveEvent());
-            modules.unloadPhase(ScriptMeta.Lifecycle.WORLD);
-        });
-        adapter.chat().onChatReceive(message -> rt.eventBus().publish("chat:receive", new ChatReceiveEvent(message)));
     }
 
     /** Registers the root {@code /neomacros} command and its subcommands. */
@@ -300,7 +271,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
             Path resolved = gameDir.toAbsolutePath().resolve(path).normalize();
             if (!resolved.startsWith(gameDir.toAbsolutePath())) {
-                throw new SecurityException("path escapes the game directory: " + path);
+                throw new java.lang.SecurityException("path escapes the game directory: " + path);
             }
             return resolved;
         }
