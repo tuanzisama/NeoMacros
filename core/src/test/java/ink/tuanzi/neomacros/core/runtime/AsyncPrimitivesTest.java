@@ -47,6 +47,32 @@ class AsyncPrimitivesTest {
         pool.close();
     }
 
+    /** Polls until the capture fills (scheduler may lag a few ms under load). */
+    private static void awaitCapture(AtomicReference<String> capture) {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (capture.get() == null && System.currentTimeMillis() < deadline) {
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
+    /** Polls until the capture fills (scheduler may lag a few ms under load). */
+    private static void awaitCapture(java.util.concurrent.CompletableFuture<String> capture) {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (!capture.isDone() && System.currentTimeMillis() < deadline) {
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
     @Test
     void sleepCompletesOnLoopAfterDelay() throws Exception {
         long start = System.currentTimeMillis();
@@ -54,6 +80,7 @@ class AsyncPrimitivesTest {
         AtomicReference<String> completedOn = captureCompletionThread(done);
         done.get(2, TimeUnit.SECONDS);
         assertTrue(System.currentTimeMillis() - start >= 110);
+        awaitCapture(completedOn);
         assertEquals(loop.threadName(), completedOn.get());
     }
 
@@ -63,6 +90,7 @@ class AsyncPrimitivesTest {
         AtomicReference<String> completedOn = captureCompletionThread(nextTick);
         tickClock.tick();
         nextTick.get(2, TimeUnit.SECONDS);
+        awaitCapture(completedOn);
         assertEquals(loop.threadName(), completedOn.get());
     }
 
@@ -71,6 +99,7 @@ class AsyncPrimitivesTest {
         CompletableFuture<Boolean> done = async.waitFor(unused -> true, 500);
         AtomicReference<String> completedOn = captureCompletionThread(done);
         assertTrue(done.get(2, TimeUnit.SECONDS));
+        awaitCapture(completedOn);
         assertEquals(loop.threadName(), completedOn.get());
     }
 
@@ -98,6 +127,7 @@ class AsyncPrimitivesTest {
         AtomicReference<String> completedOn = captureCompletionThread(done);
         main.runQueuedTasks();
         assertEquals("computed", done.get(2, TimeUnit.SECONDS));
+        awaitCapture(completedOn);
         assertEquals(loop.threadName(), completedOn.get(), "result relayed onto the loop");
     }
 

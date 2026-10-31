@@ -1,9 +1,11 @@
 package ink.tuanzi.neomacros.fabric;
 
 import com.mojang.brigadier.Command;
+import ink.tuanzi.neomacros.adapter.FabricCommandPort;
 import ink.tuanzi.neomacros.adapter.NeomacrosAdapterImpl;
 import ink.tuanzi.neomacros.core.NeoMacros;
 import ink.tuanzi.neomacros.core.api.ChatApi;
+import ink.tuanzi.neomacros.core.api.CommandApi;
 import ink.tuanzi.neomacros.core.api.FsApi;
 import ink.tuanzi.neomacros.core.api.NetApi;
 import ink.tuanzi.neomacros.core.api.ClockApi;
@@ -102,6 +104,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.promoteRootMembers("clock", java.util.List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(configDir.resolve("storage"));
+
+        var commandPort = new FabricCommandPort();
+        var commandApi = new CommandApi(commandPort);
+        registry.registerInstance(commandApi);
 
         ScriptEngine engine = new GraalJsEngine(new ScriptsModuleResolver(scriptsDir, registry));
         runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, options.maxSyncTime);
