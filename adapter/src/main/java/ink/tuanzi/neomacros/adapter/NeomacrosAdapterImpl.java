@@ -9,14 +9,18 @@ import ink.tuanzi.neomacros.port.UnsupportedPortFeature;
 import ink.tuanzi.neomacros.port.WorldPort;
 
 /**
- * The 26.3 node's adapter: lifecycle and chat are implemented against Fabric
- * API and the vanilla client; the remaining ports are implemented by later
- * increments and raise {@link UnsupportedPortFeature} until then.
+ * The 26.3 node's adapter: lifecycle, chat, world, entity, and player are
+ * implemented against Fabric API and the vanilla client; the remaining
+ * ports are implemented by later increments and raise
+ * {@link UnsupportedPortFeature} until then.
  */
 public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
 
     private final FabricLifecyclePort lifecycle = new FabricLifecyclePort();
     private final FabricChatPort chat = new FabricChatPort();
+    private final FabricWorldPort world = new FabricWorldPort();
+    private final FabricEntityPort entity = new FabricEntityPort();
+    private final FabricPlayerPort player = new FabricPlayerPort();
 
     @Override
     public LifecyclePort lifecycle() {
@@ -30,16 +34,16 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
 
     @Override
     public WorldPort world() {
-        throw new UnsupportedPortFeature("world");
+        return world;
     }
 
     @Override
     public EntityPort entity() {
-        throw new UnsupportedPortFeature("entity");
+        return entity;
     }
 
     @Override
     public PlayerPort player() {
-        throw new UnsupportedPortFeature("player");
+        return player;
     }
 }

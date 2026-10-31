@@ -5,14 +5,22 @@ import ink.tuanzi.neomacros.port.EntityPort;
 import ink.tuanzi.neomacros.port.LifecyclePort;
 import ink.tuanzi.neomacros.port.NeomacrosAdapter;
 import ink.tuanzi.neomacros.port.PlayerPort;
-import ink.tuanzi.neomacros.port.UnsupportedPortFeature;
 import ink.tuanzi.neomacros.port.WorldPort;
+import ink.tuanzi.neomacros.port.model.BlockData;
+import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.ChatComponent;
+import ink.tuanzi.neomacros.port.model.EntitySnapshot;
+import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
+import ink.tuanzi.neomacros.port.model.Pos3d;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -25,6 +33,9 @@ public final class StubAdapter implements NeomacrosAdapter {
 
     private final StubLifecycle lifecycle = new StubLifecycle();
     private final StubChat chat = new StubChat();
+    private final StubWorld world = new StubWorld();
+    private final StubEntity entity = new StubEntity();
+    private final StubPlayer player = new StubPlayer();
 
     public StubLifecycle lifecyclePort() {
         return lifecycle;
@@ -32,6 +43,18 @@ public final class StubAdapter implements NeomacrosAdapter {
 
     public StubChat chatPort() {
         return chat;
+    }
+
+    public StubWorld worldPort() {
+        return world;
+    }
+
+    public StubEntity entityPort() {
+        return entity;
+    }
+
+    public StubPlayer playerPort() {
+        return player;
     }
 
     @Override
@@ -46,17 +69,17 @@ public final class StubAdapter implements NeomacrosAdapter {
 
     @Override
     public WorldPort world() {
-        throw new UnsupportedPortFeature("world");
+        return world;
     }
 
     @Override
     public EntityPort entity() {
-        throw new UnsupportedPortFeature("entity");
+        return entity;
     }
 
     @Override
     public PlayerPort player() {
-        throw new UnsupportedPortFeature("player");
+        return player;
     }
 
     /** Lifecycle sink fan-out with explicit test-side firing. */
@@ -175,6 +198,151 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public void onChatReceive(Consumer<ChatComponent> sink) {
             receiveSinks.add(sink);
+        }
+    }
+
+    /** World data over canned state; tests mutate the fields directly. */
+    public static final class StubWorld implements WorldPort {
+        long time;
+        String dimension = "";
+        boolean raining;
+        BlockData blockAt;
+        BlockInteraction raycastHit;
+
+        /** Sets the canned block returned for any blockAt query. */
+        public void setBlock(BlockData block) {
+            this.blockAt = block;
+        }
+
+        /** Sets the canned raycast result (null = miss). */
+        public void setRaycastHit(BlockInteraction hit) {
+            this.raycastHit = hit;
+        }
+
+        @Override
+        public long time() {
+            return time;
+        }
+
+        @Override
+        public String dimension() {
+            return dimension;
+        }
+
+        @Override
+        public boolean isRaining() {
+            return raining;
+        }
+
+        @Override
+        public Optional<BlockData> blockAt(Pos3d pos) {
+            return Optional.ofNullable(blockAt);
+        }
+
+        @Override
+        public Optional<BlockInteraction> raycast(Pos3d from, Pos3d to) {
+            return Optional.ofNullable(raycastHit);
+        }
+    }
+
+    /** Entity queries over a canned snapshot list. */
+    public static final class StubEntity implements EntityPort {
+        final List<EntitySnapshot> entities = new ArrayList<>();
+
+        /** Replaces the canned entity population. */
+        public void setEntities(List<EntitySnapshot> snapshots) {
+            entities.clear();
+            entities.addAll(snapshots);
+        }
+
+        @Override
+        public Optional<EntitySnapshot> byUuid(UUID uuid) {
+            return entities.stream().filter(e -> e.uuid().equals(uuid)).findFirst();
+        }
+
+        @Override
+        public List<EntitySnapshot> inRadius(Pos3d center, double range, Predicate<EntitySnapshot> filter) {
+            double squared = range * range;
+            List<EntitySnapshot> hits = new ArrayList<>();
+            for (EntitySnapshot entity : entities) {
+                double dx = entity.pos().x() - center.x();
+                double dy = entity.pos().y() - center.y();
+                double dz = entity.pos().z() - center.z();
+                if (dx * dx + dy * dy + dz * dz <= squared && filter.test(entity)) {
+                    hits.add(entity);
+                }
+            }
+            return List.copyOf(hits);
+        }
+    }
+
+    /** Local player state over one settable snapshot plus fireable interactions. */
+    public static final class StubPlayer implements PlayerPort {
+        volatile PlayerSnapshot self;
+        final List<Function<BlockInteraction, Boolean>> attackBlockSinks = new CopyOnWriteArrayList<>();
+        final List<Function<EntitySnapshot, Boolean>> attackEntitySinks = new CopyOnWriteArrayList<>();
+        final List<Function<BlockInteraction, Boolean>> interactBlockSinks = new CopyOnWriteArrayList<>();
+        final List<Function<EntitySnapshot, Boolean>> interactEntitySinks = new CopyOnWriteArrayList<>();
+
+        /** Sets the local player snapshot (null = not in a world). */
+        public void setSelf(PlayerSnapshot snapshot) {
+            this.self = snapshot;
+        }
+
+        /** Fires the attack-block interaction; returns the cancel verdict. */
+        public boolean fireAttackBlock(BlockInteraction hit) {
+            return fireAll(attackBlockSinks, hit);
+        }
+
+        /** Fires the attack-entity interaction; returns the cancel verdict. */
+        public boolean fireAttackEntity(EntitySnapshot target) {
+            return fireAll(attackEntitySinks, target);
+        }
+
+        /** Fires the block-use interaction; returns the cancel verdict. */
+        public boolean fireInteractBlock(BlockInteraction hit) {
+            return fireAll(interactBlockSinks, hit);
+        }
+
+        /** Fires the entity-interaction; returns the cancel verdict. */
+        public boolean fireInteractEntity(EntitySnapshot target) {
+            return fireAll(interactEntitySinks, target);
+        }
+
+        @Override
+        public Optional<PlayerSnapshot> self() {
+            return Optional.ofNullable(self);
+        }
+
+        @Override
+        public void onAttackBlock(Function<BlockInteraction, Boolean> sink) {
+            attackBlockSinks.add(sink);
+        }
+
+        @Override
+        public void onAttackEntity(Function<EntitySnapshot, Boolean> sink) {
+            attackEntitySinks.add(sink);
+        }
+
+        @Override
+        public void onInteractBlock(Function<BlockInteraction, Boolean> sink) {
+            interactBlockSinks.add(sink);
+        }
+
+        @Override
+        public void onInteractEntity(Function<EntitySnapshot, Boolean> sink) {
+            interactEntitySinks.add(sink);
+        }
+
+        /** Runs every sink; true when any sink cancels. */
+        private static <T> boolean fireAll(List<Function<T, Boolean>> sinks, T payload) {
+            boolean canceled = false;
+            for (Function<T, Boolean> sink : sinks) {
+                if (Boolean.TRUE.equals(sink.apply(payload))) {
+                    canceled = true;
+                }
+            }
+            return canceled;
         }
     }
 

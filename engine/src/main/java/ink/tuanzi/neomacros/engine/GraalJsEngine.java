@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -168,6 +169,7 @@ public final class GraalJsEngine implements ScriptEngine {
         private final Context context;
         private Value glue;
         private Value lastNamespace;
+        private Value cachedUndefined;
 
         private GraalJsSession(ScriptContext owner) {
             this.owner = owner;
@@ -319,6 +321,10 @@ public final class GraalJsEngine implements ScriptEngine {
 
         /** Recursively copies polyglot map/list views into plain Java collections. */
         private static Object snapshotValue(Object value) {
+            if (value instanceof java.util.UUID uuid) {
+                // Neutral surface: identifiers cross as strings, not host objects.
+                return uuid.toString();
+            }
             if (value != null && value.getClass().isRecord()) {
                 // Event payload records: expose components as a neutral map so
                 // the guest can read ev.message.text style paths.
@@ -535,20 +541,167 @@ public final class GraalJsEngine implements ScriptEngine {
          */
         private Value asGuestValue(Object result) {
             Object plain = snapshotValue(result);
+            if (plain == null) {
+                // ES surface rule: an absent value reads as undefined, never
+                // host null (missing handles/properties per the facade spec).
+                return undefinedValue();
+            }
+            if (plain instanceof ink.tuanzi.neomacros.core.api.ScriptHandle handle) {
+                return handleProxy(handle);
+            }
             if (plain instanceof java.util.Map<?, ?> map) {
                 // Plain Java maps are not member-readable under HostAccess.NONE;
                 // a ProxyObject exposes keys as members the guest can read.
+                // Nested containers recurse, or their hash entries would stay
+                // invisible to plain JS property access.
                 Map<String, Object> source = new LinkedHashMap<>();
                 for (Map.Entry<?, ?> entry : map.entrySet()) {
-                    source.put(String.valueOf(entry.getKey()), entry.getValue());
+                    source.put(String.valueOf(entry.getKey()),
+                            guestReadable(entry.getValue()));
                 }
                 return context.asValue(org.graalvm.polyglot.proxy.ProxyObject.fromMap(source));
             }
             if (plain instanceof java.util.List<?> list) {
+                List<Object> copy = new ArrayList<>(list.size());
+                for (Object element : list) {
+                    copy.add(guestReadable(element));
+                }
                 return context.asValue(
-                        org.graalvm.polyglot.proxy.ProxyArray.fromList(new ArrayList<>(list)));
+                        org.graalvm.polyglot.proxy.ProxyArray.fromList(copy));
             }
             return context.asValue(plain);
+        }
+
+        /** Converts one container level into its guest-readable proxy form. */
+        private Value guestReadable(Object value) {
+            Object plain = snapshotValue(value);
+            if (plain instanceof java.util.Map<?, ?> map) {
+                Map<String, Object> source = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    source.put(String.valueOf(entry.getKey()),
+                            guestReadable(entry.getValue()));
+                }
+                return context.asValue(org.graalvm.polyglot.proxy.ProxyObject.fromMap(source));
+            }
+            if (plain instanceof java.util.List<?> list) {
+                List<Object> copy = new ArrayList<>(list.size());
+                for (Object element : list) {
+                    copy.add(guestReadable(element));
+                }
+                return context.asValue(org.graalvm.polyglot.proxy.ProxyArray.fromList(copy));
+            }
+            return asGuestValue(plain);
+        }
+
+        /**
+         * Renders a live facade handle as a guest-readable member proxy: bean
+         * getters read as properties on every access (real-time per the
+         * handle contract), zero-argument public methods cross as functions,
+         * writes throw. Raw host objects are unreadable under the closed
+         * host-access policy, so the proxy is the only readable surface.
+         */
+        private Value handleProxy(Object handle) {
+            var members = handleMembers(handle.getClass());
+            return context.asValue(new org.graalvm.polyglot.proxy.ProxyObject() {
+                @Override
+                public Object getMember(String name) {
+                    java.lang.reflect.Executable member = members.get(name);
+                    if (member == null) {
+                        return undefinedValue();
+                    }
+                    try {
+                        Object result;
+                        if (member instanceof java.lang.reflect.Method method) {
+                            result = method.invoke(handle);
+                        } else {
+                            result = null;
+                        }
+                        return asGuestValue(result);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        Throwable cause = e.getCause();
+                        if (cause instanceof RuntimeException runtime) {
+                            throw runtime;
+                        }
+                        throw new IllegalStateException("handle member failed: " + name, cause);
+                    } catch (IllegalAccessException e) {
+                        throw new IllegalStateException("handle member not accessible: " + name, e);
+                    }
+                }
+
+                @Override
+                public boolean hasMember(String name) {
+                    return members.containsKey(name);
+                }
+
+                @Override
+                public Object getMemberKeys() {
+                    String[] keys = members.keySet().toArray(new String[0]);
+                    return new org.graalvm.polyglot.proxy.ProxyArray() {
+                        @Override
+                        public long getSize() {
+                            return keys.length;
+                        }
+
+                        @Override
+                        public Object get(long index) {
+                            return keys[(int) index];
+                        }
+
+                        @Override
+                        public void set(long index, Value value) {
+                            throw new UnsupportedOperationException("handle members are read-only");
+                        }
+                    };
+                }
+
+                @Override
+                public void putMember(String key, Value value) {
+                    throw new UnsupportedOperationException("handle members are read-only: " + key);
+                }
+            });
+        }
+
+        /** Bean getters (properties) and zero-arg public methods of one handle class, by script member name. */
+        private static final Map<Class<?>, Map<String, java.lang.reflect.Executable>> HANDLE_MEMBERS =
+                new ConcurrentHashMap<>();
+
+        private static Map<String, java.lang.reflect.Executable> handleMembers(Class<?> type) {
+            return HANDLE_MEMBERS.computeIfAbsent(type, cls -> {
+                Map<String, java.lang.reflect.Executable> members = new LinkedHashMap<>();
+                for (java.lang.reflect.Method method : cls.getMethods()) {
+                    if (method.getDeclaringClass() == Object.class) {
+                        continue;
+                    }
+                    String name = method.getName();
+                    int params = method.getParameterCount();
+                    if (params == 0 && (name.startsWith("get") || name.startsWith("is"))
+                            && !name.equals("getClass")) {
+                        String property = name.startsWith("is")
+                                ? decapitalize(name.substring(2))
+                                : decapitalize(name.substring(3));
+                        members.putIfAbsent(property, method);
+                    } else if (params == 0 && !name.equals("getClass")) {
+                        members.putIfAbsent(name, method);
+                    }
+                }
+                return Map.copyOf(members);
+            });
+        }
+
+        /** Lower-cases the first character of one member name suffix. */
+        private static String decapitalize(String name) {
+            if (name.isEmpty()) {
+                return name;
+            }
+            return Character.toLowerCase(name.charAt(0)) + name.substring(1);
+        }
+
+        /** The guest-side {@code undefined} value (resolved once per session). */
+        private Value undefinedValue() {
+            if (cachedUndefined == null) {
+                cachedUndefined = context.getBindings("js").getMember("undefined");
+            }
+            return cachedUndefined;
         }
 
         private static void probeFile(String line) {
@@ -631,7 +784,9 @@ public final class GraalJsEngine implements ScriptEngine {
                             return null;
                         }
                         if (method.getReturnType() == boolean.class) {
-                            return result.asBoolean();
+                            // JS falsiness: a handler without a return value
+                            // reads as false (no cancel / no match).
+                            return result.isBoolean() && result.asBoolean();
                         }
                         return result.as(Map.class);
                     });

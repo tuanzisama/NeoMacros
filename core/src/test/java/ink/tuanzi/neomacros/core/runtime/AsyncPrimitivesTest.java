@@ -51,27 +51,27 @@ class AsyncPrimitivesTest {
     void sleepCompletesOnLoopAfterDelay() throws Exception {
         long start = System.currentTimeMillis();
         CompletableFuture<Void> done = async.sleep(120);
-        AtomicReference<String> completedOn = captureCompletionThread(done);
+        java.util.concurrent.CompletableFuture<String> completedOn = captureCompletionThread(done);
         done.get(2, TimeUnit.SECONDS);
         assertTrue(System.currentTimeMillis() - start >= 110);
-        assertEquals(loop.threadName(), completedOn.get());
+        assertEquals(loop.threadName(), completedOn.get(2, TimeUnit.SECONDS));
     }
 
     @Test
     void ticksAndNextTickCompleteOnLoop() throws Exception {
         CompletableFuture<Void> nextTick = async.nextTick();
-        AtomicReference<String> completedOn = captureCompletionThread(nextTick);
+        java.util.concurrent.CompletableFuture<String> completedOn = captureCompletionThread(nextTick);
         tickClock.tick();
         nextTick.get(2, TimeUnit.SECONDS);
-        assertEquals(loop.threadName(), completedOn.get());
+        assertEquals(loop.threadName(), completedOn.get(2, TimeUnit.SECONDS));
     }
 
     @Test
     void waitForPassesWhenConditionMet() throws Exception {
         CompletableFuture<Boolean> done = async.waitFor(unused -> true, 500);
-        AtomicReference<String> completedOn = captureCompletionThread(done);
+        java.util.concurrent.CompletableFuture<String> completedOn = captureCompletionThread(done);
         assertTrue(done.get(2, TimeUnit.SECONDS));
-        assertEquals(loop.threadName(), completedOn.get());
+        assertEquals(loop.threadName(), completedOn.get(2, TimeUnit.SECONDS));
     }
 
     @Test
@@ -95,10 +95,10 @@ class AsyncPrimitivesTest {
     @Test
     void runOnMainMarshalsResultOntoLoop() throws Exception {
         CompletableFuture<Object> done = async.runOnMain(() -> "computed");
-        AtomicReference<String> completedOn = captureCompletionThread(done);
+        java.util.concurrent.CompletableFuture<String> completedOn = captureCompletionThread(done);
         main.runQueuedTasks();
         assertEquals("computed", done.get(2, TimeUnit.SECONDS));
-        assertEquals(loop.threadName(), completedOn.get(), "result relayed onto the loop");
+        assertEquals(loop.threadName(), completedOn.get(2, TimeUnit.SECONDS), "result relayed onto the loop");
     }
 
     @Test
@@ -144,9 +144,9 @@ class AsyncPrimitivesTest {
     }
 
     /** Captures the thread that completes the future; attach before completion. */
-    private AtomicReference<String> captureCompletionThread(CompletableFuture<?> future) {
-        AtomicReference<String> thread = new AtomicReference<>();
-        future.whenComplete((value, error) -> thread.set(Thread.currentThread().getName()));
+    private java.util.concurrent.CompletableFuture<String> captureCompletionThread(CompletableFuture<?> future) {
+        java.util.concurrent.CompletableFuture<String> thread = new java.util.concurrent.CompletableFuture<>();
+        future.whenComplete((value, error) -> thread.complete(Thread.currentThread().getName()));
         return thread;
     }
 }

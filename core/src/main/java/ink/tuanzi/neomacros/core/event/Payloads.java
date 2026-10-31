@@ -17,6 +17,10 @@ public final class Payloads {
 
     /** Recursively converts {@code value} into neutral plain data. */
     public static Object snapshot(Object value) {
+        if (value instanceof java.util.UUID uuid) {
+            // Neutral surface: identifiers cross as strings, not host objects.
+            return uuid.toString();
+        }
         if (value == null) {
             return null;
         }
