@@ -1,5 +1,6 @@
 plugins {
     `java-library`
+    `java-test-fixtures`
 }
 
 repositories {
@@ -23,4 +24,10 @@ tasks.withType<Test>().configureEach {
 dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.archunit.junit5)
+
+    // Shared dependency-guard rules; other version-independent modules consume
+    // them via testFixtures(project(":ports")) so every module declares the
+    // same boundaries from one definition.
+    testFixturesApi(libs.archunit)
 }
