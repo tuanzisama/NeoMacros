@@ -25,6 +25,7 @@ val modId = providers.gradleProperty("mod_id").get()
 // the string-based add() in both branches.
 val unobf = prop("access_widener_namespace") == "official"
 
+
 base {
     // Gradle appends "-$version", producing e.g. neomacros-26.3-fabric-0.1.0.jar
     archivesName = "$modId-$mc-fabric"
@@ -37,6 +38,7 @@ java {
 dependencies {
     minecraft("com.mojang:minecraft:$mc")
 
+    println("NODE-DIAG mc=" + mc + " unobf=" + unobf)
     if (unobf) {
         implementation("net.fabricmc:fabric-loader:${prop("fabric_loader_version")}")
         implementation("net.fabricmc.fabric-api:fabric-api:${prop("fabric_version")}")

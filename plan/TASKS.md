@@ -39,7 +39,7 @@
 | T-103 | lane-input | S1 | **done** | session-agent | t103-input | [报告](reports/T-103.md)；InputPort+FabricInputPort（26.3 keymapping/v1 新 API）+滚轮 mixin+InputApi；输入模拟延后 |
 | T-104 | lane-fs/net | S1 | **done** | session-agent | t104-fs-net | [报告](reports/T-104.md)；FsApi+NetApi 门面+沙箱边界+逃逸拒绝 ×3 单测绿；WebSocket 延后 |
 | T-105 | lane-command | S1 | **done** | session-agent | t105-command | [报告](reports/T-105.md)；CommandApi+FabricCommandPort（literal+args remainder）×3 单测绿；类型化 DSL 延后 |
-| T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | **in-progress** | session-agent | t106-node-matrix | 2026-10-31 认领（T-101 由 session-b 并行，矩阵先行） |
+| T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | **partially-done** | session-agent | t106-node-matrix | [报告](reports/T-106.md)；9 节点注册+properties 就位；26.1/26.2 跨版本 API 分支待适配；1.x fabric 版本待查 |
 | T-200 | hud·Draw2D | S2 | pending | | | 依赖 T-106 |
 | T-201 | render·Draw3D | S2 | pending | | | 依赖 T-106 |
 | T-300 | 错误呈现链路 | S3 | pending | | | 依赖 T-106 |
