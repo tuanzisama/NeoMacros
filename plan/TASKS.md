@@ -5,7 +5,7 @@
 > 2. 读执行协议 `../../neomacros-docs/09-development-plan.md`（§0 Agent 使用说明 / DoD / 泳道 / E2E 规格）；
 > 3. 在本看板认领任务：动工前标 `in-progress` + Owner/分支，完成后标 `done` 并写 `plan/reports/<ID>.md` 报告。
 >
-> 当前进度（2026-10-31 更新）：**T-000 / T-010 / T-011 / T-020 / T-021 / T-022 / T-023 / T-024 done，T-001 partially-done**（workflow 全交付，actionlint+PR 实跑两项验证待配置 git remote，见 [reports/T-001.md](reports/T-001.md)）。
+> 当前进度（2026-10-31 更新）：**T-000~T-024、T-030 done，T-031 partially-done（遗留：clock.sleep 游戏内落定排查/文件监视器/单模块 reload），T-001 partially-done**（workflow 全交付，actionlint+PR 实跑两项验证待配置 git remote，见 [reports/T-001.md](reports/T-001.md)）。
 > R1/R2 已关闭（T-022，结论见 08 §7）；bindgen 完成（T-023）：值中立绑定 + ProxyObject 活属性 + 权限包装 + @ApiMC 节点裁剪，双通道同一性有脚本级测试。
 > 已解锁可认领：**T-031（模块管理器——关键路径，前置全就绪）**、**T-030**（adapter 最小产品节点；首个 adapter 代码前必做双向 chisel 验证，见 T-000 报告遗留）、**T-032**（配置系统）；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
 > 关键路径剩余：T-031 → T-040（E2E-A）→ G0。
