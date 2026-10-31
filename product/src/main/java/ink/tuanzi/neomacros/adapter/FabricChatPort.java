@@ -30,8 +30,8 @@ public final class FabricChatPort implements ChatPort {
 
     @Override
     public void actionbar(String message) {
-        runOnMain(() -> Minecraft.getInstance().gui.hud
-                .setOverlayMessage(Component.literal(message), false));
+        runOnMain(() -> Minecraft.getInstance().gui.hud.setOverlayMessage(
+                Component.literal(message), false));
     }
 
     @Override

@@ -43,10 +43,15 @@ public final class FabricInputPort implements ink.tuanzi.neomacros.port.InputPor
         var key = InputConstants.getKey(keyName);
         var category = net.minecraft.client.KeyMapping.Category.register(
                 net.minecraft.resources.Identifier.withDefaultNamespace("neomacros"));
-        var mapping = new KeyMapping("neomacros.keybind." + keyName,
-                InputConstants.Type.KEYBOARD, key.getValue(), category);
+        var mapping = newMapping("neomacros.keybind." + keyName, key.getValue(), category);
         KeyMappingHelper.registerKeyMapping(mapping);
         keybinds.put(keyName, new Keybind(mapping, new CopyOnWriteArrayList<>(List.of(sink))));
+    }
+
+    /** Builds one key mapping; the input type constant renames in 26.3. */
+    private static KeyMapping newMapping(String name, int key,
+            net.minecraft.client.KeyMapping.Category category) {
+        return new KeyMapping(name, InputConstants.Type.KEYBOARD, key, category);
     }
 
     @Override

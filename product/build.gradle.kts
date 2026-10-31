@@ -1,3 +1,4 @@
+import dev.kikugie.stonecutter.build.StonecutterBuildExtension
 import org.gradle.language.jvm.tasks.ProcessResources
 import java.util.Properties
 
@@ -59,14 +60,9 @@ dependencies {
     }
 }
 
-// Source absorption: adapter (the only version-aware shared sources) and the
-// fabric entrypoint compile together with this node's own sources.
-sourceSets.main {
-    java.srcDir(rootProject.layout.projectDirectory.dir("adapter/src/main/java"))
-    java.srcDir(rootProject.layout.projectDirectory.dir("fabric/src/main/java"))
-    resources.srcDir(rootProject.layout.projectDirectory.dir("adapter/src/main/resources"))
-    resources.srcDir(rootProject.layout.projectDirectory.dir("fabric/src/main/resources"))
-}
+// The adapter and fabric entrypoint sources live in this branch's own tree
+// (src/main/java) so each node compiles its Stonecutter-preprocessed mirror;
+// external srcDirs would bypass the preprocessing pipeline.
 
 tasks.withType<ProcessResources>().configureEach {
     val expandProps = mapOf(
@@ -94,7 +90,26 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 
-// Reads the E2E-G results file (written by script-tests/suite.js through the
+// Per-node source replacements: the sources shared across nodes are written
+// against the active (newest) node's API spelling and rewritten for older
+// nodes here. The active node compiles raw sources without preprocessing.
+fun StonecutterBuildExtension.neomacrosReplacements() {
+    // 26.3 renamed the keyboard input type constant.
+    replacements.string(current.parsed < "26.3") {
+        replace("InputConstants.Type.KEYBOARD", "InputConstants.Type.KEYSYM")
+    }
+    // Before 26.2 the chat surface and the overlay message lived on Gui
+    // directly; 26.2 moved both under the hud sub-panel.
+    replacements.string(current.parsed < "26.2") {
+        replace("gui.hud.getChat()", "gui.getChat()")
+        replace("gui.hud.setOverlayMessage", "gui.setOverlayMessage")
+    }
+}
+
+stonecutter {
+    neomacrosReplacements()
+}
+
 // Reads the E2E-G results file (written by script-tests/suite.js through the
 // storage module) and fails when any case failed or the suite never
 // completed. Requires a finished runClient session with

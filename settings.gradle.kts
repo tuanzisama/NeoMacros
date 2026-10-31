@@ -50,10 +50,11 @@ stonecutter {
             // Milestone nodes (docs/01-overview.md §8). The full matrix:
             // 26.x unobf on Java 25, 1.x obf on Java 17/21 (Mojmap+Parchment).
             // fabric_minecraft_version_range pins each node 1:1.
-            // Currently only 26.3 is active. The remaining 8 nodes have
-            // versions/<mc>/gradle.properties in place but their fabric API
-            // versions and cross-version adapter branches are pending (T-106).
-            versions("26.3")
+            // The 26.x line is active with cross-version adapter branches
+            // (T-106). The 1.x nodes have verified fabric API versions in
+            // versions/<mc>/gradle.properties but stay inactive until their
+            // obf-mode loom setup and Java 17/21 toolchains are wired.
+            versions("26.1.2", "26.2", "26.3")
         }
     }
 }
