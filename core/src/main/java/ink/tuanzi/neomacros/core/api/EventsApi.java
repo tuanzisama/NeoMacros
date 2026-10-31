@@ -1,7 +1,7 @@
 package ink.tuanzi.neomacros.core.api;
 
 import ink.tuanzi.neomacros.core.api.bindgen.LoadTracker;
-import ink.tuanzi.neomacros.core.event.CancelFlag;
+import ink.tuanzi.neomacros.core.event.Payloads;
 import ink.tuanzi.neomacros.core.module.LoadedModule;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
@@ -76,13 +76,23 @@ public final class EventsApi {
     /**
      * Subscribes synchronously on the dispatch thread; only cancellable
      * events accept sync subscriptions. The callback receives the payload and
-     * the cancellation flag; call {@code cancel.cancel()} to reject the event.
+     * returns a truthy value to cancel the event (filter-style, like
+     * {@code Array.filter}). Sync callbacks must stay short; they block the
+     * dispatch thread.
      *
-     * @zh 在分发线程上同步订阅；仅可取消事件可用，调用 cancel.cancel() 拒绝事件。
+     * @zh 在分发线程上同步订阅；仅可取消事件可用。回调返回 truthy 即取消该事件。
+     * @zh-param name 事件名（仅可取消事件）
+     * @zh-param handler 判定回调：返回 truthy 取消事件；须短小
      */
     @ApiSince("0.1.0")
-    public void onSync(String name, java.util.function.BiConsumer<Object, CancelFlag> handler) {
-        var subscription = ScriptApiEnvironment.bus().onSync(name, (payload, cancel) -> handler.accept(payload, cancel));
+    public void onSync(String name, java.util.function.Predicate<Object> handler) {
+        var subscription = ScriptApiEnvironment.bus().onSync(name,
+                (payload, cancel) -> {
+                    Object verdict = ScriptApiEnvironment.guestView(Payloads.snapshot(payload));
+                    if (Boolean.TRUE.equals(handler.test(verdict))) {
+                        cancel.cancel();
+                    }
+                });
         LoadedModule owner = LoadTracker.current();
         if (owner != null) {
             owner.trackSync(subscription);

@@ -163,6 +163,11 @@ public final class BindingRegistry {
         return Optional.of(source.toString());
     }
 
+    /** The registered facade instance for one module name (harness access). */
+    public Object instance(String moduleName) {
+        return instances.get(moduleName);
+    }
+
     public Optional<Object> esmModule(String name, PermissionView view) {
         ApiModel.ModuleModel model = modules.get(name);
         if (model == null) {

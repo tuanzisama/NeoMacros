@@ -7,6 +7,7 @@ import ink.tuanzi.neomacros.port.NeomacrosAdapter;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.UnaryOperator;
 
 /**
  * Static installation point for the script-facing facade classes: the facade
@@ -21,6 +22,7 @@ public final class ScriptApiEnvironment {
     private static volatile NeomacrosAdapter adapter;
     private static volatile Path storageDir;
     private static final Map<String, ModuleStorage> STORAGES = new ConcurrentHashMap<>();
+    private static volatile UnaryOperator<Object> guestViewFn;
 
     private ScriptApiEnvironment() {
     }
@@ -34,6 +36,21 @@ public final class ScriptApiEnvironment {
     /** Installs the per-script storage directory; called once by the bootstrap. */
     public static void installStorage(Path dir) {
         storageDir = dir;
+    }
+
+    /**
+     * Installs the engine-side guest-view function: converts host values
+     * (snapshots, containers) into forms the guest can read under the current
+     * host-access policy. The engine sets this during session setup.
+     */
+    public static void installGuestView(UnaryOperator<Object> viewFunction) {
+        guestViewFn = viewFunction;
+    }
+
+    /** Converts one host value into its guest-readable form. */
+    public static Object guestView(Object value) {
+        UnaryOperator<Object> fn = guestViewFn;
+        return fn != null ? fn.apply(value) : value;
     }
 
     /** The (cached) store for one script manifest name. */

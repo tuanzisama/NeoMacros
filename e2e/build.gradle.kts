@@ -27,3 +27,10 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
+
+// CI-facing alias: the application-level E2E suite is the regular test task.
+tasks.register("verifyE2EA") {
+    group = "verification"
+    description = "Runs the application-level E2E scenario suite"
+    dependsOn(tasks.test)
+}

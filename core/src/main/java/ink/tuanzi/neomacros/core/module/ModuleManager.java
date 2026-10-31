@@ -74,6 +74,10 @@ public final class ModuleManager implements AutoCloseable {
         // Attribution lives on the context loop thread: guest top-level code
         // (and every binding call it makes) resolves its owner there. The
         // submit waits so the marker is active before any session work runs.
+        // Attribution lives on the context loop thread for the module's whole
+        // lifetime: event callbacks and async continuations run there long after
+        // loading, and they all resolve their context through this marker. The
+        // thread dies with the context, so the ThreadLocal clears itself.
         runOnLoop(context, () -> LoadTracker.begin(module));
         try {
             ScriptEngine.EngineSession session = runtime.engine().openSession(context);
@@ -93,9 +97,8 @@ public final class ModuleManager implements AutoCloseable {
             throw e instanceof ScriptError se ? se
                     : new ScriptError("module load failed: " + stem, e, file.toString(), null, null);
         } finally {
-            if (!context.isClosed()) {
-                runOnLoop(context, LoadTracker::end);
-            }
+            // No LoadTracker.end here: callbacks keep resolving their context
+            // through the loop-thread marker until the context closes.
         }
     }
 

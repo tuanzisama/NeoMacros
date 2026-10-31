@@ -319,6 +319,22 @@ public final class GraalJsEngine implements ScriptEngine {
 
         /** Recursively copies polyglot map/list views into plain Java collections. */
         private static Object snapshotValue(Object value) {
+            if (value != null && value.getClass().isRecord()) {
+                // Event payload records: expose components as a neutral map so
+                // the guest can read ev.message.text style paths.
+                Map<String, Object> copy = new java.util.LinkedHashMap<>();
+                for (java.lang.reflect.RecordComponent component :
+                        value.getClass().getRecordComponents()) {
+                    try {
+                        component.getAccessor().setAccessible(true);
+                        copy.put(component.getName(),
+                                snapshotValue(component.getAccessor().invoke(value)));
+                    } catch (ReflectiveOperationException ignored) {
+                        copy.put(component.getName(), null);
+                    }
+                }
+                return copy;
+            }
             if (value instanceof Map<?, ?> map) {
                 Map<String, Object> copy = new java.util.LinkedHashMap<>();
                 for (Map.Entry<?, ?> entry : map.entrySet()) {
@@ -442,7 +458,7 @@ public final class GraalJsEngine implements ScriptEngine {
                     }
                     if (member instanceof ModuleBinding.PropertyMember property) {
                         try {
-                            return guestView(property.get());
+                            return asGuestValue(property.get());
                         } catch (PolyglotException e) {
                             throw e;
                         } catch (Throwable t) {
@@ -456,7 +472,7 @@ public final class GraalJsEngine implements ScriptEngine {
                         }
                         return executable(arguments -> {
                             try {
-                                return guestView(function.invoke(convertArgs(function, arguments)));
+                                return asGuestValue(function.invoke(convertArgs(function, arguments)));
                             } catch (PolyglotException e) {
                                 throw e;
                             } catch (Throwable t) {
@@ -514,10 +530,10 @@ public final class GraalJsEngine implements ScriptEngine {
 
         /**
          * Prepares a facade result for the guest: plain-data containers are
-         * snapshotted (polyglot views must not escape) and wrapped with
-         * asValue so the guest can read them under HostAccess.NONE.
+         * snapshotted (polyglot views must not escape) and wrapped as proxies
+         * so the guest can read them under HostAccess.NONE.
          */
-        private Object guestView(Object result) {
+        private Value asGuestValue(Object result) {
             Object plain = snapshotValue(result);
             if (plain instanceof java.util.Map<?, ?> map) {
                 // Plain Java maps are not member-readable under HostAccess.NONE;
@@ -526,12 +542,13 @@ public final class GraalJsEngine implements ScriptEngine {
                 for (Map.Entry<?, ?> entry : map.entrySet()) {
                     source.put(String.valueOf(entry.getKey()), entry.getValue());
                 }
-                return org.graalvm.polyglot.proxy.ProxyObject.fromMap(source);
+                return context.asValue(org.graalvm.polyglot.proxy.ProxyObject.fromMap(source));
             }
             if (plain instanceof java.util.List<?> list) {
-                return org.graalvm.polyglot.proxy.ProxyArray.fromList(new ArrayList<>(list));
+                return context.asValue(
+                        org.graalvm.polyglot.proxy.ProxyArray.fromList(new ArrayList<>(list)));
             }
-            return plain;
+            return context.asValue(plain);
         }
 
         private static void probeFile(String line) {
@@ -607,7 +624,7 @@ public final class GraalJsEngine implements ScriptEngine {
                     (proxy, method, args) -> {
                         Value[] callArgs = new Value[args == null ? 0 : args.length];
                         for (int i = 0; i < callArgs.length; i++) {
-                            callArgs[i] = context.asValue(args[i]);
+                            callArgs[i] = asGuestValue(args[i]);
                         }
                         Value result = onLoop(() -> function.execute(callArgs));
                         if (method.getReturnType() == void.class) {
