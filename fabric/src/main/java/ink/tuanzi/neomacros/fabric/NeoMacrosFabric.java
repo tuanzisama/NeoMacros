@@ -7,6 +7,7 @@ import ink.tuanzi.neomacros.core.NeoMacros;
 import ink.tuanzi.neomacros.core.api.ChatApi;
 import ink.tuanzi.neomacros.core.api.CommandApi;
 import ink.tuanzi.neomacros.core.api.FsApi;
+import ink.tuanzi.neomacros.core.api.InputApi;
 import ink.tuanzi.neomacros.core.api.NetApi;
 import ink.tuanzi.neomacros.core.api.ClockApi;
 import ink.tuanzi.neomacros.core.api.EventsApi;
@@ -101,6 +102,31 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 StorageApi.class));
         registry.registerInstance(new FsApi(new GameDirFsBridge(), ioExecutor));
         registry.registerInstance(new NetApi(ioExecutor));
+        var inputApi = new ink.tuanzi.neomacros.core.api.InputApi(
+                new ink.tuanzi.neomacros.core.api.InputApi.InputBridge() {
+                    @Override
+                    public Object registerKeybind(String keyName, java.util.function.Consumer<Integer> sink) {
+                        adapter.input().registerKeybind(keyName, sink);
+                        return keyName;
+                    }
+
+                    @Override
+                    public Object registerKeyPress(String keyName, Runnable sink) {
+                        adapter.input().registerKeyPress(keyName, sink);
+                        return keyName;
+                    }
+
+                    @Override
+                    public void onScroll(java.util.function.DoubleConsumer sink) {
+                        adapter.input().onScroll(sink::accept);
+                    }
+
+                    @Override
+                    public void unregister(Object handle) {
+                        // per-keybind removal lands with the input management increment
+                    }
+                });
+        registry.registerInstance(inputApi);
         registry.promoteRootMembers("clock", java.util.List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(configDir.resolve("storage"));

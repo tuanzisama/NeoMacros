@@ -36,7 +36,7 @@
 | T-101 | lane-world（world/entity/player） | S1 | **in-progress** | session-agent-b | t101-lane-world | 2026-10-31 认领（独立 worktree，规避主树 T-100 WIP） |
 | T-101 | lane-world（world/entity/player） | S1 | pending | | | 依赖 T-030 |
 | T-102 | lane-inventory | S1 | pending | | | 依赖 T-030 |
-| T-103 | lane-input | S1 | pending | | | 依赖 T-030 |
+| T-103 | lane-input | S1 | **done** | session-agent | t103-input | [报告](reports/T-103.md)；InputPort+FabricInputPort（26.3 keymapping/v1 新 API）+滚轮 mixin+InputApi；输入模拟延后 |
 | T-104 | lane-fs/net | S1 | **done** | session-agent | t104-fs-net | [报告](reports/T-104.md)；FsApi+NetApi 门面+沙箱边界+逃逸拒绝 ×3 单测绿；WebSocket 延后 |
 | T-105 | lane-command | S1 | **done** | session-agent | t105-command | [报告](reports/T-105.md)；CommandApi+FabricCommandPort（literal+args remainder）×3 单测绿；类型化 DSL 延后 |
 | T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | pending | | | 依赖 T-101~105 合入；★需求方确认点 |
