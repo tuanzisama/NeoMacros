@@ -1,5 +1,7 @@
 package ink.tuanzi.neomacros.engine;
 
+import ink.tuanzi.neomacros.core.api.bindgen.ModuleBinding;
+import ink.tuanzi.neomacros.core.api.bindgen.PermissionError;
 import ink.tuanzi.neomacros.core.runtime.ScriptContext;
 import ink.tuanzi.neomacros.core.runtime.ScriptEngine;
 import ink.tuanzi.neomacros.core.runtime.ScriptError;
@@ -63,7 +65,12 @@ public final class GraalJsEngine implements ScriptEngine {
                     Object.freeze(value);
                     for (const key of Object.keys(value)) {
                         const child = value[key];
-                        if (child !== null && typeof child === 'object') {
+                        // Recurse into plain objects only: proxy-backed module
+                        // bindings are read-only by construction, and touching
+                        // their members would fire live getters.
+                        const proto = child === null ? null : Object.getPrototypeOf(child);
+                        if (child !== null && typeof child === 'object'
+                                && (proto === Object.prototype || proto === null)) {
                             deepFreeze(child);
                         }
                     }
@@ -290,6 +297,8 @@ public final class GraalJsEngine implements ScriptEngine {
                 Object value = entry.getValue();
                 if (value instanceof Map<?, ?> nested) {
                     tree.putMember(entry.getKey(), buildTree(unchecked(nested), makeAsync));
+                } else if (value instanceof ModuleBinding module) {
+                    tree.putMember(entry.getKey(), context.asValue(moduleProxy(module, makeAsync)));
                 } else if (value instanceof AsyncBinding async) {
                     tree.putMember(entry.getKey(), makeAsync.execute(executable(arguments -> {
                         Value jsArgs = arguments[0];
@@ -308,6 +317,158 @@ public final class GraalJsEngine implements ScriptEngine {
                 }
             }
             return tree;
+        }
+
+        /**
+         * Renders a module binding as a read-only guest object: bean getters
+         * read live on every property access, functions cross as proxies
+         * (async ones wrapped into promise factories), and putMember throws
+         * so the proxy has no write path.
+         */
+        private org.graalvm.polyglot.proxy.ProxyObject moduleProxy(ModuleBinding binding, Value makeAsync) {
+            return new org.graalvm.polyglot.proxy.ProxyObject() {
+                @Override
+                public Object getMember(String name) {
+                    ModuleBinding.BindingMember member = binding.members().get(name);
+                    if (member == null) {
+                        throw new IllegalStateException("unknown binding member: " + name);
+                    }
+                    if (member instanceof ModuleBinding.PropertyMember property) {
+                        try {
+                            return property.get();
+                        } catch (PolyglotException e) {
+                            throw e;
+                        } catch (Throwable t) {
+                            throw new RuntimeException(t);
+                        }
+                    }
+                    if (member instanceof ModuleBinding.FunctionMember function) {
+                        if (function.isAsync()) {
+                            return makeAsync.execute(executable(arguments ->
+                                    invokeAsync(function, arguments)));
+                        }
+                        return executable(arguments -> {
+                            try {
+                                return function.invoke(convertArgs(function, arguments));
+                            } catch (PolyglotException e) {
+                                throw e;
+                            } catch (Throwable t) {
+                                throw new RuntimeException(t);
+                            }
+                        });
+                    }
+                    if (member instanceof ModuleBinding.DeniedMember denied) {
+                        return executable(arguments -> {
+                            throw new PermissionError("permission '" + denied.permission()
+                                    + "' is not declared in this script's meta.permissions");
+                        });
+                    }
+                    if (member instanceof ModuleBinding.ConstantMember constant) {
+                        return constant.value();
+                    }
+                    throw new IllegalStateException("unrenderable binding member");
+                }
+
+                @Override
+                public boolean hasMember(String name) {
+                    return binding.members().containsKey(name);
+                }
+
+                @Override
+                public Object getMemberKeys() {
+                    // A host array would require array-access grants under
+                    // HostAccess.NONE; a proxy array crosses cleanly.
+                    String[] keys = binding.members().keySet().toArray(new String[0]);
+                    return new org.graalvm.polyglot.proxy.ProxyArray() {
+                        @Override
+                        public long getSize() {
+                            return keys.length;
+                        }
+
+                        @Override
+                        public Object get(long index) {
+                            return keys[(int) index];
+                        }
+
+                        @Override
+                        public void set(long index, Value value) {
+                            throw new UnsupportedOperationException("member keys are read-only");
+                        }
+                    };
+                }
+
+                @Override
+                public void putMember(String key, Value value) {
+                    throw new UnsupportedOperationException(
+                            "module bindings are read-only: " + key);
+                }
+            };
+        }
+
+        /** Converts guest arguments to the facade method's declared Java types. */
+        private Object[] convertArgs(ModuleBinding.FunctionMember function, Value[] arguments) {
+            Class<?>[] types = function.parameterTypes();
+            Object[] out = new Object[types.length];
+            for (int i = 0; i < types.length; i++) {
+                Value argument = i < arguments.length ? arguments[i] : null;
+                out[i] = argument == null ? null : asJava(argument, types[i]);
+            }
+            return out;
+        }
+
+        /** Converts one guest value to the declared Java type. */
+        private Object asJava(Value value, Class<?> type) {
+            if (type == String.class) {
+                return value.asString();
+            }
+            if (type == boolean.class) {
+                return value.asBoolean();
+            }
+            if (type == int.class) {
+                return value.asInt();
+            }
+            if (type == long.class) {
+                return value.asLong();
+            }
+            if (type == double.class) {
+                return value.asDouble();
+            }
+            if (type == float.class) {
+                return (float) value.asDouble();
+            }
+            if (type == java.util.UUID.class) {
+                return java.util.UUID.fromString(value.asString());
+            }
+            return value.asHostObject();
+        }
+
+        /** Invokes an async facade function and settles the promise on the loop. */
+        private Object invokeAsync(ModuleBinding.FunctionMember function, Value[] arguments) {
+            // arguments = [jsArgsArray, resolve, reject]; only [0] carries method params.
+            Value jsArgs = arguments[0];
+            Value resolve = arguments[1];
+            Value reject = arguments[2];
+            Value[] unpacked = new Value[(int) jsArgs.getArraySize()];
+            for (int i = 0; i < unpacked.length; i++) {
+                unpacked[i] = jsArgs.getArrayElement(i);
+            }
+            CompletableFuture<?> future;
+            try {
+                future = (CompletableFuture<?>) function.invoke(convertArgs(function, unpacked));
+            } catch (PolyglotException e) {
+                throw e;
+            } catch (Throwable t) {
+                reject.execute(newGuestErrorHere(String.valueOf(t.getMessage())));
+                return null;
+            }
+            future.whenComplete((value, failure) -> owner.loop().execute(() -> {
+                if (failure != null) {
+                    reject.execute(newGuestErrorHere(String.valueOf(failure)));
+                } else {
+                    resolve.execute(value);
+                }
+            }));
+            return null;
         }
 
         private Value glueMember(String name) {
