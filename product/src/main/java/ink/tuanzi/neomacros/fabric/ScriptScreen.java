@@ -29,15 +29,16 @@ public final class ScriptScreen extends Screen {
 
     /** Opens the viewer on the client thread. */
     public static void open(String title, String content) {
+        Component heading = Component.translatable("neomacros.ui.viewer.title", title);
         //? if <1.21.11 {
         /*
         Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(
-                new ScriptScreen(Component.literal("[NeoMacros] " + title), content)));
+                new ScriptScreen(heading, content)));
         */
         //?}
 //? if >=1.21.11 {
         Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreenAndShow(
-                new ScriptScreen(Component.literal("[NeoMacros] " + title), content)));
+                new ScriptScreen(heading, content)));
 //?}
     }
 
@@ -53,7 +54,7 @@ public final class ScriptScreen extends Screen {
         box.setValue(content);
         addRenderableWidget(box);
 
-        addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.done"), button -> onClose())
                 .bounds(this.width / 2 - 50, this.height - 28, 100, 20)
                 .build());
     }

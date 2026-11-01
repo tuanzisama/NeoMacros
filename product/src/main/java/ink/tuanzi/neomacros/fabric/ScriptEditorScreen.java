@@ -34,7 +34,7 @@ public final class ScriptEditorScreen extends Screen {
     private MultiLineEditBox editor;
 
     private ScriptEditorScreen(Path file, String initialContent, Runnable onSaved) {
-        super(Component.literal("[NeoMacros] edit " + file.getFileName()));
+        super(Component.translatable("neomacros.ui.editor.title", file.getFileName().toString()));
         this.file = file;
         this.initialContent = initialContent;
         this.onSaved = onSaved;
@@ -79,11 +79,11 @@ public final class ScriptEditorScreen extends Screen {
         addRenderableWidget(editor);
 
         int buttonY = this.height - 40;
-        addRenderableWidget(Button.builder(Component.literal("Save"), button -> save(false))
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.editor.save"), button -> save(false))
                 .bounds(margin, buttonY, 80, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Save+Reload"), button -> save(true))
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.editor.save_reload"), button -> save(true))
                 .bounds(margin + 88, buttonY, 100, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.done"), button -> onClose())
                 .bounds(this.width - margin - 80, buttonY, 80, 20).build());
     }
 
@@ -92,13 +92,14 @@ public final class ScriptEditorScreen extends Screen {
         try {
             Files.createDirectories(file.getParent());
             Files.writeString(file, editor.getValue(), StandardCharsets.UTF_8);
-            status = "saved " + file.getFileName();
+            status = UiText.tr(reload
+                    ? "neomacros.ui.editor.saved_reloaded" : "neomacros.ui.editor.saved",
+                    file.getFileName().toString());
             if (reload) {
                 onSaved.run();
-                status += " + reloaded";
             }
         } catch (IOException e) {
-            status = "save failed: " + e.getMessage();
+            status = UiText.tr("neomacros.ui.editor.save_failed", e.getMessage());
         }
     }
 

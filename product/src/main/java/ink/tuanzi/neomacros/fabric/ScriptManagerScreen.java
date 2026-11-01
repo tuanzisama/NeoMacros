@@ -60,7 +60,7 @@ public final class ScriptManagerScreen extends Screen {
     private ScriptManagerScreen(Supplier<List<RowData>> rowsProvider, Map<String, String> pendingTrusts,
             TrustManager trustManager, BiConsumer<String, String> onBind, Consumer<String> onUnbind,
             Consumer<String> onNewScript, Runnable onReload) {
-        super(Component.literal("[NeoMacros] macros"));
+        super(Component.translatable("neomacros.ui.panel.title"));
         this.rowsProvider = rowsProvider;
         this.pendingTrusts = pendingTrusts;
         this.trustManager = trustManager;
@@ -117,26 +117,26 @@ public final class ScriptManagerScreen extends Screen {
     private void addHeaderButtons() {
         int margin = 8;
         int y = this.height - 52;
-        addRenderableWidget(Button.builder(Component.literal("New: Key"), button ->
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.new_key"), button ->
                         onNewScript.accept("keypress")).bounds(margin, y, 84, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("New: Event"), button ->
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.new_event"), button ->
                         onNewScript.accept("event")).bounds(margin + 90, y, 90, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("New: Service"), button ->
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.new_service"), button ->
                         onNewScript.accept("services")).bounds(margin + 186, y, 96, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Reload All"), button -> {
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.reload_all"), button -> {
                     onReload.run();
-                    status = "reload requested";
+                    status = UiText.tr("neomacros.ui.panel.reload_requested");
                     repopulate();
                 }).bounds(margin + 288, y, 90, 20).build());
 
         int y2 = this.height - 28;
-        addRenderableWidget(Button.builder(Component.literal("Bind Key"), button -> startBind())
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.bind_key"), button -> startBind())
                 .bounds(margin, y2, 84, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Unbind"), button -> unbindSelected())
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.unbind"), button -> unbindSelected())
                 .bounds(margin + 90, y2, 84, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Trust Selected"), button ->
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.trust_selected"), button ->
                         trustSelected()).bounds(margin + 180, y2, 110, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.done"), button -> onClose())
                 .bounds(this.width - margin - 80, y2, 80, 20).build());
     }
 
@@ -145,14 +145,14 @@ public final class ScriptManagerScreen extends Screen {
         //? if >=26.1 {
         ScriptList.Row row = list.getSelected();
         if (row == null || row.data.name().isEmpty() || !row.data.bindable()) {
-            status = "select a keypress script first";
+            status = UiText.tr("neomacros.ui.panel.select_keypress_first");
             return;
         }
         awaitingBind = true;
-        status = "press any key to bind '" + row.data.name() + "' (Esc cancels)";
+        status = UiText.tr("neomacros.ui.panel.press_key", row.data.name());
         //?} else {
         /*
-        status = "bind via /neomacros keypress bind <script> <key>";
+        status = UiText.tr("neomacros.ui.panel.bind_via_command");
         */
         //?}
     }
@@ -161,15 +161,15 @@ public final class ScriptManagerScreen extends Screen {
         //? if >=26.1 {
         ScriptList.Row row = list.getSelected();
         if (row == null || row.data.name().isEmpty() || !row.data.bindable()) {
-            status = "select a keypress script first";
+            status = UiText.tr("neomacros.ui.panel.select_keypress_first");
             return;
         }
         onUnbind.accept(row.data.name());
-        status = "unbound " + row.data.name();
+        status = UiText.tr("neomacros.ui.panel.unbound", row.data.name());
         repopulate();
         //?} else {
         /*
-        status = "unbind via /neomacros keypress unbind <script>";
+        status = UiText.tr("neomacros.ui.panel.unbind_via_command");
         */
         //?}
     }
@@ -179,7 +179,7 @@ public final class ScriptManagerScreen extends Screen {
         //? if >=26.1 {
         ScriptList.Row row = list.getSelected();
         if (row == null) {
-            status = "select a script first";
+            status = UiText.tr("neomacros.ui.panel.select_script_first");
             return;
         }
         String name = row.data.name();
@@ -187,22 +187,22 @@ public final class ScriptManagerScreen extends Screen {
         /*
         String name = selectedScript;
         if (name == null) {
-            status = "open a script first";
+            status = UiText.tr("neomacros.ui.panel.select_script_first");
             return;
         }
         */
         //?}
         if (name == null || name.isEmpty()) {
-            status = "select a script first";
+            status = UiText.tr("neomacros.ui.panel.select_script_first");
             return;
         }
         String hash = pendingTrusts.get(name);
         if (hash == null) {
-            status = name + " has no pending trust request";
+            status = UiText.tr("neomacros.ui.panel.no_pending_trust", name);
             return;
         }
         trustManager.trust(hash);
-        status = "trusted " + name;
+        status = UiText.tr("neomacros.ui.panel.trusted", name);
         repopulate();
     }
 
@@ -233,7 +233,7 @@ public final class ScriptManagerScreen extends Screen {
         */
         //?}
         if (rows.stream().noneMatch(r -> !r.header())) {
-            status = "no macros found";
+            status = UiText.tr("neomacros.ui.panel.no_macros");
         }
     }
 
@@ -244,7 +244,7 @@ public final class ScriptManagerScreen extends Screen {
         if (awaitingBind) {
             awaitingBind = false;
             if (keyCode == 256) { // Esc cancels
-                status = "bind canceled";
+                status = UiText.tr("neomacros.ui.panel.bind_canceled");
                 return true;
             }
             applyCapturedKey(InputConstants.getKey(keyCode, scanCode).getName());
@@ -260,7 +260,7 @@ public final class ScriptManagerScreen extends Screen {
         if (awaitingBind) {
             awaitingBind = false;
             if (event.key() == 256) { // Esc cancels
-                status = "bind canceled";
+                status = UiText.tr("neomacros.ui.panel.bind_canceled");
                 return true;
             }
             applyCapturedKey(InputConstants.getKey(event).getName());
@@ -273,14 +273,14 @@ public final class ScriptManagerScreen extends Screen {
     /** Applies a captured keyboard key name to the selected script's binding. */
     private void applyCapturedKey(String keyName) {
         if (!keyName.startsWith("key.keyboard.")) {
-            status = "not a keyboard key: " + keyName;
+            status = UiText.tr("neomacros.ui.panel.not_keyboard_key", keyName);
             return;
         }
         //? if >=26.1 {
         ScriptList.Row row = list.getSelected();
         if (row != null && !row.data.name().isEmpty()) {
             onBind.accept(row.data.name(), keyName);
-            status = "bound " + row.data.name() + " to " + keyName;
+            status = UiText.tr("neomacros.ui.panel.bound", row.data.name(), keyName);
             repopulate();
         }
         //?}
