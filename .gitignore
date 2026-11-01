@@ -25,3 +25,6 @@ Thumbs.db
 
 # Local planning documents (task book, session reports)
 plan/
+
+# Eclipse/JDT in-place compiler output
+bin/
