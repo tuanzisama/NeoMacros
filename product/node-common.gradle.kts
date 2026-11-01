@@ -16,6 +16,10 @@ val nodeProps = Properties().apply {
 fun prop(key: String): String =
     nodeProps.getProperty(key) ?: error("versions/$mc/gradle.properties is missing key: $key")
 
+// Dependency floor for fabric.mod.json, decoupled from the loader version
+// loom compiles and runs the dev client with.
+val loaderMin = nodeProps.getProperty("fabric_loader_min") ?: prop("fabric_loader_version")
+
 val modId = providers.gradleProperty("mod_id").get()
 
 configure<org.gradle.api.plugins.BasePluginExtension> {
@@ -71,7 +75,7 @@ tasks.withType<ProcessResources>().configureEach {
         "version" to providers.gradleProperty("version").get(),
         "mod_id" to modId,
         "mc_range" to prop("fabric_minecraft_version_range"),
-        "loader_min" to prop("fabric_loader_version"),
+        "loader_min" to loaderMin,
     )
     inputs.properties(expandProps)
     filesMatching("fabric.mod.json") {

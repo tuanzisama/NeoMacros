@@ -46,14 +46,26 @@ public final class FabricDraw3DPort implements Draw3DPort {
 
     private final Map<String, CopyOnWriteArrayList<Shape>> layers = new ConcurrentHashMap<>();
 
+    //? if >=26.1 {
+    /** The persistent frame gizmo, re-added into vanilla's collector every frame. */
+    private final Gizmo frameGizmo = (Gizmo) (primitives, partialTick) -> emitAll(primitives);
+    //?}
+
     /** Creates the port and registers its renderer with the active pipeline. */
     public FabricDraw3DPort() {
         //? if >=26.1 {
-        Gizmos.addGizmo((Gizmo) (primitives, partialTick) -> emitAll(primitives));
+        Draw3DFrameHub.register(this);
         //?} else {
         /*
         WorldRenderEvents.AFTER_ENTITIES.register(this::emitWorld);
         */
+        //?}
+    }
+
+    /** Hands the port's gizmo to the collector active for the current frame. */
+    void addFrameGizmo() {
+        //? if >=26.1 {
+        Gizmos.addGizmo(frameGizmo);
         //?}
     }
 

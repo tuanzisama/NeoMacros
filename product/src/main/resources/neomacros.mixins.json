@@ -10,7 +10,8 @@
     "ClientLevelWorldMixin",
     "ClientChunkCacheMixin",
     "BossUpdateMixin",
-    "SoundEnginePlayMixin"
+    "SoundEnginePlayMixin",
+    "LevelGizmoMixin"
   ],
   "injectors": {
     "defaultRequire": 1
