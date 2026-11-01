@@ -258,6 +258,13 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
         registerCommands(trustManager, errorPresenter, pendingTrusts);
+        // Controls-menu key (default N): opens the management panel.
+        ink.tuanzi.neomacros.adapter.OpenPanelKeybind.register(() -> {
+            var screen = createConfigPanel(null);
+            if (screen != null) {
+                ScriptManagerScreen.show(screen);
+            }
+        });
     }
 
     /** Registers (or re-registers) one loaded keypress script's key binding. */
