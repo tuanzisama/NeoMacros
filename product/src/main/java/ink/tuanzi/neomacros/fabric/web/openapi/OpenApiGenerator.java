@@ -158,8 +158,21 @@ public final class OpenApiGenerator {
 
     private JsonObject responses(ApiRoute route) {
         JsonObject responses = new JsonObject();
-        Class<?> responseType = route.responseType();
-        if (responseType == void.class || responseType == Void.class) {
+        int declaredSuccess = route.api().success();
+        if (declaredSuccess != 0) {
+            JsonObject response = new JsonObject();
+            response.addProperty("description", declaredSuccess == 200
+                    ? "The event stream (long-lived connection)"
+                    : "Success");
+            JsonObject content = new JsonObject();
+            JsonObject media = new JsonObject();
+            JsonObject schema = new JsonObject();
+            schema.addProperty("type", "string");
+            media.add("schema", schema);
+            content.add("text/event-stream", media);
+            response.add("content", content);
+            responses.add(String.valueOf(declaredSuccess), response);
+        } else if (route.responseType() == void.class || route.responseType() == Void.class) {
             JsonObject response = new JsonObject();
             response.addProperty("description", "No content");
             responses.add("204", response);
@@ -167,7 +180,7 @@ public final class OpenApiGenerator {
             JsonObject response = new JsonObject();
             response.addProperty("description", "Success");
             JsonObject content = new JsonObject();
-            content.add("application/json", mediaType(responseType));
+            content.add("application/json", mediaType(route.responseType()));
             response.add("content", content);
             responses.add("200", response);
         }

@@ -192,21 +192,6 @@ public final class ApiContext {
         exchange.close();
     }
 
-    /** Parses the raw query string into an ordered map (first value wins). */
-    public static Map<String, String> queryMap(String rawQuery) {
-        Map<String, String> out = new LinkedHashMap<>();
-        if (rawQuery == null || rawQuery.isEmpty()) {
-            return out;
-        }
-        for (String pair : rawQuery.split("&")) {
-            int eq = pair.indexOf('=');
-            String key = decode(eq < 0 ? pair : pair.substring(0, eq), true);
-            String value = eq < 0 ? "" : decode(pair.substring(eq + 1), true);
-            out.putIfAbsent(key, value);
-        }
-        return out;
-    }
-
     /** Splits a raw path into decoded segments. */
     public static List<String> segments(String rawPath) {
         var out = new java.util.ArrayList<String>();

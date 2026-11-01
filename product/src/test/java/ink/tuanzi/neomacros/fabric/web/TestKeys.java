@@ -5,18 +5,14 @@ import ink.tuanzi.neomacros.fabric.web.auth.Nm1Verifier;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.security.AlgorithmParameters;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
-import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
-import java.security.spec.NamedParameterSpec;
-import java.security.spec.XECPublicKeySpec;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;

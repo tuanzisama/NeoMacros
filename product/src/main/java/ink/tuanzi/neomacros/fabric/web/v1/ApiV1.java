@@ -1,6 +1,5 @@
 package ink.tuanzi.neomacros.fabric.web.v1;
 
-import com.google.gson.JsonElement;
 import com.sun.net.httpserver.HttpExchange;
 import ink.tuanzi.neomacros.fabric.web.GameRunner;
 import ink.tuanzi.neomacros.fabric.web.PanelBackend;
@@ -30,7 +29,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 /**
- * The W1 API surface: version probe, pairing, state snapshot, macro
+ * The web panel API surface: version probe, pairing, state snapshot, macro
  * lifecycle actions, log replay, and the SSE stream with its ticket
  * exchange. Every game-state read and macro action is dispatched onto the
  * game main thread with a five-second budget.
@@ -63,6 +62,8 @@ public final class ApiV1 {
 
     @NmGet("/api/v1/meta")
     @NmApi(tag = "meta", summary = "Version negotiation probe (unsigned)", auth = NmAuth.NONE)
+    @NmError(status = 403, code = "forbidden",
+            desc = "The Host header is outside the allowlist (rebinding defense)")
     public Meta meta() {
         return backend.meta();
     }
@@ -116,6 +117,8 @@ public final class ApiV1 {
 
     @NmGet("/api/v1/state")
     @NmApi(tag = "macros", summary = "Full state snapshot (panel first screen)")
+    @NmError(status = 401, code = "unauthorized",
+            desc = "Request unsigned or signature verification failed")
     @NmError(status = 504, code = "game_thread_timeout",
             desc = "The game main thread did not answer within 5 seconds")
     public StateSnapshot state() {
@@ -159,7 +162,7 @@ public final class ApiV1 {
     }
 
     @NmGet("/api/v1/events")
-    @NmApi(tag = "events", summary = "The SSE event stream", auth = NmAuth.TICKET)
+    @NmApi(tag = "events", summary = "The SSE event stream", auth = NmAuth.TICKET, success = 200)
     @NmError(status = 401, code = "unauthorized",
             desc = "Ticket missing, expired, or already used")
     public void events(ApiContext context) throws IOException {

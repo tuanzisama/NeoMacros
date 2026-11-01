@@ -22,4 +22,10 @@ public @interface NmApi {
 
     /** The authentication the route requires. */
     NmAuth auth() default NmAuth.NM1;
+
+    /**
+     * The success status when the handler writes its own response
+     * (streaming routes return void); 0 lets the generator infer it.
+     */
+    int success() default 0;
 }
