@@ -58,6 +58,10 @@ public final class CoreOptions implements ConfigSection {
     @Option(description = "Macros directory override")
     public String macrosDir = "";
 
+    /** The nested {@code web} subsection (web panel service settings). */
+    @Option(description = "Web panel service settings")
+    public WebSettings web = new WebSettings();
+
     @Override
     public String key() {
         return "core";

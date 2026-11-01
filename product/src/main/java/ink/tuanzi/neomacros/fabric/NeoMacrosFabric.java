@@ -82,6 +82,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     private static TrustManager trustManager;
     private static java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts;
     private static boolean quitOnDone;
+    private static ink.tuanzi.neomacros.fabric.web.WebService webService;
+    private static ink.tuanzi.neomacros.fabric.web.WebRuntime webRuntime;
 
     @Override
     public void onInitializeClient() {
@@ -206,6 +208,31 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         modules.onLoad(NeoMacrosFabric::registerScriptBinding);
         modules.onUnload(module -> adapter.input().unregisterScriptBinding(module.meta().name()));
 
+        // Web panel subsystem: state backend over the module manager, device
+        // registry beside options.json, and the service mapping core.web.
+        webRuntime = new ink.tuanzi.neomacros.fabric.web.WebRuntime(
+                modules, options, configManager, macrosDir, runtime.mainThread(),
+                NeoMacros.VERSION, mcVersion());
+        modules.onLoadError(webRuntime::recordLoadError);
+        modules.onLoad(module -> webRuntime.clearError(module.meta().name()));
+        var devices = new ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry(
+                configDir.resolve("web-devices.json"),
+                message -> LOGGER.warn("neomacros web-devices: {}", message));
+        webService = new ink.tuanzi.neomacros.fabric.web.WebService(
+                webRuntime, webRuntime, devices,
+                () -> options.web.listen, () -> options.web.port,
+                () -> options.web.panelUrl);
+        webRuntime.serverInfo(() -> new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(
+                webService.port(), webService.status().uptimeMs(), options.web.listen));
+        webService.onPairingPrompt(label -> {
+            adapter.chat().logClickable(
+                    UiText.tr("neomacros.chat.pair_approve", label),
+                    "/neomacros web approve");
+            adapter.chat().logClickable(
+                    UiText.tr("neomacros.chat.pair_deny", label),
+                    "/neomacros web deny");
+        });
+
         // Error presentation chain: script failures become a throttled
         // clickable chat line pointing at the recent-errors viewer screen.
         var errorPresenter = new ink.tuanzi.neomacros.core.runtime.ErrorPresenter(
@@ -213,7 +240,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                         UiText.tr("neomacros.chat.error_line", line),
                         "/neomacros errors"),
                 3000);
-        runtime.setErrorHandler(errorPresenter::record);
+        runtime.setErrorHandler(error -> {
+            webRuntime.recordRuntimeError(error);
+            errorPresenter.record(error);
+        });
 
         quitOnDone = Boolean.getBoolean("neomacros.e2e.quitOnDone");
 
@@ -222,17 +252,33 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         // the config-driven script file watch, and the E2E quit-on-done poll.
         adapter.lifecycle().onGameStart(() ->
                 LOGGER.info("NeoMacros: {} scripts loaded", modules.loaded().size()));
-        adapter.lifecycle().onGameQuit(configManager::save);
+        adapter.lifecycle().onGameQuit(() -> {
+            webService.stop();
+            webService.saveDevices();
+            configManager.save();
+        });
         adapter.lifecycle().onTick(tick -> {
             if (options.scriptWatch && tick % options.scriptWatchInterval == 0) {
                 modules.checkForChanges();
             }
         });
+        // The persisted intent (last start/stop) or autoStart brings the web
+        // service up with the client; a bind failure stays a log line here.
+        if (options.web.autoStart || options.web.enabled) {
+            try {
+                int port = webService.start();
+                LOGGER.info("neomacros: web panel auto-started on port {}", port);
+            } catch (java.io.IOException e) {
+                LOGGER.warn("neomacros: web panel auto-start failed: {}", e.getMessage());
+            }
+        }
         if (quitOnDone) {
             adapter.lifecycle().onTick(tick -> {
                 if (tick % 100 == 0 && tick > 0
                         && Files.exists(configDir.resolve("storage").resolve("e2e-suite.json"))) {
                     LOGGER.info("NeoMacros E2E results present; shutting down client");
+                    webService.stop();
+                    webService.saveDevices();
                     configManager.save();
                     adapter.lifecycle().requestShutdown();
                 }
@@ -576,11 +622,54 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                             ScriptScreen.open(found.get().name(),
                                                     Files.readString(found.get().entryFile()));
                                         } catch (IOException e) {
-                                            feedback(ctx, UiText.tr("neomacros.cmd.cannot_read", e.getMessage()));
+                                            feedback(ctx, UiText.tr("neomacros.cmd.cannot_read",
+                                                    e.getMessage()));
                                         }
                                         return Command.SINGLE_SUCCESS;
-                                    }))));
+                                    })))
+                    .then(WebCommands.subtrees(webContext()).web())
+                    .then(WebCommands.subtrees(webContext()).editor()));
         });
+    }
+
+    /** The web commands' collaborators over the live runtime. */
+    private static WebCommands.Context webContext() {
+        WebCommands.Context.ModuleAccess moduleAccess = new WebCommands.Context.ModuleAccess() {
+            @Override
+            public Optional<ScriptEntry> entry(String name) {
+                return modules.discover().stream()
+                        .filter(candidate -> candidate.name().equals(name))
+                        .findFirst();
+            }
+
+            @Override
+            public List<ScriptEntry> entries() {
+                return modules.discover();
+            }
+        };
+        WebCommands.LinkBuilder links = fileParam -> {
+            if (!webService.running()) {
+                throw new IllegalStateException("the web service is not running");
+            }
+            String panel = options.web.panelUrl == null || options.web.panelUrl.isBlank()
+                    ? "https://panel.neomacros.app" : options.web.panelUrl.strip();
+            while (panel.endsWith("/")) {
+                panel = panel.substring(0, panel.length() - 1);
+            }
+            int hash = panel.indexOf('#');
+            if (hash >= 0) {
+                panel = panel.substring(0, hash);
+            }
+            StringBuilder url = new StringBuilder(panel)
+                    .append("#host=127.0.0.1:").append(webService.port())
+                    .append("&view=editor");
+            if (fileParam != null) {
+                url.append("&file=").append(fileParam);
+            }
+            url.append("&pair=").append(webService.newPairingToken());
+            return url.toString();
+        };
+        return new WebCommands.Context(webService, moduleAccess, links);
     }
 
     /** Reloads one script when it is currently loaded (live binding application). */

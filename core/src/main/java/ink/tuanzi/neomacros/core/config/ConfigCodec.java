@@ -35,7 +35,11 @@ final class ConfigCodec {
             } catch (IllegalAccessException e) {
                 continue;
             }
-            out.add(keyOf(field), toJson(value));
+            if (isNestedSection(field)) {
+                out.add(keyOf(field), save(value));
+            } else {
+                out.add(keyOf(field), toJson(value));
+            }
         }
         return out;
     }
@@ -51,7 +55,15 @@ final class ConfigCodec {
                 continue;
             }
             try {
-                field.set(section, fromJson(field, element));
+                if (isNestedSection(field)) {
+                    if (element.isJsonObject()) {
+                        load(field.get(section), element.getAsJsonObject(), warn);
+                    } else {
+                        warn.accept("option '" + key + "' must be an object; keeping default");
+                    }
+                } else {
+                    field.set(section, fromJson(field, element));
+                }
             } catch (IllegalArgumentException | ClassCastException e) {
                 warn.accept("option '" + key + "' has an incompatible value; keeping default");
             } catch (IllegalAccessException e) {
@@ -63,6 +75,16 @@ final class ConfigCodec {
                 warn.accept("unknown option '" + dataKey + "' ignored");
             }
         }
+    }
+
+    /** A field whose type is itself an annotated-options object (nested section). */
+    private static boolean isNestedSection(Field field) {
+        return !field.getType().isPrimitive()
+                && !field.getType().isEnum()
+                && field.getType() != String.class
+                && field.getType() != List.class
+                && field.getType() != Map.class
+                && !annotatedFields(field.getType()).isEmpty();
     }
 
     private static List<Field> annotatedFields(Class<?> type) {

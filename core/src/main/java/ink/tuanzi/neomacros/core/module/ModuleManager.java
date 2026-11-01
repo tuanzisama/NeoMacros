@@ -54,6 +54,7 @@ public final class ModuleManager implements AutoCloseable {
     private Predicate<String> autoloadFilter = name -> true;
     private Consumer<LoadedModule> loadListener;
     private Consumer<LoadedModule> unloadListener;
+    private java.util.function.BiConsumer<String, ScriptError> loadErrorListener;
     private volatile List<ScriptEntry> lastEntries = List.of();
     private volatile List<ScriptLoadError> lastErrors = List.of();
     private boolean watchScanInitialized;
@@ -94,6 +95,16 @@ public final class ModuleManager implements AutoCloseable {
     /** Registers a listener invoked before a module is torn down. */
     public ModuleManager onUnload(Consumer<LoadedModule> listener) {
         this.unloadListener = listener;
+        return this;
+    }
+
+    /**
+     * Registers a listener invoked when a module fails to load, with the
+     * script name and the structured error (source location included) — the
+     * surfaces that show per-module error state subscribe here.
+     */
+    public ModuleManager onLoadError(java.util.function.BiConsumer<String, ScriptError> listener) {
+        this.loadErrorListener = listener;
         return this;
     }
 
@@ -227,6 +238,7 @@ public final class ModuleManager implements AutoCloseable {
                 warn.accept("failed to load " + entry.name() + ": " + e.getMessage()
                         + (e.getSourceName() != null ? " (" + e.getSourceName() + ":" + e.getLine() + ")" : "")
                         + rootCauseText(e));
+                notifyLoadError(entry.name(), e);
             }
         }
         return result;
@@ -255,7 +267,16 @@ public final class ModuleManager implements AutoCloseable {
             return Optional.of(load(entry.get()));
         } catch (ScriptError e) {
             warn.accept("failed to load " + name + ": " + e.getMessage() + rootCauseText(e));
+            notifyLoadError(name, e);
             return Optional.empty();
+        }
+    }
+
+    /** Notifies the load-error listener when one is registered. */
+    private void notifyLoadError(String name, ScriptError error) {
+        var listener = loadErrorListener;
+        if (listener != null) {
+            listener.accept(name, error);
         }
     }
 
@@ -337,6 +358,7 @@ public final class ModuleManager implements AutoCloseable {
             load(entry.get());
         } catch (ScriptError e) {
             warn.accept("failed to reload " + name + ": " + e.getMessage());
+            notifyLoadError(name, e);
         }
     }
 
@@ -398,6 +420,7 @@ public final class ModuleManager implements AutoCloseable {
                         load(entry);
                     } catch (ScriptError e) {
                         warn.accept("failed to load new script " + entry.name() + ": " + e.getMessage());
+                        notifyLoadError(entry.name(), e);
                     }
                 }
             } else if (known != fingerprint) {
@@ -411,6 +434,7 @@ public final class ModuleManager implements AutoCloseable {
                         load(entry);
                     } catch (ScriptError e) {
                         warn.accept("failed to load " + entry.name() + ": " + e.getMessage());
+                        notifyLoadError(entry.name(), e);
                     }
                 }
             }

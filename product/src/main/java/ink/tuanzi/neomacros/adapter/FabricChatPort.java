@@ -65,6 +65,32 @@ public final class FabricChatPort implements ChatPort {
     }
 
     @Override
+    public void logLink(String text, String url) {
+        // The sealed ClickEvent hierarchy (1.21.5+) takes the URL as a URI;
+        // only the chat surface differs across the 1.21.11 pivot.
+        //? if <1.21.11 {
+        /*
+        runOnMain(() -> {
+            Component line = Component.literal(text).withStyle(style -> style
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(
+                            java.net.URI.create(url)))
+                    .withUnderlined(true));
+            Minecraft.getInstance().gui.hud.getChat().addMessage(line);
+        });
+        */
+        //?}
+//? if >=1.21.11 {
+        runOnMain(() -> {
+            Component line = Component.literal(text).withStyle(style -> style
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(
+                            java.net.URI.create(url)))
+                    .withUnderlined(true));
+            Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(line);
+        });
+//?}
+    }
+
+    @Override
     public void onChatReceive(Consumer<ChatComponent> sink) {
         ChatReceiveHub.register(sink);
     }

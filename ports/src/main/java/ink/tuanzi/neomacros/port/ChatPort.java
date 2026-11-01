@@ -34,4 +34,13 @@ public interface ChatPort {
     default void logClickable(String text, String command) {
         log(text + " (run: " + command + ")");
     }
+
+    /**
+     * Prints a local chat line whose click opens a URL in the browser (web
+     * panel deep links; the vanilla open-link confirmation still applies).
+     * Implementations without link support degrade to {@link #log(String)}.
+     */
+    default void logLink(String text, String url) {
+        log(text + " " + url);
+    }
 }
