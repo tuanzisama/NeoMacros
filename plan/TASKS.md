@@ -5,7 +5,7 @@
 > 2. 读执行协议 `../../neomacros-docs/09-development-plan.md`（§0 Agent 使用说明 / DoD / 泳道 / E2E 规格）；
 > 3. 在本看板认领任务：动工前标 `in-progress` + Owner/分支，完成后标 `done` 并写 `plan/reports/<ID>.md` 报告。
 >
-> 当前进度（2026-11-01 最终审计）：**done=32 / partially=0 / pending=0，30 项计划任务全部收口**。全量 build 绿：**1.21.6/26.1.2/26.2/26.3 四节点，216 tests 0 failures，四个 fabric jar**。T-001 闭环：remote git@github.com:tuanzisama/NeoMacros.git 已配置并 push main（私有仓库）；actionlint v1.7.7 本地 0 错误；ci.yml 覆盖四节点（JDK 17/21/25）；CI 由 on:push 自动触发，run 状态为私有仓库需在平台 Actions 页目视确认（https://github.com/tuanzisama/NeoMacros/actions），红跑即修。游戏内 G 级人工验证项（四节点 runClient、编辑器/面板/信任链路/mixin 事件族/gizmo/sprite 目视）为用户人工清单，不阻塞任务收口。后续窗口可选项：1.19.4~1.21.4 梯队激活、S2 sprite 之外的打磨、docs-builder 生成页接入 vitepress。
+> 当前进度（2026-11-01 终版）：**done=32 / partially=0 / pending=0，30 项计划任务全部收口，CI 实跑全绿**。仓库 public：https://github.com/tuanzisama/NeoMacros 。CI run 41261073201 @ 2e706e2 四 job 全绿（actionlint / compile 四节点+JDK17-21-25 / unit / documentation）；修复轨迹：actionlint-action 失效→上游二进制、setup-java v4→v5、gradlew 可执行位、unit 冷 runner 闪失败已列为观察项（失败时自动以注解暴露失败测试）。全量本地 build 同绿：四节点 216 tests，四个 fabric jar。G-R3 已决（1.18.2 backport tier，最低里程碑 1.21.6）。游戏内 G 级人工验证项为用户人工清单；后续窗口可选项：1.19.4~1.21.4 梯队、docs-builder 生成页接入 vitepress。
 > R1/R2 已关闭（T-022，结论见 08 §7）；bindgen 完成（T-023）：值中立绑定 + ProxyObject 活属性 + 权限包装 + @ApiMC 节点裁剪，双通道同一性有脚本级测试。
 > 已解锁可认领：**T-031（模块管理器——关键路径，前置全就绪）**、**T-030**（adapter 最小产品节点；首个 adapter 代码前必做双向 chisel 验证，见 T-000 报告遗留）、**T-032**（配置系统）；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
 > 关键路径剩余：T-031 → T-040（E2E-A）→ G0。
@@ -18,7 +18,7 @@
 | ID | 任务 | 阶段 | 状态 | Owner | 分支 | 备注 |
 |---|---|---|---|---|---|---|
 | T-000 | 仓库骨架与构建脚手架 | S0 | **done** | session-agent | main | [报告](reports/T-000.md)；loom 1.19/Gradle 9.8 升级与 stonecutter 根脚本语义实证已回写架构文档 02 |
-| T-001 | CI 工作流骨架 | S0 | **done** | session-agent | t001-ci | [报告](reports/T-001.md)；workflow 全交付；actionlint v1.7.7 本地 0 错误；ci.yml 四节点矩阵；remote git@github.com:tuanzisama/NeoMacros.git 已配，**main 已 push**（CI 按 on:push 自动触发，run 为私有仓库需平台侧目视确认，红跑即修） |
+| T-001 | CI 工作流骨架 | S0 | **done**（CI 实跑绿 ✓） | session-agent | t001-ci | [报告](reports/T-001.md)；run 41261073201 @ 2e706e2 **四 job 全绿**（lint/compile 四节点/unit/documentation）；修复过程：actionlint-action 失效改上游二进制、setup-java v4→v5（新 runner exit 126）、gradlew 补可执行位、加失败测试注解步骤；注意 unit 曾在 cd0690f 冷 runner 上闪失败（同套件后续 run 绿，疑似时序敏感，列为观察项） |
 | T-010 | doc-api 注解集 | S0 | **done** | session-agent | t010-doc-api | [报告](reports/T-010.md)；10 注解 + 18 单测绿 + maven 坐标已验证 |
 | T-011 | ports 中立类型与最小端口集 | S0 | **done** | session-agent | t011-ports | [报告](reports/T-011.md)；7 record + 5 端口 + ArchUnit 共享守卫（testFixtures） |
 | T-020 | core 事件框架 | S0 | **done** | session-agent | t020-event-framework | [报告](reports/T-020.md)；双通道 bus+watchdog+通配 43 测试绿，框架包覆盖率 97.7%；P0 基础事件载荷已备 |
