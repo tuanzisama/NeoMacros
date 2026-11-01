@@ -1,0 +1,44 @@
+import dev.kikugie.stonecutter.build.StonecutterBuildExtension
+
+// Per-node source replacements: the sources shared across nodes are written
+// against the active (newest) node's API spelling and rewritten for older
+// nodes here. The active node compiles raw sources without preprocessing.
+// Stonecutter applies each pair from->to on nodes matching the condition and
+// the inverse (to->from) on the rest, so every pair's `to` spelling must not
+// appear anywhere in the shared sources; pairs that cannot satisfy that
+// (overlapping or ubiquitous strings) live in //? comment swaps instead.
+fun StonecutterBuildExtension.neomacrosReplacements() {
+    // Pre-1.21.11 nodes.
+    replacements.string(current.parsed < "1.21.11") {
+        // fabric-api renamed the command helper and the keybind helper.
+        replace("ClientCommands", "ClientCommandManager")
+        replace("keymapping.v1.KeyMappingHelper", "keybinding.v1.KeyBindingHelper")
+        replace("KeyMappingHelper", "KeyBindingHelper")
+        replace("registerKeyMapping", "registerKeyBinding")
+        // The outline helper takes width/height before the record rewrite.
+        replace(
+            "extractor.outline(x, y, x + width, y + height, color)",
+            "extractor.renderOutline(x, y, width, height, color)",
+        )
+        // SoundInstance renamed its id accessor.
+        replace("sound.getIdentifier()", "sound.getLocation()")
+        // Chat text draws through drawString on the pre-extract pipeline.
+        replace("extractor.text(", "extractor.drawString(")
+        // Level/ResourceKey accessor renames.
+        replace("getDefaultClockTime()", "getDayTime()")
+        replace("dimension().identifier()", "dimension().location()")
+        // Minecraft renamed ResourceLocation to Identifier in 1.21.11; this
+        // blanket rename must stay last within the block.
+        replace("Identifier", "ResourceLocation")
+    }
+    // 26.3 renamed the keyboard input type constant.
+    replacements.string(current.parsed < "26.3") {
+        replace("InputConstants.Type.KEYBOARD", "InputConstants.Type.KEYSYM")
+    }
+    // Before 26.2 the chat surface and the overlay message lived on Gui
+    // directly; 26.2 moved both under the hud sub-panel.
+    replacements.string(current.parsed < "26.2") {
+        replace("gui.hud.getChat()", "gui.getChat()")
+        replace("gui.hud.setOverlayMessage", "gui.setOverlayMessage")
+    }
+}

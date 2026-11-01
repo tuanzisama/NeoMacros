@@ -41,13 +41,13 @@ public final class FabricWorldPort implements WorldPort {
     }
 
     @Override
-    public Optional<BlockData> blockAt(Pos3d pos) {
+    public Optional<BlockData> blockAt(Pos3d target) {
         return MainThread.run(() -> {
             ClientLevel level = Minecraft.getInstance().level;
             if (level == null) {
                 return Optional.empty();
             }
-            BlockPos blockPos = BlockPos.containing(pos.x(), pos.y(), pos.z());
+            BlockPos blockPos = BlockPos.containing(target.x(), target.y(), target.z());
             BlockState state = level.getBlockState(blockPos);
             if (state.isAir()) {
                 return Optional.empty();

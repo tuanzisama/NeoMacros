@@ -34,6 +34,13 @@ public abstract class ClientLevelWorldMixin {
 
     @Inject(method = "onChunkLoaded", at = @At("HEAD"))
     private void neomacros$onChunkLoaded(ChunkPos pos, CallbackInfo ci) {
+                //? if <1.21.11 {
+        /*
+        ChunkEventHub.fireLoad(pos.x, pos.z);
+        */
+        //?}
+//? if >=1.21.11 {
         ChunkEventHub.fireLoad(pos.x(), pos.z());
+//?}
     }
 }
