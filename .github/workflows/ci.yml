@@ -63,6 +63,28 @@ jobs:
       - name: Run version-independent module tests
         run: ./gradlew :doc-api:test :ports:test :core:test :engine:test :e2e:test --console=plain
 
+      # Surfaces failing tests as check-run annotations (readable through the
+      # public API without authentication); skipped when everything passes.
+      - name: Emit failing tests as annotations
+        if: failure()
+        run: |
+          python3 - <<'EOF'
+          import glob, re, html
+          reports = sorted(glob.glob('*/build/test-results/test/TEST-*.xml'))
+          found = False
+          for f in reports:
+              txt = open(f, encoding='utf-8', errors='replace').read()
+              for m in re.finditer(
+                      r'<testcase name="([^"]+)" classname="([^"]+)"[^>]*>\s*'
+                      r'<(?:failure|error)[^>]*message="([^"]*)"', txt):
+                  found = True
+                  cls, name, msg = m.group(2), m.group(1), html.unescape(m.group(3))
+                  print(f"::error title={cls}.{name}::{msg[:180]}")
+                  break  # first failing case per class is enough
+          if not found:
+              print("::error::unit job failed without test reports under */build/test-results")
+          EOF
+
   documentation:
     name: documentation pipeline (placeholder)
     runs-on: ubuntu-latest
