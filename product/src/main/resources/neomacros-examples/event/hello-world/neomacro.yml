@@ -1,0 +1,11 @@
+# 事件类脚本示例。
+# event/ 目录中的脚本用 events.on / events.onSync 在代码里自行订阅事件，
+# 目录本身只负责归类 —— 管理面板和命令会按目录筛选展示。
+#
+# 完整事件目录见文档（player:join、chat:receive、tick、world:* 等），
+# 可取消事件用 events.onSync 订阅，回调返回 truthy 即取消。
+name: hello-world
+version: 1.0.0
+author: NeoMacros
+description: 进入世界时打招呼（事件示例）
+# lifecycle: world   # 默认进世界加载，可改为 always / manual

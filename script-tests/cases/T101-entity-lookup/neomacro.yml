@@ -1,0 +1,4 @@
+name: t101-entity-lookup
+version: 1.0.0
+author: neomacros
+description: World/entity/player lane observe case (needs a real world session)

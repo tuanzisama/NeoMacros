@@ -6,17 +6,11 @@
  * gradle verifyGameE2E task reads it after the client exits), and reports a
  * synthetic 'suite-done' storage entry as the completion signal.
  *
- * Run protocol: load this file (lifecycle 'always'), let the client boot;
- * with -Dneomacros.e2e.quitOnDone=true the mod shuts the client down after
+ * Run protocol: install this folder below macros/services (the manifest
+ * declares lifecycle 'always'), let the client boot; with
+ * -Dneomacros.e2e.quitOnDone=true the mod shuts the client down after
  * the suite finishes.
  */
-export const meta = {
-  name: 'e2e-suite',
-  version: '1.0.0',
-  lifecycle: 'always',
-  permissions: [],
-};
-
 import { events, clock } from '@neomacros/core';
 import { chat } from '@neomacros/chat';
 import { storage } from '@neomacros/storage';

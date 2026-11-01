@@ -1,19 +1,13 @@
 /**
  * E2E-G case T101: world/entity/player lane in a real game. Mode: observe.
  *
- * Runs standalone as a drop-in script (lifecycle 'world'). After entering a
- * world it queries the local player handle, the entity radius query, and a
- * world block lookup, and prints one result line per check plus a summary
- * marker for the log-grep protocol. Visual/manual comparison items are
- * limited to the printed values matching the observer's world.
+ * Runs standalone (install below macros/event; the manifest declares
+ * lifecycle 'world'). After entering a world it queries the local player
+ * handle, the entity radius query, and a world block lookup, and prints one
+ * result line per check plus a summary marker for the log-grep protocol.
+ * Visual/manual comparison items are limited to the printed values matching
+ * the observer's world.
  */
-export const meta = {
-  name: 't101-entity-lookup',
-  version: '1.0.0',
-  lifecycle: 'world',
-  permissions: [],
-};
-
 import { events } from '@neomacros/core';
 import { world } from '@neomacros/world';
 import { entity } from '@neomacros/entity';

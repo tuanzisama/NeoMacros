@@ -41,6 +41,27 @@ for (m in listOf(":doc-api", ":ports", ":core", ":engine")) {
 val libsCatalog = extensions.getByType<org.gradle.api.artifacts.VersionCatalogsExtension>().named("libs")
 dependencies.add("include", libsCatalog.findLibrary("snakeyaml").get().get().toString())
 
+// Graal runtime closure of the engine, embedded explicitly because loom's
+// include() does not carry transitive dependencies: the dev client gets Graal
+// from the compile classpath, while a production launcher only sees nested
+// jars. Keep the version locked with engine/build.gradle.kts.
+for (g in listOf(
+    "org.graalvm.polyglot:polyglot:24.2.2",
+    "org.graalvm.js:js-language:24.2.2",
+    "org.graalvm.regex:regex:24.2.2",
+    "org.graalvm.truffle:truffle-api:24.2.2",
+    "org.graalvm.truffle:truffle-runtime:24.2.2",
+    "org.graalvm.truffle:truffle-compiler:24.2.2",
+    "org.graalvm.sdk:collections:24.2.2",
+    "org.graalvm.sdk:nativeimage:24.2.2",
+    "org.graalvm.sdk:word:24.2.2",
+    "org.graalvm.sdk:jniutils:24.2.2",
+    "org.graalvm.shadowed:icu4j:24.2.2",
+    "org.graalvm.shadowed:xz:24.2.2",
+)) {
+    dependencies.add("include", g)
+}
+
 // The adapter and fabric entrypoint sources live in this branch's own tree
 // (src/main/java) so each node compiles its Stonecutter-preprocessed mirror;
 // external srcDirs would bypass the preprocessing pipeline.

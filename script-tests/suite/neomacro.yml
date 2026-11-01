@@ -1,0 +1,5 @@
+name: e2e-suite
+version: 1.0.0
+author: neomacros
+description: In-game E2E-G runner (auto mode); persists the result map via storage
+lifecycle: always

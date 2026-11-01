@@ -1,6 +1,9 @@
 package ink.tuanzi.neomacros.fabric;
 
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import ink.tuanzi.neomacros.adapter.FabricCommandPort;
 import ink.tuanzi.neomacros.adapter.NeomacrosAdapterImpl;
 import ink.tuanzi.neomacros.core.NeoMacros;
@@ -22,12 +25,13 @@ import ink.tuanzi.neomacros.core.config.ConfigManager;
 import ink.tuanzi.neomacros.core.config.CoreOptions;
 import ink.tuanzi.neomacros.core.event.EventBus;
 import ink.tuanzi.neomacros.core.event.EventCatalog;
-import ink.tuanzi.neomacros.core.event.Payloads;
 import ink.tuanzi.neomacros.core.event.PortEventWiring;
 import ink.tuanzi.neomacros.core.event.ProductionEventSet;
 import ink.tuanzi.neomacros.core.event.SyncWatchdog;
+import ink.tuanzi.neomacros.core.module.LoadedModule;
 import ink.tuanzi.neomacros.core.module.ModuleManager;
-import ink.tuanzi.neomacros.core.module.ScriptMeta;
+import ink.tuanzi.neomacros.core.module.ScriptEntry;
+import ink.tuanzi.neomacros.core.module.manifest.ScriptCategory;
 import ink.tuanzi.neomacros.core.runtime.ScriptEngine;
 import ink.tuanzi.neomacros.core.runtime.ScriptRuntime;
 import ink.tuanzi.neomacros.core.security.TrustManager;
@@ -47,6 +51,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -55,30 +60,46 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 /**
  * Fabric client entrypoint: assembles the script runtime for this node
- * (engine, adapter ports, event framework, threading), wires the port sinks
- * to the event bus, and registers the root {@code /neomacros} client command.
+ * (engine, adapter ports, event framework, threading), prepares the macros
+ * folder layout with first-install examples, wires manifest key bindings,
+ * and registers the root {@code /neomacros} client command.
  */
 public final class NeoMacrosFabric implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(NeoMacros.MOD_ID);
 
+    /** A few common keys offered as suggestions for keypress bind commands. */
+    private static final List<String> COMMON_KEYS = List.of(
+            "key.keyboard.j", "key.keyboard.k", "key.keyboard.r", "key.keyboard.g",
+            "key.keyboard.h", "key.keyboard.v", "key.keyboard.b", "key.keyboard.n");
+
     private static ScriptRuntime runtime;
-    private static java.nio.file.Path configDir;
+    private static ConfigManager configManager;
+    private static CoreOptions options;
+    private static Path configDir;
+    private static Path macrosDir;
+    private static ModuleManager modules;
+    private static NeomacrosAdapterImpl adapter;
     private static boolean quitOnDone;
 
     @Override
     public void onInitializeClient() {
         LOGGER.info("NeoMacros bootstrap");
         configDir = FabricLoader.getInstance().getConfigDir().resolve(NeoMacros.MOD_ID);
-        var configManager = new ConfigManager(configDir.resolve("options.json"),
+        configManager = new ConfigManager(configDir.resolve("options.json"),
                 message -> LOGGER.warn("neomacros config: {}", message));
-        var options = new CoreOptions();
+        options = new CoreOptions();
         configManager.register(options);
         configManager.load();
 
-        Path scriptsDir = options.scriptsDir.isEmpty()
-                ? configDir.resolve("scripts") : Path.of(options.scriptsDir);
+        macrosDir = options.macrosDir.isEmpty()
+                ? configDir.resolve("macros") : Path.of(options.macrosDir);
+        boolean seeded = ExampleSeeder.ensureLayout(macrosDir,
+                message -> LOGGER.info("neomacros: {}", message));
+        if (!seeded) {
+            noteLegacyScriptsDir();
+        }
 
-        var adapter = new NeomacrosAdapterImpl();
+        adapter = new NeomacrosAdapterImpl();
         var catalog = new EventCatalog();
         // Explicit registration: the classpath scanner cannot see mod classes
         // in nested-jar deployments (java.class.path is not mod-resolved), so
@@ -103,30 +124,28 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 new ink.tuanzi.neomacros.adapter.FabricHudRegistry(adapter.render(), Minecraft.getInstance()::execute)));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.render.RenderApi(
                 adapter.draw3d()));
-        var inputApi = new ink.tuanzi.neomacros.core.api.InputApi(
-                new ink.tuanzi.neomacros.core.api.InputApi.InputBridge() {
-                    @Override
-                    public Object registerKeybind(String keyName, java.util.function.Consumer<Integer> sink) {
-                        adapter.input().registerKeybind(keyName, sink);
-                        return keyName;
-                    }
+        var inputApi = new InputApi(new InputApi.InputBridge() {
+            @Override
+            public Object registerKeybind(String keyName, java.util.function.Consumer<Integer> sink) {
+                return adapter.input().registerKeybind(keyName, sink);
+            }
 
-                    @Override
-                    public Object registerKeyPress(String keyName, Runnable sink) {
-                        adapter.input().registerKeyPress(keyName, sink);
-                        return keyName;
-                    }
+            @Override
+            public Object registerKeyPress(String keyName, Runnable sink) {
+                adapter.input().registerKeyPress(keyName, sink);
+                return keyName;
+            }
 
-                    @Override
-                    public void onScroll(java.util.function.DoubleConsumer sink) {
-                        adapter.input().onScroll(sink::accept);
-                    }
+            @Override
+            public void onScroll(java.util.function.DoubleConsumer sink) {
+                adapter.input().onScroll(sink::accept);
+            }
 
-                    @Override
-                    public void unregister(Object handle) {
-                        // per-keybind removal lands with the input management increment
-                    }
-                });
+            @Override
+            public void unregister(Object handle) {
+                adapter.input().unregister(handle);
+            }
+        });
         registry.registerInstance(inputApi);
         registry.promoteRootMembers("clock", java.util.List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
@@ -136,13 +155,13 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var commandApi = new CommandApi(commandPort);
         registry.registerInstance(commandApi);
 
-        ScriptEngine engine = new GraalJsEngine(new ScriptsModuleResolver(scriptsDir, registry));
+        ScriptEngine engine = new GraalJsEngine(new ScriptsModuleResolver(macrosDir, registry));
         runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, options.maxSyncTime);
         var extraIgnores = new java.util.ArrayList<>(EventBus.DEFAULT_WILDCARD_IGNORES);
         extraIgnores.addAll(options.wildcardIgnoresExtra);
         runtime.eventBus().setWildcardIgnores(extraIgnores);
 
-        var trustManager = new ink.tuanzi.neomacros.core.security.TrustManager(options);
+        var trustManager = new TrustManager(options);
         // Pending first-load trust requests by script name; /neomacros trust
         // <name> and the management panel resolve the grant through this map.
         var pendingTrusts = new java.util.concurrent.ConcurrentHashMap<String, String>();
@@ -159,7 +178,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var viewResolver = new java.util.function.BiFunction<String, List<String>, PermissionView>() {
             @Override
             public PermissionView apply(String scriptName, List<String> declared) {
-                String hash = ink.tuanzi.neomacros.core.security.TrustManager.hashOf(
+                String hash = TrustManager.hashOf(
                         scriptName + ":" + String.join(",", declared));
                 if (trustManager.isTrusted(hash)) {
                     return PermissionView.of(new java.util.HashSet<>(declared));
@@ -168,8 +187,11 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             }
         };
 
-        var modules = new ModuleManager(runtime, registry, viewResolver, scriptsDir,
+        modules = new ModuleManager(runtime, registry, viewResolver, macrosDir,
                 message -> LOGGER.warn("neomacros scripts: {}", message));
+        modules.withAutoloadFilter(name -> options.autoload.getOrDefault(name, true));
+        modules.onLoad(NeoMacrosFabric::registerScriptBinding);
+        modules.onUnload(module -> adapter.input().unregisterScriptBinding(module.meta().name()));
 
         // Error presentation chain: script failures become a throttled
         // clickable chat line pointing at the recent-errors viewer screen.
@@ -187,6 +209,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         // the config-driven script file watch, and the E2E quit-on-done poll.
         adapter.lifecycle().onGameStart(() ->
                 LOGGER.info("NeoMacros: {} scripts loaded", modules.loaded().size()));
+        adapter.lifecycle().onGameQuit(configManager::save);
         adapter.lifecycle().onTick(tick -> {
             if (options.scriptWatch && tick % options.scriptWatchInterval == 0) {
                 modules.checkForChanges();
@@ -197,6 +220,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 if (tick % 100 == 0 && tick > 0
                         && Files.exists(configDir.resolve("storage").resolve("e2e-suite.json"))) {
                     LOGGER.info("NeoMacros E2E results present; shutting down client");
+                    configManager.save();
                     adapter.lifecycle().requestShutdown();
                 }
             });
@@ -231,7 +255,40 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                 data.uuid(), data.action(), data.name(), data.progress())));
 
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
-        registerCommands(scriptsDir, modules, trustManager, errorPresenter, pendingTrusts);
+        registerCommands(trustManager, errorPresenter, pendingTrusts);
+    }
+
+    /** Registers (or re-registers) one loaded keypress script's key binding. */
+    private static void registerScriptBinding(LoadedModule module) {
+        if (module.entry().category() != ScriptCategory.KEYPRESS) {
+            return;
+        }
+        String key = module.entry().effectiveKey(options.keybinds);
+        if (key.isEmpty()) {
+            return;
+        }
+        String name = module.meta().name();
+        adapter.input().registerScriptBinding(name, key,
+                clicks -> modules.trigger(name, Map.of("key", key, "clicks", clicks)));
+    }
+
+    /** Logs a one-time notice when the legacy flat scripts directory still holds scripts. */
+    private static void noteLegacyScriptsDir() {
+        Path legacy = configDir.resolve("scripts");
+        if (!Files.isDirectory(legacy)) {
+            return;
+        }
+        long count;
+        try (Stream<Path> files = Files.list(legacy)) {
+            count = files.filter(p -> p.getFileName().toString().endsWith(".js")).count();
+        } catch (IOException e) {
+            return;
+        }
+        if (count > 0) {
+            LOGGER.warn("neomacros: {} flat script(s) remain in the legacy folder {} and are no"
+                    + " longer loaded; move each one into macros/<category>/<name>/ with a"
+                    + " neomacro.yml manifest", count, legacy);
+        }
     }
 
     /** The running Minecraft version (node trimming key for ApiMC ranges). */
@@ -241,126 +298,372 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 .orElse("26.3");
     }
 
+    // ---- command helpers -------------------------------------------------
+
+    /** Suggests script names from one category directory. */
+    private static SuggestionProvider<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> suggestCategory(
+            ScriptCategory category) {
+        return (ctx, builder) -> {
+            modules.discover().stream()
+                    .filter(e -> e.category() == category)
+                    .map(ScriptEntry::name)
+                    .forEach(builder::suggest);
+            return builder.buildFuture();
+        };
+    }
+
+    /** Suggests script names across every category. */
+    private static final SuggestionProvider<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>
+            SUGGEST_ANY = (ctx, builder) -> {
+        modules.discover().forEach(e -> builder.suggest(e.name()));
+        return builder.buildFuture();
+    };
+
+    /** Suggests the category directory names. */
+    private static final SuggestionProvider<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>
+            SUGGEST_CATEGORY = (ctx, builder) -> {
+        for (ScriptCategory category : ScriptCategory.values()) {
+            builder.suggest(category.dirName());
+        }
+        return builder.buildFuture();
+    };
+
+    /** Suggests a few common keyboard keys (free-form names still accepted). */
+    private static final SuggestionProvider<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>
+            SUGGEST_KEY = (ctx, builder) -> {
+        COMMON_KEYS.forEach(builder::suggest);
+        return builder.buildFuture();
+    };
+
+    /** The discovered entry with the given script name, if any. */
+    private static Optional<ScriptEntry> entry(String name) {
+        return modules.discover().stream()
+                .filter(e -> e.name().equals(name))
+                .findFirst();
+    }
+
+    private static String string(CommandContext<?> ctx, String arg) {
+        return StringArgumentType.getString(ctx, arg);
+    }
+
+    private static void feedback(CommandContext<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> ctx,
+                                 String message) {
+        ctx.getSource().sendFeedback(Component.literal(message));
+    }
+
     /** Registers the root {@code /neomacros} command and its subcommands. */
-    private static void registerCommands(Path scriptsDir, ModuleManager modules, TrustManager trustManager,
+    private static void registerCommands(TrustManager trustManager,
             ink.tuanzi.neomacros.core.runtime.ErrorPresenter errorPresenter,
             java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts) {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(literal("neomacros")
                     .then(literal("status").executes(ctx -> {
-                        ctx.getSource().sendFeedback(Component.literal(
-                                "NeoMacros " + NeoMacros.VERSION + " | events registered: "
-                                        + runtime.eventCatalog().all().size() + " | scripts loaded: "
-                                        + modules.loaded().size() + " | ticks: "
-                                        + runtime.tickClock().currentTick()));
+                        feedback(ctx, "NeoMacros " + NeoMacros.VERSION + " | events registered: "
+                                + runtime.eventCatalog().all().size() + " | scripts loaded: "
+                                + modules.loaded().size() + " | invalid folders: "
+                                + modules.errors().size() + " | ticks: "
+                                + runtime.tickClock().currentTick());
                         return Command.SINGLE_SUCCESS;
                     }))
-                    .then(literal("list").executes(ctx -> {
-                        var names = modules.loaded().stream()
-                                .map(m -> m.meta().name() + " (" + m.meta().lifecycle().name()
-                                        .toLowerCase(java.util.Locale.ROOT) + ")")
-                                .toList();
-                        ctx.getSource().sendFeedback(Component.literal(
-                                "Loaded scripts: " + (names.isEmpty() ? "(none)" : String.join(", ", names))));
-                        return Command.SINGLE_SUCCESS;
-                    }))
+                    .then(literal("list")
+                            .executes(ctx -> {
+                                feedback(ctx, describeScripts(null));
+                                return Command.SINGLE_SUCCESS;
+                            })
+                            .then(argument("category", StringArgumentType.word())
+                                    .suggests(SUGGEST_CATEGORY)
+                                    .executes(ctx -> {
+                                        ScriptCategory category = ScriptCategory
+                                                .fromDirName(string(ctx, "category"));
+                                        if (category == null) {
+                                            feedback(ctx, "unknown category: " + string(ctx, "category"));
+                                            return 0;
+                                        }
+                                        feedback(ctx, describeScripts(category));
+                                        return Command.SINGLE_SUCCESS;
+                                    })))
                     .then(literal("reload").executes(ctx -> {
                         modules.reloadAll();
-                        ctx.getSource().sendFeedback(Component.literal(
-                                "Reloaded; " + modules.loaded().size() + " scripts loaded."));
+                        feedback(ctx, "Reloaded; " + modules.loaded().size() + " scripts loaded.");
                         return Command.SINGLE_SUCCESS;
                     }))
+                    .then(literal("keypress")
+                            .then(literal("bind")
+                                    .then(argument("script", StringArgumentType.word())
+                                            .suggests(suggestCategory(ScriptCategory.KEYPRESS))
+                                            .then(argument("key", StringArgumentType.word())
+                                                    .suggests(SUGGEST_KEY)
+                                                    .executes(ctx -> {
+                                                        String name = string(ctx, "script");
+                                                        String key = string(ctx, "key");
+                                                        if (entry(name).isEmpty()) {
+                                                            feedback(ctx, "unknown keypress script: " + name);
+                                                            return 0;
+                                                        }
+                                                        options.keybinds.put(name, key);
+                                                        configManager.save();
+                                                        reloadIfLoaded(name);
+                                                        feedback(ctx, "bound " + name + " to " + key);
+                                                        return Command.SINGLE_SUCCESS;
+                                                    }))))
+                            .then(literal("unbind")
+                                    .then(argument("script", StringArgumentType.word())
+                                            .suggests(suggestCategory(ScriptCategory.KEYPRESS))
+                                            .executes(ctx -> {
+                                                String name = string(ctx, "script");
+                                                if (entry(name).isEmpty()) {
+                                                    feedback(ctx, "unknown keypress script: " + name);
+                                                    return 0;
+                                                }
+                                                // The empty value is a persisted unbind:
+                                                // without it the manifest key would return.
+                                                options.keybinds.put(name, "");
+                                                configManager.save();
+                                                reloadIfLoaded(name);
+                                                feedback(ctx, "unbound " + name);
+                                                return Command.SINGLE_SUCCESS;
+                                            })))
+                            .then(literal("list").executes(ctx -> {
+                                feedback(ctx, describeScripts(ScriptCategory.KEYPRESS));
+                                return Command.SINGLE_SUCCESS;
+                            })))
+                    .then(literal("service")
+                            .then(literal("start")
+                                    .then(argument("script", StringArgumentType.word())
+                                            .suggests(suggestCategory(ScriptCategory.SERVICES))
+                                            .executes(ctx -> {
+                                                String name = string(ctx, "script");
+                                                boolean started = modules.loadByName(name).isPresent();
+                                                feedback(ctx, started ? "started " + name
+                                                        : "cannot start " + name + " (see log)");
+                                                return started ? Command.SINGLE_SUCCESS : 0;
+                                            })))
+                            .then(literal("stop")
+                                    .then(argument("script", StringArgumentType.word())
+                                            .suggests(suggestCategory(ScriptCategory.SERVICES))
+                                            .executes(ctx -> {
+                                                String name = string(ctx, "script");
+                                                if (modules.loaded(name).isEmpty()) {
+                                                    feedback(ctx, name + " is not running");
+                                                    return 0;
+                                                }
+                                                modules.unload(name);
+                                                feedback(ctx, "stopped " + name);
+                                                return Command.SINGLE_SUCCESS;
+                                            })))
+                            .then(literal("restart")
+                                    .then(argument("script", StringArgumentType.word())
+                                            .suggests(suggestCategory(ScriptCategory.SERVICES))
+                                            .executes(ctx -> {
+                                                String name = string(ctx, "script");
+                                                modules.unload(name);
+                                                boolean started = modules.loadByName(name).isPresent();
+                                                feedback(ctx, started ? "restarted " + name
+                                                        : "cannot start " + name + " (see log)");
+                                                return started ? Command.SINGLE_SUCCESS : 0;
+                                            })))
+                            .then(literal("list").executes(ctx -> {
+                                feedback(ctx, describeScripts(ScriptCategory.SERVICES));
+                                return Command.SINGLE_SUCCESS;
+                            })))
                     .then(literal("trust")
                             .then(literal("list").executes(ctx -> {
-                                ctx.getSource().sendFeedback(Component.literal(
-                                        "Trusted script hashes: " + trustManager.trustedHashes().size()));
+                                feedback(ctx, "Trusted script hashes: " + trustManager.trustedHashes().size());
                                 return Command.SINGLE_SUCCESS;
                             }))
-                            .then(argument("script", com.mojang.brigadier.arguments.StringArgumentType.word())
+                            .then(argument("script", StringArgumentType.word())
                                     .executes(ctx -> {
-                                        String name = com.mojang.brigadier.arguments.StringArgumentType
-                                                .getString(ctx, "script");
+                                        String name = string(ctx, "script");
                                         String hash = pendingTrusts.get(name);
                                         if (hash == null) {
-                                            ctx.getSource().sendFeedback(Component.literal(
-                                                    "No pending trust request from: " + name));
+                                            feedback(ctx, "No pending trust request from: " + name);
                                             return 0;
                                         }
                                         trustManager.trust(hash);
                                         pendingTrusts.remove(name);
-                                        ctx.getSource().sendFeedback(Component.literal(
-                                                "Trusted: " + name + " (reload to apply)"));
+                                        configManager.save();
+                                        feedback(ctx, "Trusted: " + name + " (reload to apply)");
                                         return Command.SINGLE_SUCCESS;
                                     })))
-                    .then(literal("edit").then(argument("script",
-                                    com.mojang.brigadier.arguments.StringArgumentType.word())
-                            .executes(ctx -> {
-                                String name = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "script");
-                                var file = scriptsDir.resolve(name.endsWith(".js") ? name : name + ".js");
-                                if (!file.normalize().startsWith(scriptsDir.normalize())) {
-                                    ctx.getSource().sendFeedback(Component.literal("Invalid script name"));
-                                    return 0;
-                                }
-                                ScriptEditorScreen.open(file, modules::checkForChanges);
-                                return Command.SINGLE_SUCCESS;
-                            })))
+                    .then(literal("edit")
+                            .then(argument("script", StringArgumentType.word())
+                                    .suggests(SUGGEST_ANY)
+                                    .executes(ctx -> {
+                                        Optional<ScriptEntry> found = entry(string(ctx, "script"));
+                                        if (found.isEmpty()) {
+                                            feedback(ctx, "unknown script (use /neomacros panel to create one)");
+                                            return 0;
+                                        }
+                                        ScriptEditorScreen.open(found.get().entryFile(), modules::checkForChanges);
+                                        return Command.SINGLE_SUCCESS;
+                                    })))
                     .then(literal("panel").executes(ctx -> {
-                        ScriptManagerScreen.open(scriptsDir,
-                                () -> modules.loaded().stream()
-                                        .map(m -> m.meta().name())
-                                        .collect(java.util.stream.Collectors.toSet()),
-                                pendingTrusts, trustManager, modules::checkForChanges);
+                        openPanel(pendingTrusts, trustManager);
                         return Command.SINGLE_SUCCESS;
                     }))
                     .then(literal("errors").executes(ctx -> {
                         var recent = errorPresenter.recent();
+                        var lines = new java.util.ArrayList<String>(recent);
+                        for (ink.tuanzi.neomacros.core.module.ScriptLoadError error : modules.errors()) {
+                            lines.add(error.folder().getFileName() + ": " + error.message());
+                        }
                         ScriptScreen.open("Recent errors",
-                                recent.isEmpty() ? "(no recent errors)" : String.join("\n\n", recent));
+                                lines.isEmpty() ? "(no recent errors)" : String.join("\n\n", lines));
                         return Command.SINGLE_SUCCESS;
                     }))
-                    .then(literal("open").then(argument("script",
-                                    com.mojang.brigadier.arguments.StringArgumentType.word())
-                            .executes(ctx -> {
-                                String name = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "script");
-                                var file = scriptsDir.resolve(name.endsWith(".js") ? name : name + ".js");
-                                if (!Files.exists(file)) {
-                                    ctx.getSource().sendFeedback(Component.literal(
-                                            "Script not found: " + file.getFileName()));
-                                    return 0;
-                                }
-                                try {
-                                    ScriptScreen.open(name, Files.readString(file));
-                                } catch (java.io.IOException e) {
-                                    ctx.getSource().sendFeedback(Component.literal(
-                                            "Cannot read script: " + e.getMessage()));
-                                }
-                                return Command.SINGLE_SUCCESS;
-                            }))));
+                    .then(literal("open")
+                            .then(argument("script", StringArgumentType.word())
+                                    .suggests(SUGGEST_ANY)
+                                    .executes(ctx -> {
+                                        Optional<ScriptEntry> found = entry(string(ctx, "script"));
+                                        if (found.isEmpty()) {
+                                            feedback(ctx, "unknown script: " + string(ctx, "script"));
+                                            return 0;
+                                        }
+                                        try {
+                                            ScriptScreen.open(found.get().name(),
+                                                    Files.readString(found.get().entryFile()));
+                                        } catch (IOException e) {
+                                            feedback(ctx, "Cannot read script: " + e.getMessage());
+                                        }
+                                        return Command.SINGLE_SUCCESS;
+                                    }))));
         });
     }
 
-    /** Lists the script files below the scripts directory (one level). */
-    private static String listScripts(Path scriptsDir) {
-        if (!Files.isDirectory(scriptsDir)) {
-            return "(directory not created yet)";
+    /** Reloads one script when it is currently loaded (live binding application). */
+    private static void reloadIfLoaded(String name) {
+        if (modules.loaded(name).isPresent()) {
+            modules.reload(name);
         }
-        try (Stream<Path> files = Files.list(scriptsDir)) {
-            var names = files.filter(Files::isRegularFile)
-                    .map(p -> p.getFileName().toString())
-                    .filter(n -> n.endsWith(".js"))
+    }
+
+    /** One-line digest of the discovered scripts, optionally per category. */
+    private static String describeScripts(ScriptCategory category) {
+        modules.discover();
+        var lines = new java.util.ArrayList<String>();
+        for (ScriptCategory cat : ScriptCategory.values()) {
+            if (category != null && cat != category) {
+                continue;
+            }
+            List<ScriptEntry> entries = modules.entries().stream()
+                    .filter(e -> e.category() == cat)
                     .toList();
-            return names.isEmpty() ? "(none)" : String.join(", ", names);
+            lines.add("[" + cat.dirName() + "]");
+            for (ScriptEntry entry : entries) {
+                String state = modules.loaded(entry.name()).isPresent() ? "loaded" : "stopped";
+                if (!options.autoload.getOrDefault(entry.name(), true)) {
+                    state = "disabled";
+                }
+                String key = entry.category() == ScriptCategory.KEYPRESS
+                        ? entry.effectiveKey(options.keybinds) : "";
+                lines.add("  " + entry.name() + " v" + entry.manifest().version()
+                        + " by " + entry.manifest().author()
+                        + (key.isEmpty() ? "" : "  [" + key + "]")
+                        + "  (" + state + ")");
+            }
+            if (entries.isEmpty()) {
+                lines.add("  (none)");
+            }
+        }
+        for (ink.tuanzi.neomacros.core.module.ScriptLoadError error : modules.errors()) {
+            lines.add("  ERROR " + error.folder().getFileName() + ": " + error.message());
+        }
+        return String.join("\n", lines);
+    }
+
+    /** Builds the panel row snapshot: category headers, scripts, and error rows. */
+    private static List<ScriptManagerScreen.RowData> buildPanelRows(
+            java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts) {
+        modules.discover();
+        List<ScriptManagerScreen.RowData> rows = new java.util.ArrayList<>();
+        for (ScriptCategory category : ScriptCategory.values()) {
+            rows.add(new ScriptManagerScreen.RowData("", "[" + category.dirName() + "]",
+                    "", false, true, false, null));
+            for (ScriptEntry entry : modules.entries().stream()
+                    .filter(e -> e.category() == category).toList()) {
+                String name = entry.name();
+                String state = modules.loaded(name).isPresent() ? "loaded" : "stopped";
+                if (!options.autoload.getOrDefault(name, true)) {
+                    state = "disabled";
+                }
+                if (category == ScriptCategory.KEYPRESS) {
+                    String key = entry.effectiveKey(options.keybinds);
+                    state += "  key: " + (key.isEmpty() ? "(unbound)" : key);
+                }
+                state += "  v" + entry.manifest().version() + " by " + entry.manifest().author();
+                rows.add(new ScriptManagerScreen.RowData(name,
+                        name + "  (" + entry.folder().getFileName() + ")", state,
+                        pendingTrusts.containsKey(name), false,
+                        category == ScriptCategory.KEYPRESS, entry.entryFile()));
+            }
+            for (ink.tuanzi.neomacros.core.module.ScriptLoadError error : modules.errors()) {
+                if (error.folder().getParent().getFileName().toString().equals(category.dirName())) {
+                    rows.add(new ScriptManagerScreen.RowData("",
+                            "  " + error.folder().getFileName(), error.message(),
+                            false, false, false, null));
+                }
+            }
+        }
+        return rows;
+    }
+
+    /** Builds the panel row snapshot and opens the management screen. */
+    private static void openPanel(java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts,
+            TrustManager trustManager) {
+        ScriptManagerScreen.open(() -> buildPanelRows(pendingTrusts),
+                pendingTrusts, trustManager,
+                (name, key) -> {
+                    options.keybinds.put(name, key);
+                    configManager.save();
+                    reloadIfLoaded(name);
+                },
+                name -> {
+                    options.keybinds.put(name, "");
+                    configManager.save();
+                    reloadIfLoaded(name);
+                },
+                categoryDir -> {
+                    createScaffold(categoryDir);
+                    modules.checkForChanges();
+                },
+                modules::checkForChanges);
+    }
+
+    /** Creates a minimal new-script folder (manifest + index.js) in a category. */
+    private static void createScaffold(String categoryDirName) {
+        Path categoryDir = macrosDir.resolve(categoryDirName);
+        String base = "new-script";
+        Path folder = categoryDir.resolve(base);
+        int n = 2;
+        while (Files.exists(folder)) {
+            folder = categoryDir.resolve(base + "-" + n++);
+        }
+        try {
+            Files.createDirectories(folder);
+            Files.writeString(folder.resolve("neomacro.yml"), String.join("\n",
+                    "name: " + folder.getFileName(),
+                    "version: 0.0.1",
+                    "author: your-name",
+                    "description: (describe this macro)",
+                    ""));
+            Files.writeString(folder.resolve("index.js"), String.join("\n",
+                    "// Entry script: top-level code runs once at load.",
+                    "import { chat } from '@neomacros/chat';",
+                    "",
+                    "chat.log('" + folder.getFileName() + " loaded');",
+                    ""));
         } catch (IOException e) {
-            return "(unreadable: " + e.getMessage() + ")";
+            LOGGER.warn("neomacros: cannot create scaffold: {}", e.getMessage());
         }
     }
 
     /**
-     * Module source resolver over the scripts directory. Virtual module
-     * specifiers resolve through the binding registry once script loading
-     * exists; file specifiers resolve to {@code <scriptsDir>/<name>.js}.
+     * Module source resolver over the macros tree. Virtual module specifiers
+     * resolve through the binding registry; file specifiers resolve relative
+     * to the macros root so scripts can import their own folder siblings.
      */
-    private record ScriptsModuleResolver(Path scriptsDir, BindingRegistry registry) implements ModuleResolver {
+    private record ScriptsModuleResolver(Path macrosDir, BindingRegistry registry) implements ModuleResolver {
         @Override
         public Optional<String> virtualSource(String specifier) {
             return registry.virtualSourceFor(specifier, PermissionView.ALLOW_ALL);
@@ -368,7 +671,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
         @Override
         public Optional<Path> fileFor(String specifier) {
-            Path file = scriptsDir.resolve(specifier);
+            Path file = macrosDir.resolve(specifier);
             return Files.isRegularFile(file) ? Optional.of(file) : Optional.empty();
         }
     }

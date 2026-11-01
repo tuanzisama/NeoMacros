@@ -18,14 +18,27 @@ public interface InputPort {
      *
      * @param keyName vanilla key translation key
      * @param sink invoked on every press (click count semantics)
+     * @return an opaque handle for {@link #unregister(Object)}
      */
-    void registerKeybind(String keyName, Consumer<Integer> sink);
+    Object registerKeybind(String keyName, Consumer<Integer> sink);
 
     /**
      * Registers a sink for raw key presses of one key ({@code keyName} as
      * above). Fires on press edge only.
      */
     void registerKeyPress(String keyName, Runnable sink);
+
+    /** Removes a previously registered keybind or press listener. */
+    void unregister(Object handle);
+
+    /**
+     * Registers one manifest-driven script binding keyed by script name;
+     * rebinding the same script replaces its previous binding.
+     */
+    void registerScriptBinding(String scriptName, String keyName, Consumer<Integer> sink);
+
+    /** Removes one script's manifest-driven binding, if present. */
+    void unregisterScriptBinding(String scriptName);
 
     /** Registers a sink for mouse wheel scroll events (positive = up). */
     void onScroll(Consumer<Double> sink);
