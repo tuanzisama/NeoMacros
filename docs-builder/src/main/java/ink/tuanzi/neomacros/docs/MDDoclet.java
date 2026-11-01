@@ -105,7 +105,7 @@ public class MDDoclet implements Doclet {
 
         List<String> meta = new java.util.ArrayList<>();
         if (!module.category().isEmpty()) {
-            meta.add("Category: " + module.category());
+            meta.add("Category: " + categoryLabel(module.category(), zh));
         }
         if (module.since() != null) {
             meta.add("Since: " + module.since());
@@ -213,6 +213,25 @@ public class MDDoclet implements Doclet {
     /** Picks the translation for the current view, falling back to English. */
     private static String text(String en, String zh, boolean zhView) {
         return zhView && !zh.isEmpty() ? zh : en;
+    }
+
+    /**
+     * English display label for a module category on the English page;
+     * category values in {@code @ApiModule} are zh-first, so the English
+     * view maps the known set and passes anything else through verbatim.
+     */
+    private static String categoryLabel(String category, boolean zhView) {
+        if (zhView) {
+            return category;
+        }
+        return switch (category) {
+            case "核心" -> "Core";
+            case "界面" -> "UI";
+            case "世界" -> "World";
+            case "系统" -> "System";
+            case "输入" -> "Input";
+            default -> category;
+        };
     }
 
     private void report(String message) {

@@ -1,69 +1,50 @@
 # 快速上手
 
 NeoMacros 在 Minecraft 客户端内运行 ECMAScript（JavaScript）脚本。脚本
-是普通 `.js` ES 模块，放在 `config/neomacros/scripts` 目录。
+是普通 `.js` ES 模块，放在 `config/neomacros/scripts` 目录，由 GraalJS
+驱动——每个脚本拥有独立的 Promise、`async`/`await` 与事件循环。
+
+## 环境要求
+
+- Minecraft 26.1+ 与 [Fabric Loader](https://fabricmc.net/use/)
+- 与游戏版本匹配的 [Fabric API](https://modrinth.com/mod/fabric-api)
+- NeoMacros 本体：从
+  [Releases](https://github.com/tuanzisama/NeoMacros/releases)
+  下载 `neomacros-<mc>-fabric-<version>.jar`
 
 ## 安装
 
-1. 为你的游戏版本安装 [Fabric Loader](https://fabricmc.net/use/)（支持 26.1+）。
-2. 将 `neomacros-<mc>-fabric-<version>.jar` 与对应版本的
-   [Fabric API](https://modrinth.com/mod/fabric-api) 放入 `mods` 目录。
+1. 为你的游戏版本安装 Fabric Loader。
+2. 将 NeoMacros 与 Fabric API 的 jar 放入 `mods` 目录。
 3. 启动一次游戏；NeoMacros 会创建 `config/neomacros/scripts`。
 
-## 第一个脚本
+## 目录结构
 
-创建 `config/neomacros/scripts/hello.js`：
+脚本接触的所有内容都在游戏目录下：
 
-```js
-export function onEvent(ev) { }
-
-const { events, chat } = neo;
-
-chat.log("Hello from NeoMacros!");
-
-events.on("player:join", (payload) => {
-    chat.log(`欢迎，${payload.name}！`);
-});
+```
+.minecraft/
+└── config/
+    └── neomacros/
+        └── scripts/     # 你的脚本，一个 .js 文件一个脚本
 ```
 
-默认生命周期的脚本在游戏启动时加载。用 `/neomacros list` 查看已加载脚
-本，`/neomacros reload` 重新加载。
+脚本的持久化数据存放在各自独立的存储里（见
+[`storage`](/zh/api/storage)），文件保持可读、可随时替换。
 
-## 订阅事件
+## 游戏内命令
 
-`events.on` 注册监听并返回订阅句柄，调用 `.deactivate()` 取消。用
-`events.waitFor(name)` 以 Promise 等待一次事件：
+所有管理操作都通过 `/neomacros` 客户端命令完成：
 
-```js
-const { events, clock } = neo;
-
-async function watchDamage() {
-    while (true) {
-        const ev = await events.waitFor("player:damage");
-        chat.actionbar(`受到 ${ev.amount.toFixed(1)} 点伤害！`);
-        await clock.ticks(20);
-    }
-}
-watchDamage();
-```
-
-## 信任与权限
-
-脚本首次声明安全默认集之外的能力时，聊天区会出现提示：点击该行或运行
-`/neomacros trust <script>`，按内容哈希授信。
-
-## 屏幕与世界绘制
-
-```js
-const { hud, render } = neo;
-
-hud.addText("coords", "坐标显示", 8, 8, 0xFFFFFFFF);
-
-render.drawLine("path",
-    { x: 0, y: 64, z: 0 }, { x: 10, y: 64, z: 10 }, 0xFF00FF00);
-```
+| 命令 | 用途 |
+|---|---|
+| `/neomacros list` | 查看已加载脚本 |
+| `/neomacros reload` | 重新扫描脚本目录并加载变更 |
+| `/neomacros trust <script>` | 为脚本授予能力 |
+| `/neomacros errors` | 打开最近脚本错误界面 |
 
 ## 下一步
 
+- 动手写[第一个脚本](./first-script)。
+- 了解[事件模型与异步模式](./events-and-async)。
 - 浏览 [API 参考](/zh/api/) 查看全部门面与事件负载。
-- 游戏内 `/neomacros errors` 界面列出最近的脚本错误。

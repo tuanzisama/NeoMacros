@@ -11,6 +11,9 @@ hero:
     - theme: alt
       text: API Reference
       link: /en/api/
+    - theme: alt
+      text: Examples
+      link: /en/examples/
 
 features:
   - title: ECMAScript only
