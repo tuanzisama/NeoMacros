@@ -23,4 +23,6 @@ dependencies {
     add("implementation", "net.fabricmc.fabric-api:fabric-api:${prop("fabric_version")}")
     // ModMenu: compile-only integration, never nested (optional in production)
     add("implementation", "com.terraformersmc:modmenu:${prop("mod_menu_version")}")
+    // Cloth Config: compile-only settings screen, optional in production
+    add("implementation", "me.shedaniel.cloth:cloth-config-fabric:${prop("cloth_config_version")}")
 }

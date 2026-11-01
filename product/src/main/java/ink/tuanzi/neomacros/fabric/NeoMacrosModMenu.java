@@ -13,11 +13,10 @@ public final class NeoMacrosModMenu implements ModMenuApi {
 
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
-        return new ConfigScreenFactory<Screen>() {
-            @Override
-            public Screen create(Screen parent) {
-                return NeoMacrosFabric.createConfigPanel(parent);
-            }
-        };
+        if (net.fabricmc.loader.api.FabricLoader.getInstance()
+                .isModLoaded("cloth-config2")) {
+            return NeoMacrosClothConfig::create;
+        }
+        return NeoMacrosFabric::createConfigPanel;
     }
 }

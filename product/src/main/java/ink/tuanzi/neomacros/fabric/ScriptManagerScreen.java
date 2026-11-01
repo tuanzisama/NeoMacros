@@ -1,7 +1,6 @@
 package ink.tuanzi.neomacros.fabric;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import ink.tuanzi.neomacros.core.security.TrustManager;
 import net.minecraft.client.Minecraft;
 //? if <1.21.11 {
 /*
@@ -42,9 +41,9 @@ public final class ScriptManagerScreen extends Screen {
 
     private final Supplier<List<RowData>> rowsProvider;
     private final Map<String, String> pendingTrusts;
-    private final TrustManager trustManager;
     private final BiConsumer<String, String> onBind;
     private final Consumer<String> onUnbind;
+    private final BiConsumer<String, Boolean> onSetEnabled;
     private final Consumer<String> onNewScript;
     private final Runnable onReload;
     //? if >=26.1 {
@@ -58,25 +57,26 @@ public final class ScriptManagerScreen extends Screen {
     private boolean awaitingBind;
 
     private ScriptManagerScreen(Supplier<List<RowData>> rowsProvider, Map<String, String> pendingTrusts,
-            TrustManager trustManager, BiConsumer<String, String> onBind, Consumer<String> onUnbind,
-            Consumer<String> onNewScript, Runnable onReload) {
+            BiConsumer<String, String> onBind, Consumer<String> onUnbind,
+            BiConsumer<String, Boolean> onSetEnabled, Consumer<String> onNewScript, Runnable onReload) {
         super(Component.translatable("neomacros.ui.panel.title"));
         this.rowsProvider = rowsProvider;
         this.pendingTrusts = pendingTrusts;
-        this.trustManager = trustManager;
         this.onBind = onBind;
         this.onUnbind = onUnbind;
+        this.onSetEnabled = onSetEnabled;
         this.onNewScript = onNewScript;
         this.onReload = onReload;
     }
 
     /** Builds the panel screen without showing it (ModMenu config factory). */
     public static ScriptManagerScreen create(Supplier<List<RowData>> rowsProvider,
-            Map<String, String> pendingTrusts, TrustManager trustManager,
+            Map<String, String> pendingTrusts,
             BiConsumer<String, String> onBind, Consumer<String> onUnbind,
-            Consumer<String> onNewScript, Runnable onReload) {
-        return new ScriptManagerScreen(rowsProvider, pendingTrusts, trustManager,
-                onBind, onUnbind, onNewScript, onReload);
+            BiConsumer<String, Boolean> onSetEnabled, Consumer<String> onNewScript,
+            Runnable onReload) {
+        return new ScriptManagerScreen(rowsProvider, pendingTrusts,
+                onBind, onUnbind, onSetEnabled, onNewScript, onReload);
     }
 
     /** Shows an already-built panel on the client thread. */
@@ -93,10 +93,11 @@ public final class ScriptManagerScreen extends Screen {
 
     /** Opens the panel on the client thread. */
     public static void open(Supplier<List<RowData>> rowsProvider, Map<String, String> pendingTrusts,
-            TrustManager trustManager, BiConsumer<String, String> onBind, Consumer<String> onUnbind,
-            Consumer<String> onNewScript, Runnable onReload) {
-        show(create(rowsProvider, pendingTrusts, trustManager,
-                onBind, onUnbind, onNewScript, onReload));
+            BiConsumer<String, String> onBind, Consumer<String> onUnbind,
+            BiConsumer<String, Boolean> onSetEnabled, Consumer<String> onNewScript,
+            Runnable onReload) {
+        show(create(rowsProvider, pendingTrusts,
+                onBind, onUnbind, onSetEnabled, onNewScript, onReload));
     }
 
     @Override
@@ -134,8 +135,10 @@ public final class ScriptManagerScreen extends Screen {
                 .bounds(margin, y2, 84, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.unbind"), button -> unbindSelected())
                 .bounds(margin + 90, y2, 84, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.trust_selected"), button ->
-                        trustSelected()).bounds(margin + 180, y2, 110, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.enable"), button ->
+                        setEnabledSelected(true)).bounds(margin + 180, y2, 64, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.panel.disable"), button ->
+                        setEnabledSelected(false)).bounds(margin + 248, y2, 64, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("neomacros.ui.done"), button -> onClose())
                 .bounds(this.width - margin - 80, y2, 80, 20).build());
     }
@@ -174,8 +177,8 @@ public final class ScriptManagerScreen extends Screen {
         //?}
     }
 
-    /** Grants the pending trust request of the selected script, if any. */
-    private void trustSelected() {
+    /** Applies the enable state to the selected script, if any. */
+    private void setEnabledSelected(boolean enabled) {
         //? if >=26.1 {
         ScriptList.Row row = list.getSelected();
         if (row == null) {
@@ -196,13 +199,9 @@ public final class ScriptManagerScreen extends Screen {
             status = UiText.tr("neomacros.ui.panel.select_script_first");
             return;
         }
-        String hash = pendingTrusts.get(name);
-        if (hash == null) {
-            status = UiText.tr("neomacros.ui.panel.no_pending_trust", name);
-            return;
-        }
-        trustManager.trust(hash);
-        status = UiText.tr("neomacros.ui.panel.trusted", name);
+        onSetEnabled.accept(name, enabled);
+        status = UiText.tr(enabled
+                ? "neomacros.ui.state.enabled" : "neomacros.ui.state.disabled_toast", name);
         repopulate();
     }
 

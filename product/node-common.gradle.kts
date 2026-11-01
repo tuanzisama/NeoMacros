@@ -12,6 +12,7 @@ val mc = project.name // branch "product": the node's project name is the Minecr
 // classpath, but never nested, so production loads it only when installed.
 repositories {
     maven("https://maven.terraformersmc.com/releases")
+    maven("https://maven.shedaniel.me/")
 }
 
 val nodeProps = Properties().apply {

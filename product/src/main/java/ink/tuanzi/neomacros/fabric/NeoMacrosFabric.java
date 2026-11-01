@@ -179,12 +179,24 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var viewResolver = new java.util.function.BiFunction<String, List<String>, PermissionView>() {
             @Override
             public PermissionView apply(String scriptName, List<String> declared) {
-                String hash = TrustManager.hashOf(
-                        scriptName + ":" + String.join(",", declared));
-                if (trustManager.isTrusted(hash)) {
-                    return PermissionView.of(new java.util.HashSet<>(declared));
+                if (declared == null || declared.isEmpty()) {
+                    return PermissionView.ALLOW_ALL;
                 }
-                return PermissionView.DENY_ALL;
+                java.nio.file.Path source = modules.entries().stream()
+                        .filter(entry -> entry.name().equals(scriptName))
+                        .map(ScriptEntry::entryFile)
+                        .findFirst()
+                        .orElse(null);
+                if (source == null || !Files.isRegularFile(source)) {
+                    return PermissionView.DENY_ALL;
+                }
+                try {
+                    String hash = TrustManager.hashOf(Files.readString(source));
+                    return trustManager.viewFor(hash, declared);
+                } catch (IOException e) {
+                    LOGGER.warn("neomacros: cannot hash {} for trust: {}", scriptName, e.getMessage());
+                    return PermissionView.DENY_ALL;
+                }
             }
         };
 
@@ -531,7 +543,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                             feedback(ctx, UiText.tr("neomacros.cmd.unknown_script_panel"));
                                             return 0;
                                         }
-                                        ScriptEditorScreen.open(found.get().entryFile(), modules::checkForChanges);
+                                        ScriptEditorScreen.open(found.get().entryFile(), modules::reloadAll);
                                         return Command.SINGLE_SUCCESS;
                                     })))
                     .then(literal("panel").executes(ctx -> {
@@ -665,7 +677,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             return null;
         }
         return ScriptManagerScreen.create(() -> buildPanelRows(pendingTrusts),
-                pendingTrusts, trustManager,
+                pendingTrusts,
                 (name, key) -> {
                     options.keybinds.put(name, key);
                     configManager.save();
@@ -676,11 +688,32 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                     configManager.save();
                     reloadIfLoaded(name);
                 },
+                (name, enabled) -> {
+                    options.autoload.put(name, enabled);
+                    configManager.save();
+                    if (enabled) {
+                        if (modules.loaded(name).isEmpty()) {
+                            modules.loadByName(name);
+                        }
+                    } else {
+                        modules.unload(name);
+                    }
+                },
                 categoryDir -> {
                     createScaffold(categoryDir);
                     modules.checkForChanges();
                 },
-                modules::checkForChanges);
+                modules::reloadAll);
+    }
+
+    /** Config bridge for the optional Cloth settings screen. */
+    static CoreOptions configOptions() {
+        return options;
+    }
+
+    /** Saves the config; used as the Cloth screen save hook. */
+    static void saveConfig() {
+        configManager.save();
     }
 
     /** Opens the management screen on the client thread. */
