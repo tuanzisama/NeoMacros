@@ -34,12 +34,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Toolchain for the docs-builder generation (Java 17, matching its
-      # build script) and for the main build publishing the doc-api jar.
+      # The Gradle daemon runs on the last version (25), which the root
+      # build's configuration phase needs (fabric-loom requires JVM 25);
+      # docs-builder resolves its Java 17 toolchain from the first.
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 17
+          java-version: |
+            17
+            25
 
       - uses: gradle/actions/setup-gradle@v5
 
