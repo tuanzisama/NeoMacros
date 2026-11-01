@@ -22,3 +22,6 @@ hs_err_*.log
 # OS
 Thumbs.db
 .DS_Store
+
+# Local planning documents (task book, session reports)
+plan/
