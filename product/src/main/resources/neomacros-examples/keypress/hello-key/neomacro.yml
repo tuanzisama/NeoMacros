@@ -1,22 +1,29 @@
-# NeoMacros 脚本声明文件（同目录放 neomacro.yml / neomacro.json / neomacro.json5 之一即可，
-# 多个并存时按 yml > json > json5 取优先级最高的那份）。
+# NeoMacros script manifest (place ONE of neomacro.yml / neomacro.json /
+# neomacro.json5 in the folder; with several present the priority is
+# yml > json > json5).
 #
-# 必填字段：name / version / author —— 缺少任意一项，该脚本文件夹不会被加载，
-# 原因会显示在管理面板与 /neomacros errors 中。
-name: hello-key            # 唯一 ID：命令、信任表、启停表都以它为准，跨目录不可重复
+# Required fields: name / version / author - if any is missing, the folder is
+# not loaded and the reason shows up in the management panel and in
+# /neomacros errors.
+name: hello-key            # unique ID: commands, the trust table and the
+                           # enable table are all keyed by it; unique across
+                           # all three category directories
 version: 1.0.0
 author: NeoMacros
 
-# ---- 可选字段（对齐 Tampermonkey 风格）----
-description: 按下 J 键，在聊天栏打印一条消息（按键示例）
+# ---- Optional fields (Tampermonkey-style) ----
+description: prints a chat line when J is pressed (keypress example)
 license: MIT
 # homepage: https://example.com
 # supportURL: https://example.com/support
-# main: index.js            # 入口文件，默认 index.js；也可指向文件夹内其他 js
-# lifecycle: world          # world=进世界加载(默认) / always=随游戏启动 / manual=仅手动
-# permissions: []           # 需要信任的能力：fs / net / command / java
+# main: index.js            # entry file, index.js by default
+# lifecycle: world          # world = on world join (default) / always = at
+#                           # game start / manual = explicit start only
+# permissions: []           # capabilities to trust: fs / net / command / java
 
-# ---- 按键类脚本专属 ----
-key: key.keyboard.j         # 默认按键绑定。管理面板或 /neomacros keypress bind 的修改
-                            # 保存在中央绑定表（options.json）中，优先于这里的默认值。
-                            # 按键按下时会调用本脚本导出的 onKey(ev) 函数。
+# ---- Keypress-specific ----
+key: key.keyboard.j         # default key binding. Changes made in the panel
+                            # or via /neomacros keypress bind are stored in
+                            # the central binding table and win over this
+                            # default. A press invokes the exported
+                            # onKey(ev) function of this script.

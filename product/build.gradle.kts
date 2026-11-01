@@ -23,4 +23,6 @@ dependencies {
     })
     add("modImplementation", "net.fabricmc:fabric-loader:${prop("fabric_loader_version")}")
     add("modImplementation", "net.fabricmc.fabric-api:fabric-api:${prop("fabric_version")}")
+    // ModMenu: compile-only integration, never nested (optional in production)
+    add("modImplementation", "com.terraformersmc:modmenu:${prop("mod_menu_version")}")
 }

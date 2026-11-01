@@ -8,6 +8,12 @@ import java.util.Properties
 
 val mc = project.name // branch "product": the node's project name is the Minecraft version
 
+// ModMenu is an optional integration: compiled against here and on the dev
+// classpath, but never nested, so production loads it only when installed.
+repositories {
+    maven("https://maven.terraformersmc.com/releases")
+}
+
 val nodeProps = Properties().apply {
     val f = rootProject.file("versions/$mc/gradle.properties")
     require(f.exists()) { "Missing node properties file versions/$mc/gradle.properties" }

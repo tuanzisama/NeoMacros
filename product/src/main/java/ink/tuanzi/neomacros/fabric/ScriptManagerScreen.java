@@ -70,22 +70,33 @@ public final class ScriptManagerScreen extends Screen {
         this.onReload = onReload;
     }
 
+    /** Builds the panel screen without showing it (ModMenu config factory). */
+    public static ScriptManagerScreen create(Supplier<List<RowData>> rowsProvider,
+            Map<String, String> pendingTrusts, TrustManager trustManager,
+            BiConsumer<String, String> onBind, Consumer<String> onUnbind,
+            Consumer<String> onNewScript, Runnable onReload) {
+        return new ScriptManagerScreen(rowsProvider, pendingTrusts, trustManager,
+                onBind, onUnbind, onNewScript, onReload);
+    }
+
+    /** Shows an already-built panel on the client thread. */
+    public static void show(net.minecraft.client.gui.screens.Screen screen) {
+        //? if <1.21.11 {
+        /*
+        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(screen));
+        */
+        //?}
+//? if >=1.21.11 {
+        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreenAndShow(screen));
+//?}
+    }
+
     /** Opens the panel on the client thread. */
     public static void open(Supplier<List<RowData>> rowsProvider, Map<String, String> pendingTrusts,
             TrustManager trustManager, BiConsumer<String, String> onBind, Consumer<String> onUnbind,
             Consumer<String> onNewScript, Runnable onReload) {
-        //? if <1.21.11 {
-        /*
-        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(
-                new ScriptManagerScreen(rowsProvider, pendingTrusts, trustManager,
-                        onBind, onUnbind, onNewScript, onReload)));
-        */
-        //?}
-//? if >=1.21.11 {
-        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreenAndShow(
-                new ScriptManagerScreen(rowsProvider, pendingTrusts, trustManager,
-                        onBind, onUnbind, onNewScript, onReload)));
-//?}
+        show(create(rowsProvider, pendingTrusts, trustManager,
+                onBind, onUnbind, onNewScript, onReload));
     }
 
     @Override

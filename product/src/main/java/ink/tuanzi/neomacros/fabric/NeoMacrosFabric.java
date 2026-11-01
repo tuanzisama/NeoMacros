@@ -79,6 +79,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     private static Path macrosDir;
     private static ModuleManager modules;
     private static NeomacrosAdapterImpl adapter;
+    private static TrustManager trustManager;
+    private static java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts;
     private static boolean quitOnDone;
 
     @Override
@@ -161,10 +163,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         extraIgnores.addAll(options.wildcardIgnoresExtra);
         runtime.eventBus().setWildcardIgnores(extraIgnores);
 
-        var trustManager = new TrustManager(options);
+        trustManager = new TrustManager(options);
         // Pending first-load trust requests by script name; /neomacros trust
         // <name> and the management panel resolve the grant through this map.
-        var pendingTrusts = new java.util.concurrent.ConcurrentHashMap<String, String>();
+        pendingTrusts = new java.util.concurrent.ConcurrentHashMap<>();
         trustManager.onPrompt(prompt -> {
             String name = prompt.scriptName() != null ? prompt.scriptName() : prompt.contentHash();
             pendingTrusts.put(name, prompt.contentHash());
@@ -498,7 +500,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                         return Command.SINGLE_SUCCESS;
                                     })))
                     .then(literal("panel").executes(ctx -> {
-                        openPanel(pendingTrusts, trustManager);
+                        openPanel();
                         return Command.SINGLE_SUCCESS;
                     }))
                     .then(literal("errors").executes(ctx -> {
@@ -608,10 +610,16 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         return rows;
     }
 
-    /** Builds the panel row snapshot and opens the management screen. */
-    private static void openPanel(java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts,
-            TrustManager trustManager) {
-        ScriptManagerScreen.open(() -> buildPanelRows(pendingTrusts),
+    /**
+     * Builds the management panel for the ModMenu config button. Returns
+     * null before bootstrap has run (ModMenu then offers no config screen).
+     */
+    public static net.minecraft.client.gui.screens.Screen createConfigPanel(
+            net.minecraft.client.gui.screens.Screen parent) {
+        if (modules == null || trustManager == null || pendingTrusts == null) {
+            return null;
+        }
+        return ScriptManagerScreen.create(() -> buildPanelRows(pendingTrusts),
                 pendingTrusts, trustManager,
                 (name, key) -> {
                     options.keybinds.put(name, key);
@@ -628,6 +636,14 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                     modules.checkForChanges();
                 },
                 modules::checkForChanges);
+    }
+
+    /** Opens the management screen on the client thread. */
+    private static void openPanel() {
+        var screen = createConfigPanel(null);
+        if (screen != null) {
+            ScriptManagerScreen.show(screen);
+        }
     }
 
     /** Creates a minimal new-script folder (manifest + index.js) in a category. */

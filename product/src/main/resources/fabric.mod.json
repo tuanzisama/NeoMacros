@@ -8,7 +8,8 @@
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
-    "client": ["ink.tuanzi.neomacros.fabric.NeoMacrosFabric"]
+    "client": ["ink.tuanzi.neomacros.fabric.NeoMacrosFabric"],
+    "modmenu": ["ink.tuanzi.neomacros.fabric.NeoMacrosModMenu"]
   },
   "mixins": ["neomacros.mixins.json"],
   "depends": {
@@ -16,5 +17,8 @@
     "fabric-api": "*",
     "minecraft": "${mc_range}",
     "java": ">=25"
+  },
+  "suggests": {
+    "modmenu": "*"
   }
 }

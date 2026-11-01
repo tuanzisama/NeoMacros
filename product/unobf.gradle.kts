@@ -21,4 +21,6 @@ fun prop(key: String): String = nodeProps.getProperty(key)
 dependencies {
     add("implementation", "net.fabricmc:fabric-loader:${prop("fabric_loader_version")}")
     add("implementation", "net.fabricmc.fabric-api:fabric-api:${prop("fabric_version")}")
+    // ModMenu: compile-only integration, never nested (optional in production)
+    add("implementation", "com.terraformersmc:modmenu:${prop("mod_menu_version")}")
 }

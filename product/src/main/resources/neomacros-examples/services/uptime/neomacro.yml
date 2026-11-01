@@ -1,9 +1,11 @@
-# 服务类脚本示例。
-# services/ 目录中的脚本默认 lifecycle: always —— 随游戏启动自动拉起、退出自动停止，
-# 并且可以用 /neomacros service start|stop|restart 或管理面板手动管控。
-# 服务适合常驻任务：状态监控、定时提醒、后台轮询等。
+# Service-script example.
+# Scripts below services/ default to lifecycle: always - pulled up at game
+# start and stopped at quit - and can be controlled manually with
+# /neomacros service start|stop|restart or the management panel.
+# Services suit long-running tasks: monitoring, reminders, polling, etc.
 name: uptime
 version: 1.0.0
 author: NeoMacros
-description: 每 5 分钟在聊天栏播报本次游戏时长（服务示例）
-lifecycle: always          # 服务默认随游戏启动；改成 world 则进世界才运行
+description: reports the session uptime every 5 minutes (service example)
+lifecycle: always          # services default to game start; 'world' would
+                           # load it on world join instead
