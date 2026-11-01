@@ -10,13 +10,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * One loaded script module: its manifest, execution context, engine session,
- * dispose hook, and every subscription or release hook it acquired while
- * loading or running. Unloading runs the dispose hook (when present) and
- * tears down all tracked resources in registration order.
+ * One loaded script module: its discovery entry, execution context, engine
+ * session, dispose hook, and every subscription or release hook it acquired
+ * while loading or running. Unloading runs the dispose hook (when present)
+ * and tears down all tracked resources in registration order.
  */
 public final class LoadedModule implements AutoCloseable {
 
+    private final ScriptEntry entry;
     private final Path source;
     private final ScriptContext context;
     private volatile ScriptMeta meta;
@@ -25,10 +26,11 @@ public final class LoadedModule implements AutoCloseable {
     private final List<Runnable> releaseHooks = new ArrayList<>();
     private volatile Runnable disposeHook;
 
-    LoadedModule(Path source, ScriptContext context) {
+    LoadedModule(ScriptEntry entry, Path source, ScriptContext context) {
+        this.entry = entry;
         this.source = source;
         this.context = context;
-        this.meta = new ScriptMeta(stemOf(source), "0.0.0", ScriptMeta.Lifecycle.WORLD, List.of());
+        this.meta = entry.meta();
     }
 
     /** Installs the engine session opened for this module (loading step). */
@@ -36,14 +38,9 @@ public final class LoadedModule implements AutoCloseable {
         this.session = session;
     }
 
-    /** Resolves the manifest from the module's {@code meta} export (loading step). */
-    void metaResolved(ScriptMeta meta) {
-        this.meta = meta;
-    }
-
-    private static String stemOf(Path file) {
-        String name = file.getFileName().toString();
-        return name.endsWith(".js") ? name.substring(0, name.length() - 3) : name;
+    /** The discovery entry this module was loaded from. */
+    public ScriptEntry entry() {
+        return entry;
     }
 
     /** The module manifest. */
@@ -51,15 +48,9 @@ public final class LoadedModule implements AutoCloseable {
         return meta;
     }
 
-    /** The script source file. */
+    /** The entry source file. */
     public Path source() {
         return source;
-    }
-
-    /** The source file stem; the stable storage key across meta resolution. */
-    public String fileStem() {
-        String name = source.getFileName().toString();
-        return name.endsWith(".js") ? name.substring(0, name.length() - 3) : name;
     }
 
     /** The module's execution context (its event loop). */

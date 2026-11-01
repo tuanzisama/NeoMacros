@@ -60,6 +60,6 @@ public final class StorageApi {
             throw new IllegalStateException(
                     "storage requires a script context (stores are isolated per script)");
         }
-        return ScriptApiEnvironment.storageFor(owner.fileStem());
+        return ScriptApiEnvironment.storageFor(owner.meta().name());
     }
 }

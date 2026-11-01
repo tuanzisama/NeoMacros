@@ -56,5 +56,16 @@ public interface ScriptEngine extends AutoCloseable {
         default java.util.Optional<Runnable> readExportedFunction(String exportName) throws ScriptError {
             return java.util.Optional.empty();
         }
+
+        /**
+         * Invokes one function-valued export of the last imported module with
+         * a single payload argument, queued onto the context loop without
+         * blocking the caller. Completes with false when the module does not
+         * export an executable member of that name; completes exceptionally
+         * when the invocation throws.
+         */
+        default java.util.concurrent.CompletableFuture<Boolean> invokeExport(String exportName, Object payload) {
+            return java.util.concurrent.CompletableFuture.completedFuture(false);
+        }
     }
 }

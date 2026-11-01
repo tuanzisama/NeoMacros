@@ -397,6 +397,31 @@ public final class GraalJsEngine implements ScriptEngine {
         }
 
         @Override
+        public java.util.concurrent.CompletableFuture<Boolean> invokeExport(String exportName, Object payload) {
+            var done = new java.util.concurrent.CompletableFuture<Boolean>();
+            owner.loop().execute(() -> {
+                try {
+                    if (lastNamespace == null) {
+                        done.complete(false);
+                        return;
+                    }
+                    Value v = lastNamespace.getMember(exportName);
+                    if (v == null || v.isNull() || !v.canExecute()) {
+                        done.complete(false);
+                        return;
+                    }
+                    v.execute(payload == null ? undefinedValue() : asGuestValue(payload));
+                    done.complete(true);
+                } catch (PolyglotException e) {
+                    done.completeExceptionally(translate("script", e));
+                } catch (Throwable t) {
+                    done.completeExceptionally(t);
+                }
+            });
+            return done;
+        }
+
+        @Override
         public void close() {
             context.close();
         }
@@ -723,24 +748,9 @@ public final class GraalJsEngine implements ScriptEngine {
             return cachedUndefined;
         }
 
-        private static void probeFile(String line) {
-            try {
-                java.nio.file.Files.writeString(java.nio.file.Path.of("build/asneutral-probe.log"),
-                        line + "\n", java.nio.file.StandardOpenOption.CREATE,
-                        java.nio.file.StandardOpenOption.APPEND);
-            } catch (IOException ignored) {
-            }
-        }
-
         /** Converts guest arguments to the facade method's declared Java types. */
         private Object[] convertArgs(ModuleBinding.FunctionMember function, Value[] arguments) {
             Class<?>[] types = function.parameterTypes();
-            try {
-                java.nio.file.Files.writeString(java.nio.file.Path.of("build/convert-probe.log"),
-                        "member=" + function + " types=" + java.util.Arrays.toString(types) + "\n",
-                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
-            } catch (IOException ignored) {
-            }
             Object[] out = new Object[types.length];
             for (int i = 0; i < types.length; i++) {
                 Value argument = i < arguments.length ? arguments[i] : null;

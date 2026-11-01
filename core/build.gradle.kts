@@ -25,6 +25,9 @@ dependencies {
     api(project(":ports"))
     api(project(":doc-api"))
     api(libs.gson)
+    // YAML manifest parsing (neomacro.yml); embedded into products via the
+    // node include wiring so the version stays pinned here.
+    implementation(libs.snakeyaml)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     // Shared dependency-guard rules from the ports test fixtures.

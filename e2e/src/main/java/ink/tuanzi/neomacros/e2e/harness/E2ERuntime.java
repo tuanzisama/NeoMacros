@@ -128,11 +128,21 @@ public final class E2ERuntime implements AutoCloseable {
         return catalog;
     }
 
-    /** Loads one fixture script through the real module manager. */
+    /**
+     * Loads one fixture through the real module manager. The path may be the
+     * entry file itself or the fixture's legacy flat name; it resolves by
+     * entry file first, then by manifest name.
+     */
     public void loadScript(Path file) throws Exception {
-        log("LOAD " + file + " exists=" + java.nio.file.Files.exists(file)
-                + " size=" + (java.nio.file.Files.exists(file) ? java.nio.file.Files.size(file) : -1));
-        var loaded = modules.load(file);
+        log("LOAD " + file + " exists=" + java.nio.file.Files.exists(file));
+        Path target = file.toAbsolutePath().normalize();
+        String name = file.getFileName().toString().replaceAll("\\.js$", "");
+        var entry = modules.discover().stream()
+                .filter(e -> e.entryFile().toAbsolutePath().normalize().equals(target)
+                        || e.name().equals(name))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no discovered script entry for " + file));
+        var loaded = modules.load(entry);
         log("LOADED " + loaded.meta().name() + " lifecycle=" + loaded.meta().lifecycle());
     }
 

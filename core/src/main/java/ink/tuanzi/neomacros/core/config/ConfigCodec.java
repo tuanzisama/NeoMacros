@@ -15,8 +15,10 @@ import java.util.function.Consumer;
 /**
  * Reflection codec between {@link Option}-annotated section fields and JSON.
  * Supported field types: boolean, int, long, double, String,
- * {@code List<String>}, and {@code Map<String, List<String>>}. Numeric values
- * are clamped to the declared {@link Option#min()}/{@link Option#max()}.
+ * {@code List<String>}, and string- or boolean-valued maps
+ * ({@code Map<String, List<String>>}, {@code Map<String, String>},
+ * {@code Map<String, Boolean>}). Numeric values are clamped to the declared
+ * {@link Option#min()}/{@link Option#max()}.
  */
 final class ConfigCodec {
 
@@ -107,17 +109,42 @@ final class ConfigCodec {
             return list;
         }
         if (type == Map.class) {
-            Map<String, List<String>> map = new LinkedHashMap<>();
-            for (Map.Entry<String, JsonElement> entry : element.getAsJsonObject().entrySet()) {
+            return mapFromJson(field, element.getAsJsonObject());
+        }
+        throw new IllegalArgumentException("unsupported option type: " + type);
+    }
+
+    /**
+     * Decodes a JSON object into the field's declared map value type
+     * ({@code List<String>}, {@code String}, or {@code Boolean}).
+     */
+    private static Map<String, Object> mapFromJson(Field field, JsonObject object) {
+        Class<?> valueType = mapValueType(field);
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+            if (valueType == List.class) {
                 List<String> list = new ArrayList<>();
                 for (JsonElement item : entry.getValue().getAsJsonArray()) {
                     list.add(item.getAsString());
                 }
                 map.put(entry.getKey(), list);
+            } else if (valueType == Boolean.class) {
+                map.put(entry.getKey(), entry.getValue().getAsBoolean());
+            } else {
+                map.put(entry.getKey(), entry.getValue().getAsString());
             }
-            return map;
         }
-        throw new IllegalArgumentException("unsupported option type: " + type);
+        return map;
+    }
+
+    /** The declared value type argument of a map-valued option field. */
+    private static Class<?> mapValueType(Field field) {
+        if (field.getGenericType() instanceof java.lang.reflect.ParameterizedType type
+                && type.getActualTypeArguments().length == 2
+                && type.getActualTypeArguments()[1] instanceof Class<?> valueClass) {
+            return valueClass;
+        }
+        return List.class;
     }
 
     private static JsonElement toJson(Object value) {
@@ -146,11 +173,17 @@ final class ConfigCodec {
         if (value instanceof Map<?, ?> map) {
             JsonObject object = new JsonObject();
             for (Map.Entry<?, ?> entry : map.entrySet()) {
-                JsonArray array = new JsonArray();
-                for (Object item : (List<?>) entry.getValue()) {
-                    array.add(new JsonPrimitive(String.valueOf(item)));
+                Object item = entry.getValue();
+                if (item instanceof List<?> list) {
+                    JsonArray array = new JsonArray();
+                    for (Object element : list) {
+                        array.add(new JsonPrimitive(String.valueOf(element)));
+                    }
+                    object.add(String.valueOf(entry.getKey()), array);
+                } else {
+                    object.add(String.valueOf(entry.getKey()),
+                            new JsonPrimitive(String.valueOf(item)));
                 }
-                object.add(String.valueOf(entry.getKey()), array);
             }
             return object;
         }

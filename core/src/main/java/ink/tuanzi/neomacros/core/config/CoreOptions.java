@@ -43,11 +43,20 @@ public final class CoreOptions implements ConfigSection {
     public Map<String, Boolean> autoload = Map.of();
 
     /**
-     * Script directory override; empty uses {@code config/neomacros/scripts}
-     * next to the game's config folder.
+     * Central key binding table keyed by script name; the value is a vanilla
+     * key name, or the empty string for an explicit unbind that must survive
+     * restarts. Absent names fall back to the manifest's {@code key} field.
      */
-    @Option(description = "Script directory override")
-    public String scriptsDir = "";
+    @Option(description = "Key binding overrides by script name")
+    public Map<String, String> keybinds = Map.of();
+
+    /**
+     * Macros directory override; empty uses {@code config/neomacros/macros}
+     * (with its {@code keypress/event/services} category folders) next to the
+     * game's config folder.
+     */
+    @Option(description = "Macros directory override")
+    public String macrosDir = "";
 
     @Override
     public String key() {

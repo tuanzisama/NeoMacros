@@ -36,6 +36,11 @@ for (m in listOf(":doc-api", ":ports", ":core", ":engine")) {
     dependencies.add("include", project(m))
 }
 
+// External runtime dependency of :core (manifest YAML parsing) that must ride
+// along in the mod jar; the version comes from the shared version catalog.
+val libsCatalog = extensions.getByType<org.gradle.api.artifacts.VersionCatalogsExtension>().named("libs")
+dependencies.add("include", libsCatalog.findLibrary("snakeyaml").get().get().toString())
+
 // The adapter and fabric entrypoint sources live in this branch's own tree
 // (src/main/java) so each node compiles its Stonecutter-preprocessed mirror;
 // external srcDirs would bypass the preprocessing pipeline.

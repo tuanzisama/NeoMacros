@@ -156,17 +156,14 @@ class ScriptLoadIntegrationTest {
     @Test
     void storagePutGetPersists(@TempDir Path storageDir) throws Exception {
         ScriptApiEnvironment.installStorage(storageDir);
-        Path file = scriptsDir.resolve("storer.js");
-        Files.writeString(file, String.join("\n",
+        var manager = new ink.tuanzi.neomacros.core.module.ModuleManager(
+                runtime, registry, PermissionView.ALLOW_ALL, scriptsDir, m -> { });
+        manager.load(writeEntry(manager, "storer", String.join("\n",
                 "import { chat } from '@neomacros/chat';",
                 "import { storage } from '@neomacros/storage';",
                 "storage.put('count', { n: 7 });",
                 "chat.log('COUNT-' + storage.get('count').n);",
-                ""));
-
-        var manager = new ink.tuanzi.neomacros.core.module.ModuleManager(
-                runtime, registry, PermissionView.ALLOW_ALL, scriptsDir, m -> { });
-        manager.load(file);
+                "")));
 
         assertTrue(chatLines.contains("log:COUNT-7"), "chat lines were: " + chatLines);
         ScriptApiEnvironment.closeStorages();
@@ -176,14 +173,9 @@ class ScriptLoadIntegrationTest {
 
     @Test
     void loadsSmokeScriptThroughVirtualModules() throws Exception {
-        Path file = scriptsDir.resolve("smoke.js");
-        Files.writeString(file, String.join("\n",
-                "export const meta = {",
-                "  name: 'smoke',",
-                "  version: '1.0.0',",
-                "  lifecycle: 'always',",
-                "  permissions: [],",
-                "};",
+        var manager = new ink.tuanzi.neomacros.core.module.ModuleManager(
+                runtime, registry, PermissionView.ALLOW_ALL, scriptsDir, m -> { });
+        manager.load(writeEntry(manager, "smoke", String.join("\n",
                 "import { events, clock } from '@neomacros/core';",
                 "import { chat } from '@neomacros/chat';",
                 "",
@@ -197,11 +189,7 @@ class ScriptLoadIntegrationTest {
                 "clock.sleep(10).then(() => {",
                 "  chat.log('SLEEP-OK');",
                 "});",
-                ""));
-
-        var manager = new ink.tuanzi.neomacros.core.module.ModuleManager(
-                runtime, registry, PermissionView.ALLOW_ALL, scriptsDir, m -> { });
-        manager.load(file);
+                "")));
 
         runtime.eventBus().publish("tick", 1L);
         runtime.eventBus().publish("tick", 2L);
@@ -210,6 +198,21 @@ class ScriptLoadIntegrationTest {
                 "tick handler should run; chat lines were: " + chatLines);
         assertEventually(() -> chatLines.contains("log:SLEEP-OK"),
                 "sleep promise should resolve; chat lines were: " + chatLines);
+    }
+
+    /** Writes one script folder (manifest + index.js) and returns its discovery entry. */
+    private ink.tuanzi.neomacros.core.module.ScriptEntry writeEntry(
+            ink.tuanzi.neomacros.core.module.ModuleManager manager, String name, String source)
+            throws Exception {
+        Path folder = scriptsDir.resolve("event").resolve(name);
+        Files.createDirectories(folder);
+        Files.writeString(folder.resolve("neomacro.yml"),
+                "name: " + name + "\nversion: 1.0.0\nauthor: test\n");
+        Files.writeString(folder.resolve("index.js"), source);
+        return manager.discover().stream()
+                .filter(e -> e.name().equals(name))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("entry not discovered: " + name));
     }
 
     private static void assertEventually(java.util.function.Supplier<Boolean> condition, String message)

@@ -30,10 +30,17 @@ class LaneWorldScenariosTest {
     @TempDir
     Path dir;
 
+    /** Writes one script folder (manifest + index.js) below the event category. */
     private static void fixture(Path scriptsDir, String name, String source) throws Exception {
-        Path file = scriptsDir.resolve(name);
-        Files.createDirectories(file.getParent());
-        Files.writeString(file, source);
+        String stem = name.endsWith(".js") ? name.substring(0, name.length() - 3) : name;
+        Path folder = scriptsDir.resolve("event").resolve(stem);
+        Files.createDirectories(folder);
+        Files.writeString(folder.resolve("neomacro.yml"), String.join("\n",
+                "name: " + stem,
+                "version: 1.0.0",
+                "author: e2e",
+                ""));
+        Files.writeString(folder.resolve("index.js"), source);
     }
 
     @Test
