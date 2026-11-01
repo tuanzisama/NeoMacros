@@ -2,7 +2,14 @@ package ink.tuanzi.neomacros.fabric;
 
 import ink.tuanzi.neomacros.core.security.TrustManager;
 import net.minecraft.client.Minecraft;
+//? if <1.21.11 {
+/*
+import net.minecraft.client.gui.GuiGraphics;
+*/
+//?}
+//? if >=1.21.11 {
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+//?}
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.Screen;
@@ -30,7 +37,13 @@ public final class ScriptManagerScreen extends Screen {
     private final Map<String, String> pendingTrusts;
     private final TrustManager trustManager;
     private final Runnable onReload;
+    //? if >=26.1 {
     private ScriptList list;
+    //?} else {
+    /*
+    private String selectedScript;
+    */
+    //?}
     private String status = "";
 
     private ScriptManagerScreen(Path scriptsDir, Supplier<Set<String>> loadedNames,
@@ -46,17 +59,36 @@ public final class ScriptManagerScreen extends Screen {
     /** Opens the panel on the client thread. */
     public static void open(Path scriptsDir, Supplier<Set<String>> loadedNames,
             Map<String, String> pendingTrusts, TrustManager trustManager, Runnable onReload) {
+        //? if <1.21.11 {
+        /*
+        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(
+                new ScriptManagerScreen(scriptsDir, loadedNames, pendingTrusts,
+                        trustManager, onReload)));
+        */
+        //?}
+//? if >=1.21.11 {
         Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreenAndShow(
                 new ScriptManagerScreen(scriptsDir, loadedNames, pendingTrusts,
                         trustManager, onReload)));
+//?}
     }
 
     @Override
     protected void init() {
+        //? if >=26.1 {
         list = new ScriptList();
         repopulate();
         addRenderableWidget(list);
+        addHeaderButtons();
+        //?} else {
+        /*
+        repopulate();
+        */
+        //?}
+    }
 
+    /** Adds the shared bottom action row: new script, reload, trust, done. */
+    private void addHeaderButtons() {
         int y = this.height - 40;
         int margin = 8;
         addRenderableWidget(Button.builder(Component.literal("New Script"), button -> {
@@ -75,12 +107,22 @@ public final class ScriptManagerScreen extends Screen {
 
     /** Grants the pending trust request of the selected script, if any. */
     private void trustSelected() {
+        //? if >=26.1 {
         ScriptList.Row row = list.getSelected();
         if (row == null) {
             status = "select a script first";
             return;
         }
         String name = row.data.name();
+        //?} else {
+        /*
+        String name = selectedScript;
+        if (name == null) {
+            status = "open a script first";
+            return;
+        }
+        */
+        //?}
         String hash = pendingTrusts.get(name);
         if (hash == null) {
             status = name + " has no pending trust request";
@@ -95,6 +137,7 @@ public final class ScriptManagerScreen extends Screen {
     private void repopulate() {
         Set<String> loaded = loadedNames.get();
         List<Path> files = scriptFiles();
+        //? if >=26.1 {
         list.replaceRows(files.stream()
                 .map(file -> {
                     String name = file.getFileName().toString();
@@ -102,6 +145,27 @@ public final class ScriptManagerScreen extends Screen {
                             loaded.contains(name), pendingTrusts.containsKey(name));
                 })
                 .toList());
+        //?} else {
+        /*
+        clearWidgets();
+        int rowY = 24;
+        for (Path file : files) {
+            String name = file.getFileName().toString();
+            String marks = (loaded.contains(name) ? "loaded" : "stopped")
+                    + (pendingTrusts.containsKey(name) ? "  [untrusted]" : "");
+            addRenderableWidget(Button.builder(Component.literal(name), button -> {
+                        selectedScript = name;
+                        ScriptEditorScreen.open(file, onReload);
+                    }).bounds(8, rowY, 200, 16).build());
+            addRenderableWidget(Button.builder(Component.literal(marks), button -> {
+                        selectedScript = name;
+                        trustSelected();
+                    }).bounds(212, rowY, 120, 16).build());
+            rowY += 18;
+        }
+        addHeaderButtons();
+        */
+        //?}
         if (files.isEmpty()) {
             status = "no scripts in " + scriptsDir.getFileName();
         }
@@ -122,6 +186,19 @@ public final class ScriptManagerScreen extends Screen {
         }
     }
 
+    //? if <1.21.11 {
+    /*
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.fill(0, 0, this.width, this.height, 0xC0101010);
+        super.render(graphics, mouseX, mouseY, partialTick);
+        if (!status.isEmpty()) {
+            graphics.drawString(this.font, status, 8, this.height - 14, 0xFF80FF80);
+        }
+    }
+    */
+    //?}
+    //? if >=1.21.11 {
     @Override
     public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         extractor.fill(0, 0, this.width, this.height, 0xC0101010);
@@ -130,7 +207,9 @@ public final class ScriptManagerScreen extends Screen {
             extractor.text(this.font, status, 8, this.height - 14, 0xFF80FF80);
         }
     }
+    //?}
 
+    //? if >=26.1 {
     private final class ScriptList extends ObjectSelectionList<ScriptList.Row> {
 
         ScriptList() {
@@ -168,6 +247,21 @@ public final class ScriptManagerScreen extends Screen {
                 return Component.literal(data.name() + (data.loaded() ? " loaded" : " unloaded"));
             }
 
+            //? if <1.21.11 {
+            /*
+            @Override
+            public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
+                    int mouseX, int mouseY, boolean hovered, float partialTick) {
+                int color = hovered ? 0xFFFFFFA0 : 0xFFFFFFFF;
+                graphics.drawString(font, data.name(), left + 4, top + 2, color);
+                String state = data.loaded() ? "loaded" : "stopped";
+                String marks = state + (data.untrusted() ? "  [untrusted]" : "");
+                graphics.drawString(font, marks, left + getRowWidth() - 110,
+                        top + 2, data.untrusted() ? 0xFFFF8080 : 0xFF80C080);
+            }
+            */
+            //?}
+//? if >=1.21.11 {
             @Override
             public void extractContent(GuiGraphicsExtractor extractor, int mouseX, int mouseY,
                     boolean hovered, float partialTick) {
@@ -178,6 +272,7 @@ public final class ScriptManagerScreen extends Screen {
                 extractor.text(font, marks, getX() + getRowWidth() - 110,
                         getY() + 2, data.untrusted() ? 0xFFFF8080 : 0xFF80C080);
             }
+//?}
 
             @Override
             public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
@@ -186,4 +281,5 @@ public final class ScriptManagerScreen extends Screen {
             }
         }
     }
+    //?}
 }

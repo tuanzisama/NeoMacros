@@ -1,7 +1,14 @@
 package ink.tuanzi.neomacros.fabric;
 
 import net.minecraft.client.Minecraft;
+//? if <1.21.11 {
+/*
+import net.minecraft.client.gui.GuiGraphics;
+*/
+//?}
+//? if >=1.21.11 {
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+//?}
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.MultiLineEditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -48,8 +55,16 @@ public final class ScriptEditorScreen extends Screen {
         }
         Path finalFile = file;
         String finalContent = content;
+        //? if <1.21.11 {
+        /*
+        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(
+                new ScriptEditorScreen(finalFile, finalContent, onSaved)));
+        */
+        //?}
+//? if >=1.21.11 {
         Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreenAndShow(
                 new ScriptEditorScreen(finalFile, finalContent, onSaved)));
+//?}
     }
 
     @Override
@@ -87,6 +102,19 @@ public final class ScriptEditorScreen extends Screen {
         }
     }
 
+    //? if <1.21.11 {
+    /*
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.fill(0, 0, this.width, this.height, 0xC0101010);
+        super.render(graphics, mouseX, mouseY, partialTick);
+        if (!status.isEmpty()) {
+            graphics.drawString(this.font, status, 8, this.height - 14, 0xFF80FF80);
+        }
+    }
+    */
+    //?}
+    //? if >=1.21.11 {
     @Override
     public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         extractor.fill(0, 0, this.width, this.height, 0xC0101010);
@@ -95,4 +123,5 @@ public final class ScriptEditorScreen extends Screen {
             extractor.text(this.font, status, 8, this.height - 14, 0xFF80FF80);
         }
     }
+    //?}
 }

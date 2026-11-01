@@ -14,14 +14,20 @@ pluginManagement {
             filter {
                 includeGroupAndSubgroups("net.fabricmc")
                 includeGroupAndSubgroups("fabric-loom")
+                includeGroup("fabric-loom")
             }
         }
     }
 
     plugins {
-        // 1.19+ detects unobfuscated Minecraft (26.1+) on its own; do not downgrade to 1.17,
-        // which requires the fabric.loom.disableObfuscation flag and registers a different
-        // configuration set. See docs/02-build-system.md for the rationale.
+        // Both Loom plugin ids registered apply false; the beforeProject hook
+        // below picks one per node. The legacy id (net.fabricmc.fabric-loom)
+        // hard-forces disableObfuscation=true — the unobfuscated toolchain the
+        // 26.x nodes need. The modern id (fabric-loom) honors the
+        // fabric.loom.disableObfuscation=false root flag — the mapped
+        // (obfuscated) toolchain for 1.x nodes whose jars still carry
+        // obfuscated names and intermediary-named fabric-api modules.
+        id("fabric-loom") version "1.19-SNAPSHOT" apply false
         id("net.fabricmc.fabric-loom") version "1.19-SNAPSHOT" apply false
     }
 }
@@ -47,14 +53,14 @@ stonecutter {
 
     create(rootProject) {
         branch("product") {
-            // Milestone nodes (docs/01-overview.md §8). The full matrix:
-            // 26.x unobf on Java 25, 1.x obf on Java 17/21 (Mojmap+Parchment).
-            // fabric_minecraft_version_range pins each node 1:1.
-            // The 26.x line is active with cross-version adapter branches
-            // (T-106). The 1.x nodes have verified fabric API versions in
-            // versions/<mc>/gradle.properties but stay inactive until their
-            // obf-mode loom setup and Java 17/21 toolchains are wired.
-            versions("26.1.2", "26.2", "26.3")
+            // Milestone nodes (docs/01-overview.md §8). The 1.x obf node uses
+            // the modern fabric-loom plugin id (honors the root
+            // fabric.loom.disableObfuscation=false flag for the mapped
+            // toolchain); the 26.x unobf nodes use the legacy plugin id via
+            // unobf.gradle.kts (which loom hard-forces into unobf mode).
+            versions("1.21.6")
+            versions("26.1.2", "26.2", "26.3").buildscript("unobf.gradle.kts")
         }
     }
 }
+

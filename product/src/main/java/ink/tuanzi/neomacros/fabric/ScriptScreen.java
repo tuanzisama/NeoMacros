@@ -1,7 +1,14 @@
 package ink.tuanzi.neomacros.fabric;
 
 import net.minecraft.client.Minecraft;
+//? if <1.21.11 {
+/*
+import net.minecraft.client.gui.GuiGraphics;
+*/
+//?}
+//? if >=1.21.11 {
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+//?}
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.MultiLineEditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -22,9 +29,16 @@ public final class ScriptScreen extends Screen {
 
     /** Opens the viewer on the client thread. */
     public static void open(String title, String content) {
-        Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreenAndShow(
-                        new ScriptScreen(Component.literal("[NeoMacros] " + title), content)));
+        //? if <1.21.11 {
+        /*
+        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(
+                new ScriptScreen(Component.literal("[NeoMacros] " + title), content)));
+        */
+        //?}
+//? if >=1.21.11 {
+        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreenAndShow(
+                new ScriptScreen(Component.literal("[NeoMacros] " + title), content)));
+//?}
     }
 
     @Override
@@ -44,10 +58,22 @@ public final class ScriptScreen extends Screen {
                 .build());
     }
 
+    //? if <1.21.11 {
+    /*
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // Dim backdrop first so widget extraction stays on top.
+        graphics.fill(0, 0, this.width, this.height, 0xC0101010);
+        super.render(graphics, mouseX, mouseY, partialTick);
+    }
+    */
+    //?}
+    //? if >=1.21.11 {
     @Override
     public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         // Dim backdrop first so widget extraction stays on top.
         extractor.fill(0, 0, this.width, this.height, 0xC0101010);
         super.extractRenderState(extractor, mouseX, mouseY, partialTick);
     }
+//?}
 }

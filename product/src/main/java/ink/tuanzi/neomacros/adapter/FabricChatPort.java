@@ -24,8 +24,16 @@ public final class FabricChatPort implements ChatPort {
 
     @Override
     public void log(String message) {
+        //? if <1.21.11 {
+        /*
+        runOnMain(() -> Minecraft.getInstance().gui.hud.getChat()
+                .addMessage(Component.literal(message)));
+        */
+        //?}
+//? if >=1.21.11 {
         runOnMain(() -> Minecraft.getInstance().gui.hud.getChat()
                 .addClientSystemMessage(Component.literal(message)));
+//?}
     }
 
     @Override
@@ -36,12 +44,24 @@ public final class FabricChatPort implements ChatPort {
 
     @Override
     public void logClickable(String text, String command) {
+        //? if <1.21.11 {
+        /*
+        runOnMain(() -> {
+            Component line = Component.literal(text).withStyle(style -> style
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(command))
+                    .withUnderlined(true));
+            Minecraft.getInstance().gui.hud.getChat().addMessage(line);
+        });
+        */
+        //?}
+//? if >=1.21.11 {
         runOnMain(() -> {
             Component line = Component.literal(text).withStyle(style -> style
                     .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(command))
                     .withUnderlined(true));
             Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(line);
         });
+//?}
     }
 
     @Override

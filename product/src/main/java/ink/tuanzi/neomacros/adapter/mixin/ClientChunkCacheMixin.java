@@ -16,6 +16,13 @@ public abstract class ClientChunkCacheMixin {
 
     @Inject(method = "drop", at = @At("HEAD"))
     private void neomacros$onChunkUnload(ChunkPos pos, CallbackInfo ci) {
+                //? if <1.21.11 {
+        /*
+        ChunkEventHub.fireUnload(pos.x, pos.z);
+        */
+        //?}
+//? if >=1.21.11 {
         ChunkEventHub.fireUnload(pos.x(), pos.z());
+//?}
     }
 }
