@@ -1,8 +1,9 @@
-# script-tests —— 游戏内 E2E 套件（E2E-G）
+English | [简体中文](README.zh-CN.md)
 
-架构依据：[09-开发计划书 §7.2](../../neomacros-docs/09-development-plan.md)。
+# script-tests
 
-- `cases/` 与 `e2e/fixtures/scripts/` **同一份文件**（T-040 起同步，CI hash 校验）；
-- runner `suite.js` 由 T-041 落地；当前用例以头部注释声明的【手动探针】流程执行；
-- 结果协议（T-041 起）：`e2e-results.json` + 日志标记 `[NeoMacros-E2E] <caseId> PASS|FAIL <detail>`；
-- 契约：只用公开 API、一次性状态下无害运行、失败必须留 detail；`observe` 用例的人工比对结论须写入 `plan/reports/` 执行报告。
+End-to-end cases that run inside a real game client. `suite.js` is the runner: it loads each case, prints one result line per case (`[NeoMacros-E2E] <caseId> PASS|FAIL <detail>`) plus a final `SUITE-DONE` marker, and persists the full result map via storage — the `verifyGameE2E` Gradle task reads it after the client exits.
+
+`cases/` is mirrored into [e2e/fixtures/scripts](../e2e/fixtures/scripts/) (the same files, hash-checked in CI).
+
+Case contract: use only the public script API, run harmlessly under one-time state, and always leave a `detail` on failure. Cases needing human judgement print their observations for manual review.
