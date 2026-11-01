@@ -23,24 +23,25 @@ jobs:
           version: latest
 
   compile:
-    name: compile (26.3 node + version-independent modules)
+    name: compile (all active nodes + version-independent modules)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Both toolchains installed so Gradle resolves them locally (Java 17 for
-      # the version-independent modules, Java 25 for the 26.3 product node).
+      # Toolchains for the version-independent modules (Java 17) and every
+      # product node (Java 21 for the 1.21.6 node, Java 25 for 26.x).
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: |
             17
+            21
             25
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build version-independent modules and the 26.3 node
-        run: ./gradlew :doc-api:build :ports:build :core:build :engine:build :e2e:build :product:26.3:build --console=plain
+      - name: Build version-independent modules and every active product node
+        run: ./gradlew :doc-api:build :ports:build :core:build :engine:build :e2e:build :product:1.21.6:build :product:26.1.2:build :product:26.2:build :product:26.3:build --console=plain
 
   unit:
     name: unit tests
