@@ -5,8 +5,8 @@ position. Combines the `tick` event, the `hud` overlay, the live
 [`player.self`](/en/api/player) handle and a `render` line.
 
 ```js
-// coords-hud.js — coordinates overlay + world marker
-export const meta = { name: "coords-hud", lifecycle: "world" };
+// macros/event/coords-hud/index.js — coordinates overlay + world marker
+// manifest: macros/event/coords-hud/neomacro.yml — name: coords-hud, version: 1.0.0, author: you
 
 const { events, hud, player, render } = neo;
 

@@ -4,8 +4,8 @@ Track how much damage you have taken — and keep the total across script
 reloads and game restarts with [`storage`](/en/api/storage).
 
 ```js
-// damage-counter.js — persistent damage total
-export const meta = { name: "damage-counter", lifecycle: "world" };
+// macros/event/damage-counter/index.js — persistent damage total
+// manifest: macros/event/damage-counter/neomacro.yml — name: damage-counter, version: 1.0.0, author: you
 
 const { events, storage, chat } = neo;
 

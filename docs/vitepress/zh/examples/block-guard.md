@@ -4,8 +4,8 @@
 取消的同步处理器。
 
 ```js
-// block-guard.js — 可开关的基岩式保护
-export const meta = { name: "block-guard", lifecycle: "world" };
+// macros/event/block-guard/index.js — 可开关的基岩式保护
+// manifest: macros/event/block-guard/neomacro.yml — name: block-guard, version: 1.0.0, author: you
 
 const { events, input, chat } = neo;
 

@@ -26,8 +26,15 @@ NeoMacros 在 Minecraft 客户端内运行 ECMAScript（JavaScript）脚本。�
 .minecraft/
 └── config/
     └── neomacros/
-        └── scripts/     # 你的脚本，一个 .js 文件一个脚本
+        ├── options.json   # 模组设置
+        └── macros/        # 你的脚本，一个文件夹一个脚本
+            ├── keypress/  # 按键触发
+            ├── event/     # 事件驱动
+            └── services/  # 常驻服务
 ```
+
+每个脚本文件夹包含一份 `neomacro.yml`（或 `.json` / `.json5`）清单和入口
+文件——见[第一个脚本](./first-script)。
 
 脚本的持久化数据存放在各自独立的存储里（见
 [`storage`](/zh/api/storage)），文件保持可读、可随时替换。

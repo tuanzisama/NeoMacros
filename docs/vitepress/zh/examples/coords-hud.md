@@ -5,8 +5,8 @@
 线段。
 
 ```js
-// coords-hud.js — 坐标叠加层 + 世界内标记
-export const meta = { name: "coords-hud", lifecycle: "world" };
+// macros/event/coords-hud/index.js — 坐标叠加层 + 世界内标记
+// manifest: macros/event/coords-hud/neomacro.yml — name: coords-hud, version: 1.0.0, author: you
 
 const { events, hud, player, render } = neo;
 

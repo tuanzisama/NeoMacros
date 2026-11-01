@@ -4,8 +4,8 @@ Log a line locally whenever a player joins. The smallest useful event
 script — and a template for every other listener you will write.
 
 ```js
-// auto-greet.js — announce joins in your local chat
-export const meta = { name: "auto-greet", lifecycle: "world" };
+// macros/event/auto-greet/index.js — announce joins in your local chat
+// manifest: macros/event/auto-greet/neomacro.yml — name: auto-greet, version: 1.0.0, author: you
 
 const { events, chat } = neo;
 

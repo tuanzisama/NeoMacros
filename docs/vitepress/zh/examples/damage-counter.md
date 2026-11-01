@@ -4,8 +4,8 @@
 与游戏重启之间保留。
 
 ```js
-// damage-counter.js — 持久化的伤害总量
-export const meta = { name: "damage-counter", lifecycle: "world" };
+// macros/event/damage-counter/index.js — 持久化的伤害总量
+// manifest: macros/event/damage-counter/neomacro.yml — name: damage-counter, version: 1.0.0, author: you
 
 const { events, storage, chat } = neo;
 

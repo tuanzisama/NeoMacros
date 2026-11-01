@@ -4,8 +4,8 @@
 以后写一切监听器的模板。
 
 ```js
-// auto-greet.js — 在本地聊天区播报进服
-export const meta = { name: "auto-greet", lifecycle: "world" };
+// macros/event/auto-greet/index.js — 在本地聊天区播报进服
+// manifest: macros/event/auto-greet/neomacro.yml — name: auto-greet, version: 1.0.0, author: you
 
 const { events, chat } = neo;
 

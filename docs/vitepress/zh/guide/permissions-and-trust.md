@@ -6,15 +6,15 @@ NeoMacros 脚本运行在沙箱里。读取世界状态、输出聊天始终允�
 
 ## 声明能力
 
-脚本通过 `meta` 导出声明所需能力：
+脚本在 `neomacro.yml` 清单中声明所需能力：
 
-```js
-export const meta = {
-    name: "backup-notes",
-    version: "1.0.0",
-    lifecycle: "world",          // always | world（默认）| manual
-    permissions: ["fs"],         // 基础面之外的能力
-};
+```yaml
+# macros/event/backup-notes/neomacro.yml
+name: backup-notes
+version: 1.0.0
+author: you                    # name / version / author 三项必填
+lifecycle: world               # always | world（默认）| manual
+permissions: ["fs"]            # 基础面之外的能力
 ```
 
 | 权限 | 解锁 |

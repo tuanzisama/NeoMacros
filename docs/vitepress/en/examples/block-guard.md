@@ -4,8 +4,8 @@ A toggleable guard that cancels attacks on a protected block type — a
 practical look at keybinds and cancellable synchronous handlers.
 
 ```js
-// block-guard.js — toggleable bedrock-style protection
-export const meta = { name: "block-guard", lifecycle: "world" };
+// macros/event/block-guard/index.js — toggleable bedrock-style protection
+// manifest: macros/event/block-guard/neomacro.yml — name: block-guard, version: 1.0.0, author: you
 
 const { events, input, chat } = neo;
 

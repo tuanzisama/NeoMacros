@@ -7,10 +7,15 @@ Everything about managing and troubleshooting scripts goes through the
 
 | Command | Purpose |
 |---|---|
-| `/neomacros list` | show every loaded script, its lifecycle and status |
-| `/neomacros reload` | rescan `config/neomacros/scripts` and apply changes |
+| `/neomacros list [category]` | show discovered scripts per category with state |
+| `/neomacros reload` | rescan `config/neomacros/macros` and apply changes |
+| `/neomacros keypress bind <script> <key>` | bind a `keypress/` script to a key (central table, overrides the manifest) |
+| `/neomacros keypress unbind <script>` | remove the binding (persists across restarts) |
+| `/neomacros service start/stop/restart <script>` | manually control a `services/` script |
 | `/neomacros trust <script>` | grant a script its declared capabilities (see [Permissions & Trust](./permissions-and-trust)) |
-| `/neomacros errors` | open the screen listing recent script failures |
+| `/neomacros edit <script>` / `open <script>` | open the editor / source viewer |
+| `/neomacros panel` | open the management panel (groups scripts by category) |
+| `/neomacros errors` | open the screen listing recent script failures and invalid folders |
 
 The usual edit cycle is: save the file → `/neomacros reload` → observe.
 Reloading unloads the old module (its subscriptions and HUD/render layers go

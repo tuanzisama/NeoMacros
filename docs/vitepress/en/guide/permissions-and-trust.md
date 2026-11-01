@@ -7,15 +7,15 @@ you, the player.
 
 ## Declaring capabilities
 
-A script declares what it needs through a `meta` export:
+A script declares what it needs in its `neomacro.yml` manifest:
 
-```js
-export const meta = {
-    name: "backup-notes",
-    version: "1.0.0",
-    lifecycle: "world",          // always | world (default) | manual
-    permissions: ["fs"],         // capabilities beyond the base surface
-};
+```yaml
+# macros/event/backup-notes/neomacro.yml
+name: backup-notes
+version: 1.0.0
+author: you                    # name, version and author are required
+lifecycle: world               # always | world (default) | manual
+permissions: ["fs"]            # capabilities beyond the base surface
 ```
 
 | Permission | Unlocks |

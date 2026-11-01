@@ -27,8 +27,16 @@ Everything a script touches lives under the game directory:
 .minecraft/
 └── config/
     └── neomacros/
-        └── scripts/     # your scripts, one .js file per script
+        ├── options.json   # mod settings
+        └── macros/        # your scripts, one folder per script
+            ├── keypress/  # key-bound scripts
+            ├── event/     # event-driven scripts
+            └── services/  # long-running scripts
 ```
+
+Each script folder contains a `neomacro.yml` (or `.json` / `.json5`)
+manifest and its entry file - see
+[Your First Script](./first-script).
 
 Scripts keep their own persistent data in an isolated store (see
 [`storage`](/en/api/storage)), so files stay readable and swappable.
