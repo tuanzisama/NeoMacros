@@ -17,6 +17,8 @@ java {
 
 dependencies {
     implementation("ink.tuanzi.neomacros:doc-api:0.1.0")
+    // Same version as the main build's catalog; used by NpmTypesPackager.
+    implementation("com.google.code.gson:gson:2.11.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
 }
@@ -35,4 +37,32 @@ tasks.withType<Test>().configureEach {
     // any source set; declare them as inputs or edits skip the test task.
     inputs.dir(layout.projectDirectory.dir("src/test/fixtures"))
     inputs.dir(layout.projectDirectory.dir("src/test/snapshots"))
+}
+
+// Generates the bilingual API pages and TypeScript definitions from the
+// facade sources of the main build's core module. Requires the doc-api
+// annotation jar in the local repository (./gradlew :doc-api:publishToMavenLocal
+// from the parent build). Outputs build/gen/md/api/*.md (+ warnings.txt) and
+// build/gen/ts/types/neomacros.d.ts.
+tasks.register<JavaExec>("generateApiDocs") {
+    group = "documentation"
+    description = "Generates API documentation from the real facade sources (core + ports)"
+
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass = "ink.tuanzi.neomacros.docs.ApiDocsGenerate"
+
+    val repoRoot = projectDir.parentFile.toPath()
+    val mdOut = layout.buildDirectory.dir("gen/md")
+    val tsOut = layout.buildDirectory.dir("gen/ts")
+    args(
+        mdOut.get().asFile.absolutePath,
+        tsOut.get().asFile.absolutePath,
+        repoRoot.resolve("core/src/main/java").toString(),
+        repoRoot.resolve("ports/src/main/java").toString(),
+    )
+
+    inputs.dir(repoRoot.resolve("core/src/main/java/ink/tuanzi/neomacros/core/api"))
+    inputs.dir(repoRoot.resolve("ports/src/main/java/ink/tuanzi/neomacros/port"))
+    outputs.dir(mdOut)
+    outputs.dir(tsOut)
 }

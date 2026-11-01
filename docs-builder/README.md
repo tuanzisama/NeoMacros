@@ -17,6 +17,10 @@ Markdown and `.d.ts` render from the same `ApiModel` (the annotation-scan output
 # Prerequisite: publish the annotation jar to the local repository
 ./gradlew :doc-api:publishToMavenLocal
 
+# Generate from the real facade sources (core + ports) without snapshot
+# assertions; output in build/gen/{md/api,ts/types}/
+./gradlew -p docs-builder generateApiDocs
+
 # Generate + snapshot regression + TypeScript compile check
 ./gradlew -p docs-builder check -PtscPath=<path to typescript/bin/tsc>
 
@@ -25,6 +29,8 @@ Markdown and `.d.ts` render from the same `ApiModel` (the annotation-scan output
 ```
 
 `-PtscPath` points at the `tsc` JS file from the typescript package (run via node); without it the compile check is skipped and the other tests still run.
+
+`generateApiDocs` feeds the documentation site: `bash scripts/ci/sync-generated-docs.sh` copies the pages into `docs/vitepress/{en,zh}/api/` and the definitions into `docs/vitepress/public/` (see `.github/workflows/docs.yml` for the CI wiring).
 
 ## Layout
 

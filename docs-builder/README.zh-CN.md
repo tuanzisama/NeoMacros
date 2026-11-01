@@ -17,6 +17,10 @@ Markdown 与 `.d.ts` 消费同一份 `ApiModel`（注解扫描产物）。生成
 # 前置：发布注解 jar 到本地仓库
 ./gradlew :doc-api:publishToMavenLocal
 
+# 从真实门面源码（core + ports）生成，不做快照断言；
+# 产物在 build/gen/{md/api,ts/types}/
+./gradlew -p docs-builder generateApiDocs
+
 # 生成 + 快照回归 + TypeScript 编译检查
 ./gradlew -p docs-builder check -PtscPath=<typescript 包 bin/tsc 路径>
 
@@ -25,6 +29,8 @@ Markdown 与 `.d.ts` 消费同一份 `ApiModel`（注解扫描产物）。生成
 ```
 
 `-PtscPath` 指向 typescript 包的 `tsc` JS 文件（经 node 执行）；未提供时跳过编译检查，其余测试不受影响。
+
+`generateApiDocs` 供文档站使用：`bash scripts/ci/sync-generated-docs.sh` 把页面复制进 `docs/vitepress/{en,zh}/api/`、类型定义复制进 `docs/vitepress/public/`（CI 接线见 `.github/workflows/docs.yml`）。
 
 ## 结构
 
