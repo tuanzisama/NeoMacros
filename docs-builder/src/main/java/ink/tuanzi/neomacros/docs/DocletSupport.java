@@ -246,7 +246,12 @@ final class DocletSupport {
     /** Converts a bean getter name to the script property name ({@code getName} to {@code name}). */
     static String propertyName(ExecutableElement getter) {
         String name = getter.getSimpleName().toString();
-        int offset = name.startsWith("is") ? 2 : 3;
+        int offset = 0;
+        if (name.startsWith("is") && name.length() > 2) {
+            offset = 2;
+        } else if (name.startsWith("get") && name.length() > 3) {
+            offset = 3;
+        }
         String base = name.substring(offset);
         return base.isEmpty() ? base : Character.toLowerCase(base.charAt(0)) + base.substring(1);
     }
