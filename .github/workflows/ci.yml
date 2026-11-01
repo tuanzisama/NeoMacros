@@ -86,10 +86,23 @@ jobs:
           EOF
 
   documentation:
-    name: documentation pipeline (placeholder)
+    name: docs-builder snapshot regression
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: Documentation pipeline placeholder
-        run: bash scripts/ci/documentation.sh
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      # The standalone docs-builder resolves the annotation jar by
+      # coordinates, so publish it first. check runs the fixture snapshot
+      # regression (and the tsc type check when -PtscPath is provided).
+      - name: Publish doc-api annotations to the local repository
+        run: ./gradlew :doc-api:publishToMavenLocal --console=plain
+
+      - name: Run docs-builder check
+        run: ./gradlew -p docs-builder check --console=plain

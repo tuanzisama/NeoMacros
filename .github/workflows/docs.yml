@@ -1,0 +1,92 @@
+name: docs
+
+# Generates the API documentation from the current sources (docs-builder),
+# assembles the VitePress site around it, and publishes to GitHub Pages.
+# Requires Pages to be configured with "GitHub Actions" as its source in
+# the repository settings.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/src/main/java/ink/tuanzi/neomacros/core/api/**"
+      - "ports/src/main/java/**"
+      - "doc-api/src/main/java/**"
+      - "docs/**"
+      - "docs-builder/**"
+      - "scripts/ci/sync-generated-docs.sh"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+# Only one Pages deployment at a time; never cancel a deploy mid-flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: build site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Toolchain for the docs-builder generation (Java 17, matching its
+      # build script) and for the main build publishing the doc-api jar.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Publish doc-api annotations to the local repository
+        run: ./gradlew :doc-api:publishToMavenLocal --console=plain
+
+      - name: Generate API docs from the current sources
+        run: ./gradlew -p docs-builder generateApiDocs --console=plain
+
+      - name: Sync generated docs into the site
+        run: bash scripts/ci/sync-generated-docs.sh
+
+      # Generation warnings (missing translations, missing @ApiSince) stay
+      # inspectable without failing the deploy.
+      - name: Upload generation warnings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-docs-warnings
+          path: docs-builder/build/gen/md/api/warnings.txt
+          if-no-files-found: ignore
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/vitepress/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs/vitepress
+        run: npm ci
+
+      - name: Build site
+        working-directory: docs/vitepress
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/vitepress/.vitepress/dist
+
+  deploy:
+    name: deploy to github pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
