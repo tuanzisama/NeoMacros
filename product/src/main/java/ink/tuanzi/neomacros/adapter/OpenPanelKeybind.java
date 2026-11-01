@@ -24,9 +24,8 @@ public final class OpenPanelKeybind {
         */
         //?}
         //? if >=1.21.11 {
-        var category = net.minecraft.client.KeyMapping.Category.register(net.minecraft.resources.Identifier.withDefaultNamespace("neomacros"));
         var mapping = new KeyMapping("key.neomacros.open_panel",
-                InputConstants.Type.KEYBOARD, key.getValue(), category);
+                InputConstants.Type.KEYBOARD, key.getValue(), FabricInputPort.sharedCategory());
         //?}
         net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper.registerKeyMapping(mapping);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {

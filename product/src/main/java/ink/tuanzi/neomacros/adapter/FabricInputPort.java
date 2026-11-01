@@ -24,6 +24,23 @@ public final class FabricInputPort implements ink.tuanzi.neomacros.port.InputPor
     private record Keybind(KeyMapping mapping, CopyOnWriteArrayList<Consumer<Integer>> sinks) {
     }
 
+    //? if >=1.21.11 {
+    private static net.minecraft.client.KeyMapping.Category sharedCategory;
+
+    /**
+     * Returns the one shared mod keymapping category, registering it on
+     * first use; the vanilla registry rejects duplicate identifiers, so
+     * every mod keybind must reuse this instance.
+     */
+    static synchronized net.minecraft.client.KeyMapping.Category sharedCategory() {
+        if (sharedCategory == null) {
+            sharedCategory = net.minecraft.client.KeyMapping.Category.register(
+                    net.minecraft.resources.Identifier.withDefaultNamespace("neomacros"));
+        }
+        return sharedCategory;
+    }
+    //?}
+
     private final Map<String, Keybind> keybinds = new java.util.LinkedHashMap<>();
     private final List<DoubleConsumer> scrollSinks = new CopyOnWriteArrayList<>();
     private final AtomicLong handleSequence = new AtomicLong();
@@ -95,8 +112,7 @@ public final class FabricInputPort implements ink.tuanzi.neomacros.port.InputPor
         */
         //?}
         //? if >=1.21.11 {
-        var category = net.minecraft.client.KeyMapping.Category.register(net.minecraft.resources.Identifier.withDefaultNamespace("neomacros"));
-        var mapping = newMapping(translationKey, key.getValue(), category);
+        var mapping = newMapping(translationKey, key.getValue(), sharedCategory());
         //?}
         net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper.registerKeyMapping(mapping);
         keybinds.put(id, new Keybind(mapping, new CopyOnWriteArrayList<>(List.of(sink))));
