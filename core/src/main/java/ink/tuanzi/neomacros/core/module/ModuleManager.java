@@ -225,7 +225,8 @@ public final class ModuleManager implements AutoCloseable {
                 }
             } catch (ScriptError e) {
                 warn.accept("failed to load " + entry.name() + ": " + e.getMessage()
-                        + (e.getSourceName() != null ? " (" + e.getSourceName() + ":" + e.getLine() + ")" : ""));
+                        + (e.getSourceName() != null ? " (" + e.getSourceName() + ":" + e.getLine() + ")" : "")
+                        + rootCauseText(e));
             }
         }
         return result;
@@ -253,9 +254,19 @@ public final class ModuleManager implements AutoCloseable {
         try {
             return Optional.of(load(entry.get()));
         } catch (ScriptError e) {
-            warn.accept("failed to load " + name + ": " + e.getMessage());
+            warn.accept("failed to load " + name + ": " + e.getMessage() + rootCauseText(e));
             return Optional.empty();
         }
+    }
+
+    /** Appends the deepest cause's class and message, when one exists. */
+    private static String rootCauseText(Throwable error) {
+        Throwable cause = error;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        return cause == error ? "" : " | caused by " + cause.getClass().getSimpleName()
+                + ": " + cause.getMessage();
     }
 
     /**

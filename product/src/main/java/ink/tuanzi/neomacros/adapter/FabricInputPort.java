@@ -114,8 +114,25 @@ public final class FabricInputPort implements ink.tuanzi.neomacros.port.InputPor
         //? if >=1.21.11 {
         var mapping = newMapping(translationKey, key.getValue(), sharedCategory());
         //?}
-        net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper.registerKeyMapping(mapping);
+        if (net.minecraft.client.Minecraft.getInstance().options == null) {
+            // Init time: fabric api accepts registrations and keeps ordering.
+            net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper.registerKeyMapping(mapping);
+        } else {
+            // Runtime: fabric api refuses late registrations, so splice the
+            // mapping into the options array directly.
+            spliceKeyMapping(mapping);
+        }
         keybinds.put(id, new Keybind(mapping, new CopyOnWriteArrayList<>(List.of(sink))));
+    }
+
+    /** Appends one mapping to the live options keyMappings array. */
+    private static void spliceKeyMapping(KeyMapping mapping) {
+        var options = net.minecraft.client.Minecraft.getInstance().options;
+        var accessor = (ink.tuanzi.neomacros.adapter.mixin.OptionsKeyMappingsAccessor) (Object) options;
+        KeyMapping[] existing = accessor.neomacros$keyMappings();
+        KeyMapping[] updated = java.util.Arrays.copyOf(existing, existing.length + 1);
+        updated[existing.length] = mapping;
+        accessor.neomacros$keyMappings(updated);
     }
 
     /** Detaches one keybind by id: sinks cleared, mapping left unbound. */

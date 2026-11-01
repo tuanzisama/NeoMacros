@@ -12,6 +12,7 @@
     "BossUpdateMixin",
     "SoundEnginePlayMixin",
     "LevelGizmoMixin"
+    ,"OptionsKeyMappingsAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -264,6 +264,29 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 ScriptManagerScreen.show(screen);
             }
         });
+        preRegisterScriptBindings();
+    }
+
+    /**
+     * Registers one key mapping per discovered keypress macro during
+     * client init, while fabric api still accepts registrations. When the
+     * script actually loads, the binding hook reuses the existing mapping
+     * and only re-attaches its sink.
+     */
+    private static void preRegisterScriptBindings() {
+        for (ScriptEntry entry : modules.discover()) {
+            if (entry.category() != ScriptCategory.KEYPRESS
+                    || !options.autoload.getOrDefault(entry.name(), true)) {
+                continue;
+            }
+            String key = entry.effectiveKey(options.keybinds);
+            if (key.isEmpty()) {
+                continue;
+            }
+            String name = entry.name();
+            adapter.input().registerScriptBinding(name, key,
+                    clicks -> modules.trigger(name, Map.of("key", key, "clicks", clicks)));
+        }
     }
 
     /** Registers (or re-registers) one loaded keypress script's key binding. */
