@@ -29,23 +29,35 @@ public final class CorsPolicy {
     private static final String EXPOSE_HEADERS = "ETag";
 
     private final Set<String> allowedOrigins;
+    private final boolean wildcard;
     private final Set<String> warnedOrigins = ConcurrentHashMap.newKeySet();
 
     /** Creates the policy over raw site URLs; unusable entries are skipped. */
     public CorsPolicy(List<String> siteUrls) {
         Set<String> origins = new LinkedHashSet<>();
+        boolean allowAll = false;
         for (String url : siteUrls) {
+            if (url != null && "*".equals(url.strip())) {
+                allowAll = true;
+                continue;
+            }
             String origin = originOf(url);
             if (origin != null) {
                 origins.add(origin);
             }
         }
         this.allowedOrigins = origins;
+        this.wildcard = allowAll;
     }
 
     /** The allowed origins (diagnostics and tests). */
     public Set<String> allowedOrigins() {
         return allowedOrigins;
+    }
+
+    /** Whether the {@code *} entry allows every origin. */
+    public boolean wildcard() {
+        return wildcard;
     }
 
     /** The origin of a site URL (default ports normalized), or null when unusable. */
@@ -73,8 +85,15 @@ public final class CorsPolicy {
     /** Adds the CORS response headers for a request, when applicable. */
     public void apply(HttpExchange exchange) {
         String origin = exchange.getRequestHeaders().getFirst("Origin");
-        if (origin == null || !allowedOrigins.contains(origin)) {
-            if (origin != null && warnedOrigins.add(origin)) {
+        if (origin == null) {
+            return;
+        }
+        if (wildcard) {
+            applyHeaders(exchange, "*");
+            return;
+        }
+        if (!allowedOrigins.contains(origin)) {
+            if (warnedOrigins.add(origin)) {
                 LOG.warn("request Origin '{}' is not in the CORS allowlist"
                         + " (core.web.panelUrl / core.web.allowedOrigins);"
                         + " the response carries no Access-Control-Allow-Origin header",
@@ -82,9 +101,13 @@ public final class CorsPolicy {
             }
             return;
         }
+        applyHeaders(exchange, origin);
+        exchange.getResponseHeaders().set("Vary", "Origin");
+    }
+
+    private static void applyHeaders(HttpExchange exchange, String origin) {
         var headers = exchange.getResponseHeaders();
         headers.set("Access-Control-Allow-Origin", origin);
-        headers.set("Vary", "Origin");
         headers.set("Access-Control-Allow-Methods", ALLOW_METHODS);
         headers.set("Access-Control-Allow-Headers", String.join(", ", ALLOW_HEADERS));
         headers.set("Access-Control-Expose-Headers", EXPOSE_HEADERS);

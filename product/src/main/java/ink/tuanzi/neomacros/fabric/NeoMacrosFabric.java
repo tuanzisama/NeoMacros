@@ -837,6 +837,23 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         configManager.save();
     }
 
+    /**
+     * Applies changed web settings to a running panel by restarting it;
+     * a bind failure (e.g. the new port is taken) stays a log line and the
+     * panel stays stopped.
+     */
+    static void restartWebIfRunning() {
+        if (webService == null || !webService.running()) {
+            return;
+        }
+        webService.stop();
+        try {
+            webService.start();
+        } catch (java.io.IOException e) {
+            LOGGER.warn("neomacros: web panel restart failed: {}", e.getMessage());
+        }
+    }
+
     /** Opens the management screen on the client thread. */
     private static void openPanel() {
         var screen = createConfigPanel(null);

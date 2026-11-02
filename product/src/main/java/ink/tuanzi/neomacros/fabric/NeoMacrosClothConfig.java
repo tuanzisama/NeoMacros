@@ -61,7 +61,75 @@ public final class NeoMacrosClothConfig {
                         })
                         .build());
 
-        builder.setSavingRunnable(NeoMacrosFabric::saveConfig);
+        builder.getOrCreateCategory(Component.translatable("neomacros.config.category.web"))
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.web.enabled"),
+                                NeoMacrosFabric.configOptions().web.enabled)
+                        .setDefaultValue(false)
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().web.enabled = value;
+                        })
+                        .build())
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.web.auto_start"),
+                                NeoMacrosFabric.configOptions().web.autoStart)
+                        .setDefaultValue(false)
+                        .setTooltip(Component.translatable(
+                                "neomacros.config.web.auto_start_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().web.autoStart = value;
+                        })
+                        .build())
+                .addEntry(entries.startIntField(
+                                Component.translatable("neomacros.config.web.port"),
+                                NeoMacrosFabric.configOptions().web.port)
+                        .setMin(0)
+                        .setMax(65535)
+                        .setDefaultValue(30636)
+                        .setTooltip(Component.translatable("neomacros.config.web.port_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().web.port = value;
+                        })
+                        .build())
+                .addEntry(entries.startStrField(
+                                Component.translatable("neomacros.config.web.listen"),
+                                NeoMacrosFabric.configOptions().web.listen)
+                        .setDefaultValue("127.0.0.1")
+                        .setErrorSupplier(value -> java.util.List
+                                .of("127.0.0.1", "0.0.0.0", "::1", "loopback", "lan")
+                                .contains(value == null ? "" : value.strip())
+                                ? java.util.Optional.<Component>empty()
+                                : java.util.Optional.of(Component.translatable(
+                                        "neomacros.config.web.listen_invalid")))
+                        .setTooltip(Component.translatable("neomacros.config.web.listen_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().web.listen = value.strip();
+                        })
+                        .build())
+                .addEntry(entries.startStrField(
+                                Component.translatable("neomacros.config.web.panel_url"),
+                                NeoMacrosFabric.configOptions().web.panelUrl)
+                        .setDefaultValue("https://panel.neomacros.app")
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().web.panelUrl = value;
+                        })
+                        .build())
+                .addEntry(entries.startStrList(
+                                Component.translatable("neomacros.config.web.allowed_origins"),
+                                NeoMacrosFabric.configOptions().web.allowedOrigins)
+                        .setDefaultValue(java.util.List.of("*"))
+                        .setTooltip(Component.translatable(
+                                "neomacros.config.web.allowed_origins_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().web.allowedOrigins =
+                                    java.util.List.copyOf(value);
+                        })
+                        .build());
+
+        builder.setSavingRunnable(() -> {
+            NeoMacrosFabric.saveConfig();
+            NeoMacrosFabric.restartWebIfRunning();
+        });
         return builder.build();
     }
 }

@@ -56,20 +56,19 @@ public final class WebServer {
     }
 
     /**
-     * Binds and starts serving. The listen scope is {@code loopback} or the
-     * experimental {@code lan}; the configured port may be 0 (ephemeral).
-     * Returns the actual port.
+     * Binds and starts serving. The listen value is a bind address literal
+     * ({@code 127.0.0.1}, {@code 0.0.0.0}, or {@code ::1}; the pre-rename
+     * {@code loopback}/{@code lan} words map to the first two); the
+     * configured port may be 0 (ephemeral). Returns the actual port.
      *
      * @throws java.net.BindException when the configured port is taken
      */
     public int start(String listen, int configuredPort) throws IOException {
-        boolean lan = "lan".equals(listen);
-        InetAddress address = lan
-                ? InetAddress.getByName("0.0.0.0")
-                : InetAddress.getLoopbackAddress();
+        InetAddress address = resolveBindAddress(listen);
         HttpServer created = HttpServer.create(new InetSocketAddress(address, configuredPort), 8);
         int boundPort = created.getAddress().getPort();
-        hosts = lan ? HostPolicy.lan(boundPort) : HostPolicy.loopback(boundPort);
+        hosts = address.isLoopbackAddress()
+                ? HostPolicy.loopback(boundPort) : HostPolicy.lan(boundPort);
         created.createContext("/", this::handle);
         server = created;
         executor = Executors.newCachedThreadPool(r -> {
@@ -121,6 +120,32 @@ public final class WebServer {
     /** Milliseconds since start, or 0 when not running. */
     public long uptimeMs() {
         return running() ? System.currentTimeMillis() - startedAt : 0;
+    }
+
+    /** Resolves the configured listen value to a bind address. */
+    private static InetAddress resolveBindAddress(String listen) {
+        String value = listen == null ? "" : listen.trim();
+        if (value.equalsIgnoreCase("loopback")) {
+            return InetAddress.getLoopbackAddress();
+        }
+        if (value.equalsIgnoreCase("lan")) {
+            return wildcardAddress();
+        }
+        try {
+            return InetAddress.getByName(value);
+        } catch (java.net.UnknownHostException e) {
+            LOG.warn("core.web.listen '{}' is not a valid bind address (127.0.0.1,"
+                    + " 0.0.0.0, ::1); falling back to 127.0.0.1", listen);
+            return InetAddress.getLoopbackAddress();
+        }
+    }
+
+    private static InetAddress wildcardAddress() {
+        try {
+            return InetAddress.getByName("0.0.0.0");
+        } catch (java.net.UnknownHostException e) {
+            return InetAddress.getLoopbackAddress();
+        }
     }
 
     private void heartbeat() {

@@ -249,6 +249,10 @@ class SupportTest {
                 new CorsPolicy(java.util.List.of("https://panel.example",
                         "http://localhost:5173", "not a url", "")).allowedOrigins());
         assertEquals(java.util.Set.of(), new CorsPolicy(java.util.List.of()).allowedOrigins());
+        // The * entry switches the policy to wildcard mode (any origin echoes *).
+        assertTrue(new CorsPolicy(java.util.List.of("*")).wildcard());
+        assertTrue(new CorsPolicy(java.util.List.of("*", "https://panel.example")).wildcard());
+        assertFalse(new CorsPolicy(java.util.List.of("https://panel.example")).wildcard());
     }
 
     // ---- ApiRoute matching ------------------------------------------------

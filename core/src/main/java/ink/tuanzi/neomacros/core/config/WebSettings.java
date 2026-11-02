@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * The {@code core.web} section: the local web panel service. The service is
- * off by default; {@code /neomacros web start} brings it up and persists the
+ * off by default; {@code /neomacros editor} brings it up and persists the
  * intent here. Field defaults are the shipped values.
  */
 public final class WebSettings {
@@ -17,19 +17,22 @@ public final class WebSettings {
     @Option(description = "Start the web panel service with the client")
     public boolean autoStart = false;
 
-    /** TCP port to bind; {@code 0} picks a free ephemeral port. */
-    @Option(description = "Web panel port, 0 picks a random free port", min = 0, max = 65535)
-    public int port = 0;
+    /** TCP port to bind. */
+    @Option(description = "Web panel port", min = 0, max = 65535)
+    public int port = 30636;
 
-    /** Interface scope: {@code loopback} (default) or the experimental {@code lan}. */
-    @Option(description = "Listen scope: loopback or lan (experimental)")
-    public String listen = "loopback";
+    /** Bind address: {@code 127.0.0.1}, {@code 0.0.0.0}, or {@code ::1}. */
+    @Option(description = "Bind address: 127.0.0.1, 0.0.0.0, or ::1")
+    public String listen = "127.0.0.1";
 
     /** Static site the panel is served from; its origin is the default CORS echo. */
     @Option(description = "Panel site origin used for CORS")
     public String panelUrl = "https://panel.neomacros.app";
 
-    /** Extra origins CORS may echo besides the panel site (mirrors, local dev servers). */
-    @Option(description = "Additional CORS origins beyond the panel site")
-    public List<String> allowedOrigins = List.of();
+    /**
+     * Extra origins CORS may echo besides the panel site (mirrors, local
+     * dev servers); the entry {@code *} allows any origin.
+     */
+    @Option(description = "Additional CORS origins beyond the panel site; * allows any origin")
+    public List<String> allowedOrigins = List.of("*");
 }

@@ -625,6 +625,35 @@ class WebApiIntegrationTest {
         assertTrue(denied.headers().firstValue("Access-Control-Allow-Origin").isEmpty());
     }
 
+    @Test
+    void wildcardOriginsEchoAnyOriginAsStar() throws Exception {
+        startWithOrigins(DIRECT, java.util.List.of("*"));
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/v1/state"))
+                .header("Origin", "https://anywhere.example")
+                .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                .build();
+        HttpResponse<String> preflight = client.send(request,
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals("*", preflight.headers()
+                .firstValue("Access-Control-Allow-Origin").orElse(""));
+    }
+
+    @Test
+    void theListenLiteralIsHonored() throws Exception {
+        StubBackend backend = new StubBackend();
+        device = TestKeys.ed25519("dev_test");
+        DeviceRegistry registry = new DeviceRegistry(temp.resolve("web-devices.json"),
+                message -> { });
+        device = device.withId(registry
+                .register("integration browser", device.algo, device.pubJwk).id());
+        service = new WebService(backend, DIRECT, registry,
+                () -> "127.0.0.1", () -> 0, () -> "http://localhost:5173",
+                () -> java.util.List.of("*"));
+        service.start();
+        HttpResponse<String> response = send("GET", "/api/v1/meta", new byte[0], null);
+        assertEquals(200, response.statusCode());
+    }
+
     // ---- body cap ----------------------------------------------------------
 
     @Test
