@@ -34,7 +34,6 @@
   "neomacros.cmd.web.no_pending": "No device is waiting for a pairing decision",
   "neomacros.cmd.web.not_running": "Web panel is not running",
   "neomacros.cmd.web.revoked": "Revoked device %s",
-  "neomacros.cmd.web.rotated": "Pairing token rotated; links issued earlier are now invalid",
   "neomacros.cmd.web.sessions_header": "Connected editor sessions: %s",
   "neomacros.cmd.web.sessions_none": "No connected editor sessions",
   "neomacros.cmd.web.sessions_row": "  %s  %s  (connected %ss)",

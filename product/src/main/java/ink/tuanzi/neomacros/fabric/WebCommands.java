@@ -99,14 +99,6 @@ final class WebCommands {
                                             "neomacros.cmd.web.unknown_session", id);
                                     return 0;
                                 })))
-                .then(literal("rotate").executes(ctx -> {
-                    if (!ensureRunning(ctx.getSource(), context)) {
-                        return 0;
-                    }
-                    context.web().rotatePairingToken();
-                    feedback(ctx.getSource(), "neomacros.cmd.web.rotated");
-                    return Command.SINGLE_SUCCESS;
-                }))
                 .then(literal("devices").executes(ctx -> {
                     var devices = context.web().devices();
                     feedback(ctx.getSource(), "neomacros.cmd.web.devices_header",

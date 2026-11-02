@@ -34,7 +34,6 @@
   "neomacros.cmd.web.no_pending": "当前没有等待裁决的配对请求",
   "neomacros.cmd.web.not_running": "Web 面板未运行",
   "neomacros.cmd.web.revoked": "已撤销设备 %s",
-  "neomacros.cmd.web.rotated": "配对令牌已轮换，此前发出的链接立即失效",
   "neomacros.cmd.web.sessions_header": "已连接的编辑器会话：%s",
   "neomacros.cmd.web.sessions_none": "当前没有已连接的编辑器会话",
   "neomacros.cmd.web.sessions_row": "  %s  %s（已连接 %s 秒）",

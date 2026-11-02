@@ -177,16 +177,6 @@ public final class WebService {
         return sse != null && sse.disconnect(id);
     }
 
-    /**
-     * Rotates the pairing token: earlier links die immediately and a fresh
-     * token takes the slot (delivered through the next deep link).
-     */
-    public void rotatePairingToken() {
-        requirePairing();
-        pairing.newToken();
-        logLine("pairing token rotated; earlier links are invalid");
-    }
-
     /** All paired devices (the command listing). */
     public List<DeviceRecord> devices() {
         return devices.all();
