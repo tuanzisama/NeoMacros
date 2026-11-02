@@ -16,10 +16,10 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 /**
- * The {@code /neomacros web …} and {@code /neomacros editor …} command
- * surface: service lifecycle, pairing flow, device management, and the
- * deep links that carry a one-time pairing token to the panel. All feedback
- * goes through localized chat lines; links are clickable.
+ * The {@code /neomacros editor} command surface — the single entry to the
+ * web panel: deep links, session management, the pairing decision, and
+ * paired-device management. All feedback goes through localized chat
+ * lines; links are clickable.
  */
 final class WebCommands {
 
@@ -38,7 +38,7 @@ final class WebCommands {
     }
 
     /**
-     * Builds the panel deep links: {@code panelUrl#host=…&view=…&file=…&pair=…}
+     * Builds the panel deep links: {@code panelUrl/?host=…&view=…&file=…&pair=…}
      * with a fresh one-time token on every link.
      */
     interface LinkBuilder {
@@ -47,18 +47,8 @@ final class WebCommands {
         String editorLink(String fileParam);
     }
 
-    /** The two command subtrees to attach under the root command. */
-    public record Subtrees(LiteralArgumentBuilder<FabricClientCommandSource> web,
-                           LiteralArgumentBuilder<FabricClientCommandSource> editor) {
-    }
-
-    /** Builds the {@code web} and {@code editor} subtrees. */
-    static Subtrees subtrees(Context context) {
-        return new Subtrees(webSubtree(context), editorSubtree(context));
-    }
-
-    private static LiteralArgumentBuilder<FabricClientCommandSource> editorSubtree(
-            Context context) {
+    /** Builds the {@code editor} command subtree. */
+    static LiteralArgumentBuilder<FabricClientCommandSource> subtree(Context context) {
         // Literals come before the macro argument: brigadier tries children
         // in insertion order, and `editor stop` must hit the subcommand.
         return literal("editor")
@@ -120,72 +110,18 @@ final class WebCommands {
                                     return 0;
                                 })))
                 .then(literal("rotate").executes(ctx -> {
-                    if (!context.web().running()) {
-                        feedback(ctx.getSource(), "neomacros.cmd.web.not_running");
+                    if (!ensureRunning(ctx.getSource(), context)) {
                         return 0;
                     }
                     context.web().rotatePairingToken();
                     feedback(ctx.getSource(), "neomacros.cmd.web.rotated");
                     return Command.SINGLE_SUCCESS;
                 }))
-                .then(argument("macro", StringArgumentType.word())
-                        .suggests((ctx, builder) -> {
-                            context.modules().entries().forEach(entry ->
-                                    builder.suggest(entry.name()));
-                            return builder.buildFuture();
-                        })
-                        .executes(ctx -> {
-                            String name = StringArgumentType.getString(ctx, "macro");
-                            Optional<ScriptEntry> entry = context.modules().entry(name);
-                            if (entry.isEmpty()) {
-                                feedback(ctx.getSource(),
-                                        "neomacros.cmd.web.unknown_macro", name);
-                                return 0;
-                            }
-                            sendEditorLink(ctx.getSource(), context, entry.get());
-                            return Command.SINGLE_SUCCESS;
-                        }));
-    }
-
-    private static LiteralArgumentBuilder<FabricClientCommandSource> webSubtree(Context context) {
-        return literal("web")
-                .then(literal("start").executes(ctx -> {
-                    ensureRunning(ctx.getSource(), context, true);
-                    return Command.SINGLE_SUCCESS;
-                }))
-                .then(literal("stop").executes(ctx -> {
-                    if (!context.web().running()) {
-                        feedback(ctx.getSource(), "neomacros.cmd.web.not_running");
-                        return 0;
-                    }
-                    context.web().stop();
-                    feedback(ctx.getSource(), "neomacros.cmd.web.stopped");
-                    return Command.SINGLE_SUCCESS;
-                }))
-                .then(literal("status").executes(ctx -> {
-                    WebService.Status status = context.web().status();
-                    feedback(ctx.getSource(), "neomacros.cmd.web.status",
-                            status.running()
-                                    ? UiText.tr("neomacros.cmd.web.state.running")
-                                    : UiText.tr("neomacros.cmd.web.state.stopped"),
-                            status.port(), status.listen(), status.uptimeMs(),
-                            status.deviceCount(),
-                            status.pendingLabel() == null ? "-"
-                                    : UiText.tr("neomacros.cmd.web.pending",
-                                    status.pendingLabel()));
-                    return Command.SINGLE_SUCCESS;
-                }))
-                .then(literal("pair").executes(ctx -> {
-                    if (!ensureRunning(ctx.getSource(), context, false)) {
-                        return 0;
-                    }
-                    String link = context.links().editorLink(null);
-                    feedback(ctx.getSource(), "neomacros.cmd.web.pair.url");
-                    sendLink(ctx.getSource(), link);
-                    return Command.SINGLE_SUCCESS;
-                }))
                 .then(literal("approve").executes(ctx -> {
-                    if (!ensurePairing(context)) {
+                    if (!ensureRunning(ctx.getSource(), context)) {
+                        return 0;
+                    }
+                    if (!context.web().hasPendingPairing()) {
                         feedback(ctx.getSource(), "neomacros.cmd.web.no_pending");
                         return 0;
                     }
@@ -194,7 +130,10 @@ final class WebCommands {
                     return Command.SINGLE_SUCCESS;
                 }))
                 .then(literal("deny").executes(ctx -> {
-                    if (!ensurePairing(context)) {
+                    if (!ensureRunning(ctx.getSource(), context)) {
+                        return 0;
+                    }
+                    if (!context.web().hasPendingPairing()) {
                         feedback(ctx.getSource(), "neomacros.cmd.web.no_pending");
                         return 0;
                     }
@@ -224,52 +163,52 @@ final class WebCommands {
                                             feedback(ctx.getSource(),
                                                     "neomacros.cmd.web.unknown_device", id);
                                             return 0;
-                                        }))));
+                                        }))))
+                .then(argument("macro", StringArgumentType.word())
+                        .suggests((ctx, builder) -> {
+                            context.modules().entries().forEach(entry ->
+                                    builder.suggest(entry.name()));
+                            return builder.buildFuture();
+                        })
+                        .executes(ctx -> {
+                            String name = StringArgumentType.getString(ctx, "macro");
+                            Optional<ScriptEntry> entry = context.modules().entry(name);
+                            if (entry.isEmpty()) {
+                                feedback(ctx.getSource(),
+                                        "neomacros.cmd.web.unknown_macro", name);
+                                return 0;
+                            }
+                            sendEditorLink(ctx.getSource(), context, entry.get());
+                            return Command.SINGLE_SUCCESS;
+                        }));
     }
 
     /**
      * Starts the service if needed; returns false with feedback on failure.
-     * The verbose form (the explicit start command) reports the port and the
-     * contract URL; the link flows stay quiet — their only success output is
-     * the hint line plus the link itself.
+     * The only success output is the starting hint — the link flows answer
+     * with their own hint line plus the link itself.
      */
-    private static boolean ensureRunning(FabricClientCommandSource source, Context context,
-                                         boolean announce) {
+    private static boolean ensureRunning(FabricClientCommandSource source, Context context) {
         if (context.web().running()) {
-            if (announce) {
-                feedback(source, "neomacros.cmd.web.already_running", context.web().port());
-            }
             return true;
         }
-        if (!announce) {
-            feedback(source, "neomacros.cmd.web.editor.start");
-        }
+        feedback(source, "neomacros.cmd.web.editor.start");
         try {
-            int port = context.web().start();
-            if (announce) {
-                feedback(source, "neomacros.cmd.web.started", port);
-            }
+            context.web().start();
             return true;
         } catch (BindException e) {
             feedback(source, "neomacros.cmd.web.bind_failed");
             return false;
-        } catch (java.io.IOException e) {
-            feedback(source, "neomacros.cmd.web.start_failed", e.getMessage());
-            return false;
-        } catch (RuntimeException e) {
+        } catch (java.io.IOException | RuntimeException e) {
             feedback(source, "neomacros.cmd.web.start_failed", e.getMessage());
             return false;
         }
-    }
-
-    private static boolean ensurePairing(Context context) {
-        return context.web().running() && context.web().hasPendingPairing();
     }
 
     /** Sends the clickable editor deep link (auto-starting the service). */
     private static void sendEditorLink(FabricClientCommandSource source, Context context,
                                        ScriptEntry entry) {
-        if (!ensureRunning(source, context, false)) {
+        if (!ensureRunning(source, context)) {
             return;
         }
         String fileParam = entry == null ? null

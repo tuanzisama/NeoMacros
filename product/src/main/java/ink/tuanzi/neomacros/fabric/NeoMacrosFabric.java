@@ -227,10 +227,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         webService.onPairingPrompt(label -> {
             adapter.chat().logClickable(
                     UiText.tr("neomacros.chat.pair_approve", label),
-                    "/neomacros web approve");
+                    "/neomacros editor approve");
             adapter.chat().logClickable(
                     UiText.tr("neomacros.chat.pair_deny", label),
-                    "/neomacros web deny");
+                    "/neomacros editor deny");
         });
 
         // Error presentation chain: script failures become a throttled
@@ -635,8 +635,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                         }
                                         return Command.SINGLE_SUCCESS;
                                     })))
-                    .then(WebCommands.subtrees(webContext()).web())
-                    .then(WebCommands.subtrees(webContext()).editor()));
+                    .then(WebCommands.subtree(webContext())));
         });
     }
 
