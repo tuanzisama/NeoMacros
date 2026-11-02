@@ -238,15 +238,17 @@ class SupportTest {
     // ---- CorsPolicy -------------------------------------------------------
 
     @Test
-    void corsEchoesOnlyThePanelOrigin() {
-        assertEquals("https://panel.neomacros.app",
-                new CorsPolicy("https://panel.neomacros.app").allowedOrigin());
-        assertEquals("http://localhost:5173",
-                new CorsPolicy("http://localhost:5173/").allowedOrigin());
-        assertEquals("https://panel.neomacros.app",
-                new CorsPolicy("https://panel.neomacros.app:443").allowedOrigin());
-        assertNull(new CorsPolicy("not a url").allowedOrigin());
-        assertNull(new CorsPolicy("").allowedOrigin());
+    void corsEchoesOnlyTheConfiguredOrigins() {
+        assertEquals(java.util.Set.of("https://panel.neomacros.app"),
+                new CorsPolicy(java.util.List.of("https://panel.neomacros.app")).allowedOrigins());
+        assertEquals(java.util.Set.of("http://localhost:5173"),
+                new CorsPolicy(java.util.List.of("http://localhost:5173/")).allowedOrigins());
+        assertEquals(java.util.Set.of("https://panel.neomacros.app"),
+                new CorsPolicy(java.util.List.of("https://panel.neomacros.app:443")).allowedOrigins());
+        assertEquals(java.util.Set.of("https://panel.example", "http://localhost:5173"),
+                new CorsPolicy(java.util.List.of("https://panel.example",
+                        "http://localhost:5173", "not a url", "")).allowedOrigins());
+        assertEquals(java.util.Set.of(), new CorsPolicy(java.util.List.of()).allowedOrigins());
     }
 
     // ---- ApiRoute matching ------------------------------------------------

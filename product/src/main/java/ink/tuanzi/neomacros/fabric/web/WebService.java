@@ -50,6 +50,7 @@ public final class WebService {
     private final Supplier<String> listenScope;
     private final IntSupplier configuredPort;
     private final Supplier<String> panelUrl;
+    private final Supplier<java.util.List<String>> extraOrigins;
     private volatile Consumer<String> pairingPrompt = label -> { };
 
     private LogRing logs;
@@ -64,13 +65,14 @@ public final class WebService {
      */
     public WebService(PanelBackend backend, GameRunner game, DeviceRegistry devices,
                       Supplier<String> listenScope, IntSupplier configuredPort,
-                      Supplier<String> panelUrl) {
+                      Supplier<String> panelUrl, Supplier<java.util.List<String>> extraOrigins) {
         this.backend = backend;
         this.game = game;
         this.devices = devices;
         this.listenScope = listenScope;
         this.configuredPort = configuredPort;
         this.panelUrl = panelUrl;
+        this.extraOrigins = extraOrigins;
     }
 
     /** Registers the consumer that shows a pending pairing to the player. */
@@ -118,8 +120,10 @@ public final class WebService {
         OpenApiGenerator generator = new OpenApiGenerator(routes,
                 "NeoMacros Web Panel API", meta.modVersion(), meta.gameVersion(), 0);
         document.set(generator.generate());
-        WebServer http = new WebServer(controller, docs, hub, auth,
-                new CorsPolicy(panelUrl.get()));
+        var origins = new ArrayList<String>();
+        origins.add(panelUrl.get());
+        origins.addAll(extraOrigins.get());
+        WebServer http = new WebServer(controller, docs, hub, auth, new CorsPolicy(origins));
         int bound = http.start(scope, configuredPort.getAsInt());
         document.set(new OpenApiGenerator(routes, "NeoMacros Web Panel API",
                 meta.modVersion(), meta.gameVersion(), bound).generate());

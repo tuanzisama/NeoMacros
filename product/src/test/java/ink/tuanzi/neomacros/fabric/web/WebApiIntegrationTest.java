@@ -110,8 +110,21 @@ class WebApiIntegrationTest {
                 message -> { });
         device = device.withId(registry
                 .register("integration browser", device.algo, device.pubJwk).id());
+        return startWithOrigins(runner, java.util.List.of());
+    }
+
+    /** Starts the service on an ephemeral port with extra CORS origins. */
+    private StubBackend startWithOrigins(GameRunner runner,
+            java.util.List<String> extraOrigins) throws IOException {
+        StubBackend backend = new StubBackend();
+        device = TestKeys.ed25519("dev_test");
+        DeviceRegistry registry = new DeviceRegistry(temp.resolve("web-devices.json"),
+                message -> { });
+        device = device.withId(registry
+                .register("integration browser", device.algo, device.pubJwk).id());
         service = new WebService(backend, runner, registry,
-                () -> "loopback", () -> 0, () -> "http://localhost:5173");
+                () -> "loopback", () -> 0, () -> "http://localhost:5173",
+                () -> extraOrigins);
         service.start();
         return backend;
     }
@@ -211,6 +224,19 @@ class WebApiIntegrationTest {
                 .firstValue("Access-Control-Allow-Origin").orElse(""));
         assertEquals("true", preflight.headers()
                 .firstValue("Access-Control-Allow-Private-Network").orElse(""));
+
+        // A signed request that also carries an echoed origin exposes ETag
+        // to panel scripts (optimistic concurrency needs it in W3).
+        String authorization = device.authorize("GET", "/api/v1/logs", "after=0",
+                new byte[0], System.currentTimeMillis() / 1000, nonce());
+        HttpRequest actual = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/v1/logs?after=0"))
+                .header("Authorization", authorization)
+                .header("Origin", "http://localhost:5173")
+                .GET().build();
+        HttpResponse<String> actualResponse = client.send(actual,
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals("ETag", actualResponse.headers()
+                .firstValue("Access-Control-Expose-Headers").orElse(""));
 
         HttpRequest stranger = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/v1/state"))
                 .header("Origin", "https://evil.example")
@@ -518,6 +544,27 @@ class WebApiIntegrationTest {
                 .has("StateSnapshot"));
         assertTrue(doc.getAsJsonArray("servers").get(0).getAsJsonObject().get("url")
                 .getAsString().contains(String.valueOf(service.port())));
+    }
+
+    @Test
+    void configuredExtraOriginsAreEchoedToo() throws Exception {
+        startWithOrigins(DIRECT, java.util.List.of("https://mirror.example"));
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/v1/state"))
+                .header("Origin", "https://mirror.example")
+                .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                .build();
+        HttpResponse<String> preflight = client.send(request,
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals("https://mirror.example", preflight.headers()
+                .firstValue("Access-Control-Allow-Origin").orElse(""));
+
+        HttpRequest stranger = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/v1/state"))
+                .header("Origin", "https://still-evil.example")
+                .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                .build();
+        HttpResponse<String> denied = client.send(stranger,
+                HttpResponse.BodyHandlers.ofString());
+        assertTrue(denied.headers().firstValue("Access-Control-Allow-Origin").isEmpty());
     }
 
     // ---- body cap ----------------------------------------------------------

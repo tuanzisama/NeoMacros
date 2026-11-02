@@ -1,5 +1,7 @@
 package ink.tuanzi.neomacros.core.config;
 
+import java.util.List;
+
 /**
  * The {@code core.web} section: the local web panel service. The service is
  * off by default; {@code /neomacros web start} brings it up and persists the
@@ -23,7 +25,11 @@ public final class WebSettings {
     @Option(description = "Listen scope: loopback or lan (experimental)")
     public String listen = "loopback";
 
-    /** Static site the panel is served from; the only origin CORS echoes back. */
+    /** Static site the panel is served from; its origin is the default CORS echo. */
     @Option(description = "Panel site origin used for CORS")
     public String panelUrl = "https://panel.neomacros.app";
+
+    /** Extra origins CORS may echo besides the panel site (mirrors, local dev servers). */
+    @Option(description = "Additional CORS origins beyond the panel site")
+    public List<String> allowedOrigins = List.of();
 }

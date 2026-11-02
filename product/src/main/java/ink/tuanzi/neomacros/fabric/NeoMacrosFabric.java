@@ -221,7 +221,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         webService = new ink.tuanzi.neomacros.fabric.web.WebService(
                 webRuntime, webRuntime, devices,
                 () -> options.web.listen, () -> options.web.port,
-                () -> options.web.panelUrl);
+                () -> options.web.panelUrl, () -> options.web.allowedOrigins);
         webRuntime.serverInfo(() -> new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(
                 webService.port(), webService.status().uptimeMs(), options.web.listen));
         webService.onPairingPrompt(label -> {
@@ -668,8 +668,11 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             if (hash >= 0) {
                 panel = panel.substring(0, hash);
             }
+            // Query-parameter deep link: the panel reads search params and
+            // clears them with history.replaceState. The one-time 120s token
+            // plus the in-game approve gate are the security boundary.
             StringBuilder url = new StringBuilder(panel)
-                    .append("#host=127.0.0.1:").append(webService.port())
+                    .append("/?host=127.0.0.1:").append(webService.port())
                     .append("&view=editor");
             if (fileParam != null) {
                 url.append("&file=").append(fileParam);
