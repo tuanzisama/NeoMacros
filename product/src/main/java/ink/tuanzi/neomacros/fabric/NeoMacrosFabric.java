@@ -290,10 +290,18 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                         new ink.tuanzi.neomacros.port.model.EntitySnapshot(
                                 java.util.UUID.fromString(uuid), typeId, typeId,
                                 new ink.tuanzi.neomacros.port.model.Pos3d(0, 64, 0), 20))));
-        ink.tuanzi.neomacros.adapter.EntityLifecycleHub.onUnload(id ->
-                bus.publish("entity:unload", new ink.tuanzi.neomacros.core.event.def.entity.EntityUnloadEvent(
-                        new ink.tuanzi.neomacros.port.model.EntitySnapshot(
-                                java.util.UUID.fromString(id), "", "", new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0), 0))));
+        // Unload sinks receive the uuid resolved from the tracking id; an
+        // entity never seen loading (stale login-replaced entries) has none
+        // and cannot form a valid snapshot, so the event is skipped.
+        ink.tuanzi.neomacros.adapter.EntityLifecycleHub.onUnload(uuid -> {
+            if (uuid == null) {
+                return;
+            }
+            bus.publish("entity:unload", new ink.tuanzi.neomacros.core.event.def.entity.EntityUnloadEvent(
+                    new ink.tuanzi.neomacros.port.model.EntitySnapshot(
+                            java.util.UUID.fromString(uuid), "", "",
+                            new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0), 0)));
+        });
         ink.tuanzi.neomacros.adapter.SoundEventHub.register(data ->
                 bus.publish("world:sound", new ink.tuanzi.neomacros.core.event.def.world.WorldSoundEvent(
                         data.soundId(), data.x(), data.y(), data.z(),

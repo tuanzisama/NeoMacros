@@ -18,6 +18,7 @@ public abstract class ClientLevelEntityMixin {
     @Inject(method = "addEntity", at = @At("HEAD"))
     private void neomacros$onEntityLoad(Entity entity, CallbackInfo ci) {
         EntityLifecycleHub.fireLoad(
+                entity.getId(),
                 entity.getUUID().toString(),
                 net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE
                         .getKey(entity.getType()).toString());
@@ -26,6 +27,6 @@ public abstract class ClientLevelEntityMixin {
     @Inject(method = "removeEntity", at = @At("HEAD"))
     private void neomacros$onEntityUnload(int entityId,
             net.minecraft.world.entity.Entity.RemovalReason reason, CallbackInfo ci) {
-        EntityLifecycleHub.fireUnload(String.valueOf(entityId));
+        EntityLifecycleHub.fireUnload(entityId);
     }
 }
