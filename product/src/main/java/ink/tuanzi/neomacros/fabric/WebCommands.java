@@ -109,10 +109,6 @@ final class WebCommands {
                             status.pendingLabel() == null ? "-"
                                     : UiText.tr("neomacros.cmd.web.pending",
                                     status.pendingLabel()));
-                    if (status.running()) {
-                        feedback(ctx.getSource(), "neomacros.cmd.web.docs_url",
-                                docsUrl(status.port()));
-                    }
                     return Command.SINGLE_SUCCESS;
                 }))
                 .then(literal("pair").executes(ctx -> {
@@ -188,7 +184,6 @@ final class WebCommands {
             int port = context.web().start();
             if (announce) {
                 feedback(source, "neomacros.cmd.web.started", port);
-                feedback(source, "neomacros.cmd.web.docs_url", docsUrl(port));
             }
             return true;
         } catch (BindException e) {
@@ -227,10 +222,6 @@ final class WebCommands {
                 .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(
                         java.net.URI.create(link)))
                 .withUnderlined(true)));
-    }
-
-    private static String docsUrl(int port) {
-        return "http://127.0.0.1:" + port + "/api-docs/openapi.json";
     }
 
     private static void feedback(FabricClientCommandSource source, String key, Object... args) {
