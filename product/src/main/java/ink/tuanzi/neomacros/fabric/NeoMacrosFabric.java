@@ -222,19 +222,24 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         modules.onUnload(module -> adapter.input().unregisterScriptBinding(module.meta().name()));
 
         // Web panel subsystem: state backend over the module manager, device
-        // registry beside options.json, and the service mapping core.web.
+        // registry beside options.json, and the service mapping core.web. The
+        // events facade carries the panel broadcasts to whatever hub the
+        // current service start owns.
+        var panelEvents = new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents();
         webRuntime = new ink.tuanzi.neomacros.fabric.web.WebRuntime(
-                modules, options, configManager, macrosDir, runtime.mainThread(),
+                modules, options, configManager, macrosDir, runtime.mainThread(), panelEvents,
                 NeoMacros.VERSION, mcVersion());
-        modules.onLoadError(webRuntime::recordLoadError);
-        modules.onLoad(module -> webRuntime.clearError(module.meta().name()));
+        modules.onLoadError(webRuntime::moduleLoadError);
+        modules.onLoad(webRuntime::moduleLoaded);
+        modules.onUnload(webRuntime::moduleUnloaded);
+        modules.onFolderChange(webRuntime::folderChanged);
         var devices = new ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry(
                 configDir.resolve("web-devices.json"),
                 message -> LOGGER.warn("neomacros web-devices: {}", message));
         webService = new ink.tuanzi.neomacros.fabric.web.WebService(
                 webRuntime, webRuntime, devices,
                 () -> options.web.listen, () -> options.web.port,
-                () -> options.web.panelUrl, () -> options.web.allowedOrigins);
+                () -> options.web.panelUrl, () -> options.web.allowedOrigins, panelEvents);
         webRuntime.serverInfo(() -> new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(
                 webService.port(), webService.status().uptimeMs(), options.web.listen));
         // Error presentation chain: script failures become a throttled

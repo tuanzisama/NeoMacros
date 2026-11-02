@@ -133,6 +133,17 @@ public final class OpenApiGenerator {
             content.add("application/json", mediaType(bodyType));
             requestBody.add("content", content);
             operation.add("requestBody", requestBody);
+        } else if (!route.api().consumes().isEmpty()) {
+            JsonObject requestBody = new JsonObject();
+            requestBody.addProperty("required", true);
+            JsonObject content = new JsonObject();
+            JsonObject media = new JsonObject();
+            JsonObject schema = new JsonObject();
+            schema.addProperty("type", "string");
+            media.add("schema", schema);
+            content.add(route.api().consumes(), media);
+            requestBody.add("content", content);
+            operation.add("requestBody", requestBody);
         }
 
         operation.add("responses", responses(route));
@@ -160,8 +171,10 @@ public final class OpenApiGenerator {
         JsonObject responses = new JsonObject();
         int declaredSuccess = route.api().success();
         if (declaredSuccess != 0) {
+            String contentType = route.api().produces().isEmpty()
+                    ? "text/event-stream" : route.api().produces();
             JsonObject response = new JsonObject();
-            response.addProperty("description", declaredSuccess == 200
+            response.addProperty("description", contentType.equals("text/event-stream")
                     ? "The event stream (long-lived connection)"
                     : "Success");
             JsonObject content = new JsonObject();
@@ -169,7 +182,7 @@ public final class OpenApiGenerator {
             JsonObject schema = new JsonObject();
             schema.addProperty("type", "string");
             media.add("schema", schema);
-            content.add("text/event-stream", media);
+            content.add(contentType, media);
             response.add("content", content);
             responses.add(String.valueOf(declaredSuccess), response);
         } else if (route.responseType() == void.class || route.responseType() == Void.class) {

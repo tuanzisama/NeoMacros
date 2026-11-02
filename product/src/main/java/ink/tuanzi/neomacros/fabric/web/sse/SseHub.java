@@ -110,8 +110,13 @@ public final class SseHub {
         sendToAll(": hb\n\n");
     }
 
-    /** Writes one frame to everyone, dropping connections that failed. */
-    private void sendToAll(String frame) {
+    /**
+     * Writes one frame to everyone, dropping connections that failed.
+     * Synchronized: broadcasts arrive from logging threads while the
+     * heartbeat arrives from the scheduler, and interleaved partial writes
+     * would corrupt the stream framing.
+     */
+    private synchronized void sendToAll(String frame) {
         List<SseConnection> dead = new java.util.ArrayList<>();
         for (SseConnection connection : connections) {
             if (!connection.send(frame)) {

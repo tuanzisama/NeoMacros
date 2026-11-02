@@ -65,6 +65,26 @@ class OpenApiGoldenTest {
                     String action) {
                 return null;
             }
+
+            @Override
+            public FileContent readFile(String path) {
+                return null;
+            }
+
+            @Override
+            public FileWriteResult writeFile(String path, byte[] content, String ifMatch) {
+                return null;
+            }
+
+            @Override
+            public ink.tuanzi.neomacros.fabric.web.v1.MacroView createMacro(
+                    String category, String name, String description) {
+                return null;
+            }
+
+            @Override
+            public void deleteMacro(String id) {
+            }
         };
     }
 

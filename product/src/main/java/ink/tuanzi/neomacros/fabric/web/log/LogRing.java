@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.fabric.web.log;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * In-memory ring of the mod's own log lines with a monotonically increasing
@@ -18,11 +19,17 @@ public final class LogRing {
     private final int capacity;
     private final ArrayDeque<Entry> entries;
     private long nextSeq;
+    private Consumer<Entry> listener;
 
     /** Creates the ring with the given capacity. */
     public LogRing(int capacity) {
         this.capacity = capacity;
         this.entries = new ArrayDeque<>(capacity);
+    }
+
+    /** Sets the live-tail listener (the SSE log feed). */
+    public synchronized void addListener(Consumer<Entry> listener) {
+        this.listener = listener;
     }
 
     /** Appends one line, evicting the oldest when full. */
@@ -31,6 +38,9 @@ public final class LogRing {
         entries.addLast(entry);
         while (entries.size() > capacity) {
             entries.removeFirst();
+        }
+        if (listener != null) {
+            listener.accept(entry);
         }
     }
 

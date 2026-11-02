@@ -26,4 +26,31 @@ public interface PanelBackend {
      * reload}). Must be called on the game main thread.
      */
     MacroView macroAction(String id, String action);
+
+    /**
+     * Reads one file under the macros root. Pure file IO (no game state),
+     * safe on any thread; rejects paths that escape the root with 403 and
+     * missing files with 404.
+     */
+    FileContent readFile(String path);
+
+    /**
+     * Writes one file with optimistic concurrency: a non-matching
+     * {@code If-Match} yields the conflict shape instead of a save. A
+     * successful save hot-reloads the owning macro and reports its
+     * structured error. Must be called on the game main thread.
+     */
+    FileWriteResult writeFile(String path, byte[] content, String ifMatch);
+
+    /**
+     * Creates a macro scaffold (manifest + entry template) in a category.
+     * Must be called on the game main thread.
+     */
+    MacroView createMacro(String category, String name, String description);
+
+    /**
+     * Deletes one macro (folder, loaded instance, and persisted state).
+     * Must be called on the game main thread.
+     */
+    void deleteMacro(String id);
 }

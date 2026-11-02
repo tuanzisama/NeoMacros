@@ -8,13 +8,16 @@ import ink.tuanzi.neomacros.fabric.web.http.ApiRoute;
 import ink.tuanzi.neomacros.fabric.web.http.AuthFilter;
 import ink.tuanzi.neomacros.fabric.web.http.CorsPolicy;
 import ink.tuanzi.neomacros.fabric.web.http.WebServer;
+import ink.tuanzi.neomacros.fabric.web.json.Jsons;
 import ink.tuanzi.neomacros.fabric.web.log.LogRing;
 import ink.tuanzi.neomacros.fabric.web.log.LogTap;
 import ink.tuanzi.neomacros.fabric.web.openapi.DocsRoutes;
 import ink.tuanzi.neomacros.fabric.web.openapi.OpenApiGenerator;
 import ink.tuanzi.neomacros.fabric.web.pair.PairingService;
+import ink.tuanzi.neomacros.fabric.web.sse.PanelEvents;
 import ink.tuanzi.neomacros.fabric.web.sse.SseHub;
 import ink.tuanzi.neomacros.fabric.web.v1.ApiV1;
+import ink.tuanzi.neomacros.fabric.web.v1.LogEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +53,7 @@ public final class WebService {
     private final IntSupplier configuredPort;
     private final Supplier<String> panelUrl;
     private final Supplier<java.util.List<String>> extraOrigins;
+    private final PanelEvents events;
     private LogRing logs;
     private LogTap logTap;
     private PairingService pairing;
@@ -58,11 +62,14 @@ public final class WebService {
 
     /**
      * Creates the service. The setting suppliers are read per start so
-     * config changes apply without recreating the service.
+     * config changes apply without recreating the service; the events
+     * facade carries broadcasts from game-side surfaces to the per-start
+     * hub.
      */
     public WebService(PanelBackend backend, GameRunner game, DeviceRegistry devices,
                       Supplier<String> listenScope, IntSupplier configuredPort,
-                      Supplier<String> panelUrl, Supplier<java.util.List<String>> extraOrigins) {
+                      Supplier<String> panelUrl, Supplier<java.util.List<String>> extraOrigins,
+                      PanelEvents events) {
         this.backend = backend;
         this.game = game;
         this.devices = devices;
@@ -70,6 +77,7 @@ public final class WebService {
         this.configuredPort = configuredPort;
         this.panelUrl = panelUrl;
         this.extraOrigins = extraOrigins;
+        this.events = events;
     }
 
     /** Whether the HTTP listener is up. */
@@ -122,6 +130,10 @@ public final class WebService {
         this.pairing = pairingService;
         this.sse = hub;
         this.server = http;
+        events.attach(hub);
+        ring.addListener(entry -> events.broadcast("log",
+                Jsons.stringify(new LogEntry(
+                        entry.seq(), entry.level(), entry.logger(), entry.line()))));
         this.logTap = LogTap.install("neomacros", ring);
         ring.append("INFO", "neomacros.web", "web panel listening on "
                 + scope + " port " + bound);
@@ -146,6 +158,7 @@ public final class WebService {
             sse.closeAll();
         }
         server.stop();
+        events.detach();
         if (logTap != null) {
             logTap.remove();
             logTap = null;

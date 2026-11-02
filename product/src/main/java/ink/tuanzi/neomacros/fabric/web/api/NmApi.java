@@ -28,4 +28,17 @@ public @interface NmApi {
      * (streaming routes return void); 0 lets the generator infer it.
      */
     int success() default 0;
+
+    /**
+     * The success response content type for self-writing handlers; empty
+     * keeps the SSE default for streaming routes.
+     */
+    String produces() default "";
+
+    /**
+     * The request content type for handlers that read the raw body instead
+     * of a typed {@link ink.tuanzi.neomacros.fabric.web.api.NmBody} record;
+     * empty emits no request body in the contract.
+     */
+    String consumes() default "";
 }

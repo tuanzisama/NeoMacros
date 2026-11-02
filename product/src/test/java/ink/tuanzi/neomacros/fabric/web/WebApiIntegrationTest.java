@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.fabric.web;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry;
@@ -66,7 +67,13 @@ class WebApiIntegrationTest {
     static final class StubBackend implements PanelBackend {
 
         final List<String> actions = new ArrayList<>();
+        final List<String> deletions = new ArrayList<>();
+        final List<String> writes = new ArrayList<>();
+        final List<String> reads = new ArrayList<>();
         ApiError failure;
+        FileContent fileToServe;
+        String servedPath = "event/auto-welcome/index.js";
+        FileWriteResult writeOutcome;
 
         @Override
         public Meta meta() {
@@ -100,16 +107,51 @@ class WebApiIntegrationTest {
                     "1.0.0", "you", ink.tuanzi.neomacros.fabric.web.v1.MacroLifecycle.world,
                     true, true, null, List.of(), null);
         }
+
+        @Override
+        public FileContent readFile(String path) {
+            if (failure != null) {
+                throw failure;
+            }
+            reads.add(path);
+            if (fileToServe == null || !path.equals(servedPath)) {
+                throw ApiError.notFound("no such file: " + path);
+            }
+            return fileToServe;
+        }
+
+        @Override
+        public FileWriteResult writeFile(String path, byte[] content, String ifMatch) {
+            if (failure != null) {
+                throw failure;
+            }
+            writes.add(path);
+            return writeOutcome == null ? FileWriteResult.saved(null) : writeOutcome;
+        }
+
+        @Override
+        public MacroView createMacro(String category, String name, String description) {
+            if (failure != null) {
+                throw failure;
+            }
+            return new MacroView(category + "/" + name,
+                    ink.tuanzi.neomacros.fabric.web.v1.MacroCategory.event,
+                    name, "0.0.1", "your-name",
+                    ink.tuanzi.neomacros.fabric.web.v1.MacroLifecycle.world,
+                    true, false, null, List.of(), null);
+        }
+
+        @Override
+        public void deleteMacro(String id) {
+            if (failure != null) {
+                throw failure;
+            }
+            deletions.add(id);
+        }
     }
 
     /** Starts the service on an ephemeral port with a stub backend. */
     private StubBackend start(GameRunner runner) throws IOException {
-        StubBackend backend = new StubBackend();
-        device = TestKeys.ed25519("dev_test");
-        DeviceRegistry registry = new DeviceRegistry(temp.resolve("web-devices.json"),
-                message -> { });
-        device = device.withId(registry
-                .register("integration browser", device.algo, device.pubJwk).id());
         return startWithOrigins(runner, java.util.List.of());
     }
 
@@ -124,7 +166,7 @@ class WebApiIntegrationTest {
                 .register("integration browser", device.algo, device.pubJwk).id());
         service = new WebService(backend, runner, registry,
                 () -> "loopback", () -> 0, () -> "http://localhost:5173",
-                () -> extraOrigins);
+                () -> extraOrigins, new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents());
         service.start();
         return backend;
     }
@@ -147,10 +189,10 @@ class WebApiIntegrationTest {
         if (authorization != null) {
             builder.header("Authorization", authorization);
         }
-        if ("POST".equals(method)) {
-            builder.POST(HttpRequest.BodyPublishers.ofByteArray(body));
-        } else {
+        if ("GET".equals(method)) {
             builder.GET();
+        } else {
+            builder.method(method, HttpRequest.BodyPublishers.ofByteArray(body));
         }
         return client.send(builder.timeout(Duration.ofSeconds(10)).build(),
                 HttpResponse.BodyHandlers.ofString());
@@ -513,6 +555,129 @@ class WebApiIntegrationTest {
         assertEquals(400, send("POST", "/api/v1/pair", badKey, null).statusCode());
     }
 
+    // ---- files --------------------------------------------------------------
+
+    @Test
+    void filesGetServesRawTextWithAnEtag() throws Exception {
+        StubBackend backend = start(DIRECT);
+        byte[] content = "chat.log('hello');".getBytes(StandardCharsets.UTF_8);
+        backend.fileToServe = new FileContent(content,
+                ink.tuanzi.neomacros.fabric.web.auth.Nm1Verifier.bodyHash(content));
+        HttpResponse<String> response = signed("GET",
+                "/api/v1/files/event%2Fauto-welcome%2Findex.js", new byte[0]);
+        assertEquals(200, response.statusCode());
+        assertEquals("chat.log('hello');", response.body());
+        assertEquals("text/plain; charset=utf-8",
+                response.headers().firstValue("Content-Type").orElse(""));
+        assertEquals(backend.fileToServe.etag(),
+                response.headers().firstValue("ETag").orElse(""));
+
+        assertEquals(404, signed("GET", "/api/v1/files/event%2Fmissing.js",
+                new byte[0]).statusCode());
+        assertEquals(401, send("GET", "/api/v1/files/event%2Fauto-welcome%2Findex.js",
+                new byte[0], null).statusCode());
+        // Separators smuggled through percent-encoding are decoded before
+        // the handler sees them, so the backend-side sandbox faces plain
+        // dot-dot segments (rejected by the WebRuntimeFilesTest matrix).
+        assertEquals(404, signed("GET", "/api/v1/files/..%2F..%2Fescape.js",
+                new byte[0]).statusCode());
+        assertTrue(backend.reads.contains("../../escape.js"),
+                "decoded traversal reached the backend: " + backend.reads);
+    }
+
+    @Test
+    void filesPutSavesAndReportsTheReloadError() throws Exception {
+        StubBackend backend = start(DIRECT);
+        HttpResponse<String> clean = signed("PUT",
+                "/api/v1/files/event%2Fauto-welcome%2Findex.js",
+                "chat.log('v2');".getBytes(StandardCharsets.UTF_8));
+        assertEquals(200, clean.statusCode());
+        assertEquals(JsonNull.INSTANCE, JsonParser.parseString(clean.body())
+                .getAsJsonObject().get("error"));
+        assertEquals(List.of("event/auto-welcome/index.js"), backend.writes);
+
+        backend.writeOutcome = FileWriteResult.saved(
+                new ink.tuanzi.neomacros.fabric.web.v1.LocatedError(
+                        "event/auto-welcome/index.js", 3, 7, "unexpected token"));
+        HttpResponse<String> broken = signed("PUT",
+                "/api/v1/files/event%2Fauto-welcome%2Findex.js",
+                "!!!".getBytes(StandardCharsets.UTF_8));
+        assertEquals(200, broken.statusCode());
+        JsonObject error = JsonParser.parseString(broken.body())
+                .getAsJsonObject().getAsJsonObject("error");
+        assertEquals(3, error.get("line").getAsInt());
+        assertEquals("unexpected token", error.get("message").getAsString());
+
+        assertEquals(401, send("PUT", "/api/v1/files/event%2Fauto-welcome%2Findex.js",
+                "x".getBytes(StandardCharsets.UTF_8), null).statusCode());
+    }
+
+    @Test
+    void filesPutConflictCarriesTheCurrentText() throws Exception {
+        StubBackend backend = start(DIRECT);
+        backend.writeOutcome = FileWriteResult.conflict("chat.log('disk');", "hash-of-disk");
+        HttpResponse<String> response = signed("PUT",
+                "/api/v1/files/event%2Fauto-welcome%2Findex.js",
+                "chat.log('stale');".getBytes(StandardCharsets.UTF_8));
+        assertEquals(409, response.statusCode());
+        JsonObject body = JsonParser.parseString(response.body()).getAsJsonObject();
+        assertEquals("conflict", body.getAsJsonObject("error").get("code").getAsString());
+        assertEquals("chat.log('disk');", body.get("content").getAsString());
+        assertEquals("hash-of-disk", body.get("etag").getAsString());
+    }
+
+    // ---- macro create / delete ---------------------------------------------
+
+    @Test
+    void macroCreateServesTheScaffoldView() throws Exception {
+        start(DIRECT);
+        byte[] body = Jsons.stringify(Map.of("category", "event", "name", "shop-reporter"))
+                .getBytes(StandardCharsets.UTF_8);
+        HttpResponse<String> response = signed("POST", "/api/v1/macros", body);
+        assertEquals(200, response.statusCode());
+        JsonObject view = JsonParser.parseString(response.body()).getAsJsonObject();
+        assertEquals("event/shop-reporter", view.get("id").getAsString());
+        assertEquals("0.0.1", view.get("version").getAsString());
+    }
+
+    @Test
+    void macroDeleteNeedsExplicitConfirmation() throws Exception {
+        StubBackend backend = start(DIRECT);
+        String path = "/api/v1/macros/event%2Fauto-welcome";
+        assertEquals(422, signed("DELETE", path, new byte[0]).statusCode());
+        assertEquals(422, signed("DELETE", path,
+                "{\"confirm\":false}".getBytes(StandardCharsets.UTF_8)).statusCode());
+        assertEquals(422, signed("DELETE", path,
+                "{not json".getBytes(StandardCharsets.UTF_8)).statusCode());
+        HttpResponse<String> deleted = signed("DELETE", path,
+                "{\"confirm\":true}".getBytes(StandardCharsets.UTF_8));
+        assertEquals(204, deleted.statusCode());
+        assertEquals(List.of("event/auto-welcome"), backend.deletions);
+    }
+
+    // ---- devices ------------------------------------------------------------
+
+    @Test
+    void devicesAreListedAndRevoked() throws Exception {
+        start(DIRECT);
+        HttpResponse<String> list = signed("GET", "/api/v1/devices", new byte[0]);
+        assertEquals(200, list.statusCode());
+        JsonObject body = JsonParser.parseString(list.body()).getAsJsonObject();
+        var devices = body.getAsJsonArray("devices");
+        assertEquals(1, devices.size());
+        JsonObject view = devices.get(0).getAsJsonObject();
+        assertEquals(device.id, view.get("id").getAsString());
+        assertEquals("ed25519", view.get("algo").getAsString());
+        assertFalse(view.has("pubJwk"), "no key material in the panel view");
+
+        assertEquals(204, signed("DELETE", "/api/v1/devices/" + device.id,
+                new byte[0]).statusCode());
+        // The revoked device cannot even ask: NM1 rejects before the route.
+        assertEquals(401, signed("DELETE", "/api/v1/devices/" + device.id,
+                new byte[0]).statusCode());
+        assertEquals(401, signed("GET", "/api/v1/state", new byte[0]).statusCode());
+    }
+
     // ---- api-docs ----------------------------------------------------------
 
     @Test
@@ -525,10 +690,18 @@ class WebApiIntegrationTest {
         assertEquals("3.0.3", doc.get("openapi").getAsString());
         JsonObject paths = doc.getAsJsonObject("paths");
         for (String path : new String[] {"/api/v1/meta", "/api/v1/pair", "/api/v1/state",
-                "/api/v1/macros/{id}/{action}", "/api/v1/logs", "/api/v1/events/ticket",
+                "/api/v1/macros", "/api/v1/macros/{id}/{action}", "/api/v1/macros/{id}",
+                "/api/v1/files/{path}", "/api/v1/devices", "/api/v1/devices/{id}",
+                "/api/v1/logs", "/api/v1/events/ticket",
                 "/api/v1/events", "/api-docs/openapi.json"}) {
             assertTrue(paths.has(path), "missing path " + path);
         }
+        JsonObject filesGet = paths.getAsJsonObject("/api/v1/files/{path}")
+                .getAsJsonObject("get");
+        assertTrue(filesGet.getAsJsonObject("responses").getAsJsonObject("200")
+                .getAsJsonObject("content").has("text/plain; charset=utf-8"));
+        assertTrue(paths.getAsJsonObject("/api/v1/files/{path}")
+                .getAsJsonObject("put").has("requestBody"));
         assertTrue(doc.getAsJsonObject("components").getAsJsonObject("schemas")
                 .has("StateSnapshot"));
         assertTrue(doc.getAsJsonArray("servers").get(0).getAsJsonObject().get("url")
@@ -579,7 +752,7 @@ class WebApiIntegrationTest {
                 .register("integration browser", device.algo, device.pubJwk).id());
         service = new WebService(backend, DIRECT, registry,
                 () -> "127.0.0.1", () -> 0, () -> "http://localhost:5173",
-                () -> java.util.List.of("*"));
+                () -> java.util.List.of("*"), new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents());
         service.start();
         HttpResponse<String> response = send("GET", "/api/v1/meta", new byte[0], null);
         assertEquals(200, response.statusCode());

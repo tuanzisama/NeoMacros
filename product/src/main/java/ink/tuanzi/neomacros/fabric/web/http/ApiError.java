@@ -57,6 +57,11 @@ public class ApiError extends RuntimeException {
         return new ApiError(400, INVALID_REQUEST, message);
     }
 
+    /** Semantic-rejection flavor of the invalid-request family. */
+    public static ApiError unprocessable(String message) {
+        return new ApiError(422, INVALID_REQUEST, message);
+    }
+
     public static ApiError gameThreadTimeout() {
         return new ApiError(504, GAME_THREAD_TIMEOUT,
                 "the game main thread did not answer within 5 seconds");

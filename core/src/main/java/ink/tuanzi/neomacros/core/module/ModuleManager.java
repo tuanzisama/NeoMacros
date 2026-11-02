@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -49,12 +50,15 @@ public final class ModuleManager implements AutoCloseable {
     private final Path macrosRoot;
     private final Consumer<String> warn;
     private final Map<String, LoadedModule> loaded = new LinkedHashMap<>();
-    private final Map<Path, Long> watchedFolders = new LinkedHashMap<>();
+    private final Map<Path, Map<String, Long>> watchedFolders = new LinkedHashMap<>();
     private final Set<String> missingHandlerWarned = ConcurrentHashMap.newKeySet();
     private Predicate<String> autoloadFilter = name -> true;
-    private Consumer<LoadedModule> loadListener;
-    private Consumer<LoadedModule> unloadListener;
-    private java.util.function.BiConsumer<String, ScriptError> loadErrorListener;
+    private final List<Consumer<LoadedModule>> loadListeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<LoadedModule>> unloadListeners = new CopyOnWriteArrayList<>();
+    private final List<java.util.function.BiConsumer<String, ScriptError>> loadErrorListeners =
+            new CopyOnWriteArrayList<>();
+    private final List<java.util.function.BiConsumer<Path, List<String>>> folderChangeListeners =
+            new CopyOnWriteArrayList<>();
     private volatile List<ScriptEntry> lastEntries = List.of();
     private volatile List<ScriptLoadError> lastErrors = List.of();
     private boolean watchScanInitialized;
@@ -88,13 +92,13 @@ public final class ModuleManager implements AutoCloseable {
 
     /** Registers a listener invoked after a module finished loading. */
     public ModuleManager onLoad(Consumer<LoadedModule> listener) {
-        this.loadListener = listener;
+        loadListeners.add(listener);
         return this;
     }
 
     /** Registers a listener invoked before a module is torn down. */
     public ModuleManager onUnload(Consumer<LoadedModule> listener) {
-        this.unloadListener = listener;
+        unloadListeners.add(listener);
         return this;
     }
 
@@ -104,7 +108,18 @@ public final class ModuleManager implements AutoCloseable {
      * surfaces that show per-module error state subscribe here.
      */
     public ModuleManager onLoadError(java.util.function.BiConsumer<String, ScriptError> listener) {
-        this.loadErrorListener = listener;
+        loadErrorListeners.add(listener);
+        return this;
+    }
+
+    /**
+     * Registers a listener invoked when files inside an already-watched
+     * script folder changed on disk (edited, added, or removed — the forward-
+     * slash paths relative to the folder). Newly created and deleted folders
+     * surface through the load/unload listeners instead.
+     */
+    public ModuleManager onFolderChange(java.util.function.BiConsumer<Path, List<String>> listener) {
+        folderChangeListeners.add(listener);
         return this;
     }
 
@@ -205,8 +220,7 @@ public final class ModuleManager implements AutoCloseable {
             session.importModule(name, entry.entryFile());
             session.readExportedFunction("dispose").ifPresent(module::disposeHook);
             loaded.put(name, module);
-            Consumer<LoadedModule> listener = loadListener;
-            if (listener != null) {
+            for (Consumer<LoadedModule> listener : loadListeners) {
                 listener.accept(module);
             }
             return module;
@@ -272,10 +286,9 @@ public final class ModuleManager implements AutoCloseable {
         }
     }
 
-    /** Notifies the load-error listener when one is registered. */
+    /** Notifies the load-error listeners. */
     private void notifyLoadError(String name, ScriptError error) {
-        var listener = loadErrorListener;
-        if (listener != null) {
+        for (var listener : loadErrorListeners) {
             listener.accept(name, error);
         }
     }
@@ -315,8 +328,7 @@ public final class ModuleManager implements AutoCloseable {
     public void unload(String name) {
         LoadedModule module = loaded.remove(name);
         if (module != null) {
-            Consumer<LoadedModule> listener = unloadListener;
-            if (listener != null) {
+            for (Consumer<LoadedModule> listener : unloadListeners) {
                 listener.accept(module);
             }
             module.close();
@@ -410,8 +422,8 @@ public final class ModuleManager implements AutoCloseable {
         var seen = new HashSet<Path>();
         for (ScriptEntry entry : entries) {
             seen.add(entry.folder());
-            long fingerprint = fingerprint(entry.folder());
-            Long known = watchedFolders.get(entry.folder());
+            Map<String, Long> fingerprint = fingerprint(entry.folder());
+            Map<String, Long> known = watchedFolders.get(entry.folder());
             if (known == null) {
                 watchedFolders.put(entry.folder(), fingerprint);
                 if (watchScanInitialized && !loaded.containsKey(entry.name())
@@ -423,8 +435,9 @@ public final class ModuleManager implements AutoCloseable {
                         notifyLoadError(entry.name(), e);
                     }
                 }
-            } else if (known != fingerprint) {
+            } else if (!known.equals(fingerprint)) {
                 watchedFolders.put(entry.folder(), fingerprint);
+                notifyFolderChange(entry.folder(), changedFiles(known, fingerprint));
                 if (loaded.containsKey(entry.name())) {
                     reload(entry.name());
                 } else if (autoloadFilter.test(entry.name())) {
@@ -452,22 +465,48 @@ public final class ModuleManager implements AutoCloseable {
         watchScanInitialized = true;
     }
 
-    /**
-     * A change signature of one script folder: combines every file's relative
-     * path and modification time, so edits, additions, renames, and deletions
-     * inside the folder all register.
-     */
-    private long fingerprint(Path folder) {
-        try (Stream<Path> files = Files.walk(folder)) {
-            long hash = 0;
-            for (Path file : files.filter(Files::isRegularFile).toList()) {
-                long mtime = Files.getLastModifiedTime(file).toMillis();
-                hash = 31 * hash + folder.relativize(file).toString().hashCode();
-                hash = 31 * hash + mtime;
+    /** Notifies the folder-change listeners with the files that differ. */
+    private void notifyFolderChange(Path folder, List<String> changedFiles) {
+        if (!folderChangeListeners.isEmpty()) {
+            for (var listener : folderChangeListeners) {
+                listener.accept(folder, changedFiles);
             }
-            return hash;
-        } catch (IOException e) {
-            return folder.toString().hashCode();
         }
+    }
+
+    /** The relative paths whose mtime differs or that were added or removed. */
+    private static List<String> changedFiles(Map<String, Long> known, Map<String, Long> fingerprint) {
+        List<String> changed = new ArrayList<>();
+        for (Map.Entry<String, Long> file : fingerprint.entrySet()) {
+            if (!file.getValue().equals(known.get(file.getKey()))) {
+                changed.add(file.getKey());
+            }
+        }
+        for (String removed : known.keySet()) {
+            if (!fingerprint.containsKey(removed)) {
+                changed.add(removed);
+            }
+        }
+        return changed;
+    }
+
+    /**
+     * A change signature of one script folder: every regular file's relative
+     * path (forward slashes) and modification time, so edits, additions,
+     * renames, and deletions inside the folder all register.
+     */
+    private Map<String, Long> fingerprint(Path folder) {
+        Map<String, Long> files = new LinkedHashMap<>();
+        try (Stream<Path> walk = Files.walk(folder)) {
+            for (Path file : walk.filter(Files::isRegularFile).toList()) {
+                files.put(folder.relativize(file).toString().replace('\\', '/'),
+                        Files.getLastModifiedTime(file).toMillis());
+            }
+        } catch (IOException e) {
+            // unreadable folder: a stable sentinel (mtime can never be -1) so
+            // repeated failures compare equal and do not re-trigger reloads
+            files.put("!unreadable", -1L);
+        }
+        return files;
     }
 }
