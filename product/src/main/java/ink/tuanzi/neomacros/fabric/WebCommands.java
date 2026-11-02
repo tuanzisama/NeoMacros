@@ -59,11 +59,75 @@ final class WebCommands {
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> editorSubtree(
             Context context) {
+        // Literals come before the macro argument: brigadier tries children
+        // in insertion order, and `editor stop` must hit the subcommand.
         return literal("editor")
                 .executes(ctx -> {
                     sendEditorLink(ctx.getSource(), context, null);
                     return Command.SINGLE_SUCCESS;
                 })
+                .then(literal("stop").executes(ctx -> {
+                    if (!context.web().running()) {
+                        feedback(ctx.getSource(), "neomacros.cmd.web.not_running");
+                        return 0;
+                    }
+                    context.web().stop();
+                    feedback(ctx.getSource(), "neomacros.cmd.web.stopped");
+                    return Command.SINGLE_SUCCESS;
+                }))
+                .then(literal("sessions").executes(ctx -> {
+                    if (!context.web().running()) {
+                        feedback(ctx.getSource(), "neomacros.cmd.web.not_running");
+                        return 0;
+                    }
+                    var sessions = context.web().sessions();
+                    if (sessions.isEmpty()) {
+                        feedback(ctx.getSource(), "neomacros.cmd.web.sessions_none");
+                        return Command.SINGLE_SUCCESS;
+                    }
+                    feedback(ctx.getSource(), "neomacros.cmd.web.sessions_header",
+                            sessions.size());
+                    long now = System.currentTimeMillis();
+                    for (var session : sessions) {
+                        feedback(ctx.getSource(), "neomacros.cmd.web.sessions_row",
+                                session.id(), session.remote(),
+                                (now - session.connectedAtMillis()) / 1000);
+                    }
+                    return Command.SINGLE_SUCCESS;
+                }))
+                .then(literal("disconnect")
+                        .then(argument("id", StringArgumentType.word())
+                                .suggests((ctx, builder) -> {
+                                    for (var session : context.web().sessions()) {
+                                        builder.suggest(session.id());
+                                    }
+                                    return builder.buildFuture();
+                                })
+                                .executes(ctx -> {
+                                    if (!context.web().running()) {
+                                        feedback(ctx.getSource(),
+                                                "neomacros.cmd.web.not_running");
+                                        return 0;
+                                    }
+                                    String id = StringArgumentType.getString(ctx, "id");
+                                    if (context.web().disconnectSession(id)) {
+                                        feedback(ctx.getSource(),
+                                                "neomacros.cmd.web.disconnected", id);
+                                        return Command.SINGLE_SUCCESS;
+                                    }
+                                    feedback(ctx.getSource(),
+                                            "neomacros.cmd.web.unknown_session", id);
+                                    return 0;
+                                })))
+                .then(literal("rotate").executes(ctx -> {
+                    if (!context.web().running()) {
+                        feedback(ctx.getSource(), "neomacros.cmd.web.not_running");
+                        return 0;
+                    }
+                    context.web().rotatePairingToken();
+                    feedback(ctx.getSource(), "neomacros.cmd.web.rotated");
+                    return Command.SINGLE_SUCCESS;
+                }))
                 .then(argument("macro", StringArgumentType.word())
                         .suggests((ctx, builder) -> {
                             context.modules().entries().forEach(entry ->

@@ -65,10 +65,39 @@ public final class SseHub {
     }
 
     /** Opens the exchange output as a live event stream (ticket already consumed). */
-    public SseConnection open(java.io.OutputStream out) throws java.io.IOException {
-        SseConnection connection = new SseConnection(out);
+    public SseConnection open(java.io.OutputStream out, String remote) throws java.io.IOException {
+        byte[] raw = new byte[2];
+        RANDOM.nextBytes(raw);
+        SseConnection connection = new SseConnection(
+                "ses_" + java.util.HexFormat.of().formatHex(raw), remote,
+                nowMillis.getAsLong(), out);
         connections.add(connection);
         return connection;
+    }
+
+    /** One live session as the command surface lists it. */
+    public record SessionInfo(String id, String remote, long connectedAtMillis) {
+    }
+
+    /** The live sessions, oldest first. */
+    public List<SessionInfo> sessions() {
+        List<SessionInfo> out = new java.util.ArrayList<>();
+        for (SseConnection connection : connections) {
+            out.add(new SessionInfo(connection.id, connection.remote, connection.connectedAt));
+        }
+        return out;
+    }
+
+    /** Closes the session with the given id; false when unknown. */
+    public boolean disconnect(String id) {
+        for (SseConnection connection : connections) {
+            if (connection.id.equals(id)) {
+                connection.close();
+                connections.remove(connection);
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Sends one named event with a JSON payload to every connected client. */
@@ -108,11 +137,18 @@ public final class SseHub {
     /** One live event stream: writes frames to the exchange output. */
     public static final class SseConnection {
 
+        private final String id;
+        private final String remote;
+        private final long connectedAt;
         private final OutputStream out;
         private volatile boolean closed;
 
         /** A connection bound to an exchange output stream. */
-        public SseConnection(OutputStream out) throws IOException {
+        private SseConnection(String id, String remote, long connectedAt,
+                              OutputStream out) throws IOException {
+            this.id = id;
+            this.remote = remote;
+            this.connectedAt = connectedAt;
             this.out = out;
             out.write("retry: 3000\n\n".getBytes(StandardCharsets.UTF_8));
             out.flush();

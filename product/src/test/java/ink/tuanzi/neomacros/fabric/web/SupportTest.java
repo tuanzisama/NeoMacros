@@ -206,7 +206,7 @@ class SupportTest {
     void sseBroadcastReachesTheConnectionAndDropsDeadOnes() throws Exception {
         SseHub hub = new SseHub(System::currentTimeMillis);
         var out = new ByteArrayOutputStream();
-        var connection = hub.open(out);
+        var connection = hub.open(out, "127.0.0.1");
         hub.broadcast("log", "{\"seq\":1}");
         hub.broadcast("log", "{\"seq\":2}");
         String frames = out.toString(StandardCharsets.UTF_8);

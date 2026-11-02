@@ -198,6 +198,26 @@ public final class WebService {
         return pairing != null && pairing.hasPending();
     }
 
+    /** The live editor sessions (empty while the service is stopped). */
+    public List<SseHub.SessionInfo> sessions() {
+        return sse == null ? List.of() : sse.sessions();
+    }
+
+    /** Closes one live editor session; false for an unknown id. */
+    public boolean disconnectSession(String id) {
+        return sse != null && sse.disconnect(id);
+    }
+
+    /**
+     * Rotates the pairing token: earlier links die immediately and a fresh
+     * token takes the slot (delivered through the next deep link).
+     */
+    public void rotatePairingToken() {
+        requirePairing();
+        pairing.newToken();
+        logLine("pairing token rotated; earlier links are invalid");
+    }
+
     /** All paired devices (the command listing). */
     public List<DeviceRecord> devices() {
         return devices.all();

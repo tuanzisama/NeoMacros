@@ -178,7 +178,7 @@ public final class ApiV1 {
         exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
         exchange.getResponseHeaders().set("Cache-Control", "no-cache");
         exchange.sendResponseHeaders(200, 0);
-        sse.open(exchange.getResponseBody());
+        sse.open(exchange.getResponseBody(), context.source());
         context.markHandled();
         // The hub broadcasts from here on; a connection drops itself on the
         // first failed write (client gone) or when the server shuts down.
