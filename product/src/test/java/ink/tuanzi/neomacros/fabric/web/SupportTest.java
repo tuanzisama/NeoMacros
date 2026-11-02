@@ -1,6 +1,5 @@
 package ink.tuanzi.neomacros.fabric.web;
 
-import ink.tuanzi.neomacros.fabric.web.auth.BackoffTracker;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry;
 import ink.tuanzi.neomacros.fabric.web.auth.NonceStore;
 import ink.tuanzi.neomacros.fabric.web.http.ApiRoute;
@@ -53,22 +52,6 @@ class SupportTest {
     }
 
     // ---- BackoffTracker ---------------------------------------------------
-
-    @Test
-    void backoffBlocksAndResets() {
-        BackoffTracker tracker = new BackoffTracker();
-        assertFalse(tracker.blocked("src"));
-        tracker.fail("src");
-        assertTrue(tracker.blocked("src"));
-        tracker.success("src");
-        assertFalse(tracker.blocked("src"));
-        // Sixteen strikes saturate the escalation at the 4-second cap.
-        for (int i = 0; i < 16; i++) {
-            tracker.fail("src2");
-        }
-        assertTrue(tracker.blocked("src2"));
-        tracker.prune();
-    }
 
     // ---- PairingService ---------------------------------------------------
 

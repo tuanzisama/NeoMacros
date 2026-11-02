@@ -1,6 +1,5 @@
 package ink.tuanzi.neomacros.fabric.web;
 
-import ink.tuanzi.neomacros.fabric.web.auth.BackoffTracker;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRecord;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry;
 import ink.tuanzi.neomacros.fabric.web.auth.Nm1Verifier;
@@ -99,7 +98,7 @@ public final class WebService {
         SseHub hub = new SseHub(System::currentTimeMillis);
         Nm1Verifier verifier = new Nm1Verifier(devices,
                 new NonceStore(2 * Nm1Verifier.WINDOW_MILLIS), System::currentTimeMillis);
-        AuthFilter auth = new AuthFilter(verifier, new BackoffTracker());
+        AuthFilter auth = new AuthFilter(verifier);
         ApiV1 controller = new ApiV1(backend, game, pairingService, devices, hub, ring);
         // The contract document is built over the live route set (the docs
         // endpoint included), then rebuilt with the bound port once known.

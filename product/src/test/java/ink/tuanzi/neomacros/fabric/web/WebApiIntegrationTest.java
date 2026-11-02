@@ -288,28 +288,10 @@ class WebApiIntegrationTest {
     }
 
     @Test
-    void signatureFailuresEscalateIntoTheBackoffWindow() throws Exception {
-        start(DIRECT);
-        // A forged signature (well-formed header, known device, wrong key)
-        // starts a one-second window for this source address.
-        TestKeys.Device forger = TestKeys.ed25519("dev_forged");
-        String forged = forger.authorize("GET", "/api/v1/state", "", new byte[0],
-                System.currentTimeMillis() / 1000, nonce())
-                .replaceFirst("id=[^,]+", "id=" + device.id);
-        assertEquals(401, send("GET", "/api/v1/state", new byte[0], forged).statusCode());
-        HttpResponse<String> blocked = signed("GET", "/api/v1/state", new byte[0]);
-        assertEquals(429, blocked.statusCode());
-        assertEquals("too_many_requests", errorOf(blocked).getAsJsonObject("error")
-                .get("code").getAsString());
-        assertTrue(Integer.parseInt(blocked.headers()
-                .firstValue("Retry-After").orElse("0")) >= 1);
-    }
-
-    @Test
-    void clientMistakesNeverArmTheBackoff() throws Exception {
+    void clientMistakesGetPlain401s() throws Exception {
         start(DIRECT);
         // Missing header, unknown device, stale timestamp, reused nonce —
-        // none of these may silence the source for the requests after them.
+        // every failure is a plain 401 and the service keeps serving.
         assertEquals(401, send("GET", "/api/v1/state", new byte[0], null).statusCode());
         // A well-signed request right after the mistake still works.
         assertEquals(200, signed("GET", "/api/v1/state", new byte[0]).statusCode());

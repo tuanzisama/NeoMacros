@@ -1,13 +1,10 @@
 package ink.tuanzi.neomacros.fabric.web.http;
 
-import ink.tuanzi.neomacros.fabric.web.auth.BackoffTracker;
 import ink.tuanzi.neomacros.fabric.web.auth.Nm1Verifier;
 
 /**
- * The NM1 authentication step of the request pipeline: requests that need a
- * signature are verified (failures feed the source's backoff record), the
- * exempt endpoints pass through, and sources inside a backoff window are
- * rejected before any processing.
+ * The NM1 authentication step of the request pipeline: requests that need
+ * a signature are verified, the exempt endpoints pass through.
  */
 public final class AuthFilter {
 
@@ -18,12 +15,10 @@ public final class AuthFilter {
             "GET /api-docs/openapi.json");
 
     private final Nm1Verifier verifier;
-    private final BackoffTracker backoff;
 
-    /** Creates the filter over the verifier and its backoff tracker. */
-    public AuthFilter(Nm1Verifier verifier, BackoffTracker backoff) {
+    /** Creates the filter over the verifier. */
+    public AuthFilter(Nm1Verifier verifier) {
         this.verifier = verifier;
-        this.backoff = backoff;
     }
 
     /** Whether this verb+path may skip the NM1 signature. */
@@ -31,33 +26,17 @@ public final class AuthFilter {
         return EXEMPT.contains(method + " " + path);
     }
 
-    /** Whether the source is currently inside a backoff window. */
-    public boolean blocked(String source) {
-        return backoff.blocked(source);
-    }
-
-    /** Seconds until the source's backoff window opens (0 when not blocked). */
-    public long retryAfterSeconds(String source) {
-        return backoff.retryAfterSeconds(source);
-    }
-
     /**
      * Verifies a signed request. Returns the authenticated client id; the
-     * thrown {@link ApiError} carries the reason. Only a failed signature
-     * records a backoff strike — client mistakes answer with a plain 401.
-     * The SSE stream endpoint authenticates by ticket instead and never
-     * reaches this filter.
+     * thrown {@link ApiError} carries the reason. The SSE stream endpoint
+     * authenticates by ticket instead and never reaches this filter.
      */
-    public String authenticate(String source, String method, String path, String query,
+    public String authenticate(String method, String path, String query,
                                byte[] body, String authorization) {
         Nm1Verifier.Result result = verifier.verify(method, path, query, body, authorization);
         if (!result.ok()) {
-            if (result.signatureFailure()) {
-                backoff.fail(source);
-            }
             throw ApiError.unauthorized(result.problem());
         }
-        backoff.success(source);
         return result.clientId();
     }
 }

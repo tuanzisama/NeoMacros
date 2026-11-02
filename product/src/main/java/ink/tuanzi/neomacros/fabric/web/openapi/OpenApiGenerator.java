@@ -269,7 +269,7 @@ public final class OpenApiGenerator {
         JsonObject code = new JsonObject();
         code.addProperty("type", "string");
         code.addProperty("description", "unauthorized / forbidden / not_found / conflict /"
-                + " too_many_requests / game_thread_timeout / invalid_request / timeout /"
+                + " game_thread_timeout / invalid_request / timeout /"
                 + " internal");
         properties.add("code", code);
         JsonObject message = new JsonObject();

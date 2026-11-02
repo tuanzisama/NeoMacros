@@ -11,7 +11,6 @@ public class ApiError extends RuntimeException {
     public static final String FORBIDDEN = "forbidden";
     public static final String NOT_FOUND = "not_found";
     public static final String CONFLICT = "conflict";
-    public static final String TOO_MANY_REQUESTS = "too_many_requests";
     public static final String INVALID_REQUEST = "invalid_request";
     public static final String GAME_THREAD_TIMEOUT = "game_thread_timeout";
     public static final String TIMEOUT = "timeout";
@@ -52,10 +51,6 @@ public class ApiError extends RuntimeException {
 
     public static ApiError conflict(String message) {
         return new ApiError(409, CONFLICT, message);
-    }
-
-    public static ApiError tooManyRequests(String message) {
-        return new ApiError(429, TOO_MANY_REQUESTS, message);
     }
 
     public static ApiError invalidRequest(String message) {

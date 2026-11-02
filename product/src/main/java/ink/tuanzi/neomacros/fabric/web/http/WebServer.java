@@ -183,30 +183,17 @@ public final class WebServer {
                 return;
             }
             ApiContext context = new ApiContext(exchange, method, rawPath, rawQuery, body);
-            // 4. Backoff gate, then NM1 (except the exempt endpoints; the SSE
-            //    stream authenticates by ticket inside its handler).
-            String source = context.source();
+            // 4. NM1 (except the exempt endpoints; the SSE stream
+            //    authenticates by ticket inside its handler).
             boolean ticketAuth = rawPath.equals("/api/v1/events");
             if (!AuthFilter.exempt(method, rawPath) && !ticketAuth) {
-                if (auth.blocked(source)) {
-                    throw ApiError.tooManyRequests(
-                            "too many failed attempts; wait out the backoff window");
-                }
-                auth.authenticate(source, method, rawPath,
+                auth.authenticate(method, rawPath,
                         rawQuery == null ? "" : rawQuery, body,
                         exchange.getRequestHeaders().getFirst("Authorization"));
             }
             // 5. Route.
             router.dispatch(context);
         } catch (ApiError error) {
-            if (error.status() == 429) {
-                long retryAfter = auth.retryAfterSeconds(
-                        String.valueOf(exchange.getRemoteAddress().getAddress()));
-                if (retryAfter > 0) {
-                    exchange.getResponseHeaders().set("Retry-After",
-                            String.valueOf(retryAfter));
-                }
-            }
             respondError(exchange, error.status(), error.code(), error.getMessage());
         } catch (Exception e) {
             respondError(exchange, 500, ApiError.INTERNAL, "internal error");
