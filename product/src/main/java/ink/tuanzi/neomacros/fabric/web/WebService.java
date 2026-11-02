@@ -39,7 +39,7 @@ public final class WebService {
 
     /** The status line the commands render. */
     public record Status(boolean running, int port, String listen, long uptimeMs,
-                         int deviceCount, String pendingLabel) {
+                         int deviceCount) {
     }
 
     private static final Logger LOG = LoggerFactory.getLogger("neomacros.web");
@@ -51,9 +51,6 @@ public final class WebService {
     private final IntSupplier configuredPort;
     private final Supplier<String> panelUrl;
     private final Supplier<java.util.List<String>> extraOrigins;
-    private volatile java.util.function.BiConsumer<String, String> pairingPrompt =
-            (label, code) -> { };
-
     private LogRing logs;
     private LogTap logTap;
     private PairingService pairing;
@@ -74,11 +71,6 @@ public final class WebService {
         this.configuredPort = configuredPort;
         this.panelUrl = panelUrl;
         this.extraOrigins = extraOrigins;
-    }
-
-    /** Registers the consumer that shows a pending pairing (label + confirmation code, null in token mode) to the player. */
-    public void onPairingPrompt(java.util.function.BiConsumer<String, String> prompt) {
-        this.pairingPrompt = prompt;
     }
 
     /** Whether the HTTP listener is up. */
@@ -108,8 +100,7 @@ public final class WebService {
         Nm1Verifier verifier = new Nm1Verifier(devices,
                 new NonceStore(2 * Nm1Verifier.WINDOW_MILLIS), System::currentTimeMillis);
         AuthFilter auth = new AuthFilter(verifier, new BackoffTracker());
-        ApiV1 controller = new ApiV1(backend, game, pairingService, devices, hub, ring,
-                pairingPrompt);
+        ApiV1 controller = new ApiV1(backend, game, pairingService, devices, hub, ring);
         // The contract document is built over the live route set (the docs
         // endpoint included), then rebuilt with the bound port once known.
         var document = new java.util.concurrent.atomic.AtomicReference<
@@ -176,29 +167,6 @@ public final class WebService {
         return pairing.newToken();
     }
 
-    /**
-     * Resolves the pending pairing from the in-game command. Returns the
-     * pending label, or null when nothing is pending; the decision outcome
-     * lands in the consumer (chat) via {@link #onPairingPrompt} responses.
-     */
-    public boolean resolvePairing(boolean approve) {
-        requirePairing();
-        boolean pending = pairing.hasPending();
-        if (!pending) {
-            return false;
-        }
-        String label = pairing.pendingLabel();
-        boolean delivered = pairing.resolve(approve);
-        logLine((approve ? "approved" : "denied") + " pairing for " + label
-                + (delivered ? "" : " (the browser had already timed out)"));
-        return true;
-    }
-
-    /** Whether a pairing request is waiting for the in-game decision. */
-    public boolean hasPendingPairing() {
-        return pairing != null && pairing.hasPending();
-    }
-
     /** The live editor sessions (empty while the service is stopped). */
     public List<SseHub.SessionInfo> sessions() {
         return sse == null ? List.of() : sse.sessions();
@@ -237,8 +205,7 @@ public final class WebService {
     /** The current status for the command surface. */
     public Status status() {
         return new Status(running(), port(), listenScope.get(),
-                server == null ? 0 : server.uptimeMs(), devices.all().size(),
-                pairing == null ? null : pairing.pendingLabel());
+                server == null ? 0 : server.uptimeMs(), devices.all().size());
     }
 
     /** The log ring (the SSE log feed for tests and diagnostics). */

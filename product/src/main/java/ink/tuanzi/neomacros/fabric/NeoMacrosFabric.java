@@ -237,24 +237,6 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 () -> options.web.panelUrl, () -> options.web.allowedOrigins);
         webRuntime.serverInfo(() -> new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(
                 webService.port(), webService.status().uptimeMs(), options.web.listen));
-        webService.onPairingPrompt((label, code) -> {
-            if (code == null) {
-                adapter.chat().logClickable(
-                        UiText.tr("neomacros.chat.pair_approve", label),
-                        "/neomacros editor approve");
-                adapter.chat().logClickable(
-                        UiText.tr("neomacros.chat.pair_deny", label),
-                        "/neomacros editor deny");
-            } else {
-                adapter.chat().logClickable(
-                        UiText.tr("neomacros.chat.pair_approve_code", label, code),
-                        "/neomacros editor approve");
-                adapter.chat().logClickable(
-                        UiText.tr("neomacros.chat.pair_deny_code", label, code),
-                        "/neomacros editor deny");
-            }
-        });
-
         // Error presentation chain: script failures become a throttled
         // clickable chat line pointing at the recent-errors viewer screen.
         var errorPresenter = new ink.tuanzi.neomacros.core.runtime.ErrorPresenter(
@@ -663,20 +645,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
     /** The web commands' collaborators over the live runtime. */
     private static WebCommands.Context webContext() {
-        WebCommands.Context.ModuleAccess moduleAccess = new WebCommands.Context.ModuleAccess() {
-            @Override
-            public Optional<ScriptEntry> entry(String name) {
-                return modules.discover().stream()
-                        .filter(candidate -> candidate.name().equals(name))
-                        .findFirst();
-            }
-
-            @Override
-            public List<ScriptEntry> entries() {
-                return modules.discover();
-            }
-        };
-        WebCommands.LinkBuilder links = fileParam -> {
+        WebCommands.LinkBuilder links = () -> {
             if (!webService.running()) {
                 throw new IllegalStateException("the web service is not running");
             }
@@ -692,16 +661,13 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             // Query-parameter deep link: the panel reads search params and
             // clears them with history.replaceState. The one-time 120s token
             // plus the in-game approve gate are the security boundary.
-            StringBuilder url = new StringBuilder(panel)
+            return new StringBuilder(panel)
                     .append("/?host=127.0.0.1:").append(webService.port())
-                    .append("&view=editor");
-            if (fileParam != null) {
-                url.append("&file=").append(fileParam);
-            }
-            url.append("&pair=").append(webService.newPairingToken());
-            return url.toString();
+                    .append("&view=editor&pair=")
+                    .append(webService.newPairingToken())
+                    .toString();
         };
-        return new WebCommands.Context(webService, moduleAccess, links);
+        return new WebCommands.Context(webService, links);
     }
 
     /** Reloads one script when it is currently loaded (live binding application). */

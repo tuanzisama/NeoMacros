@@ -464,9 +464,8 @@ class WebApiIntegrationTest {
     // ---- pairing -----------------------------------------------------------
 
     @Test
-    void pairingApprovesAndTheDeviceSignsAfterwards() throws Exception {
+    void pairingRegistersTheDeviceImmediately() throws Exception {
         start(DIRECT);
-        // A second (not-yet-registered) device plays the browser.
         TestKeys.Device browser = TestKeys.ed25519("dev_browser");
         String token = service.newPairingToken();
         byte[] body = Jsons.stringify(Map.of(
@@ -474,31 +473,18 @@ class WebApiIntegrationTest {
                 "label", "Chrome on Windows",
                 "algo", "ed25519",
                 "pubJwk", browser.pubJwk)).getBytes(StandardCharsets.UTF_8);
-
-        CompletableFuture<HttpResponse<String>> pending =
-                CompletableFuture.supplyAsync(() -> {
-                    try {
-                        return send("POST", "/api/v1/pair", body, null);
-                    } catch (Exception e) {
-                        throw new IllegalStateException(e);
-                    }
-                });
-        // Wait for the in-game prompt, then approve from the "game thread".
-        long deadline = System.currentTimeMillis() + 5_000;
-        while (!service.hasPendingPairing() && System.currentTimeMillis() < deadline) {
-            Thread.sleep(20);
-        }
-        assertTrue(service.hasPendingPairing());
-        assertTrue(service.resolvePairing(true));
-
-        HttpResponse<String> response = pending.get(10, TimeUnit.SECONDS);
+        HttpResponse<String> response = send("POST", "/api/v1/pair", body, null);
         assertEquals(200, response.statusCode());
         String clientId = JsonParser.parseString(response.body()).getAsJsonObject()
                 .get("clientId").getAsString();
         assertFalse(clientId.isBlank());
         browser = browser.withId(clientId);
 
-        // The new device signs successfully right away.
+        // The token is burned: replaying the same pairing is a 400.
+        HttpResponse<String> replay = send("POST", "/api/v1/pair", body, null);
+        assertEquals(400, replay.statusCode());
+
+        // The paired device signs successfully right away.
         String authorization = browser.authorize("GET", "/api/v1/state", "",
                 new byte[0], System.currentTimeMillis() / 1000, nonce());
         assertEquals(200, send("GET", "/api/v1/state", new byte[0], authorization)
@@ -506,106 +492,43 @@ class WebApiIntegrationTest {
     }
 
     @Test
-    void pairingDenialIs403() throws Exception {
+    void aNewPairingTokenKillsThePreviousOne() throws Exception {
         start(DIRECT);
-        TestKeys.Device browser = TestKeys.p256("dev_browser2");
-        String token = service.newPairingToken();
+        TestKeys.Device browser = TestKeys.ed25519("dev_browser2");
+        String first = service.newPairingToken();
+        service.newPairingToken();
         byte[] body = Jsons.stringify(Map.of(
-                "token", token,
+                "token", first,
                 "label", "Firefox",
                 "algo", "ecdsa-p256",
                 "pubJwk", browser.pubJwk)).getBytes(StandardCharsets.UTF_8);
-        CompletableFuture<HttpResponse<String>> pending =
-                CompletableFuture.supplyAsync(() -> {
-                    try {
-                        return send("POST", "/api/v1/pair", body, null);
-                    } catch (Exception e) {
-                        throw new IllegalStateException(e);
-                    }
-                });
-        long deadline = System.currentTimeMillis() + 5_000;
-        while (!service.hasPendingPairing() && System.currentTimeMillis() < deadline) {
-            Thread.sleep(20);
-        }
-        service.resolvePairing(false);
-        HttpResponse<String> response = pending.get(10, TimeUnit.SECONDS);
-        assertEquals(403, response.statusCode());
-        assertEquals("forbidden", errorOf(response).getAsJsonObject("error")
+        HttpResponse<String> response = send("POST", "/api/v1/pair", body, null);
+        assertEquals(400, response.statusCode());
+        assertEquals("invalid_request", errorOf(response).getAsJsonObject("error")
                 .get("code").getAsString());
-    }
-
-    @Test
-    void pairingWithoutTokenUsesTheConfirmationCode() throws Exception {
-        start(DIRECT);
-        TestKeys.Device browser = TestKeys.ed25519("dev_browser3");
-        byte[] body = Jsons.stringify(Map.of(
-                "code", "X3K9QP",
-                "label", "Edge",
-                "algo", "ed25519",
-                "pubJwk", browser.pubJwk)).getBytes(StandardCharsets.UTF_8);
-        CompletableFuture<HttpResponse<String>> pending =
-                CompletableFuture.supplyAsync(() -> {
-                    try {
-                        return send("POST", "/api/v1/pair", body, null);
-                    } catch (Exception e) {
-                        throw new IllegalStateException(e);
-                    }
-                });
-        long deadline = System.currentTimeMillis() + 5_000;
-        while (!service.hasPendingPairing() && System.currentTimeMillis() < deadline) {
-            Thread.sleep(20);
-        }
-        assertTrue(service.hasPendingPairing());
-        assertTrue(service.resolvePairing(true));
-        HttpResponse<String> response = pending.get(10, TimeUnit.SECONDS);
-        assertEquals(200, response.statusCode());
-        String clientId = JsonParser.parseString(response.body()).getAsJsonObject()
-                .get("clientId").getAsString();
-        browser = browser.withId(clientId);
-        String authorization = browser.authorize("GET", "/api/v1/state", "",
-                new byte[0], System.currentTimeMillis() / 1000, nonce());
-        assertEquals(200, send("GET", "/api/v1/state", new byte[0], authorization)
-                .statusCode());
-    }
-
-    @Test
-    void badConfirmationCodesAreRejected() throws Exception {
-        start(DIRECT);
-        var validDevice = Map.of("kty", "OKP", "crv", "Ed25519", "x", "aa");
-        // Wrong shape (too short, lowercase).
-        for (String code : new String[] {"AB1", "ab12xy", "ABC-45"}) {
-            byte[] body = Jsons.stringify(Map.of(
-                    "code", code, "label", "x", "algo", "ed25519",
-                    "pubJwk", validDevice)).getBytes(StandardCharsets.UTF_8);
-            assertEquals(400, send("POST", "/api/v1/pair", body, null).statusCode(),
-                    "code " + code + " must be rejected");
-        }
-        // Both token and code is ambiguous.
-        byte[] both = Jsons.stringify(Map.of(
-                "token", "sometoken", "code", "X3K9QP", "label", "x",
-                "algo", "ed25519", "pubJwk", validDevice)).getBytes(StandardCharsets.UTF_8);
-        assertEquals(400, send("POST", "/api/v1/pair", both, null).statusCode());
-        // Neither.
-        byte[] neither = Jsons.stringify(Map.of(
-                "label", "x", "algo", "ed25519", "pubJwk", validDevice))
-                .getBytes(StandardCharsets.UTF_8);
-        assertEquals(400, send("POST", "/api/v1/pair", neither, null).statusCode());
     }
 
     @Test
     void pairingRejectsBadTokensAndBodies() throws Exception {
         start(DIRECT);
-        // No token minted at all.
-        byte[] missing = Jsons.stringify(Map.of(
+        var validDevice = Map.of("kty", "OKP", "crv", "Ed25519", "x", "aa");
+        // A token that was never minted.
+        byte[] bogus = Jsons.stringify(Map.of(
                 "token", "bogus", "label", "x", "algo", "ed25519",
-                "pubJwk", Map.of("kty", "OKP"))).getBytes(StandardCharsets.UTF_8);
-        assertEquals(400, send("POST", "/api/v1/pair", missing, null).statusCode());
+                "pubJwk", validDevice)).getBytes(StandardCharsets.UTF_8);
+        assertEquals(400, send("POST", "/api/v1/pair", bogus, null).statusCode());
         // Missing fields.
         byte[] incomplete = "{\"token\":\"x\"}".getBytes(StandardCharsets.UTF_8);
         assertEquals(400, send("POST", "/api/v1/pair", incomplete, null).statusCode());
         // Malformed JSON.
         byte[] malformed = "{not json".getBytes(StandardCharsets.UTF_8);
         assertEquals(400, send("POST", "/api/v1/pair", malformed, null).statusCode());
+        // A token-shaped request with unusable key material.
+        String token = service.newPairingToken();
+        byte[] badKey = Jsons.stringify(Map.of(
+                "token", token, "label", "x", "algo", "ed25519",
+                "pubJwk", Map.of("kty", "oct"))).getBytes(StandardCharsets.UTF_8);
+        assertEquals(400, send("POST", "/api/v1/pair", badKey, null).statusCode());
     }
 
     // ---- api-docs ----------------------------------------------------------

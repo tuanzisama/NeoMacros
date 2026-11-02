@@ -3,23 +3,20 @@ package ink.tuanzi.neomacros.fabric;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import ink.tuanzi.neomacros.core.module.ScriptEntry;
 import ink.tuanzi.neomacros.fabric.web.WebService;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.Component;
 
 import java.net.BindException;
-import java.util.List;
-import java.util.Optional;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 /**
  * The {@code /neomacros editor} command surface — the single entry to the
- * web panel: deep links, session management, the pairing decision, and
- * paired-device management. All feedback goes through localized chat
- * lines; links are clickable.
+ * web panel: deep links, session management, and paired-device
+ * management. All feedback goes through localized chat lines; links are
+ * clickable.
  */
 final class WebCommands {
 
@@ -27,14 +24,7 @@ final class WebCommands {
     }
 
     /** The collaborators the commands act on. */
-    record Context(WebService web, ModuleAccess modules, LinkBuilder links) {
-
-        /** The script lookups the editor deep link needs. */
-        public interface ModuleAccess {
-            Optional<ScriptEntry> entry(String name);
-
-            List<ScriptEntry> entries();
-        }
+    record Context(WebService web, LinkBuilder links) {
     }
 
     /**
@@ -43,8 +33,8 @@ final class WebCommands {
      */
     interface LinkBuilder {
 
-        /** The deep link for the editor (optionally straight into one file). */
-        String editorLink(String fileParam);
+        /** The deep link to the editor home, with a fresh pairing token. */
+        String editorLink();
     }
 
     /** Builds the {@code editor} command subtree. */
@@ -53,7 +43,7 @@ final class WebCommands {
         // in insertion order, and `editor stop` must hit the subcommand.
         return literal("editor")
                 .executes(ctx -> {
-                    sendEditorLink(ctx.getSource(), context, null);
+                    sendEditorLink(ctx.getSource(), context);
                     return Command.SINGLE_SUCCESS;
                 })
                 .then(literal("stop").executes(ctx -> {
@@ -117,30 +107,6 @@ final class WebCommands {
                     feedback(ctx.getSource(), "neomacros.cmd.web.rotated");
                     return Command.SINGLE_SUCCESS;
                 }))
-                .then(literal("approve").executes(ctx -> {
-                    if (!ensureRunning(ctx.getSource(), context)) {
-                        return 0;
-                    }
-                    if (!context.web().hasPendingPairing()) {
-                        feedback(ctx.getSource(), "neomacros.cmd.web.no_pending");
-                        return 0;
-                    }
-                    context.web().resolvePairing(true);
-                    feedback(ctx.getSource(), "neomacros.cmd.web.approved");
-                    return Command.SINGLE_SUCCESS;
-                }))
-                .then(literal("deny").executes(ctx -> {
-                    if (!ensureRunning(ctx.getSource(), context)) {
-                        return 0;
-                    }
-                    if (!context.web().hasPendingPairing()) {
-                        feedback(ctx.getSource(), "neomacros.cmd.web.no_pending");
-                        return 0;
-                    }
-                    context.web().resolvePairing(false);
-                    feedback(ctx.getSource(), "neomacros.cmd.web.denied");
-                    return Command.SINGLE_SUCCESS;
-                }))
                 .then(literal("devices").executes(ctx -> {
                     var devices = context.web().devices();
                     feedback(ctx.getSource(), "neomacros.cmd.web.devices_header",
@@ -163,24 +129,7 @@ final class WebCommands {
                                             feedback(ctx.getSource(),
                                                     "neomacros.cmd.web.unknown_device", id);
                                             return 0;
-                                        }))))
-                .then(argument("macro", StringArgumentType.word())
-                        .suggests((ctx, builder) -> {
-                            context.modules().entries().forEach(entry ->
-                                    builder.suggest(entry.name()));
-                            return builder.buildFuture();
-                        })
-                        .executes(ctx -> {
-                            String name = StringArgumentType.getString(ctx, "macro");
-                            Optional<ScriptEntry> entry = context.modules().entry(name);
-                            if (entry.isEmpty()) {
-                                feedback(ctx.getSource(),
-                                        "neomacros.cmd.web.unknown_macro", name);
-                                return 0;
-                            }
-                            sendEditorLink(ctx.getSource(), context, entry.get());
-                            return Command.SINGLE_SUCCESS;
-                        }));
+                                        }))));
     }
 
     /**
@@ -206,17 +155,12 @@ final class WebCommands {
     }
 
     /** Sends the clickable editor deep link (auto-starting the service). */
-    private static void sendEditorLink(FabricClientCommandSource source, Context context,
-                                       ScriptEntry entry) {
+    private static void sendEditorLink(FabricClientCommandSource source, Context context) {
         if (!ensureRunning(source, context)) {
             return;
         }
-        String fileParam = entry == null ? null
-                : entry.category().dirName() + "/" + entry.name() + "/"
-                + entry.folder().relativize(entry.entryFile())
-                .toString().replace('\\', '/');
         feedback(source, "neomacros.cmd.web.editor.url");
-        sendLink(source, context.links().editorLink(fileParam));
+        sendLink(source, context.links().editorLink());
     }
 
     /** One chat line: the link itself, clickable, opening in the browser. */

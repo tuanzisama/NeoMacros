@@ -73,64 +73,38 @@ class SupportTest {
     // ---- PairingService ---------------------------------------------------
 
     @Test
-    void pairingHappyPath() {
+    void tokenIsSingleUseOneToOneAndExpiring() {
         AtomicLong now = new AtomicLong(0);
-        PairingService pairing = new PairingService(now::get, 10_000, 10_000);
+        PairingService pairing = new PairingService(now::get);
         String token = pairing.newToken();
-        var pending = pairing.submit(token, "Chrome", "ed25519", Map.of("kty", "OKP"));
-        assertTrue(pairing.hasPending());
-        assertEquals("Chrome", pairing.pendingLabel());
-        assertTrue(pairing.resolve(true));
-        assertEquals(PairingService.Decision.APPROVED, pending.resolution().join());
-        // The token dies with the decision.
-        assertNull(pairing.currentToken());
-        var again = pairing.submit(token, "Chrome", "ed25519", Map.of());
-        assertNull(again);
+        assertTrue(pairing.validate(token));
+        assertTrue(pairing.validate(token));
+        pairing.consume(token);
+        assertFalse(pairing.validate(token), "single use: consumed on redemption");
+
+        String second = pairing.newToken();
+        assertFalse(pairing.validate(token), "one-to-one: a new token kills the old");
+        assertTrue(pairing.validate(second));
     }
 
     @Test
-    void pairingDenyAndRejectionOfBadTokens() {
+    void tokenExpiresAfterThreeMinutes() {
         AtomicLong now = new AtomicLong(0);
-        PairingService pairing = new PairingService(now::get, 10_000, 10_000);
+        PairingService pairing = new PairingService(now::get);
         String token = pairing.newToken();
-        assertNull(pairing.submit("wrong-token", "Chrome", "ed25519", Map.of()));
-        var pending = pairing.submit(token, "Chrome", "ed25519", Map.of());
-        assertTrue(pairing.resolve(false));
-        assertEquals(PairingService.Decision.DENIED, pending.resolution().join());
-        assertFalse(pairing.resolve(true));
+        now.set(179_999);
+        assertTrue(pairing.validate(token));
+        now.set(180_000);
+        assertFalse(pairing.validate(token));
     }
 
     @Test
-    void pairingTimesOutWithAShrunkClock() throws Exception {
-        AtomicLong now = new AtomicLong(0);
-        PairingService pairing = new PairingService(now::get, 50, 120);
-        String token = pairing.newToken();
-        var pending = pairing.submit(token, "Chrome", "ed25519", Map.of());
-        assertEquals(PairingService.Decision.TIMED_OUT,
-                pending.resolution().get(2, java.util.concurrent.TimeUnit.SECONDS));
-    }
-
-    @Test
-    void pairingSingleSlotReplacesThePendingWaiter() throws Exception {
-        AtomicLong now = new AtomicLong(0);
-        PairingService pairing = new PairingService(now::get, 60_000, 60_000);
-        String token = pairing.newToken();
-        var first = pairing.submit(token, "first", "ed25519", Map.of());
-        var second = pairing.submit(token, "second", "ed25519", Map.of());
-        assertEquals(PairingService.Decision.REPLACED, first.resolution().get(
-                1, java.util.concurrent.TimeUnit.SECONDS));
-        assertTrue(pairing.resolve(true));
-        assertEquals(PairingService.Decision.APPROVED, second.resolution().join());
-    }
-
-    @Test
-    void pairingTokenExpires() {
-        AtomicLong now = new AtomicLong(0);
-        PairingService pairing = new PairingService(now::get, 100, 60_000);
-        String token = pairing.newToken();
-        now.set(200);
-        assertNull(pairing.currentToken());
-        assertNull(pairing.submit(token, "x", "ed25519", Map.of()));
+    void newTokenReplacesTheLiveOne() {
+        PairingService pairing = new PairingService(System::currentTimeMillis);
+        String first = pairing.newToken();
+        String second = pairing.newToken();
+        assertFalse(pairing.validate(first));
+        assertTrue(pairing.validate(second));
     }
 
     // ---- DeviceRegistry ---------------------------------------------------

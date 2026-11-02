@@ -25,8 +25,7 @@ class OpenApiGoldenTest {
     void generatedContractMatchesTheGoldenSnapshot() throws IOException {
         List<ink.tuanzi.neomacros.fabric.web.http.ApiRoute> routes = new ArrayList<>();
         routes.addAll(ink.tuanzi.neomacros.fabric.web.http.ApiRoute.scan(
-                new ApiV1(stubBackend(), DIRECT, null, null, null, null,
-                        (label, code) -> { })));
+                new ApiV1(stubBackend(), DIRECT, null, null, null, null)));
         routes.addAll(ink.tuanzi.neomacros.fabric.web.http.ApiRoute.scan(
                 new DocsRoutes(() -> null)));
 
