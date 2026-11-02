@@ -1,11 +1,14 @@
 package ink.tuanzi.neomacros.fabric.web.http;
 
 import com.sun.net.httpserver.HttpExchange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * CORS responses echo exactly one of the configured origins — the panel
@@ -18,12 +21,15 @@ import java.util.Set;
  */
 public final class CorsPolicy {
 
+    private static final Logger LOG = LoggerFactory.getLogger("neomacros.web");
+
     private static final String ALLOW_METHODS = "GET, POST, PUT, DELETE, OPTIONS";
     private static final List<String> ALLOW_HEADERS =
             List.of("Authorization", "Content-Type", "If-Match");
     private static final String EXPOSE_HEADERS = "ETag";
 
     private final Set<String> allowedOrigins;
+    private final Set<String> warnedOrigins = ConcurrentHashMap.newKeySet();
 
     /** Creates the policy over raw site URLs; unusable entries are skipped. */
     public CorsPolicy(List<String> siteUrls) {
@@ -68,6 +74,12 @@ public final class CorsPolicy {
     public void apply(HttpExchange exchange) {
         String origin = exchange.getRequestHeaders().getFirst("Origin");
         if (origin == null || !allowedOrigins.contains(origin)) {
+            if (origin != null && warnedOrigins.add(origin)) {
+                LOG.warn("request Origin '{}' is not in the CORS allowlist"
+                        + " (core.web.panelUrl / core.web.allowedOrigins);"
+                        + " the response carries no Access-Control-Allow-Origin header",
+                        origin);
+            }
             return;
         }
         var headers = exchange.getResponseHeaders();
