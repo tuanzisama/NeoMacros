@@ -5,7 +5,7 @@ import java.util.Map;
 
 /**
  * The {@code core} config section: runtime behavior knobs and the script
- * trust table. Field defaults are the shipped values; {@code options.json}
+ * trust table. Field defaults are the shipped values; {@code config.json}
  * overrides them per install.
  */
 public final class CoreOptions implements ConfigSection {

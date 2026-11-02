@@ -19,11 +19,12 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Owns {@code options.json}: loads registered sections at startup, writes the
- * merged document back, applies the schema version with migrations, and keeps
- * a {@code .bak} copy of the last good file. A corrupt file is restored from
- * the backup; when both are unreadable the corrupt file is set aside as
- * {@code .corrupted} and defaults take over.
+ * Owns the mod's config file ({@code config.json}): loads registered
+ * sections at startup, writes the merged document back, applies the schema
+ * version with migrations, and keeps a {@code .bak} copy of the last good
+ * file. A corrupt file is restored from the backup; when both are
+ * unreadable the corrupt file is set aside as {@code .corrupted} and
+ * defaults take over.
  */
 public final class ConfigManager implements AutoCloseable {
 
@@ -37,12 +38,19 @@ public final class ConfigManager implements AutoCloseable {
     private final Map<String, ConfigSection> sections = new LinkedHashMap<>();
     private boolean dirty;
 
-    /** Creates the manager over one options file. */
+    /** Creates the manager over one config file. */
     public ConfigManager(Path file, Consumer<String> warn) {
         this.file = file;
         this.warn = warn;
         // A missing file means first install: write the defaults on save.
         this.dirty = !Files.exists(file);
+    }
+
+    /** Writes the defaults when the config file does not exist yet (first install). */
+    public void createIfMissing() {
+        if (!Files.exists(file)) {
+            save();
+        }
     }
 
     /** Registers one section. Duplicate keys throw. */

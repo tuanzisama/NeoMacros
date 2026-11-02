@@ -144,6 +144,19 @@ class ConfigManagerTest {
     }
 
     @Test
+    void createIfMissingWritesDefaults(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("config.json");
+        var manager = new ConfigManager(file, message -> { });
+        manager.register(new TestSection());
+        manager.createIfMissing();
+        assertTrue(Files.exists(file));
+        // Idempotent: a second call does not disturb the written file.
+        long firstWrite = Files.getLastModifiedTime(file).toMillis();
+        manager.createIfMissing();
+        assertEquals(firstWrite, Files.getLastModifiedTime(file).toMillis());
+    }
+
+    @Test
     void missingFileKeepsDefaultsAndSaveCreatesIt(@TempDir Path dir) throws Exception {
         Path file = dir.resolve("options.json");
 

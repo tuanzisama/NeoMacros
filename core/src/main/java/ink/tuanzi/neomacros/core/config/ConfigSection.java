@@ -1,7 +1,7 @@
 package ink.tuanzi.neomacros.core.config;
 
 /**
- * One root-key section of {@code options.json}: a holder object whose
+ * One root-key section of {@code config.json}: a holder object whose
  * {@link Option}-annotated fields are loaded and saved by the
  * {@link ConfigManager} through reflection.
  */

@@ -19,7 +19,7 @@ import java.util.function.Consumer;
  * The declarative trust gate: a script's {@code meta.permissions} become a
  * {@link PermissionView} only after the player trusts the exact script
  * content (keyed by SHA-256). Decisions persist through
- * {@link CoreOptions#getTrust()} (options.json); an untrusted script with
+ * {@link CoreOptions#getTrust()} (config.json); an untrusted script with
  * declared capabilities runs under a denying view until trusted, and a
  * script whose content changed re-enters the trust flow (its old hash no
  * longer matches).

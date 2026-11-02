@@ -89,11 +89,24 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     public void onInitializeClient() {
         LOGGER.info("NeoMacros bootstrap");
         configDir = FabricLoader.getInstance().getConfigDir().resolve(NeoMacros.MOD_ID);
-        configManager = new ConfigManager(configDir.resolve("options.json"),
+        // Carry a pre-rename options.json over so player settings survive.
+        Path configFile = configDir.resolve("config.json");
+        Path legacyConfigFile = configDir.resolve("options.json");
+        if (!Files.exists(configFile) && Files.exists(legacyConfigFile)) {
+            try {
+                Files.move(legacyConfigFile, configFile);
+                LOGGER.info("neomacros: migrated options.json to config.json");
+            } catch (IOException e) {
+                LOGGER.warn("neomacros: cannot migrate options.json to config.json: {}",
+                        e.getMessage());
+            }
+        }
+        configManager = new ConfigManager(configFile,
                 message -> LOGGER.warn("neomacros config: {}", message));
         options = new CoreOptions();
         configManager.register(options);
         configManager.load();
+        configManager.createIfMissing();
 
         macrosDir = options.macrosDir.isEmpty()
                 ? configDir.resolve("macros") : Path.of(options.macrosDir);
