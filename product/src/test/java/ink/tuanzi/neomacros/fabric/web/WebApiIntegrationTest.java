@@ -509,6 +509,64 @@ class WebApiIntegrationTest {
     }
 
     @Test
+    void pairingWithoutTokenUsesTheConfirmationCode() throws Exception {
+        start(DIRECT);
+        TestKeys.Device browser = TestKeys.ed25519("dev_browser3");
+        byte[] body = Jsons.stringify(Map.of(
+                "code", "X3K9QP",
+                "label", "Edge",
+                "algo", "ed25519",
+                "pubJwk", browser.pubJwk)).getBytes(StandardCharsets.UTF_8);
+        CompletableFuture<HttpResponse<String>> pending =
+                CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return send("POST", "/api/v1/pair", body, null);
+                    } catch (Exception e) {
+                        throw new IllegalStateException(e);
+                    }
+                });
+        long deadline = System.currentTimeMillis() + 5_000;
+        while (!service.hasPendingPairing() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20);
+        }
+        assertTrue(service.hasPendingPairing());
+        assertTrue(service.resolvePairing(true));
+        HttpResponse<String> response = pending.get(10, TimeUnit.SECONDS);
+        assertEquals(200, response.statusCode());
+        String clientId = JsonParser.parseString(response.body()).getAsJsonObject()
+                .get("clientId").getAsString();
+        browser = browser.withId(clientId);
+        String authorization = browser.authorize("GET", "/api/v1/state", "",
+                new byte[0], System.currentTimeMillis() / 1000, nonce());
+        assertEquals(200, send("GET", "/api/v1/state", new byte[0], authorization)
+                .statusCode());
+    }
+
+    @Test
+    void badConfirmationCodesAreRejected() throws Exception {
+        start(DIRECT);
+        var validDevice = Map.of("kty", "OKP", "crv", "Ed25519", "x", "aa");
+        // Wrong shape (too short, lowercase).
+        for (String code : new String[] {"AB1", "ab12xy", "ABC-45"}) {
+            byte[] body = Jsons.stringify(Map.of(
+                    "code", code, "label", "x", "algo", "ed25519",
+                    "pubJwk", validDevice)).getBytes(StandardCharsets.UTF_8);
+            assertEquals(400, send("POST", "/api/v1/pair", body, null).statusCode(),
+                    "code " + code + " must be rejected");
+        }
+        // Both token and code is ambiguous.
+        byte[] both = Jsons.stringify(Map.of(
+                "token", "sometoken", "code", "X3K9QP", "label", "x",
+                "algo", "ed25519", "pubJwk", validDevice)).getBytes(StandardCharsets.UTF_8);
+        assertEquals(400, send("POST", "/api/v1/pair", both, null).statusCode());
+        // Neither.
+        byte[] neither = Jsons.stringify(Map.of(
+                "label", "x", "algo", "ed25519", "pubJwk", validDevice))
+                .getBytes(StandardCharsets.UTF_8);
+        assertEquals(400, send("POST", "/api/v1/pair", neither, null).statusCode());
+    }
+
+    @Test
     void pairingRejectsBadTokensAndBodies() throws Exception {
         start(DIRECT);
         // No token minted at all.

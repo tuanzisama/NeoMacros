@@ -39,6 +39,7 @@ public final class PairingService {
     /** A browser pairing request waiting for the in-game decision. */
     public record PendingRequest(String label, String algo,
                                  java.util.Map<String, Object> pubJwk,
+                                 String code,
                                  CompletableFuture<Decision> resolution) {
     }
 
@@ -94,10 +95,28 @@ public final class PairingService {
                 || nowMillis.getAsLong() >= tokenExpiresAt) {
             return null;
         }
+        return enqueue(label, algo, pubJwk, null);
+    }
+
+    /**
+     * Submits a token-less pairing request carrying the panel's six-char
+     * confirmation code (the player verifies it against the panel before
+     * approving). No token check applies; the single pending slot and the
+     * decision timeout work the same.
+     */
+    public synchronized PendingRequest submitWithCode(String code, String label,
+                                                      String algo,
+                                                      java.util.Map<String, Object> pubJwk) {
+        return enqueue(label, algo, pubJwk, code);
+    }
+
+    private synchronized PendingRequest enqueue(String label, String algo,
+                                                java.util.Map<String, Object> pubJwk,
+                                                String code) {
         CompletableFuture<Decision> resolution = new CompletableFuture<>();
         resolution.completeOnTimeout(Decision.TIMED_OUT, decisionTimeoutMillis,
                 java.util.concurrent.TimeUnit.MILLISECONDS);
-        PendingRequest request = new PendingRequest(label, algo, pubJwk, resolution);
+        PendingRequest request = new PendingRequest(label, algo, pubJwk, code, resolution);
         PendingRequest previous = pending;
         pending = request;
         if (previous != null) {

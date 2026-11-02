@@ -224,13 +224,22 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 () -> options.web.panelUrl, () -> options.web.allowedOrigins);
         webRuntime.serverInfo(() -> new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(
                 webService.port(), webService.status().uptimeMs(), options.web.listen));
-        webService.onPairingPrompt(label -> {
-            adapter.chat().logClickable(
-                    UiText.tr("neomacros.chat.pair_approve", label),
-                    "/neomacros editor approve");
-            adapter.chat().logClickable(
-                    UiText.tr("neomacros.chat.pair_deny", label),
-                    "/neomacros editor deny");
+        webService.onPairingPrompt((label, code) -> {
+            if (code == null) {
+                adapter.chat().logClickable(
+                        UiText.tr("neomacros.chat.pair_approve", label),
+                        "/neomacros editor approve");
+                adapter.chat().logClickable(
+                        UiText.tr("neomacros.chat.pair_deny", label),
+                        "/neomacros editor deny");
+            } else {
+                adapter.chat().logClickable(
+                        UiText.tr("neomacros.chat.pair_approve_code", label, code),
+                        "/neomacros editor approve");
+                adapter.chat().logClickable(
+                        UiText.tr("neomacros.chat.pair_deny_code", label, code),
+                        "/neomacros editor deny");
+            }
         });
 
         // Error presentation chain: script failures become a throttled

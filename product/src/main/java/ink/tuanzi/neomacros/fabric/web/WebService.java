@@ -51,7 +51,8 @@ public final class WebService {
     private final IntSupplier configuredPort;
     private final Supplier<String> panelUrl;
     private final Supplier<java.util.List<String>> extraOrigins;
-    private volatile Consumer<String> pairingPrompt = label -> { };
+    private volatile java.util.function.BiConsumer<String, String> pairingPrompt =
+            (label, code) -> { };
 
     private LogRing logs;
     private LogTap logTap;
@@ -75,8 +76,8 @@ public final class WebService {
         this.extraOrigins = extraOrigins;
     }
 
-    /** Registers the consumer that shows a pending pairing to the player. */
-    public void onPairingPrompt(Consumer<String> prompt) {
+    /** Registers the consumer that shows a pending pairing (label + confirmation code, null in token mode) to the player. */
+    public void onPairingPrompt(java.util.function.BiConsumer<String, String> prompt) {
         this.pairingPrompt = prompt;
     }
 
@@ -108,7 +109,7 @@ public final class WebService {
                 new NonceStore(2 * Nm1Verifier.WINDOW_MILLIS), System::currentTimeMillis);
         AuthFilter auth = new AuthFilter(verifier, new BackoffTracker());
         ApiV1 controller = new ApiV1(backend, game, pairingService, devices, hub, ring,
-                label -> pairingPrompt.accept(label));
+                pairingPrompt);
         // The contract document is built over the live route set (the docs
         // endpoint included), then rebuilt with the bound port once known.
         var document = new java.util.concurrent.atomic.AtomicReference<

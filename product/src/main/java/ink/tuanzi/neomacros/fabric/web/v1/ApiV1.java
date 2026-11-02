@@ -42,15 +42,16 @@ public final class ApiV1 {
     private final DeviceRegistry devices;
     private final SseHub sse;
     private final LogRing logs;
-    private final Consumer<String> pairingPrompt;
+    private final java.util.function.BiConsumer<String, String> pairingPrompt;
 
     /**
      * Creates the controller; {@code pairingPrompt} surfaces a pending
-     * pairing to the player (the in-game approve card).
+     * pairing to the player (the in-game approve card) with the request's
+     * label and its confirmation code (null in token mode).
      */
     public ApiV1(PanelBackend backend, GameRunner game, PairingService pairing,
                  DeviceRegistry devices, SseHub sse, LogRing logs,
-                 Consumer<String> pairingPrompt) {
+                 java.util.function.BiConsumer<String, String> pairingPrompt) {
         this.backend = backend;
         this.game = game;
         this.pairing = pairing;
@@ -72,26 +73,39 @@ public final class ApiV1 {
     @NmApi(tag = "pairing", summary = "Pair a device (long poll for the in-game decision)",
             auth = NmAuth.NONE)
     @NmError(status = 400, code = "invalid_request",
-            desc = "Invalid or consumed pairing token, or a malformed request")
+            desc = "Malformed request, an invalid or consumed pairing token, or a"
+                    + " bad confirmation code")
     @NmError(status = 403, code = "forbidden", desc = "The pairing was denied in game")
     @NmError(status = 408, code = "timeout",
             desc = "No in-game decision within 120 seconds")
     public PairResponse pair(@NmBody PairRequest request) {
-        if (request.token() == null || request.token().isBlank()
-                || request.label() == null || request.label().isBlank()
+        boolean hasToken = request.token() != null && !request.token().isBlank();
+        boolean hasCode = request.code() != null && !request.code().isBlank();
+        if (request.label() == null || request.label().isBlank()
                 || request.algo() == null || request.algo().isBlank()
-                || request.pubJwk() == null || request.pubJwk().isEmpty()) {
+                || request.pubJwk() == null || request.pubJwk().isEmpty()
+                || hasToken == hasCode) {
             throw ApiError.invalidRequest(
-                    "the pairing request needs token, label, algo, and pubJwk");
+                    "the pairing request needs label, algo, pubJwk, and exactly one"
+                            + " of token or code");
         }
-        PairingService.PendingRequest pending =
-                pairing.submit(request.token(), request.label(), request.algo(),
-                        request.pubJwk());
-        if (pending == null) {
-            throw ApiError.invalidRequest(
-                    "invalid, expired, or already-consumed pairing token");
+        PairingService.PendingRequest pending;
+        if (hasCode) {
+            if (!request.code().matches("[A-Z0-9]{6}")) {
+                throw ApiError.invalidRequest(
+                        "the confirmation code must be six uppercase letters or digits");
+            }
+            pending = pairing.submitWithCode(request.code(), request.label(),
+                    request.algo(), request.pubJwk());
+        } else {
+            pending = pairing.submit(request.token(), request.label(), request.algo(),
+                    request.pubJwk());
+            if (pending == null) {
+                throw ApiError.invalidRequest(
+                        "invalid, expired, or already-consumed pairing token");
+            }
         }
-        pairingPrompt.accept(request.label());
+        pairingPrompt.accept(request.label(), hasCode ? request.code() : null);
         try {
             PairingService.Decision decision = pending.resolution()
                     .get(pairing.decisionTimeoutMillis() + 5_000, TimeUnit.MILLISECONDS);
