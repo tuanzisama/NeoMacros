@@ -5,16 +5,17 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Per-source-address exponential backoff after authentication failures:
- * the n-th consecutive failure silences the source for
- * {@code min(1s · 2^(n-1), 16s)}. A request arriving inside the window is
+ * Per-source-address exponential backoff after signature failures: the
+ * n-th consecutive failure silences the source for
+ * {@code min(1s · 2^(n-1), 4s)}. A request arriving inside the window is
  * rejected without being processed; a successful authentication resets the
- * source's strike count.
+ * source's strike count. Only failed signatures feed the tracker — client
+ * mistakes must not lock out the (necessarily shared) local source.
  */
 public final class BackoffTracker {
 
     private static final long BASE_MILLIS = 1000;
-    private static final long MAX_MILLIS = 16_000;
+    private static final long MAX_MILLIS = 4_000;
     private static final int MAX_STRIKES = 30;
 
     private static final class Strikes {
@@ -51,6 +52,16 @@ public final class BackoffTracker {
     /** Clears the source's record after a successful authentication. */
     public void success(String source) {
         sources.remove(source);
+    }
+
+    /** Seconds until the source's window opens (at least 1 when blocked). */
+    public long retryAfterSeconds(String source) {
+        Strikes strikes = sources.get(source);
+        if (strikes == null) {
+            return 0;
+        }
+        long remaining = strikes.until - System.currentTimeMillis();
+        return remaining <= 0 ? 0 : Math.max(1, remaining / 1000 + (remaining % 1000 == 0 ? 0 : 1));
     }
 
     /** Drops expired records so idle sources do not accumulate. */

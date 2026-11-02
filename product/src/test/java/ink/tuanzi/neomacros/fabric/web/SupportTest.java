@@ -62,7 +62,7 @@ class SupportTest {
         assertTrue(tracker.blocked("src"));
         tracker.success("src");
         assertFalse(tracker.blocked("src"));
-        // Sixteen strikes saturate the escalation at the 16-second cap.
+        // Sixteen strikes saturate the escalation at the 4-second cap.
         for (int i = 0; i < 16; i++) {
             tracker.fail("src2");
         }

@@ -199,6 +199,14 @@ public final class WebServer {
             // 5. Route.
             router.dispatch(context);
         } catch (ApiError error) {
+            if (error.status() == 429) {
+                long retryAfter = auth.retryAfterSeconds(
+                        String.valueOf(exchange.getRemoteAddress().getAddress()));
+                if (retryAfter > 0) {
+                    exchange.getResponseHeaders().set("Retry-After",
+                            String.valueOf(retryAfter));
+                }
+            }
             respondError(exchange, error.status(), error.code(), error.getMessage());
         } catch (Exception e) {
             respondError(exchange, 500, ApiError.INTERNAL, "internal error");

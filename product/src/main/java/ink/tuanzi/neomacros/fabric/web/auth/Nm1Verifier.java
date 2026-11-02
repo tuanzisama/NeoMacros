@@ -21,7 +21,7 @@ public final class Nm1Verifier {
     public static final long WINDOW_MILLIS = 30_000;
 
     /** The verification outcome: a client id, or a failure reason. */
-    public record Result(String clientId, String problem) {
+    public record Result(String clientId, String problem, boolean signatureFailure) {
 
         /** Whether the request is authenticated. */
         public boolean ok() {
@@ -55,36 +55,39 @@ public final class Nm1Verifier {
     /**
      * Verifies one request. {@code method}/{@code path}/{@code query} must be
      * the exact request-line values; {@code body} the actual body bytes.
-     * The caller records the failure against the source address for backoff.
+     * Only a failed signature on an otherwise well-formed request counts as a
+     * signature failure — the caller feeds backoff from that flag alone, so
+     * client mistakes (missing header, a stale tab polling a revoked device,
+     * clock drift, a double-fired nonce) never lock the source out.
      */
     public Result verify(String method, String path, String query,
                          byte[] body, String authorization) {
         Nm1Header header = Nm1Header.parse(authorization);
         if (header == null) {
-            return new Result(null, "missing or malformed Authorization header");
+            return new Result(null, "missing or malformed Authorization header", false);
         }
         DeviceRecord device = devices.get(header.clientId());
         if (device == null) {
-            return new Result(null, "unknown device: " + header.clientId());
+            return new Result(null, "unknown device: " + header.clientId(), false);
         }
         long now = nowMillis.getAsLong();
         if (Math.abs(now - header.ts() * 1000) > WINDOW_MILLIS) {
-            return new Result(null, "timestamp outside the ±30s window");
+            return new Result(null, "timestamp outside the ±30s window", false);
         }
         if (!nonces.accept(header.clientId(), header.nonce())) {
-            return new Result(null, "nonce already used");
+            return new Result(null, "nonce already used", false);
         }
         String expectedHash = bodyHash(body);
         if (!expectedHash.equals(header.bh())) {
-            return new Result(null, "body hash mismatch");
+            return new Result(null, "body hash mismatch", false);
         }
         String signingString = Nm1Header.signingString(method, path, query,
                 header.ts(), header.nonce(), header.bh());
         if (!signatureValid(device, signingString, header.sig())) {
-            return new Result(null, "signature verification failed");
+            return new Result(null, "signature verification failed", true);
         }
         devices.touch(header.clientId());
-        return new Result(header.clientId(), null);
+        return new Result(header.clientId(), null, false);
     }
 
     private boolean signatureValid(DeviceRecord device, String signingString, String sig) {

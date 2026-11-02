@@ -36,16 +36,25 @@ public final class AuthFilter {
         return backoff.blocked(source);
     }
 
+    /** Seconds until the source's backoff window opens (0 when not blocked). */
+    public long retryAfterSeconds(String source) {
+        return backoff.retryAfterSeconds(source);
+    }
+
     /**
      * Verifies a signed request. Returns the authenticated client id; the
-     * thrown {@link ApiError} carries the reason. The SSE stream endpoint
-     * authenticates by ticket instead and never reaches this filter.
+     * thrown {@link ApiError} carries the reason. Only a failed signature
+     * records a backoff strike — client mistakes answer with a plain 401.
+     * The SSE stream endpoint authenticates by ticket instead and never
+     * reaches this filter.
      */
     public String authenticate(String source, String method, String path, String query,
                                byte[] body, String authorization) {
         Nm1Verifier.Result result = verifier.verify(method, path, query, body, authorization);
         if (!result.ok()) {
-            backoff.fail(source);
+            if (result.signatureFailure()) {
+                backoff.fail(source);
+            }
             throw ApiError.unauthorized(result.problem());
         }
         backoff.success(source);
