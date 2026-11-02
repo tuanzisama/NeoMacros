@@ -29,10 +29,10 @@ if [ -z "$nested" ]; then
   echo "WARN: no META-INF/jars entries - include() did not nest anything"
 else
   echo "$nested"
-  for m in doc-api ports core engine; do
+  for m in doc-api ports core engine polyglot js-language truffle-runtime; do
     grep_ "$nested" "$m-" || { echo "FAIL: nested jar missing $m"; exit 1; }
   done
-  echo "PASS: doc-api/ports/core/engine all embedded"
+  echo "PASS: doc-api/ports/core/engine and Graal runtime all embedded"
 fi
 
 echo "SMOKE PASS: $jar"
