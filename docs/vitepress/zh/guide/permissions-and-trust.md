@@ -51,6 +51,13 @@ permissions: ["fs"]            # 基础面之外的能力
 
 修改后重新批准就是日常工作流——提示本身就是审核环节。
 
+## 导入不越出脚本文件夹
+
+脚本可以用 ES module 导入拆分代码（`import { fmt } from './lib/util.js'`），
+但被导入的文件必须位于脚本自己的文件夹内：`..` 逃逸、绝对路径、指向外部
+的 `file:` URI 都会在加载时被拒绝。这条边界属于沙箱本身——它不是权限，
+清单声明也无法放宽。`@neomacros/*` 模块由模组自身提供，不受影响。
+
 ## 无需信任的操作
 
 - [`events`](/zh/api/events)、[`clock`](/zh/api/clock)、[`chat`](/zh/api/chat)

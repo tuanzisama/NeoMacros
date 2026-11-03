@@ -57,6 +57,16 @@ has two consequences:
 Re-approving after an edit is the normal workflow; the prompt is the review
 step.
 
+## Imports stay in the script folder
+
+Scripts can split code into files with ES module imports
+(`import { fmt } from './lib/util.js'`). Every imported file must live
+inside the script's own folder: `..` escapes, absolute paths, and `file:`
+URIs pointing elsewhere are rejected at load time. This boundary is part of
+the sandbox itself — it is not a permission, and no manifest declaration
+widens it. The `@neomacros/*` modules are provided by the mod and are not
+affected.
+
 ## What does not need trust
 
 - [`events`](/en/api/events), [`clock`](/en/api/clock), [`chat`](/en/api/chat)

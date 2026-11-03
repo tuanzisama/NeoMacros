@@ -53,7 +53,7 @@ class ExportReaderTest {
         runtime = new ScriptRuntime(engine, null,
                 new EventCatalog(), new EventBus(new EventCatalog(), Runnable::run), pool, 500);
         context = runtime.createContext("export-reader");
-        session = (GraalJsEngine.GraalJsSession) engine.openSession(context);
+        session = (GraalJsEngine.GraalJsSession) engine.openSession(context, scriptsDir);
     }
 
     @AfterEach

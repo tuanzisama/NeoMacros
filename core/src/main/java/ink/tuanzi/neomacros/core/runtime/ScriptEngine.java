@@ -16,8 +16,13 @@ import java.util.concurrent.Executor;
  */
 public interface ScriptEngine extends AutoCloseable {
 
-    /** Opens an execution session for one script context. */
-    EngineSession openSession(ScriptContext context) throws ScriptError;
+    /**
+     * Opens an execution session for one script context. {@code moduleRoot}
+     * is the script folder the session's module files must stay inside: the
+     * engine confines real module resolution to that tree, so imports cannot
+     * escape the loading module's folder.
+     */
+    EngineSession openSession(ScriptContext context, Path moduleRoot) throws ScriptError;
 
     /** Drops the module cache; the next import re-executes every module (reload semantics). */
     void clearModuleCache();

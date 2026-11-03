@@ -51,7 +51,8 @@ class ModuleManagerTest {
         private ink.tuanzi.neomacros.core.runtime.ScriptContext sessionContext;
 
         @Override
-        public EngineSession openSession(ink.tuanzi.neomacros.core.runtime.ScriptContext context) {
+        public EngineSession openSession(ink.tuanzi.neomacros.core.runtime.ScriptContext context,
+                                         java.nio.file.Path moduleRoot) {
             sessionContext = context;
             return new EngineSession() {
                 @Override

@@ -213,7 +213,8 @@ public final class ModuleManager implements AutoCloseable {
         // thread dies with the context, so the ThreadLocal clears itself.
         runOnLoop(context, () -> LoadTracker.begin(module));
         try {
-            ScriptEngine.EngineSession session = runtime.engine().openSession(context);
+            ScriptEngine.EngineSession session = runtime.engine()
+                    .openSession(context, entry.folder());
             module.sessionInstalled(session);
             session.installBindings(bindings.neoTree(
                     viewResolver.apply(name, entry.manifest().permissions())));

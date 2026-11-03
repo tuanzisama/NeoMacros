@@ -61,7 +61,7 @@ class PortEventWiringTest {
     private static ScriptRuntime runtime(NeomacrosAdapter adapter, EventBus bus) {
         ScriptEngine engine = new ScriptEngine() {
             @Override
-            public EngineSession openSession(ScriptContext context) {
+            public EngineSession openSession(ScriptContext context, java.nio.file.Path moduleRoot) {
                 return new EngineSession() {
                     @Override
                     public void installBindings(java.util.Map<String, Object> bindings) {

@@ -58,7 +58,7 @@ class WarmupBenchmarkTest {
                 ScriptContext context = runtime.createContext("bench-" + i);
                 contexts.add(context);
                 long start = System.nanoTime();
-                var session = (GraalJsEngine.GraalJsSession) engine.openSession(context);
+                var session = (GraalJsEngine.GraalJsSession) engine.openSession(context, scriptsDir);
                 session.installBindings(java.util.Map.of("core", java.util.Map.of("marker", "ok")));
                 session.importModule("bench", entry);
                 long elapsedMillis = (System.nanoTime() - start) / 1_000_000;

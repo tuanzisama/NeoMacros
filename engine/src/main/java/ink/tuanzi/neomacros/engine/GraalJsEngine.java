@@ -100,11 +100,11 @@ public final class GraalJsEngine implements ScriptEngine {
     }
 
     @Override
-    public EngineSession openSession(ScriptContext context) throws ScriptError {
+    public EngineSession openSession(ScriptContext context, Path moduleRoot) throws ScriptError {
         if (closed) {
             throw new ScriptError("engine is closed");
         }
-        GraalJsSession session = new GraalJsSession(context);
+        GraalJsSession session = new GraalJsSession(context, moduleRoot);
         session.onLoop(() -> {
             try {
                 session.context.eval(Source.newBuilder("js", GLUE, "neomacros-engine-glue")
@@ -171,12 +171,12 @@ public final class GraalJsEngine implements ScriptEngine {
         private Value lastNamespace;
         private Value cachedUndefined;
 
-        private GraalJsSession(ScriptContext owner) {
+        private GraalJsSession(ScriptContext owner, Path moduleRoot) {
             this.owner = owner;
             this.context = Context.newBuilder("js")
                     .allowHostAccess(HostAccess.NONE)
                     .allowIO(IOAccess.newBuilder()
-                            .fileSystem(new ScriptSandboxFileSystem(resolver))
+                            .fileSystem(new ScriptSandboxFileSystem(resolver, moduleRoot))
                             .build())
                     .build();
         }

@@ -92,7 +92,7 @@ class BindingIntegrationTest {
         runtime = new ScriptRuntime(engine, null,
                 new EventCatalog(), new EventBus(new EventCatalog(), Runnable::run), pool, 500);
         var context = runtime.createContext("bindings");
-        session = (GraalJsEngine.GraalJsSession) engine.openSession(context);
+        session = (GraalJsEngine.GraalJsSession) engine.openSession(context, scriptsDir);
         session.installBindings(registry.neoTree(PermissionView.of(Set.of())));
     }
 
@@ -183,7 +183,7 @@ class BindingIntegrationTest {
         registry.register(FixtureFacade.class);
         // Fresh session: neo installs once per context.
         var grantedContext = runtime.createContext("granted");
-        var grantedSession = (GraalJsEngine.GraalJsSession) engine.openSession(grantedContext);
+        var grantedSession = (GraalJsEngine.GraalJsSession) engine.openSession(grantedContext, scriptsDir);
         grantedSession.installBindings(registry.neoTree(PermissionView.of(Set.of("fs"))));
 
         Path entry = writeModule("granted.mjs",

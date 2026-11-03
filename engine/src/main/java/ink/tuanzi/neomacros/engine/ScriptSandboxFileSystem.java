@@ -17,21 +17,41 @@ import java.util.Set;
 
 /**
  * Sandboxed file system of the script engine: real module files are served
- * from the default file system (the script directory tree), while
- * {@code @neomacros/*} specifiers resolve to virtual in-memory modules whose
- * sources come from the {@link ModuleResolver}. This is the ESM interception
- * mechanism under evaluation (risk item R1).
+ * from the default file system, but only inside the owning module's folder
+ * (the {@code moduleRoot} given at session open); {@code @neomacros/*}
+ * specifiers resolve to virtual in-memory modules whose sources come from
+ * the {@link ModuleResolver}. Path parsing stays permissive (it only builds
+ * address objects); every read operation checks the boundary, so imports
+ * cannot escape the module folder in any shape ({@code ..} segments,
+ * absolute paths, or {@code file:} URIs).
  */
 final class ScriptSandboxFileSystem implements org.graalvm.polyglot.io.FileSystem {
 
     static final String VIRTUAL_PREFIX = "@neomacros/";
 
     private final ModuleResolver resolver;
+    private final Path moduleRoot;
     private final org.graalvm.polyglot.io.FileSystem delegate =
             org.graalvm.polyglot.io.FileSystem.newDefaultFileSystem();
 
-    ScriptSandboxFileSystem(ModuleResolver resolver) {
+    ScriptSandboxFileSystem(ModuleResolver resolver, Path moduleRoot) {
         this.resolver = resolver;
+        this.moduleRoot = moduleRoot.toAbsolutePath().normalize();
+    }
+
+    /**
+     * Rejects access to any real path outside the module folder. Windows
+     * path comparison is case-insensitive, so drive-letter and casing drift
+     * in URIs do not create a bypass.
+     */
+    private void checkInsideModuleRoot(Path path) throws IOException {
+        if (path instanceof VirtualModulePath) {
+            return;
+        }
+        Path absolute = path.isAbsolute() ? path.normalize() : path.toAbsolutePath().normalize();
+        if (!absolute.startsWith(moduleRoot)) {
+            throw new IOException("path escapes the module folder: " + path);
+        }
     }
 
     @Override
@@ -60,6 +80,7 @@ final class ScriptSandboxFileSystem implements org.graalvm.polyglot.io.FileSyste
             }
             return;
         }
+        checkInsideModuleRoot(path);
         delegate.checkAccess(path, modes, options);
     }
 
@@ -71,6 +92,7 @@ final class ScriptSandboxFileSystem implements org.graalvm.polyglot.io.FileSyste
                     .orElseThrow(() -> new IOException("unknown virtual module: " + virtual.specifier()));
             return new MemoryByteChannel(source.getBytes(StandardCharsets.UTF_8));
         }
+        checkInsideModuleRoot(path);
         return delegate.newByteChannel(path, options, attrs);
     }
 
@@ -80,6 +102,7 @@ final class ScriptSandboxFileSystem implements org.graalvm.polyglot.io.FileSyste
         if (dir instanceof VirtualModulePath) {
             throw new IOException("virtual modules have no directory listing");
         }
+        checkInsideModuleRoot(dir);
         return delegate.newDirectoryStream(dir, filter);
     }
 
@@ -90,7 +113,11 @@ final class ScriptSandboxFileSystem implements org.graalvm.polyglot.io.FileSyste
 
     @Override
     public Path toRealPath(Path path, LinkOption... options) throws IOException {
-        return path instanceof VirtualModulePath ? path : delegate.toRealPath(path, options);
+        if (path instanceof VirtualModulePath) {
+            return path;
+        }
+        checkInsideModuleRoot(path);
+        return delegate.toRealPath(path, options);
     }
 
     @Override
@@ -104,6 +131,7 @@ final class ScriptSandboxFileSystem implements org.graalvm.polyglot.io.FileSyste
                     "isRegularFile", (Object) Boolean.TRUE,
                     "isDirectory", (Object) Boolean.FALSE);
         }
+        checkInsideModuleRoot(path);
         return delegate.readAttributes(path, attributes, options);
     }
 

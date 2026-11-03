@@ -64,7 +64,7 @@ class ScriptRuntimeTest {
              ScriptRuntime runtime = new ScriptRuntime(engine, null, catalog,
                      new EventBus(catalog, Runnable::run), pool, 500)) {
             ScriptContext context = runtime.createContext("wired");
-            ScriptEngine.EngineSession session = runtime.engine().openSession(context);
+            ScriptEngine.EngineSession session = runtime.engine().openSession(context, Path.of("scripts"));
             session.installBindings(Map.of("neo", Map.of()));
             session.importModule("wired", Path.of("scripts/wired.js"));
             session.close();
@@ -83,7 +83,7 @@ class ScriptRuntimeTest {
              ScriptRuntime runtime = new ScriptRuntime(engine, null, catalog,
                      new EventBus(catalog, Runnable::run), pool, 500)) {
             ScriptContext context = runtime.createContext("failing");
-            ScriptEngine.EngineSession session = runtime.engine().openSession(context);
+            ScriptEngine.EngineSession session = runtime.engine().openSession(context, Path.of("scripts"));
             engine.failImports.set(true);
 
             ScriptError error = assertThrows(ScriptError.class,

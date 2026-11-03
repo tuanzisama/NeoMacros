@@ -47,7 +47,7 @@ class GraalJsEngineTest {
         runtime = new ScriptRuntime(engine, null,
                 new EventCatalog(), new EventBus(new EventCatalog(), Runnable::run), pool, 500);
         context = runtime.createContext("graal");
-        session = (GraalJsEngine.GraalJsSession) engine.openSession(context);
+        session = (GraalJsEngine.GraalJsSession) engine.openSession(context, scriptsDir);
     }
 
     @AfterEach
@@ -97,6 +97,65 @@ class GraalJsEngineTest {
 
         session.importModule("entry", entry);
         assertEquals(42, sessionGlobal("__result").asInt());
+    }
+
+    @Test
+    void importEscapingModuleFolderIsRejected() throws Exception {
+        Path moduleRoot = Files.createDirectories(scriptsDir.resolve("module"));
+        Path neighbor = Files.createDirectories(scriptsDir.resolve("neighbor"));
+        Path outside = Files.writeString(neighbor.resolve("outside.mjs"),
+                "export const leak = 1;\n");
+        Path entry = Files.writeString(moduleRoot.resolve("escape.mjs"),
+                "import { leak } from '../neighbor/outside.mjs';\n"
+                + "globalThis.__leak = leak;\n");
+
+        GraalJsEngine.GraalJsSession escapeSession =
+                (GraalJsEngine.GraalJsSession) engine.openSession(context, moduleRoot);
+        ScriptError error = assertThrows(ScriptError.class,
+                () -> escapeSession.importModule("escape", entry));
+        assertTrue(error.getMessage().contains("outside.mjs"),
+                () -> "the escape attempt names the denied file: " + error.getMessage());
+        assertTrue(error.getMessage().contains("escapes the module folder"),
+                () -> "the sandbox names the boundary, not a plain not-found: " + error.getMessage());
+    }
+
+    @Test
+    void absoluteUriImportOutsideModuleFolderIsRejected() throws Exception {
+        Path moduleRoot = Files.createDirectories(scriptsDir.resolve("module"));
+        Path neighbor = Files.createDirectories(scriptsDir.resolve("neighbor"));
+        Path outside = Files.writeString(neighbor.resolve("outside.mjs"),
+                "export const leak = 2;\n");
+        String uri = outside.toUri().toString().replace("'", "\\'");
+        Path entry = Files.writeString(moduleRoot.resolve("abs-escape.mjs"),
+                "try {\n"
+                + "    await import('" + uri + "');\n"
+                + "    globalThis.__caught = 'loaded';\n"
+                + "} catch (e) {\n"
+                + "    globalThis.__caught = String(e.message || e);\n"
+                + "}\n");
+
+        GraalJsEngine.GraalJsSession escapeSession =
+                (GraalJsEngine.GraalJsSession) engine.openSession(context, moduleRoot);
+        escapeSession.importModule("abs-escape", entry);
+        String caught = escapeSession.global("__caught").asString();
+        assertFalse(caught.equals("loaded"), "an absolute file URI must not load outside the root");
+        assertTrue(caught.contains("outside.mjs"), () -> caught);
+    }
+
+    @Test
+    void importsInsideModuleFolderSubdirectoriesStillWork() throws Exception {
+        Path moduleRoot = Files.createDirectories(scriptsDir.resolve("module"));
+        Files.createDirectories(moduleRoot.resolve("lib"));
+        Files.writeString(moduleRoot.resolve("lib/util.mjs"), "export const two = 2;\n");
+        Path entry = Files.writeString(moduleRoot.resolve("entry.mjs"),
+                "import { two } from './lib/util.mjs';\n"
+                + "globalThis.__sum = 1 + two;\n");
+
+        GraalJsEngine.GraalJsSession rootedSession =
+                (GraalJsEngine.GraalJsSession) engine.openSession(context, moduleRoot);
+        rootedSession.importModule("entry", entry);
+        assertEquals(3, rootedSession.global("__sum").asInt(),
+                "relative imports within the module folder keep working");
     }
 
     @Test

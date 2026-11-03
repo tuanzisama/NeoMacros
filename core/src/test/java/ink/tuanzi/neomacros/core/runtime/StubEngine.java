@@ -21,7 +21,7 @@ final class StubEngine implements ScriptEngine {
     final AtomicBoolean failImports = new AtomicBoolean();
 
     @Override
-    public EngineSession openSession(ScriptContext context) throws ScriptError {
+    public EngineSession openSession(ScriptContext context, Path moduleRoot) throws ScriptError {
         openedContexts.add(context.name());
         return new EngineSession() {
             @Override
