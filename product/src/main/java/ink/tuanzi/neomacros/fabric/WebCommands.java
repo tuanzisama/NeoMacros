@@ -66,12 +66,12 @@ final class WebCommands {
                         return Command.SINGLE_SUCCESS;
                     }
                     feedback(ctx.getSource(), "neomacros.cmd.web.sessions_header",
-                            sessions.size());
+                            Msg.num(sessions.size()));
                     long now = System.currentTimeMillis();
                     for (var session : sessions) {
                         feedback(ctx.getSource(), "neomacros.cmd.web.sessions_row",
-                                session.id(), session.remote(),
-                                (now - session.connectedAtMillis()) / 1000);
+                                Msg.name(session.id()), Msg.name(session.remote()),
+                                Msg.num((now - session.connectedAtMillis()) / 1000));
                     }
                     return Command.SINGLE_SUCCESS;
                 }))
@@ -92,20 +92,21 @@ final class WebCommands {
                                     String id = StringArgumentType.getString(ctx, "id");
                                     if (context.web().disconnectSession(id)) {
                                         feedback(ctx.getSource(),
-                                                "neomacros.cmd.web.disconnected", id);
+                                                "neomacros.cmd.web.disconnected", Msg.name(id));
                                         return Command.SINGLE_SUCCESS;
                                     }
                                     feedback(ctx.getSource(),
-                                            "neomacros.cmd.web.unknown_session", id);
+                                            "neomacros.cmd.web.unknown_session", Msg.name(id));
                                     return 0;
                                 })))
                 .then(literal("devices").executes(ctx -> {
                     var devices = context.web().devices();
                     feedback(ctx.getSource(), "neomacros.cmd.web.devices_header",
-                            devices.size());
+                            Msg.num(devices.size()));
                     for (var device : devices) {
                         feedback(ctx.getSource(), "neomacros.cmd.web.device_row",
-                                device.id(), device.label(), device.algo());
+                                Msg.name(device.id()), Msg.name(device.label()),
+                                Msg.num(device.algo()));
                     }
                     return Command.SINGLE_SUCCESS;
                 })
@@ -115,11 +116,11 @@ final class WebCommands {
                                             String id = StringArgumentType.getString(ctx, "id");
                                             if (context.web().revokeDevice(id)) {
                                                 feedback(ctx.getSource(),
-                                                        "neomacros.cmd.web.revoked", id);
+                                                        "neomacros.cmd.web.revoked", Msg.name(id));
                                                 return Command.SINGLE_SUCCESS;
                                             }
                                             feedback(ctx.getSource(),
-                                                    "neomacros.cmd.web.unknown_device", id);
+                                                    "neomacros.cmd.web.unknown_device", Msg.name(id));
                                             return 0;
                                         }))));
     }
@@ -160,10 +161,11 @@ final class WebCommands {
         source.sendFeedback(Component.literal(link).withStyle(style -> style
                 .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(
                         java.net.URI.create(link)))
+                .withColor(net.minecraft.ChatFormatting.AQUA)
                 .withUnderlined(true)));
     }
 
     private static void feedback(FabricClientCommandSource source, String key, Object... args) {
-        source.sendFeedback(Component.literal(UiText.tr(key, args)));
+        source.sendFeedback(Component.literal(Msg.line(UiText.tr(key, args))));
     }
 }

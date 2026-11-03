@@ -187,7 +187,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             pendingTrusts.put(name, prompt.contentHash());
             String caps = String.join(", ", prompt.requested());
             adapter.chat().logClickable(
-                    UiText.tr("neomacros.chat.trust_prompt", name, caps, name),
+                    Msg.line(UiText.tr("neomacros.chat.trust_prompt",
+                            Msg.name(name), Msg.num(caps))),
                     "/neomacros trust " + name);
         });
 
@@ -259,7 +260,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         // clickable chat line pointing at the recent-errors viewer screen.
         var errorPresenter = new ink.tuanzi.neomacros.core.runtime.ErrorPresenter(
                 line -> adapter.chat().logClickable(
-                        UiText.tr("neomacros.chat.error_line", line),
+                        Msg.line(UiText.tr("neomacros.chat.error_line", Msg.err(line))),
                         "/neomacros errors"),
                 3000);
         runtime.setErrorHandler(error -> {
@@ -465,9 +466,16 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         return StringArgumentType.getString(ctx, arg);
     }
 
+    /** One chat line: the lang key resolved with tagged accents. */
     private static void feedback(CommandContext<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> ctx,
-                                 String message) {
-        ctx.getSource().sendFeedback(Component.literal(message));
+                                 String key, Object... args) {
+        feedbackText(ctx, UiText.tr(key, args));
+    }
+
+    /** One chat line from a pre-resolved (already colored) message. */
+    private static void feedbackText(CommandContext<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> ctx,
+                                     String message) {
+        ctx.getSource().sendFeedback(Component.literal(Msg.line(message)));
     }
 
     /** Registers the root {@code /neomacros} command and its subcommands. */
@@ -477,17 +485,17 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(literal("neomacros")
                     .then(literal("status").executes(ctx -> {
-                        feedback(ctx, UiText.tr("neomacros.cmd.status",
-                                NeoMacros.VERSION,
-                                runtime.eventCatalog().all().size(),
-                                modules.loaded().size(),
-                                modules.errors().size(),
-                                runtime.tickClock().currentTick()));
+                        feedback(ctx, "neomacros.cmd.status",
+                                Msg.name(NeoMacros.VERSION),
+                                Msg.num(runtime.eventCatalog().all().size()),
+                                Msg.num(modules.loaded().size()),
+                                Msg.num(modules.errors().size()),
+                                Msg.num(runtime.tickClock().currentTick()));
                         return Command.SINGLE_SUCCESS;
                     }))
                     .then(literal("list")
                             .executes(ctx -> {
-                                feedback(ctx, describeScripts(null));
+                                feedbackText(ctx, describeScripts(null));
                                 return Command.SINGLE_SUCCESS;
                             })
                             .then(argument("category", StringArgumentType.word())
@@ -496,16 +504,16 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                         ScriptCategory category = ScriptCategory
                                                 .fromDirName(string(ctx, "category"));
                                         if (category == null) {
-                                            feedback(ctx, UiText.tr("neomacros.cmd.unknown_category",
-                                                    string(ctx, "category")));
+                                            feedback(ctx, "neomacros.cmd.unknown_category",
+                                                    Msg.name(string(ctx, "category")));
                                             return 0;
                                         }
-                                        feedback(ctx, describeScripts(category));
+                                        feedbackText(ctx, describeScripts(category));
                                         return Command.SINGLE_SUCCESS;
                                     })))
                     .then(literal("reload").executes(ctx -> {
                         modules.reloadAll();
-                        feedback(ctx, UiText.tr("neomacros.cmd.reloaded", modules.loaded().size()));
+                        feedback(ctx, "neomacros.cmd.reloaded", Msg.num(modules.loaded().size()));
                         return Command.SINGLE_SUCCESS;
                     }))
                     .then(literal("keypress")
@@ -518,15 +526,16 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                                         String name = string(ctx, "script");
                                                         String key = string(ctx, "key");
                                                         if (entry(name).isEmpty()) {
-                                                            feedback(ctx, UiText.tr(
-                                                                    "neomacros.cmd.unknown_keypress", name));
+                                                            feedback(ctx,
+                                                                    "neomacros.cmd.unknown_script",
+                                                                    Msg.name(name));
                                                             return 0;
                                                         }
                                                         options.keybinds.put(name, key);
                                                         configManager.save();
                                                         reloadIfLoaded(name);
-                                                        feedback(ctx, UiText.tr(
-                                                                "neomacros.ui.panel.bound", name, key));
+                                                        feedback(ctx, "neomacros.ui.panel.bound",
+                                                                Msg.name(name), Msg.num(key));
                                                         return Command.SINGLE_SUCCESS;
                                                     }))))
                             .then(literal("unbind")
@@ -535,8 +544,9 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                             .executes(ctx -> {
                                                 String name = string(ctx, "script");
                                                 if (entry(name).isEmpty()) {
-                                                    feedback(ctx, UiText.tr(
-                                                            "neomacros.cmd.unknown_keypress", name));
+                                                    feedback(ctx,
+                                                            "neomacros.cmd.unknown_script",
+                                                            Msg.name(name));
                                                     return 0;
                                                 }
                                                 // The empty value is a persisted unbind:
@@ -544,7 +554,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                                 options.keybinds.put(name, "");
                                                 configManager.save();
                                                 reloadIfLoaded(name);
-                                                feedback(ctx, "unbound " + name);
+                                                feedback(ctx, "neomacros.ui.panel.unbound",
+                                                        Msg.name(name));
                                                 return Command.SINGLE_SUCCESS;
                                             })))
                             .then(literal("list").executes(ctx -> {
@@ -558,8 +569,9 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                             .executes(ctx -> {
                                                 String name = string(ctx, "script");
                                                 boolean started = modules.loadByName(name).isPresent();
-                                                feedback(ctx, started ? UiText.tr("neomacros.cmd.started", name)
-                                                        : UiText.tr("neomacros.cmd.cannot_start", name));
+                                                feedback(ctx, started
+                                                        ? "neomacros.cmd.started" : "neomacros.cmd.cannot_start",
+                                                        Msg.name(name));
                                                 return started ? Command.SINGLE_SUCCESS : 0;
                                             })))
                             .then(literal("stop")
@@ -568,11 +580,11 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                             .executes(ctx -> {
                                                 String name = string(ctx, "script");
                                                 if (modules.loaded(name).isEmpty()) {
-                                                    feedback(ctx, UiText.tr("neomacros.cmd.not_running", name));
+                                                    feedback(ctx, "neomacros.cmd.not_running", Msg.name(name));
                                                     return 0;
                                                 }
                                                 modules.unload(name);
-                                                feedback(ctx, UiText.tr("neomacros.cmd.stopped", name));
+                                                feedback(ctx, "neomacros.cmd.stopped", Msg.name(name));
                                                 return Command.SINGLE_SUCCESS;
                                             })))
                             .then(literal("restart")
@@ -582,8 +594,9 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                                 String name = string(ctx, "script");
                                                 modules.unload(name);
                                                 boolean started = modules.loadByName(name).isPresent();
-                                                feedback(ctx, started ? UiText.tr("neomacros.cmd.restarted", name)
-                                                        : UiText.tr("neomacros.cmd.cannot_start", name));
+                                                feedback(ctx, started
+                                                        ? "neomacros.cmd.restarted" : "neomacros.cmd.cannot_start",
+                                                        Msg.name(name));
                                                 return started ? Command.SINGLE_SUCCESS : 0;
                                             })))
                             .then(literal("list").executes(ctx -> {
@@ -592,8 +605,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                             })))
                     .then(literal("trust")
                             .then(literal("list").executes(ctx -> {
-                                feedback(ctx, UiText.tr("neomacros.cmd.trusted_hashes",
-                                        trustManager.trustedHashes().size()));
+                                feedback(ctx, "neomacros.cmd.trusted_hashes",
+                                        Msg.num(trustManager.trustedHashes().size()));
                                 return Command.SINGLE_SUCCESS;
                             }))
                             .then(argument("script", StringArgumentType.word())
@@ -601,13 +614,14 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                         String name = string(ctx, "script");
                                         String hash = pendingTrusts.get(name);
                                         if (hash == null) {
-                                            feedback(ctx, UiText.tr("neomacros.cmd.no_pending_trust_from", name));
+                                            feedback(ctx, "neomacros.cmd.no_pending_trust_from",
+                                                    Msg.name(name));
                                             return 0;
                                         }
                                         trustManager.trust(hash);
                                         pendingTrusts.remove(name);
                                         configManager.save();
-                                        feedback(ctx, UiText.tr("neomacros.cmd.trusted_apply", name));
+                                        feedback(ctx, "neomacros.cmd.trusted_apply", Msg.name(name));
                                         return Command.SINGLE_SUCCESS;
                                     })))
                     .then(literal("edit")
@@ -616,7 +630,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                     .executes(ctx -> {
                                         Optional<ScriptEntry> found = entry(string(ctx, "script"));
                                         if (found.isEmpty()) {
-                                            feedback(ctx, UiText.tr("neomacros.cmd.unknown_script_panel"));
+                                            feedback(ctx, "neomacros.cmd.unknown_script_panel");
                                             return 0;
                                         }
                                         ScriptEditorScreen.open(found.get().entryFile(), modules::reloadAll);
@@ -644,16 +658,16 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                     .executes(ctx -> {
                                         Optional<ScriptEntry> found = entry(string(ctx, "script"));
                                         if (found.isEmpty()) {
-                                            feedback(ctx, UiText.tr("neomacros.cmd.unknown_script",
-                                                    string(ctx, "script")));
+                                            feedback(ctx, "neomacros.cmd.unknown_script",
+                                                    Msg.name(string(ctx, "script")));
                                             return 0;
                                         }
                                         try {
                                             ScriptScreen.open(found.get().name(),
                                                     Files.readString(found.get().entryFile()));
                                         } catch (IOException e) {
-                                            feedback(ctx, UiText.tr("neomacros.cmd.cannot_read",
-                                                    e.getMessage()));
+                                            feedback(ctx, "neomacros.cmd.cannot_read",
+                                                    Msg.err(e.getMessage()));
                                         }
                                         return Command.SINGLE_SUCCESS;
                                     })))
@@ -706,24 +720,24 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             List<ScriptEntry> entries = modules.entries().stream()
                     .filter(e -> e.category() == cat)
                     .toList();
-            lines.add("[" + cat.dirName() + "]");
+            lines.add("§f[" + cat.dirName() + "]§r");
             for (ScriptEntry entry : entries) {
                 String state = entryState(entry.name());
                 String key = entry.category() == ScriptCategory.KEYPRESS
                         ? entry.effectiveKey(options.keybinds) : "";
-                lines.add("  " + entry.name() + " "
-                        + UiText.tr("neomacros.ui.state.version",
-                                entry.manifest().version(), entry.manifest().author())
-                        + (key.isEmpty() ? "" : "  [" + key + "]")
-                        + "  (" + state + ")");
+                lines.add("  " + Msg.name(entry.name()) + " "
+                        + Msg.dim(UiText.tr("neomacros.ui.state.version",
+                                entry.manifest().version(), entry.manifest().author()))
+                        + (key.isEmpty() ? "" : "  " + Msg.num(key))
+                        + "  " + state);
             }
             if (entries.isEmpty()) {
-                lines.add("  " + UiText.tr("neomacros.cmd.none"));
+                lines.add("  " + Msg.dim(UiText.tr("neomacros.cmd.none")));
             }
         }
         for (ink.tuanzi.neomacros.core.module.ScriptLoadError error : modules.errors()) {
             lines.add("  " + UiText.tr("neomacros.cmd.invalid_folder",
-                    error.folder().getFileName(), error.message()));
+                    Msg.err(error.folder().getFileName()), Msg.err(error.message())));
         }
         return String.join("\n", lines);
     }
@@ -731,10 +745,11 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     /** The localized run-state word for one script (loaded/stopped/disabled). */
     private static String entryState(String name) {
         if (!options.autoload.getOrDefault(name, true)) {
-            return UiText.tr("neomacros.ui.state.disabled");
+            return "§8" + UiText.tr("neomacros.ui.state.disabled") + "§r";
         }
-        return UiText.tr(modules.loaded(name).isPresent()
-                ? "neomacros.ui.state.loaded" : "neomacros.ui.state.stopped");
+        return modules.loaded(name).isPresent()
+                ? Msg.ok(UiText.tr("neomacros.ui.state.loaded"))
+                : Msg.dim(UiText.tr("neomacros.ui.state.stopped"));
     }
 
     /** Builds the panel row snapshot: category headers, scripts, and error rows. */

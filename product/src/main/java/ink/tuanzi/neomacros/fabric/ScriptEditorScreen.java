@@ -94,12 +94,12 @@ public final class ScriptEditorScreen extends Screen {
             Files.writeString(file, editor.getValue(), StandardCharsets.UTF_8);
             status = UiText.tr(reload
                     ? "neomacros.ui.editor.saved_reloaded" : "neomacros.ui.editor.saved",
-                    file.getFileName().toString());
+                    Msg.name(file.getFileName().toString()));
             if (reload) {
                 onSaved.run();
             }
         } catch (IOException e) {
-            status = UiText.tr("neomacros.ui.editor.save_failed", e.getMessage());
+            status = UiText.tr("neomacros.ui.editor.save_failed", Msg.err(e.getMessage()));
         }
     }
 

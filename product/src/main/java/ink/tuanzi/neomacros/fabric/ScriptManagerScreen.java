@@ -152,7 +152,7 @@ public final class ScriptManagerScreen extends Screen {
             return;
         }
         awaitingBind = true;
-        status = UiText.tr("neomacros.ui.panel.press_key", row.data.name());
+        status = UiText.tr("neomacros.ui.panel.press_key", Msg.name(row.data.name()));
         //?} else {
         /*
         status = UiText.tr("neomacros.ui.panel.bind_via_command");
@@ -168,7 +168,7 @@ public final class ScriptManagerScreen extends Screen {
             return;
         }
         onUnbind.accept(row.data.name());
-        status = UiText.tr("neomacros.ui.panel.unbound", row.data.name());
+        status = UiText.tr("neomacros.ui.panel.unbound", Msg.name(row.data.name()));
         repopulate();
         //?} else {
         /*
@@ -201,7 +201,8 @@ public final class ScriptManagerScreen extends Screen {
         }
         onSetEnabled.accept(name, enabled);
         status = UiText.tr(enabled
-                ? "neomacros.ui.state.enabled" : "neomacros.ui.state.disabled_toast", name);
+                ? "neomacros.ui.state.enabled" : "neomacros.ui.state.disabled_toast",
+                Msg.name(name));
         repopulate();
     }
 
@@ -272,14 +273,15 @@ public final class ScriptManagerScreen extends Screen {
     /** Applies a captured keyboard key name to the selected script's binding. */
     private void applyCapturedKey(String keyName) {
         if (!keyName.startsWith("key.keyboard.")) {
-            status = UiText.tr("neomacros.ui.panel.not_keyboard_key", keyName);
+            status = UiText.tr("neomacros.ui.panel.not_keyboard_key", Msg.num(keyName));
             return;
         }
         //? if >=26.1 {
         ScriptList.Row row = list.getSelected();
         if (row != null && !row.data.name().isEmpty()) {
             onBind.accept(row.data.name(), keyName);
-            status = UiText.tr("neomacros.ui.panel.bound", row.data.name(), keyName);
+            status = UiText.tr("neomacros.ui.panel.bound",
+                    Msg.name(row.data.name()), Msg.num(keyName));
             repopulate();
         }
         //?}
