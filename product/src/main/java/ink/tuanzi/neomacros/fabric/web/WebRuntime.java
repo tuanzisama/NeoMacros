@@ -405,7 +405,10 @@ public final class WebRuntime implements PanelBackend, GameRunner {
      * Opens the path in the platform file manager. Arguments go to the
      * builder in list form — there is no shell anywhere in the chain — and
      * the commands are fixed binaries, so the only variable is a path that
-     * already passed the sandbox.
+     * already passed the sandbox. On Windows {@code /select,} and the path
+     * go out as two arguments: as one argument, a path containing a space
+     * gets quoted whole and Explorer no longer recognizes the flag, falling
+     * back to opening the Documents folder instead.
      */
     private static void openInFileManager(Path target) {
         Path absolute = target.toAbsolutePath().normalize();
@@ -413,7 +416,7 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         List<String> command;
         if (os.contains("win")) {
             command = Files.isRegularFile(target)
-                    ? List.of("explorer.exe", "/select," + absolute)
+                    ? List.of("explorer.exe", "/select,", absolute.toString())
                     : List.of("explorer.exe", absolute.toString());
         } else if (os.contains("mac") || os.contains("darwin")) {
             command = List.of("open", "-R", absolute.toString());
