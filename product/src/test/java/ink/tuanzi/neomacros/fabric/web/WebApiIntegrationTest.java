@@ -71,6 +71,8 @@ class WebApiIntegrationTest {
         final List<String> fileDeletions = new ArrayList<>();
         final List<String> moves = new ArrayList<>();
         final List<String> mkdirs = new ArrayList<>();
+        final List<String> reveals = new ArrayList<>();
+        final List<String> macroMoves = new ArrayList<>();
         final List<String> writes = new ArrayList<>();
         final List<String> reads = new ArrayList<>();
         ApiError failure;
@@ -90,7 +92,8 @@ class WebApiIntegrationTest {
                     ink.tuanzi.neomacros.fabric.web.v1.MacroLifecycle.world,
                     true, false, null, List.of(), null);
             return new StateSnapshot(List.of(macro),
-                    new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(0, 0, "loopback"));
+                    new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(0, 0, "loopback"),
+                    "C:\\macros");
         }
 
         @Override
@@ -161,6 +164,14 @@ class WebApiIntegrationTest {
         }
 
         @Override
+        public void reveal(String path) {
+            if (failure != null) {
+                throw failure;
+            }
+            reveals.add(path);
+        }
+
+        @Override
         public FileWriteResult writeFile(String path, byte[] content, String ifMatch) {
             if (failure != null) {
                 throw failure;
@@ -178,6 +189,19 @@ class WebApiIntegrationTest {
                     ink.tuanzi.neomacros.fabric.web.v1.MacroCategory.event,
                     name, "0.0.1", "your-name",
                     ink.tuanzi.neomacros.fabric.web.v1.MacroLifecycle.world,
+                    true, false, null, List.of(), null);
+        }
+
+        @Override
+        public MacroView moveMacro(String from, String to) {
+            if (failure != null) {
+                throw failure;
+            }
+            macroMoves.add(from + "->" + to);
+            return new MacroView(to + "/" + (from.contains("/") ? from.substring(from.indexOf('/') + 1) : from),
+                    ink.tuanzi.neomacros.fabric.web.v1.MacroCategory.event,
+                    from.contains("/") ? from.substring(from.indexOf('/') + 1) : from,
+                    "1.0.0", "you", ink.tuanzi.neomacros.fabric.web.v1.MacroLifecycle.world,
                     true, false, null, List.of(), null);
         }
 
@@ -753,6 +777,42 @@ class WebApiIntegrationTest {
         assertEquals(401, send("POST", "/api/v1/files/move", move, null).statusCode());
     }
 
+    @Test
+    void revealReachesTheBackendAndValidates() throws Exception {
+        StubBackend backend = start(DIRECT);
+        byte[] body = Jsons.stringify(Map.of("path", "event/auto-welcome"))
+                .getBytes(StandardCharsets.UTF_8);
+        assertEquals(204, signed("POST", "/api/v1/files/reveal", body).statusCode());
+        assertEquals(List.of("event/auto-welcome"), backend.reveals);
+        assertEquals(422, signed("POST", "/api/v1/files/reveal",
+                "{}".getBytes(StandardCharsets.UTF_8)).statusCode());
+        assertEquals(401, send("POST", "/api/v1/files/reveal", body, null).statusCode());
+    }
+
+    @Test
+    void macroMoveServesTheNewView() throws Exception {
+        StubBackend backend = start(DIRECT);
+        byte[] body = Jsons.stringify(Map.of("from", "keypress/shop-reporter",
+                "to", "services")).getBytes(StandardCharsets.UTF_8);
+        HttpResponse<String> response = signed("POST", "/api/v1/macros/move", body);
+        assertEquals(200, response.statusCode());
+        JsonObject view = JsonParser.parseString(response.body()).getAsJsonObject();
+        assertEquals("services/shop-reporter", view.get("id").getAsString());
+        assertEquals(List.of("keypress/shop-reporter->services"), backend.macroMoves);
+        assertEquals(422, signed("POST", "/api/v1/macros/move",
+                "{\"to\":\"services\"}".getBytes(StandardCharsets.UTF_8)).statusCode());
+        assertEquals(401, send("POST", "/api/v1/macros/move", body, null).statusCode());
+    }
+
+    @Test
+    void stateCarriesTheMacrosRoot() throws Exception {
+        start(DIRECT);
+        HttpResponse<String> response = signed("GET", "/api/v1/state", new byte[0]);
+        assertEquals(200, response.statusCode());
+        JsonObject state = JsonParser.parseString(response.body()).getAsJsonObject();
+        assertEquals("C:\\macros", state.get("macrosRoot").getAsString());
+    }
+
     // ---- devices ------------------------------------------------------------
 
     @Test
@@ -789,8 +849,9 @@ class WebApiIntegrationTest {
         JsonObject paths = doc.getAsJsonObject("paths");
         for (String path : new String[] {"/api/v1/meta", "/api/v1/pair", "/api/v1/state",
                 "/api/v1/macros", "/api/v1/macros/{id}/{action}", "/api/v1/macros/{id}",
-                "/api/v1/macros/{id}/files",
+                "/api/v1/macros/move", "/api/v1/macros/{id}/files",
                 "/api/v1/files/{path}", "/api/v1/files/move", "/api/v1/files/mkdir",
+                "/api/v1/files/reveal",
                 "/api/v1/devices", "/api/v1/devices/{id}",
                 "/api/v1/logs", "/api/v1/events/ticket",
                 "/api/v1/events", "/api-docs/openapi.json"}) {

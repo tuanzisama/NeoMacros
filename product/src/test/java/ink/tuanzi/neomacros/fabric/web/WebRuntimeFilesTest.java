@@ -464,6 +464,60 @@ class WebRuntimeFilesTest {
         expect(404, () -> backend.macroAction("event/unknown", "enable"));
     }
 
+    // ---- reveal ---------------------------------------------------------------
+
+    @Test
+    void revealValidatesBeforeTheSandbox() throws IOException {
+        writeMacro(root, "event", "auto-welcome");
+        WebRuntime backend = backend();
+        // 422 shapes come first: backslash, dot-dot, empty segments, whitespace.
+        expect(422, () -> backend.reveal("event\\auto-welcome"));
+        expect(422, () -> backend.reveal("../escape"));
+        expect(422, () -> backend.reveal("event//auto-welcome"));
+        expect(422, () -> backend.reveal("event/auto welcome"));
+        // The sandbox gates still apply (the drive letter is not a 422 shape).
+        expect(403, () -> backend.reveal("C:/Windows"));
+        expect(422, () -> backend.reveal("../web-devices.json"));
+        // Existing targets validate through (the spawn itself is exercised
+        // on a live machine only — tests must not open Explorer windows).
+        expect(404, () -> backend.reveal("event/auto-welcome/missing.js"));
+        expect(404, () -> backend.reveal("event/never-existed"));
+    }
+
+    // ---- macro move -----------------------------------------------------------
+
+    @Test
+    void moveMacroRelocatesTheFolderAndKeepsTheManifest() throws IOException {
+        writeMacro(root, "keypress", "shop-reporter");
+        WebRuntime backend = backend();
+        MacroView moved = backend.moveMacro("keypress/shop-reporter", "services");
+        assertEquals("services/shop-reporter", moved.id());
+        assertTrue(Files.isDirectory(root.resolve("services/shop-reporter")));
+        assertFalse(Files.exists(root.resolve("keypress/shop-reporter")));
+        MacroManifest manifest = ManifestParser.parse(
+                root.resolve("services/shop-reporter"), message -> { });
+        assertEquals("shop-reporter", manifest.name());
+        // Same category is an idempotent no-op.
+        MacroView again = backend.moveMacro("services/shop-reporter", "services");
+        assertEquals("services/shop-reporter", again.id());
+        // Error shapes: bad category, unknown macro, name collision.
+        expect(422, () -> backend.moveMacro("services/shop-reporter", "nope"));
+        expect(404, () -> backend.moveMacro("services/unknown", "event"));
+        Files.createDirectories(root.resolve("event/shop-reporter"));
+        expect(409, () -> backend.moveMacro("services/shop-reporter", "event"));
+    }
+
+    // ---- state ----------------------------------------------------------------
+
+    @Test
+    void snapshotCarriesTheAbsoluteMacrosRoot() throws IOException {
+        writeMacro(root, "event", "auto-welcome");
+        WebRuntime backend = backend();
+        var snapshot = backend.snapshot();
+        assertEquals(root.toRealPath().toString(), snapshot.macrosRoot());
+        assertEquals(1, snapshot.macros().size());
+    }
+
     @Test
     void folderChangeSuppressionLeavesNoDiskEcho() {
         WebRuntime backend = backend();

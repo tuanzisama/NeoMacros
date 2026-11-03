@@ -217,7 +217,20 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
         modules = new ModuleManager(runtime, registry, viewResolver, macrosDir,
                 message -> LOGGER.warn("neomacros scripts: {}", message));
-        modules.withAutoloadFilter(name -> options.autoload.getOrDefault(name, true));
+        // An explicit enable/disable (panel or command) always wins; without
+        // one, the manifest's autostart is the initial default (null = true).
+        modules.withAutoloadFilter(name -> {
+            Boolean saved = options.autoload.get(name);
+            if (saved != null) {
+                return saved;
+            }
+            return modules.entries().stream()
+                    .filter(entry -> entry.name().equals(name))
+                    .findFirst()
+                    .map(entry -> entry.manifest().autostart() == null
+                            || entry.manifest().autostart())
+                    .orElse(true);
+        });
         modules.onLoad(NeoMacrosFabric::registerScriptBinding);
         modules.onUnload(module -> adapter.input().unregisterScriptBinding(module.meta().name()));
 

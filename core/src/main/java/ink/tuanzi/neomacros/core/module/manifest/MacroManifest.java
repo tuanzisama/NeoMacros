@@ -28,16 +28,21 @@ import java.util.function.Consumer;
  *                   empty means unbound unless the central binding table overrides
  * @param lifecycle  load timing override; null uses the category default
  * @param permissions declared capabilities feeding the trust gate
+ * @param events     declared event subscriptions (documentation/validation
+ *                   only; runtime wiring stays with the script's events.on)
+ * @param autostart  initial auto-load default for services scripts; null
+ *                   means unspecified (the load filter treats it as true
+ *                   until an explicit enable/disable overrides it)
  */
 public record MacroManifest(String name, String version, String author,
                             String description, String license, String homepage, String supportURL,
                             String main, String key, ScriptMeta.Lifecycle lifecycle,
-                            List<String> permissions) {
+                            List<String> permissions, List<String> events, Boolean autostart) {
 
     /** Fields recognized in a manifest; anything else draws a warning. */
     private static final List<String> KNOWN_FIELDS = List.of(
             "name", "version", "author", "description", "license", "homepage",
-            "supportURL", "main", "key", "lifecycle", "permissions");
+            "supportURL", "main", "key", "lifecycle", "permissions", "events", "autostart");
 
     /**
      * Builds and validates a manifest from a raw parsed document. Throws
@@ -71,7 +76,9 @@ public record MacroManifest(String name, String version, String author,
                 optionalString(document, "key"),
                 document.get("lifecycle") == null
                         ? null : ScriptMeta.Lifecycle.parse(document.get("lifecycle"), warn),
-                stringList(document.get("permissions"), source));
+                stringList(document.get("permissions"), source, "permissions", true),
+                stringList(document.get("events"), source, "events", false),
+                optionalBoolean(document, "autostart", source));
     }
 
     /** The lifecycle for a folder of the given category (override or category default). */
@@ -82,6 +89,11 @@ public record MacroManifest(String name, String version, String author,
     /** The declared permissions; never null. */
     public List<String> permissions() {
         return permissions == null ? List.of() : permissions;
+    }
+
+    /** The declared event subscriptions; never null. */
+    public List<String> events() {
+        return events == null ? List.of() : events;
     }
 
     private static String requiredString(Map<String, Object> document, String field, String source,
@@ -128,24 +140,41 @@ public record MacroManifest(String name, String version, String author,
         return text.isEmpty() ? "" : text;
     }
 
-    private static List<String> stringList(Object value, String source) {
+    private static List<String> stringList(Object value, String source, String field,
+                                           boolean lowercase) {
         if (value == null) {
             return List.of();
         }
         if (!(value instanceof List<?> list)) {
-            throw new ManifestParseException(source + ": 'permissions' must be a list");
+            throw new ManifestParseException(source + ": '" + field + "' must be a list");
         }
         List<String> out = new ArrayList<>();
         for (Object item : list) {
             if (item == null) {
                 continue;
             }
-            String text = String.valueOf(item).trim().toLowerCase(Locale.ROOT);
+            String text = String.valueOf(item).trim();
+            if (lowercase) {
+                text = text.toLowerCase(Locale.ROOT);
+            }
             if (!text.isEmpty()) {
                 out.add(text);
             }
         }
         return List.copyOf(out);
+    }
+
+    /** An optional boolean flag; a present-but-wrong-typed value rejects the manifest. */
+    private static Boolean optionalBoolean(Map<String, Object> document, String field,
+                                           String source) {
+        Object value = document.get(field);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Boolean flag) {
+            return flag;
+        }
+        throw new ManifestParseException(source + ": '" + field + "' must be true or false");
     }
 
     /** Human-readable rendering of a rejected character for diagnostics. */

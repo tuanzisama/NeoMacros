@@ -147,6 +147,22 @@ public final class ApiV1 {
                 request.category(), request.name(), request.description()));
     }
 
+    @NmPost("/api/v1/macros/move")
+    @NmApi(tag = "macros", summary = "Move one macro folder to another category (identity"
+            + " and persisted state follow the manifest name)")
+    @NmError(status = 404, code = "not_found", desc = "Unknown macro")
+    @NmError(status = 409, code = "conflict", desc = "A folder with this name exists in the target category")
+    @NmError(status = 422, code = "invalid_request", desc = "The target is not a valid category")
+    @NmError(status = 504, code = "game_thread_timeout",
+            desc = "The game main thread did not answer within 5 seconds")
+    public MacroView moveMacro(@NmBody MoveMacroRequest request) {
+        if (request.from() == null || request.from().isBlank()
+                || request.to() == null || request.to().isBlank()) {
+            throw ApiError.unprocessable("the move request needs from and to");
+        }
+        return game.call(() -> backend.moveMacro(request.from(), request.to()));
+    }
+
     @NmDelete("/api/v1/macros/{id+}")
     @NmApi(tag = "macros", summary = "Delete one macro (folder, instance, persisted state)")
     @NmError(status = 404, code = "not_found", desc = "Unknown macro")
@@ -279,6 +295,20 @@ public final class ApiV1 {
             throw ApiError.unprocessable("the mkdir request needs a path");
         }
         backend.makeDirectory(request.path());
+    }
+
+    @NmPost("/api/v1/files/reveal")
+    @NmApi(tag = "files", summary = "Reveal one path in the system file manager of the"
+            + " machine running the game")
+    @NmError(status = 403, code = "forbidden", desc = "The path escapes the macros root")
+    @NmError(status = 404, code = "not_found", desc = "No such file or directory")
+    @NmError(status = 422, code = "invalid_request",
+            desc = "The path contains backslashes, dot-dot, empty segments, or whitespace")
+    public void reveal(@NmBody RevealRequest request) {
+        if (request.path() == null || request.path().isBlank()) {
+            throw ApiError.unprocessable("the reveal request needs a path");
+        }
+        backend.reveal(request.path());
     }
 
     @NmGet("/api/v1/devices")

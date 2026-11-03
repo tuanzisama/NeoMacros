@@ -135,14 +135,69 @@ class ManifestParserTest {
 
     @Test
     void categoryDefaultsResolveThroughLifecycleOr(@TempDir Path dir) {
-        MacroManifest without = new MacroManifest("n", "1", "a", "", "", "", "", "", "", null, List.of());
+        MacroManifest without = new MacroManifest("n", "1", "a", "", "", "", "", "", "",
+                null, List.of(), List.of(), null);
         assertEquals(ScriptMeta.Lifecycle.ALWAYS, without.lifecycleOr(ScriptCategory.SERVICES));
         assertEquals(ScriptMeta.Lifecycle.WORLD, without.lifecycleOr(ScriptCategory.EVENT));
         assertEquals(ScriptMeta.Lifecycle.WORLD, without.lifecycleOr(ScriptCategory.KEYPRESS));
 
         MacroManifest with = new MacroManifest("n", "1", "a", "", "", "", "", "", "",
-                ScriptMeta.Lifecycle.MANUAL, List.of());
+                ScriptMeta.Lifecycle.MANUAL, List.of(), List.of(), null);
         assertEquals(ScriptMeta.Lifecycle.MANUAL, with.lifecycleOr(ScriptCategory.SERVICES));
+    }
+
+    @Test
+    void eventsAndAutostartAreRecognized(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("neomacro.yml"), """
+                name: demo
+                version: 1.0.0
+                author: tuanzi
+                events:
+                  - ChatReceive
+                  - PlayerConnect
+                autostart: false
+                """);
+        List<String> warnings = new ArrayList<>();
+        MacroManifest manifest = ManifestParser.parse(dir, warnings::add);
+
+        assertEquals(List.of("ChatReceive", "PlayerConnect"), manifest.events());
+        assertEquals(Boolean.FALSE, manifest.autostart());
+        // Both are known fields: no unknown-field warnings.
+        assertTrue(warnings.isEmpty(), String.valueOf(warnings));
+
+        Files.writeString(dir.resolve("neomacro.yml"), """
+                name: demo
+                version: 1.0.0
+                author: tuanzi
+                autostart: true
+                """);
+        assertEquals(Boolean.TRUE, ManifestParser.parse(dir, m -> { }).autostart());
+    }
+
+    @Test
+    void aTypedAutostartRejectsTheManifest(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("neomacro.yml"), """
+                name: demo
+                version: 1.0.0
+                author: tuanzi
+                autostart: maybe
+                """);
+        ManifestParseException e = assertThrows(ManifestParseException.class,
+                () -> ManifestParser.parse(dir, m -> { }));
+        assertTrue(e.getMessage().contains("autostart"), e.getMessage());
+    }
+
+    @Test
+    void anEventsScalarRejectsTheManifest(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("neomacro.yml"), """
+                name: demo
+                version: 1.0.0
+                author: tuanzi
+                events: ChatReceive
+                """);
+        ManifestParseException e = assertThrows(ManifestParseException.class,
+                () -> ManifestParser.parse(dir, m -> { }));
+        assertTrue(e.getMessage().contains("events"), e.getMessage());
     }
 
     @Test

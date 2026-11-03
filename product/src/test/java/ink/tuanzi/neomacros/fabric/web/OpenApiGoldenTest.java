@@ -89,6 +89,10 @@ class OpenApiGoldenTest {
             }
 
             @Override
+            public void reveal(String path) {
+            }
+
+            @Override
             public FileWriteResult writeFile(String path, byte[] content, String ifMatch) {
                 return null;
             }
@@ -96,6 +100,12 @@ class OpenApiGoldenTest {
             @Override
             public ink.tuanzi.neomacros.fabric.web.v1.MacroView createMacro(
                     String category, String name, String description) {
+                return null;
+            }
+
+            @Override
+            public ink.tuanzi.neomacros.fabric.web.v1.MacroView moveMacro(
+                    String from, String to) {
                 return null;
             }
 

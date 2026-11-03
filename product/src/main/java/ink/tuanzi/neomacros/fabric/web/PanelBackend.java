@@ -74,10 +74,24 @@ public interface PanelBackend {
     void makeDirectory(String path);
 
     /**
+     * Reveals one existing path under the macros root in the system file
+     * manager of the game machine. Pure IO and process spawn, safe on any
+     * thread; malformed paths are 422, escapes 403, missing targets 404.
+     */
+    void reveal(String path);
+
+    /**
      * Creates a macro scaffold (manifest + entry template) in a category.
      * Must be called on the game main thread.
      */
     MacroView createMacro(String category, String name, String description);
+
+    /**
+     * Moves one macro folder to another category (identity, persisted
+     * state, and key bindings follow the manifest name). Must be called on
+     * the game main thread.
+     */
+    MacroView moveMacro(String from, String to);
 
     /**
      * Deletes one macro (folder, loaded instance, and persisted state).

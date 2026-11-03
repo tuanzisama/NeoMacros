@@ -189,7 +189,14 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         for (ScriptEntry entry : modules.discover()) {
             macros.add(view(entry));
         }
-        return new StateSnapshot(macros, serverInfo.get());
+        return new StateSnapshot(macros, serverInfo.get(), macrosRootPath());
+    }
+
+    /** The macros root as an absolute machine path (real when it exists). */
+    private String macrosRootPath() {
+        Path root = macrosDir.toAbsolutePath().normalize();
+        Path real = realPath(root);
+        return (real == null ? root : real).toString();
     }
 
     @Override
@@ -374,6 +381,52 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         }
     }
 
+    @Override
+    public void reveal(String path) {
+        // The 422 shapes come before the sandbox's 403 gates: the panel
+        // surfaces "illegal path" distinctly from "outside the macros root".
+        for (String segment : path.split("/")) {
+            if (segment.isEmpty() || segment.equals(".") || segment.equals("..")
+                    || segment.indexOf('\\') >= 0) {
+                throw ApiError.unprocessable("malformed reveal path: " + path);
+            }
+        }
+        rejectWhitespace(path);
+        Path target = resolveSandbox(path);
+        if (!Files.exists(target)) {
+            throw ApiError.notFound("no such file: " + path);
+        }
+        openInFileManager(target);
+    }
+
+    /**
+     * Opens the path in the platform file manager. Arguments go to the
+     * builder in list form — there is no shell anywhere in the chain — and
+     * the commands are fixed binaries, so the only variable is a path that
+     * already passed the sandbox.
+     */
+    private static void openInFileManager(Path target) {
+        Path absolute = target.toAbsolutePath().normalize();
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        List<String> command;
+        if (os.contains("win")) {
+            command = Files.isRegularFile(target)
+                    ? List.of("explorer.exe", "/select," + absolute)
+                    : List.of("explorer.exe", absolute.toString());
+        } else if (os.contains("mac") || os.contains("darwin")) {
+            command = List.of("open", "-R", absolute.toString());
+        } else {
+            Path focus = Files.isRegularFile(target) ? absolute.getParent() : absolute;
+            command = List.of("xdg-open", focus.toString());
+        }
+        try {
+            new ProcessBuilder(command).start();
+        } catch (IOException e) {
+            throw new ApiError(500, ApiError.INTERNAL,
+                    "cannot open the file manager: " + e.getMessage());
+        }
+    }
+
     /** The macro folder owning the target; the tree API never leaves one. */
     private ScriptEntry ownedEntry(Path target) {
         return ownerOf(target).orElseThrow(() -> ApiError.forbidden(
@@ -504,6 +557,58 @@ public final class WebRuntime implements PanelBackend, GameRunner {
     }
 
     @Override
+    public MacroView moveMacro(String from, String to) {
+        ScriptCategory target = ScriptCategory.fromDirName(to == null ? "" : to);
+        if (target == null) {
+            throw ApiError.unprocessable(
+                    "unknown category '" + to + "' (keypress, event, services)");
+        }
+        ScriptEntry entry = resolve(from)
+                .orElseThrow(() -> ApiError.notFound("unknown macro: " + from));
+        if (entry.category() == target) {
+            return view(entry);
+        }
+        String name = entry.name();
+        Path root = macrosDir.toAbsolutePath().normalize();
+        Path source = entry.folder().toAbsolutePath().normalize();
+        if (!source.getParent().normalize()
+                .equals(root.resolve(entry.category().dirName()).normalize())) {
+            throw ApiError.forbidden("refusing to move from outside a category folder");
+        }
+        Path destination = root.resolve(target.dirName()).resolve(name).normalize();
+        if (Files.exists(destination)) {
+            throw ApiError.conflict(
+                    "a folder named '" + name + "' already exists in '" + to + "'");
+        }
+        Path realRoot = realPath(root);
+        Path realSource = realPath(source);
+        Path realDestinationParent = destination.getParent() == null
+                ? null : nearestExistingReal(destination.getParent());
+        if (realRoot == null || realSource == null || !realSource.startsWith(realRoot)
+                || realDestinationParent == null || !realDestinationParent.startsWith(realRoot)) {
+            throw ApiError.forbidden("refusing to move outside the macros root");
+        }
+        if (modules.loaded(name).isPresent()) {
+            modules.unload(name);
+        }
+        try {
+            Files.move(source, destination);
+        } catch (IOException e) {
+            throw new ApiError(500, ApiError.INTERNAL,
+                    "cannot move the macro folder: " + e.getMessage());
+        }
+        // The name-keyed autoload/keybinds state follows automatically; the
+        // scan drops the old folder's watch and loads the new one.
+        modules.checkForChanges();
+        return modules.discover().stream()
+                .filter(fresh -> fresh.name().equals(name))
+                .findFirst()
+                .map(this::view)
+                .orElseThrow(() -> new ApiError(500, ApiError.INTERNAL,
+                        "the macro moved but did not re-parse in '" + to + "'"));
+    }
+
+    @Override
     public void deleteMacro(String id) {
         ScriptEntry entry = resolve(id)
                 .orElseThrow(() -> ApiError.notFound("unknown macro: " + id));
@@ -572,21 +677,25 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         if (realRoot != null) {
             // Climb to the nearest existing ancestor (new files have none of
             // their own) and verify that one against the real root.
-            Path existing = target;
-            Path verified = null;
-            while (existing != null) {
-                Path real = realPath(existing);
-                if (real != null) {
-                    verified = real;
-                    break;
-                }
-                existing = existing.getParent();
-            }
+            Path verified = nearestExistingReal(target);
             if (verified == null || !verified.startsWith(realRoot)) {
                 throw ApiError.forbidden("path escapes the macros root: " + path);
             }
         }
         return target;
+    }
+
+    /** The real path of the nearest existing ancestor (the target included). */
+    private static Path nearestExistingReal(Path target) {
+        Path current = target;
+        while (current != null) {
+            Path real = realPath(current);
+            if (real != null) {
+                return real;
+            }
+            current = current.getParent();
+        }
+        return null;
     }
 
     /** Rejects empty, dot, and Windows-hostile segments outright. */
