@@ -68,6 +68,9 @@ class WebApiIntegrationTest {
 
         final List<String> actions = new ArrayList<>();
         final List<String> deletions = new ArrayList<>();
+        final List<String> fileDeletions = new ArrayList<>();
+        final List<String> moves = new ArrayList<>();
+        final List<String> mkdirs = new ArrayList<>();
         final List<String> writes = new ArrayList<>();
         final List<String> reads = new ArrayList<>();
         ApiError failure;
@@ -118,6 +121,43 @@ class WebApiIntegrationTest {
                 throw ApiError.notFound("no such file: " + path);
             }
             return fileToServe;
+        }
+
+        @Override
+        public ink.tuanzi.neomacros.fabric.web.v1.FilesResponse listFiles(String id) {
+            if (failure != null) {
+                throw failure;
+            }
+            if (!id.equals("event/auto-welcome")) {
+                throw ApiError.notFound("unknown macro: " + id);
+            }
+            return new ink.tuanzi.neomacros.fabric.web.v1.FilesResponse(
+                    List.of("index.js", "lib/util.mjs", "neomacro.yml"),
+                    List.of("lib", "lib/deep"));
+        }
+
+        @Override
+        public void deleteFile(String path) {
+            if (failure != null) {
+                throw failure;
+            }
+            fileDeletions.add(path);
+        }
+
+        @Override
+        public void moveFile(String from, String to) {
+            if (failure != null) {
+                throw failure;
+            }
+            moves.add(from + "->" + to);
+        }
+
+        @Override
+        public void makeDirectory(String path) {
+            if (failure != null) {
+                throw failure;
+            }
+            mkdirs.add(path);
         }
 
         @Override
@@ -655,6 +695,64 @@ class WebApiIntegrationTest {
         assertEquals(List.of("event/auto-welcome"), backend.deletions);
     }
 
+    // ---- macro file listing --------------------------------------------------
+
+    @Test
+    void macroFilesListingServesRelativePaths() throws Exception {
+        start(DIRECT);
+        HttpResponse<String> response = signed("GET",
+                "/api/v1/macros/event%2Fauto-welcome/files", new byte[0]);
+        assertEquals(200, response.statusCode());
+        JsonObject body = JsonParser.parseString(response.body()).getAsJsonObject();
+        var files = body.getAsJsonArray("files");
+        assertEquals(3, files.size());
+        assertEquals("neomacro.yml", files.get(2).getAsString());
+        assertEquals("lib/util.mjs", files.get(1).getAsString());
+        var dirs = body.getAsJsonArray("dirs");
+        assertEquals(2, dirs.size());
+        assertEquals("lib", dirs.get(0).getAsString());
+        assertEquals("lib/deep", dirs.get(1).getAsString());
+
+        assertEquals(404, signed("GET", "/api/v1/macros/nope%2Fmissing/files",
+                new byte[0]).statusCode());
+        assertEquals(401, send("GET", "/api/v1/macros/event%2Fauto-welcome/files",
+                new byte[0], null).statusCode());
+    }
+
+    @Test
+    void fileTreeMutationsReachTheBackend() throws Exception {
+        StubBackend backend = start(DIRECT);
+
+        // Delete needs the explicit confirm body, then reaches the backend.
+        String doomed = "/api/v1/files/event%2Fauto-welcome%2Flib";
+        assertEquals(422, signed("DELETE", doomed, new byte[0]).statusCode());
+        assertEquals(422, signed("DELETE", doomed,
+                "{\"confirm\":false}".getBytes(StandardCharsets.UTF_8)).statusCode());
+        assertEquals(204, signed("DELETE", doomed,
+                "{\"confirm\":true}".getBytes(StandardCharsets.UTF_8)).statusCode());
+        assertEquals(List.of("event/auto-welcome/lib"), backend.fileDeletions);
+
+        // Move and mkdir carry their operands as JSON.
+        byte[] move = Jsons.stringify(Map.of("from", "event/auto-welcome/index.js",
+                "to", "event/auto-welcome/main.js")).getBytes(StandardCharsets.UTF_8);
+        assertEquals(204, signed("POST", "/api/v1/files/move", move).statusCode());
+        byte[] mkdir = Jsons.stringify(Map.of("path", "event/auto-welcome/lib/nested"))
+                .getBytes(StandardCharsets.UTF_8);
+        assertEquals(204, signed("POST", "/api/v1/files/mkdir", mkdir).statusCode());
+        assertEquals(List.of("event/auto-welcome/index.js->event/auto-welcome/main.js"),
+                backend.moves);
+        assertEquals(List.of("event/auto-welcome/lib/nested"), backend.mkdirs);
+
+        // Missing operands are unprocessable; unsigned requests never pass.
+        assertEquals(422, signed("POST", "/api/v1/files/move",
+                "{\"from\":\"a\"}".getBytes(StandardCharsets.UTF_8)).statusCode());
+        assertEquals(422, signed("POST", "/api/v1/files/mkdir",
+                "{}".getBytes(StandardCharsets.UTF_8)).statusCode());
+        assertEquals(401, send("DELETE", doomed,
+                "{\"confirm\":true}".getBytes(StandardCharsets.UTF_8), null).statusCode());
+        assertEquals(401, send("POST", "/api/v1/files/move", move, null).statusCode());
+    }
+
     // ---- devices ------------------------------------------------------------
 
     @Test
@@ -691,7 +789,9 @@ class WebApiIntegrationTest {
         JsonObject paths = doc.getAsJsonObject("paths");
         for (String path : new String[] {"/api/v1/meta", "/api/v1/pair", "/api/v1/state",
                 "/api/v1/macros", "/api/v1/macros/{id}/{action}", "/api/v1/macros/{id}",
-                "/api/v1/files/{path}", "/api/v1/devices", "/api/v1/devices/{id}",
+                "/api/v1/macros/{id}/files",
+                "/api/v1/files/{path}", "/api/v1/files/move", "/api/v1/files/mkdir",
+                "/api/v1/devices", "/api/v1/devices/{id}",
                 "/api/v1/logs", "/api/v1/events/ticket",
                 "/api/v1/events", "/api-docs/openapi.json"}) {
             assertTrue(paths.has(path), "missing path " + path);
@@ -702,6 +802,12 @@ class WebApiIntegrationTest {
                 .getAsJsonObject("content").has("text/plain; charset=utf-8"));
         assertTrue(paths.getAsJsonObject("/api/v1/files/{path}")
                 .getAsJsonObject("put").has("requestBody"));
+        assertTrue(paths.getAsJsonObject("/api/v1/files/{path}")
+                .getAsJsonObject("delete").getAsJsonObject("responses").has("204"));
+        assertTrue(paths.getAsJsonObject("/api/v1/files/move")
+                .getAsJsonObject("post").has("requestBody"));
+        assertTrue(paths.getAsJsonObject("/api/v1/files/mkdir")
+                .getAsJsonObject("post").has("requestBody"));
         assertTrue(doc.getAsJsonObject("components").getAsJsonObject("schemas")
                 .has("StateSnapshot"));
         assertTrue(doc.getAsJsonArray("servers").get(0).getAsJsonObject().get("url")

@@ -72,6 +72,23 @@ class OpenApiGoldenTest {
             }
 
             @Override
+            public ink.tuanzi.neomacros.fabric.web.v1.FilesResponse listFiles(String id) {
+                return null;
+            }
+
+            @Override
+            public void deleteFile(String path) {
+            }
+
+            @Override
+            public void moveFile(String from, String to) {
+            }
+
+            @Override
+            public void makeDirectory(String path) {
+            }
+
+            @Override
             public FileWriteResult writeFile(String path, byte[] content, String ifMatch) {
                 return null;
             }

@@ -1,5 +1,6 @@
 package ink.tuanzi.neomacros.fabric.web;
 
+import ink.tuanzi.neomacros.fabric.web.v1.FilesResponse;
 import ink.tuanzi.neomacros.fabric.web.v1.MacroView;
 import ink.tuanzi.neomacros.fabric.web.v1.Meta;
 import ink.tuanzi.neomacros.fabric.web.v1.StateSnapshot;
@@ -35,12 +36,42 @@ public interface PanelBackend {
     FileContent readFile(String path);
 
     /**
+     * Lists one macro folder's files as folder-relative POSIX paths (the
+     * manifest first, then lexicographic). Pure file IO and discovery, safe
+     * on any thread; unknown ids are a 404 and a folder outside the macros
+     * root is a 403.
+     */
+    FilesResponse listFiles(String id);
+
+    /**
      * Writes one file with optimistic concurrency: a non-matching
      * {@code If-Match} yields the conflict shape instead of a save. A
      * successful save hot-reloads the owning macro and reports its
      * structured error. Must be called on the game main thread.
      */
     FileWriteResult writeFile(String path, byte[] content, String ifMatch);
+
+    /**
+     * Deletes one file or directory tree under the macros root. Confined to
+     * macro folders; any macro's manifest and the macro folder itself are
+     * protected. Must be called on the game main thread (hot-reloads the
+     * owner).
+     */
+    void deleteFile(String path);
+
+    /**
+     * Moves or renames one file or directory within a single macro folder.
+     * The target must not exist; a file target must pass the write
+     * whitelist. Must be called on the game main thread (hot-reloads the
+     * owner).
+     */
+    void moveFile(String from, String to);
+
+    /**
+     * Creates a directory (with parents) inside one macro folder. Pure file
+     * IO, safe on any thread; an existing target is a conflict.
+     */
+    void makeDirectory(String path);
 
     /**
      * Creates a macro scaffold (manifest + entry template) in a category.

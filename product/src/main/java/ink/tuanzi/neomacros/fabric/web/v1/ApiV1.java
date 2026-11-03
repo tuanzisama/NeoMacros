@@ -122,6 +122,18 @@ public final class ApiV1 {
         return game.call(() -> backend.macroAction(id, action));
     }
 
+    @NmGet("/api/v1/macros/{id+}/files")
+    @NmApi(tag = "macros", summary = "List one macro folder's files (recursive,"
+            + " folder-relative POSIX paths, the manifest first)")
+    @NmError(status = 403, code = "forbidden",
+            desc = "The macro folder escapes the macros root")
+    @NmError(status = 404, code = "not_found", desc = "Unknown macro")
+    public FilesResponse listFiles(
+            @NmParam(value = "id", multi = true)
+            @NmDesc("The macro id category/name (may contain slashes)") String id) {
+        return backend.listFiles(id);
+    }
+
     @NmPost("/api/v1/macros")
     @NmApi(tag = "macros", summary = "Create a macro scaffold (manifest + entry template)")
     @NmError(status = 409, code = "conflict",
@@ -203,6 +215,70 @@ public final class ApiV1 {
             return null;
         }
         return new FileSaveResult(result.error());
+    }
+
+    @NmDelete("/api/v1/files/{path+}")
+    @NmApi(tag = "files", summary = "Delete one file or directory tree (confined to"
+            + " macro folders; manifests and macro folders are protected)")
+    @NmError(status = 403, code = "forbidden",
+            desc = "The path escapes the macros root, leaves any macro folder,"
+                    + " or hits a protected manifest")
+    @NmError(status = 404, code = "not_found", desc = "No such file")
+    @NmError(status = 422, code = "invalid_request",
+            desc = "The body must be {\"confirm\":true}")
+    @NmError(status = 504, code = "game_thread_timeout",
+            desc = "The game main thread did not answer within 5 seconds")
+    public void deleteFile(
+            @NmParam(value = "path", multi = true)
+            @NmDesc("The macros-root-relative path (may contain slashes)") String path,
+            ApiContext context) {
+        if (!confirmed(context)) {
+            throw ApiError.unprocessable(
+                    "file deletion needs a body of {\"confirm\":true}");
+        }
+        game.call(() -> {
+            backend.deleteFile(path);
+            return null;
+        });
+    }
+
+    @NmPost("/api/v1/files/move")
+    @NmApi(tag = "files", summary = "Move or rename one file or directory within its"
+            + " macro folder")
+    @NmError(status = 403, code = "forbidden",
+            desc = "A path escapes the macros root, leaves the macro folder, or"
+                    + " hits a protected manifest")
+    @NmError(status = 404, code = "not_found", desc = "The source does not exist")
+    @NmError(status = 409, code = "conflict", desc = "The target already exists")
+    @NmError(status = 422, code = "invalid_request",
+            desc = "The target extension is outside the text whitelist, contains"
+                    + " whitespace, or a directory would move into itself")
+    @NmError(status = 504, code = "game_thread_timeout",
+            desc = "The game main thread did not answer within 5 seconds")
+    public void moveFile(@NmBody MoveRequest request) {
+        if (request.from() == null || request.from().isBlank()
+                || request.to() == null || request.to().isBlank()) {
+            throw ApiError.unprocessable("the move request needs from and to paths");
+        }
+        game.call(() -> {
+            backend.moveFile(request.from(), request.to());
+            return null;
+        });
+    }
+
+    @NmPost("/api/v1/files/mkdir")
+    @NmApi(tag = "files", summary = "Create a directory (with parents) inside one"
+            + " macro folder")
+    @NmError(status = 403, code = "forbidden",
+            desc = "The path escapes the macros root or lies outside any macro folder")
+    @NmError(status = 409, code = "conflict", desc = "The directory already exists")
+    @NmError(status = 422, code = "invalid_request",
+            desc = "The path contains whitespace")
+    public void makeDirectory(@NmBody MkdirRequest request) {
+        if (request.path() == null || request.path().isBlank()) {
+            throw ApiError.unprocessable("the mkdir request needs a path");
+        }
+        backend.makeDirectory(request.path());
     }
 
     @NmGet("/api/v1/devices")

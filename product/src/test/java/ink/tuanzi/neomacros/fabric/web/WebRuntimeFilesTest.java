@@ -11,6 +11,7 @@ import ink.tuanzi.neomacros.fabric.web.auth.Nm1Verifier;
 import ink.tuanzi.neomacros.fabric.web.http.ApiError;
 import ink.tuanzi.neomacros.fabric.web.sse.PanelEvents;
 import ink.tuanzi.neomacros.fabric.web.sse.SseHub;
+import ink.tuanzi.neomacros.fabric.web.v1.FilesResponse;
 import ink.tuanzi.neomacros.fabric.web.v1.MacroView;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -123,6 +125,10 @@ class WebRuntimeFilesTest {
         for (String path : matrix) {
             expect(403, () -> backend.readFile(path));
             expect(403, () -> backend.writeFile(path, "x".getBytes(StandardCharsets.UTF_8), null));
+            expect(403, () -> backend.deleteFile(path));
+            expect(403, () -> backend.makeDirectory(path));
+            expect(403, () -> backend.moveFile(path, "event/auto-welcome/x.js"));
+            expect(403, () -> backend.moveFile("event/auto-welcome/index.js", path));
         }
         assertFalse(Files.exists(temp.resolve("escape.js")));
         assertFalse(Files.exists(root.resolve("escape.js")));
@@ -138,6 +144,9 @@ class WebRuntimeFilesTest {
         boolean created = false;
         try {
             Files.createSymbolicLink(link, outside.resolve("secret.txt"));
+            Files.createSymbolicLink(
+                    root.resolve("event").resolve("auto-welcome").resolve("linkdir"),
+                    outside);
             created = true;
         } catch (IOException | UnsupportedOperationException e) {
             // no symlink privilege on this host; the gate is untestable here
@@ -147,6 +156,12 @@ class WebRuntimeFilesTest {
         expect(403, () -> backend.readFile("event/auto-welcome/link.js"));
         expect(403, () -> backend.writeFile("event/auto-welcome/link.js",
                 "x".getBytes(StandardCharsets.UTF_8), null));
+        expect(403, () -> backend.deleteFile("event/auto-welcome/link.js"));
+        FilesResponse listed = backend.listFiles("event/auto-welcome");
+        assertTrue(listed.files().stream().noneMatch(file -> file.contains("link")),
+                "an outward symlink must not be listed");
+        assertTrue(listed.dirs().stream().noneMatch(dir -> dir.contains("link")),
+                "an outward symlink directory must not be listed");
         assertEquals("secret", Files.readString(outside.resolve("secret.txt")));
     }
 
@@ -172,6 +187,39 @@ class WebRuntimeFilesTest {
         Path big = root.resolve("event").resolve("huge.txt");
         Files.write(big, new byte[4 * 1024 * 1024 + 1]);
         expect(413, () -> backend.readFile("event/huge.txt"));
+    }
+
+    // ---- listing --------------------------------------------------------------
+
+    @Test
+    void listingServesFolderRelativePosixPathsManifestFirst() throws IOException {
+        writeMacro(root, "event", "auto-welcome");
+        Path folder = root.resolve("event/auto-welcome");
+        Files.createDirectories(folder.resolve("lib/nested"));
+        Files.createDirectories(folder.resolve("zz-empty"));
+        Files.writeString(folder.resolve("lib/util.mjs"), "export {};\n");
+        Files.writeString(folder.resolve("lib/nested/deep.js"), "// deep\n");
+        Files.writeString(folder.resolve("zebra.txt"), "z\n");
+        Files.writeString(folder.resolve("alpha.md"), "# a\n");
+        WebRuntime backend = backend();
+        FilesResponse files = backend.listFiles("event/auto-welcome");
+        assertEquals(List.of("neomacro.yml", "alpha.md", "index.js",
+                "lib/nested/deep.js", "lib/util.mjs", "zebra.txt"), files.files());
+        // Empty directories are listed too (the panel's mkdir needs them).
+        assertEquals(List.of("lib", "lib/nested", "zz-empty"), files.dirs());
+
+        // Bare names resolve like every other macro endpoint.
+        assertEquals(files.files(), backend.listFiles("auto-welcome").files());
+        expect(404, () -> backend.listFiles("event/unknown"));
+    }
+
+    @Test
+    void listingAScaffoldServesManifestAndEntryOnly() throws IOException {
+        writeMacro(root, "event", "bare");
+        WebRuntime backend = backend();
+        // Directory entries never appear; just the two scaffold files.
+        assertEquals(List.of("neomacro.yml", "index.js"),
+                backend.listFiles("event/bare").files());
     }
 
     // ---- write ---------------------------------------------------------------
@@ -252,6 +300,91 @@ class WebRuntimeFilesTest {
         String announced = frames.toString(StandardCharsets.UTF_8);
         assertTrue(announced.contains("\"by\":\"disk\""), announced);
         assertTrue(announced.contains("\"path\":\"event/auto-welcome/index.js\""), announced);
+    }
+
+    // ---- tree mutations -------------------------------------------------------
+
+    @Test
+    void deleteRemovesSubtreesButProtectsManifestsAndMacroFolders() throws IOException {
+        writeMacro(root, "event", "doomed");
+        Path folder = root.resolve("event/doomed");
+        Files.createDirectories(folder.resolve("lib/nested"));
+        Files.writeString(folder.resolve("lib/old.js"), "// old\n");
+        Files.writeString(folder.resolve("lib/nested/deeper.js"), "// deeper\n");
+        WebRuntime backend = backend();
+        frames.reset();
+
+        backend.deleteFile("event/doomed/lib");
+        assertFalse(Files.exists(folder.resolve("lib")));
+
+        // The manifest, the macro folder itself, category folders, and any
+        // stray outside macro folders are all protected.
+        expect(403, () -> backend.deleteFile("event/doomed/neomacro.yml"));
+        expect(403, () -> backend.deleteFile("event/doomed"));
+        expect(403, () -> backend.deleteFile("event"));
+        Files.writeString(root.resolve("event/stray.txt"), "stray");
+        expect(403, () -> backend.deleteFile("event/stray.txt"));
+        expect(404, () -> backend.deleteFile("event/doomed/missing.js"));
+
+        // The deletion announces itself as a web write, never a disk echo.
+        String announced = frames.toString(StandardCharsets.UTF_8);
+        assertTrue(announced.contains("\"path\":\"event/doomed/lib\",\"by\":\"web\""),
+                announced);
+        assertFalse(announced.contains("\"by\":\"disk\""), announced);
+    }
+
+    @Test
+    void moveRenamesFilesAndDirsInsideOneMacroOnly() throws IOException {
+        writeMacro(root, "event", "mover");
+        writeMacro(root, "event", "other");
+        Path folder = root.resolve("event/mover");
+        Files.createDirectories(folder.resolve("lib"));
+        Files.writeString(folder.resolve("lib/util.mjs"), "export {};\n");
+        WebRuntime backend = backend();
+        frames.reset();
+
+        // A file rename passes the whitelist and auto-creates parents.
+        backend.moveFile("event/mover/lib/util.mjs", "event/mover/deep/renamed.mjs");
+        assertTrue(Files.exists(folder.resolve("deep/renamed.mjs")));
+
+        // A directory rename skips the whitelist entirely.
+        backend.moveFile("event/mover/deep", "event/mover/deep.exe");
+        assertTrue(Files.isDirectory(folder.resolve("deep.exe")));
+
+        String announced = frames.toString(StandardCharsets.UTF_8);
+        assertTrue(announced.contains(
+                "\"path\":\"event/mover/deep/renamed.mjs\",\"by\":\"web\""), announced);
+        assertFalse(announced.contains("\"by\":\"disk\""), announced);
+
+        // Protections: manifests, macro folders, cross-macro, stray targets.
+        expect(403, () -> backend.moveFile("event/mover/neomacro.yml", "event/mover/x.yml"));
+        expect(403, () -> backend.moveFile("event/mover/neomacro.yml", "event/other/x.yml"));
+        expect(403, () -> backend.moveFile("event/mover/index.js", "event/other/index.js"));
+        expect(403, () -> backend.moveFile("event/mover/index.js", "event/stray.js"));
+        expect(403, () -> backend.moveFile("event/mover", "event/mover2"));
+
+        // Missing source, existing target, self-nesting, whitelist, whitespace.
+        expect(404, () -> backend.moveFile("event/mover/missing.js", "event/mover/x.js"));
+        expect(409, () -> backend.moveFile("event/mover/index.js", "event/mover/neomacro.yml"));
+        expect(409, () -> backend.moveFile("event/mover/index.js", "event/mover/index.js"));
+        expect(422, () -> backend.moveFile("event/mover/index.js", "event/mover/evil.exe"));
+        expect(422, () -> backend.moveFile("event/mover/index.js", "event/mover/bad name.js"));
+        expect(422, () -> backend.moveFile("event/mover/deep.exe", "event/mover/deep.exe/inner"));
+    }
+
+    @Test
+    void mkdirCreatesRecursivelyInsideMacrosOnly() throws IOException {
+        writeMacro(root, "event", "maker");
+        WebRuntime backend = backend();
+        backend.makeDirectory("event/maker/a/b/c");
+        assertTrue(Files.isDirectory(root.resolve("event/maker/a/b/c")));
+        assertTrue(backend.listFiles("event/maker").dirs()
+                .containsAll(List.of("a", "a/b", "a/b/c")));
+
+        expect(409, () -> backend.makeDirectory("event/maker/a"));
+        expect(403, () -> backend.makeDirectory("event/maker-adjacent"));
+        expect(403, () -> backend.makeDirectory("event"));
+        expect(422, () -> backend.makeDirectory("event/maker/bad name"));
     }
 
     // ---- create --------------------------------------------------------------

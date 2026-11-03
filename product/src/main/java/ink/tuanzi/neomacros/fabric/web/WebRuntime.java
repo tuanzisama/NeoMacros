@@ -13,6 +13,7 @@ import ink.tuanzi.neomacros.fabric.web.auth.Nm1Verifier;
 import ink.tuanzi.neomacros.fabric.web.http.ApiError;
 import ink.tuanzi.neomacros.fabric.web.json.Jsons;
 import ink.tuanzi.neomacros.fabric.web.sse.PanelEvents;
+import ink.tuanzi.neomacros.fabric.web.v1.FilesResponse;
 import ink.tuanzi.neomacros.fabric.web.v1.LocatedError;
 import ink.tuanzi.neomacros.fabric.web.v1.MacroCategory;
 import ink.tuanzi.neomacros.fabric.web.v1.MacroLifecycle;
@@ -26,6 +27,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -64,6 +66,9 @@ public final class WebRuntime implements PanelBackend, GameRunner {
 
     /** The macro name rule for the scaffold endpoint. */
     private static final Pattern NAME_PATTERN = Pattern.compile("[A-Za-z0-9_-]{1,64}");
+
+    /** The manifest file that always heads the folder listing. */
+    private static final String MANIFEST_FILE = "neomacro.yml";
 
     private final ModuleManager modules;
     private final CoreOptions options;
@@ -246,6 +251,169 @@ public final class WebRuntime implements PanelBackend, GameRunner {
     }
 
     @Override
+    public FilesResponse listFiles(String id) {
+        ScriptEntry entry = resolve(id)
+                .orElseThrow(() -> ApiError.notFound("unknown macro: " + id));
+        Path root = macrosDir.toAbsolutePath().normalize();
+        Path folder = entry.folder().toAbsolutePath().normalize();
+        Path realRoot = realPath(root);
+        Path realFolder = realPath(folder);
+        if (realRoot == null || realFolder == null || !realFolder.startsWith(realRoot)) {
+            throw ApiError.forbidden("refusing to list outside the macros root");
+        }
+        List<String> files = new ArrayList<>();
+        List<String> dirs = new ArrayList<>();
+        try (Stream<Path> walk = Files.walk(folder)) {
+            // No-follow: an outward symlink is neither listed as a file nor
+            // as a directory (reading through it is a 403 anyway, so the
+            // listing must not advertise it).
+            walk.filter(node -> !node.equals(folder)).forEach(node -> {
+                String relative = folder.relativize(node).toString().replace('\\', '/');
+                if (Files.isDirectory(node, LinkOption.NOFOLLOW_LINKS)) {
+                    dirs.add(relative);
+                } else if (Files.isRegularFile(node, LinkOption.NOFOLLOW_LINKS)) {
+                    files.add(relative);
+                }
+            });
+        } catch (IOException e) {
+            throw new ApiError(500, ApiError.INTERNAL,
+                    "cannot list the macro folder: " + e.getMessage());
+        }
+        files.sort(Comparator.comparing((String file) -> !file.equals(MANIFEST_FILE))
+                .thenComparing(Comparator.naturalOrder()));
+        dirs.sort(Comparator.naturalOrder());
+        return new FilesResponse(List.copyOf(files), List.copyOf(dirs));
+    }
+
+    @Override
+    public void deleteFile(String path) {
+        Path target = resolveSandbox(path);
+        if (!Files.exists(target)) {
+            throw ApiError.notFound("no such file: " + path);
+        }
+        ScriptEntry owner = ownedEntry(target);
+        Path folder = owner.folder().toAbsolutePath().normalize();
+        Path normalized = target.normalize();
+        if (normalized.equals(folder)) {
+            throw ApiError.forbidden(
+                    "refusing to delete a macro folder (use the macro endpoint)");
+        }
+        rejectManifestPath(normalized, folder, "delete");
+        deleteTree(target);
+        hotReload(owner);
+        events.broadcast("file:changed",
+                Jsons.stringify(new FileChanged(relativePath(target), "web")));
+    }
+
+    @Override
+    public void moveFile(String from, String to) {
+        Path source = resolveSandbox(from);
+        Path target = resolveSandbox(to);
+        rejectWhitespace(to);
+        ScriptEntry owner = ownedEntry(source);
+        ScriptEntry targetOwner = ownedEntry(target);
+        if (!targetOwner.name().equals(owner.name())) {
+            throw ApiError.forbidden("refusing to move across macro folders");
+        }
+        if (!Files.exists(source)) {
+            throw ApiError.notFound("no such file: " + from);
+        }
+        if (Files.exists(target)) {
+            throw ApiError.conflict("target already exists: " + to);
+        }
+        Path folder = owner.folder().toAbsolutePath().normalize();
+        Path sourceNorm = source.normalize();
+        Path targetNorm = target.normalize();
+        if (sourceNorm.equals(folder)) {
+            throw ApiError.forbidden("refusing to move a macro folder");
+        }
+        rejectManifestPath(sourceNorm, folder, "move");
+        rejectManifestPath(targetNorm, folder, "move");
+        if (Files.isRegularFile(source)) {
+            if (!WRITE_EXTENSIONS.contains(extensionOf(target.getFileName().toString()))) {
+                throw ApiError.unprocessable(
+                        "the file extension must be one of " + WRITE_EXTENSIONS);
+            }
+        } else if (targetNorm.startsWith(sourceNorm)) {
+            throw ApiError.unprocessable("cannot move a directory into itself");
+        }
+        try {
+            Path parent = target.getParent();
+            if (Files.isRegularFile(parent)) {
+                throw ApiError.conflict("the parent path is an existing file: " + to);
+            }
+            Files.createDirectories(parent);
+            Files.move(source, target);
+        } catch (IOException e) {
+            throw new ApiError(500, ApiError.INTERNAL,
+                    "cannot move: " + e.getMessage());
+        }
+        hotReload(owner);
+        events.broadcast("file:changed",
+                Jsons.stringify(new FileChanged(relativePath(target), "web")));
+    }
+
+    @Override
+    public void makeDirectory(String path) {
+        Path target = resolveSandbox(path);
+        rejectWhitespace(path);
+        ownedEntry(target);
+        if (Files.exists(target)) {
+            throw ApiError.conflict("already exists: " + path);
+        }
+        try {
+            Path parent = target.getParent();
+            if (Files.isRegularFile(parent)) {
+                throw ApiError.conflict("the parent path is an existing file: " + path);
+            }
+            // mkdir -p: the target and every missing parent in one call.
+            Files.createDirectories(target);
+        } catch (IOException e) {
+            throw new ApiError(500, ApiError.INTERNAL,
+                    "cannot create the directory: " + e.getMessage());
+        }
+    }
+
+    /** The macro folder owning the target; the tree API never leaves one. */
+    private ScriptEntry ownedEntry(Path target) {
+        return ownerOf(target).orElseThrow(() -> ApiError.forbidden(
+                "refusing to operate outside a macro folder"));
+    }
+
+    /** Rejects the macro's manifest as a delete or move source/target. */
+    private static void rejectManifestPath(Path target, Path folder, String action) {
+        if (target.equals(folder.resolve(MANIFEST_FILE))) {
+            throw ApiError.forbidden("the macro manifest is protected (cannot " + action + ")");
+        }
+    }
+
+    /** Created names must stay whitespace-free (NM1 signs the raw path). */
+    private static void rejectWhitespace(String path) {
+        for (int i = 0; i < path.length(); i++) {
+            if (Character.isWhitespace(path.charAt(i))) {
+                throw ApiError.unprocessable("path must not contain whitespace: " + path);
+            }
+        }
+    }
+
+    /**
+     * Reloads the owner after a disk mutation: one watch scan reloads and
+     * refreshes the fingerprint atomically while the disk echo is
+     * suppressed (the caller announces by=web instead).
+     */
+    private LocatedError hotReload(ScriptEntry owner) {
+        suppressDiskEvent = owner.folder();
+        try {
+            modules.checkForChanges();
+        } finally {
+            suppressDiskEvent = null;
+        }
+        LocatedError error = lastErrors.get(owner.name());
+        broadcastState(owner);
+        return error;
+    }
+
+    @Override
     public FileWriteResult writeFile(String path, byte[] content, String ifMatch) {
         Path target = resolveSandbox(path);
         if (!WRITE_EXTENSIONS.contains(extensionOf(target.getFileName().toString()))) {
@@ -278,17 +446,9 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         LocatedError error = null;
         Optional<ScriptEntry> owner = ownerOf(target);
         if (owner.isPresent()) {
-            // One scan reloads the owner and refreshes its watch fingerprint
-            // atomically; the suppressed folder change becomes the by=web
-            // announcement below instead of a by=disk echo.
-            suppressDiskEvent = owner.get().folder();
-            try {
-                modules.checkForChanges();
-            } finally {
-                suppressDiskEvent = null;
-            }
-            error = lastErrors.get(owner.get().name());
-            broadcastState(owner.get());
+            // The suppressed folder change becomes the by=web announcement
+            // below instead of a by=disk echo.
+            error = hotReload(owner.get());
         }
         events.broadcast("file:changed", Jsons.stringify(
                 new FileChanged(relativePath(target), "web")));
