@@ -33,7 +33,7 @@ NeoMacros 在 Minecraft 客户端内运行 ECMAScript（JavaScript）脚本。�
             └── services/  # 常驻服务
 ```
 
-每个脚本文件夹包含一份 `neomacro.yml`（或 `.json` / `.json5`）清单和入口
+每个脚本文件夹包含一份 `neomacro.yml`（或 `.json`）清单和入口
 文件——见[第一个脚本](./first-script)。
 
 脚本的持久化数据存放在各自独立的存储里（见

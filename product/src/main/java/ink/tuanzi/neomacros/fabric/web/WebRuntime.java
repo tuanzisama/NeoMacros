@@ -59,7 +59,7 @@ public final class WebRuntime implements PanelBackend, GameRunner {
 
     /** The write whitelist: text formats the editor may create or change. */
     private static final Set<String> WRITE_EXTENSIONS =
-            Set.of("js", "mjs", "cjs", "yml", "yaml", "json", "json5", "md", "txt");
+            Set.of("js", "mjs", "cjs", "yml", "yaml", "json", "md", "txt");
 
     /** The largest file a read serves (planted huge files must not OOM). */
     private static final long READ_CAP_BYTES = 4L * 1024 * 1024;

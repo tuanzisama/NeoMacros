@@ -23,7 +23,7 @@ author: you            # name / version / author 三项必填
 description: 进世界时打招呼
 ```
 
-清单支持 `neomacro.yml`、`neomacro.json`、`neomacro.json5` 三种格式（多个
+清单支持 `neomacro.yml`、`neomacro.json` 两种格式（多个
 并存时按此优先级取一）。可选字段包括 `description`、`license`、`homepage`、
 `supportURL`、`main`（入口文件，默认 `index.js`）、`key`（按键脚本的默认
 绑定）、`lifecycle`（`always` / `world` / `manual`；目录默认：services 为

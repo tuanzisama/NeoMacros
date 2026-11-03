@@ -52,33 +52,20 @@ class ManifestParserTest {
     }
 
     @Test
-    void parsesJsonAndJson5Manifests(@TempDir Path dir) throws IOException {
+    void parsesJsonManifest(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("neomacro.json"), """
                 {"name": "j", "version": "1.0.0", "author": "a"}
                 """);
         MacroManifest json = ManifestParser.parse(dir, m -> { });
         assertEquals("j", json.name());
-
-        Files.delete(dir.resolve("neomacro.json"));
-        Files.writeString(dir.resolve("neomacro.json5"), """
-                {
-                    name: 'j5',     // identity
-                    version: '1.0.0',
-                    author: 'a',
-                }
-                """);
-        MacroManifest json5 = ManifestParser.parse(dir, m -> { });
-        assertEquals("j5", json5.name());
     }
 
     @Test
-    void priorityIsYamlThenJsonThenJson5(@TempDir Path dir) throws IOException {
+    void priorityIsYamlThenJson(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("neomacro.yml"),
                 "name: from-yaml\nversion: 1.0.0\nauthor: a\n");
         Files.writeString(dir.resolve("neomacro.json"),
                 "{\"name\": \"from-json\", \"version\": \"1.0.0\", \"author\": \"a\"}");
-        Files.writeString(dir.resolve("neomacro.json5"),
-                "{ name: 'from-json5', version: '1.0.0', author: 'a' }");
         List<String> warnings = new ArrayList<>();
 
         MacroManifest manifest = ManifestParser.parse(dir, warnings::add);

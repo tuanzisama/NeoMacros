@@ -25,7 +25,7 @@ author: you            # name, version and author are required
 description: says hi on world join
 ```
 
-Accepted formats are `neomacro.yml`, `neomacro.json` and `neomacro.json5`
+Accepted formats are `neomacro.yml` and `neomacro.json`
 (priority in that order when several exist). Optional fields include
 `description`, `license`, `homepage`, `supportURL`, `main` (entry file,
 default `index.js`), `key` (default key binding for keypress scripts),

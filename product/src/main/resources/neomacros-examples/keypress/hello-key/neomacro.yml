@@ -1,6 +1,5 @@
-# NeoMacros script manifest (place ONE of neomacro.yml / neomacro.json /
-# neomacro.json5 in the folder; with several present the priority is
-# yml > json > json5).
+# NeoMacros script manifest (place ONE of neomacro.yml / neomacro.json in
+# the folder; with both present the priority is yml > json).
 #
 # Required fields: name / version / author - if any is missing, the folder is
 # not loaded and the reason shows up in the management panel and in

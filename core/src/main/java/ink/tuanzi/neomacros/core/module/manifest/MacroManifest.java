@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * The parsed {@code neomacro.{yml,json,json5}} declaration of one script
+ * The parsed {@code neomacro.{yml,json}} declaration of one script
  * folder: identity metadata in the style of a Tampermonkey userscript header
  * plus the optional entry/binding/lifecycle hints. {@code name}, {@code
  * version}, and {@code author} are required; everything else falls back to

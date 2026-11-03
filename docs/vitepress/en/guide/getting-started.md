@@ -34,7 +34,7 @@ Everything a script touches lives under the game directory:
             └── services/  # long-running scripts
 ```
 
-Each script folder contains a `neomacro.yml` (or `.json` / `.json5`)
+Each script folder contains a `neomacro.yml` (or `.json`)
 manifest and its entry file - see
 [Your First Script](./first-script).
 
