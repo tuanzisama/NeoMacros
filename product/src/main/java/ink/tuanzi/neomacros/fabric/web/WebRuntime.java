@@ -385,7 +385,9 @@ public final class WebRuntime implements PanelBackend, GameRunner {
     public void reveal(String path) {
         // The 422 shapes come before the sandbox's 403 gates: the panel
         // surfaces "illegal path" distinctly from "outside the macros root".
-        for (String segment : path.split("/")) {
+        // The -1 limit keeps trailing empties: "dir/" carries an empty
+        // segment and must not silently normalize to "dir".
+        for (String segment : path.split("/", -1)) {
             if (segment.isEmpty() || segment.equals(".") || segment.equals("..")
                     || segment.indexOf('\\') >= 0) {
                 throw ApiError.unprocessable("malformed reveal path: " + path);

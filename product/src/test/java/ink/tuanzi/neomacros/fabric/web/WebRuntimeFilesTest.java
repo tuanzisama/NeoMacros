@@ -475,6 +475,9 @@ class WebRuntimeFilesTest {
         expect(422, () -> backend.reveal("../escape"));
         expect(422, () -> backend.reveal("event//auto-welcome"));
         expect(422, () -> backend.reveal("event/auto welcome"));
+        // A trailing slash is an empty segment too: it must not silently
+        // normalize to the bare directory name.
+        expect(422, () -> backend.reveal("event/"));
         // The sandbox gates still apply (the drive letter is not a 422 shape).
         expect(403, () -> backend.reveal("C:/Windows"));
         expect(422, () -> backend.reveal("../web-devices.json"));
