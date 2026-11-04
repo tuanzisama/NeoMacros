@@ -67,6 +67,8 @@ public final class E2ERuntime implements AutoCloseable {
         var bridge = new TestBridge();
         registry.registerAll(List.of(EventsApi.class, ClockApi.class, ChatApi.class,
                 StorageApi.class, TestBridge.class, WorldApi.class, EntityApi.class, PlayerApi.class));
+        registry.registerGuestType("Entity", EntityApi.Entity.class);
+        registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.promoteRootMembers("clock", List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(storageDir);

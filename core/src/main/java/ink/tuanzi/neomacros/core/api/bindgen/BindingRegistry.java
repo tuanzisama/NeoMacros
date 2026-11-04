@@ -20,6 +20,7 @@ public final class BindingRegistry {
     private final Map<String, Object> instances = new LinkedHashMap<>();
     private final Map<PermissionView, Map<String, ModuleBinding>> bindingCache = new java.util.IdentityHashMap<>();
     private final Map<String, List<String>> promoted = new LinkedHashMap<>();
+    private final Map<String, Class<?>> guestTypes = new LinkedHashMap<>();
 
     /** JS reserved words that cannot appear as export names. */
     private static final java.util.Set<String> JS_RESERVED_WORDS = java.util.Set.of(
@@ -102,6 +103,32 @@ public final class BindingRegistry {
     }
 
     /**
+     * Registers one script-facing class constructor under the {@code types}
+     * module: {@code neo.types.<name>} and the matching {@code @neomacros/*}
+     * re-export resolve to the real guest ES class built from the cell type's
+     * {@code @ApiClass} declaration. Name collisions with modules or other
+     * types are rejected.
+     */
+    public void registerGuestType(String name, Class<?> cellClass) {
+        if (modules.containsKey(name) || guestTypes.containsKey(name)) {
+            throw new IllegalStateException("guest type collision: " + name);
+        }
+        var annotation = cellClass.getAnnotation(
+                ink.tuanzi.neomacros.doc.api.ApiClass.class);
+        if (annotation == null || !annotation.name().equals(name)) {
+            throw new IllegalArgumentException("cell class " + cellClass.getName()
+                    + " does not declare @ApiClass(\"" + name + "\")");
+        }
+        guestTypes.put(name, cellClass);
+        bindingCache.clear();
+    }
+
+    /** The registered script-facing classes ({@code neo.types.*}), in registration order. */
+    public Map<String, Class<?>> guestTypes() {
+        return Map.copyOf(guestTypes);
+    }
+
+    /**
      * Builds the {@code neo} global tree for one permission view: module name
      * → {@link ModuleBinding}. Members outside the node's {@code @ApiMC}
      * ranges are omitted; permission-gated members render as denied members.
@@ -117,6 +144,13 @@ public final class BindingRegistry {
                 tree.put(member, ModuleBinding.ofMembers(member,
                         Map.of(member, binding.members().get(member))));
             }
+        }
+        if (!guestTypes.isEmpty()) {
+            Map<String, ModuleBinding.BindingMember> members = new LinkedHashMap<>();
+            for (Map.Entry<String, Class<?>> type : guestTypes.entrySet()) {
+                members.put(type.getKey(), new ModuleBinding.GuestTypeMember(type.getValue()));
+            }
+            tree.put("types", ModuleBinding.ofMembers("types", members));
         }
         return tree;
     }
@@ -153,6 +187,18 @@ public final class BindingRegistry {
             }
             return source.isEmpty() ? Optional.empty() : Optional.of(source.toString());
         }
+        if (name.equals("types")) {
+            if (guestTypes.isEmpty()) {
+                return Optional.empty();
+            }
+            StringBuilder source = new StringBuilder("const m = globalThis.neo.types;\n");
+            source.append("export const types = m;\n");
+            for (String typeName : guestTypes.keySet()) {
+                source.append("export const ").append(typeName).append(" = m.")
+                        .append(typeName).append(";\n");
+            }
+            return Optional.of(source.toString());
+        }
         ApiModel.ModuleModel model = modules.get(name);
         if (model == null) {
             return Optional.empty();
@@ -175,6 +221,17 @@ public final class BindingRegistry {
             if (!property.internal()) {
                 source.append("export let ").append(property.name())
                         .append(" = m.").append(property.name()).append(";\n");
+            }
+        }
+        for (Map.Entry<String, Class<?>> type : guestTypes.entrySet()) {
+            // Classes owned by this module's facade re-export through the
+            // module specifier; the canonical export point stays neo.types.
+            var owner = type.getValue().getEnclosingClass();
+            var ownerModule = owner == null ? null : owner.getAnnotation(
+                    ink.tuanzi.neomacros.doc.api.ApiModule.class);
+            if (ownerModule != null && ownerModule.name().equals(name)) {
+                source.append("export const ").append(type.getKey())
+                        .append(" = globalThis.neo.types.").append(type.getKey()).append(";\n");
             }
         }
         return Optional.of(source.toString());
