@@ -12,7 +12,7 @@ const apiGroups: Array<{ label: Record<Locale, string>; modules: string[] }> = [
   { label: { en: 'Input', zh: '输入' }, modules: ['input'] },
 ]
 
-const guidePages: Array<[string, Record<Locale, string>]> = [
+const guidePages: Array<[string, Record<Locale, string]>] = [
   ['getting-started', { en: 'Getting Started', zh: '快速上手' }],
   ['first-script', { en: 'Your First Script', zh: '第一个脚本' }],
   ['events-and-async', { en: 'Events & Async', zh: '事件与异步' }],
@@ -20,7 +20,7 @@ const guidePages: Array<[string, Record<Locale, string>]> = [
   ['commands-and-debugging', { en: 'Commands & Debugging', zh: '命令与排错' }],
 ]
 
-const examplePages: Array<[string, Record<Locale, string>]> = [
+const examplePages: Array<[string, Record<Locale, string]>] = [
   ['index', { en: 'Overview', zh: '总览' }],
   ['auto-greet', { en: 'Auto Greet', zh: '进服欢迎' }],
   ['coords-hud', { en: 'Coords HUD', zh: '坐标 HUD' }],
@@ -54,6 +54,24 @@ function sidebar(locale: Locale) {
   ]
 }
 
+/** Dropdown nav entry for the API Reference (all module pages + types). */
+function apiNav(locale: Locale) {
+  const t = locale === 'zh'
+  const items: Array<{ text: string; link: string }> = [
+    { text: t ? '总览' : 'Overview', link: `/${locale}/api/` },
+    { text: t ? '类型定义' : 'Type Definitions', link: `/${locale}/api/types` },
+  ]
+  for (const group of apiGroups) {
+    for (const name of group.modules) {
+      items.push({ text: name, link: `/${locale}/api/${name}` })
+    }
+  }
+  return {
+    text: t ? 'API 参考' : 'API Reference',
+    items,
+  }
+}
+
 export default defineConfig({
   // Project Pages serves the site under /NeoMacros/; every asset URL is
   // prefixed with this. Must stay in sync with the repository name.
@@ -69,7 +87,7 @@ export default defineConfig({
         nav: [
           { text: 'Guide', link: '/en/guide/getting-started' },
           { text: 'Examples', link: '/en/examples/' },
-          { text: 'API', link: '/en/api/' },
+          apiNav('en'),
         ],
         sidebar: sidebar('en'),
       },
@@ -82,7 +100,7 @@ export default defineConfig({
         nav: [
           { text: '指南', link: '/zh/guide/getting-started' },
           { text: '示例', link: '/zh/examples/' },
-          { text: 'API', link: '/zh/api/' },
+          apiNav('zh'),
         ],
         sidebar: sidebar('zh'),
         search: {
@@ -103,6 +121,7 @@ export default defineConfig({
   themeConfig: {
     socialLinks: [{ icon: 'github', link: 'https://github.com/tuanzisama/NeoMacros' }],
     search: { provider: 'local' },
+    outline: { level: [2, 3], label: 'On this page' },
     footer: {
       message: 'Not affiliated with Mojang or Microsoft.',
       copyright: 'Copyright © 2026 NeoMacros contributors',
@@ -111,11 +130,13 @@ export default defineConfig({
   transformPageData(pageData) {
     // Generated facade pages get a stable page class so the custom theme can
     // style their member headings as cards; the hand-written overview keeps
-    // its own frontmatter.
+    // its own frontmatter. API pages also show h3 (method names) in the
+    // right-side outline.
     const path = pageData.relativePath.replace(/\\/g, '/')
     if (/^(en|zh)\/api\/[^/]+\.md$/.test(path) && !path.endsWith('index.md')) {
       pageData.frontmatter ??= {}
       pageData.frontmatter.pageClass = 'api-facade'
+      pageData.frontmatter.outline = [2, 3]
     }
   },
 })
