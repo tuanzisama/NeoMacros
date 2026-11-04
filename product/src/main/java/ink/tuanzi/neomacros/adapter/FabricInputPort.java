@@ -163,4 +163,23 @@ public final class FabricInputPort implements ink.tuanzi.neomacros.port.InputPor
     public void onScroll(Consumer<Double> sink) {
         scrollSinks.add(sink::accept);
     }
+
+    /** Injects one raw key state through the vanilla static key map. */
+    @Override
+    public void injectKey(String keyName, boolean down) {
+        KeyMapping.set(InputConstants.getKey(keyName), down);
+    }
+
+    /** Injects one keybind state by its bind translation key. */
+    @Override
+    public void injectBind(String bindName, boolean down) {
+        var options = net.minecraft.client.Minecraft.getInstance().options;
+        var accessor = (ink.tuanzi.neomacros.adapter.mixin.OptionsKeyMappingsAccessor) (Object) options;
+        for (KeyMapping mapping : accessor.neomacros$keyMappings()) {
+            if (mapping.getName().equals(bindName)) {
+                mapping.setDown(down);
+                return;
+            }
+        }
+    }
 }

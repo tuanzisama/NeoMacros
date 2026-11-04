@@ -147,6 +147,11 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 new ink.tuanzi.neomacros.adapter.FabricHudRegistry(adapter.render(), Minecraft.getInstance()::execute)));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.render.RenderApi(
                 adapter.draw3d()));
+        var inputDelayer = new java.util.concurrent.ScheduledThreadPoolExecutor(1, run -> {
+            Thread thread = new Thread(run, "neomacros-input-delay");
+            thread.setDaemon(true);
+            return thread;
+        });
         var inputApi = new InputApi(new InputApi.InputBridge() {
             @Override
             public Object registerKeybind(String keyName, java.util.function.Consumer<Integer> sink) {
@@ -168,7 +173,17 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             public void unregister(Object handle) {
                 adapter.input().unregister(handle);
             }
-        });
+
+            @Override
+            public void injectKey(String keyName, boolean down) {
+                adapter.input().injectKey(keyName, down);
+            }
+
+            @Override
+            public void injectBind(String bindName, boolean down) {
+                adapter.input().injectBind(bindName, down);
+            }
+        }, inputDelayer);
         registry.registerInstance(inputApi);
         registry.promoteRootMembers("clock", java.util.List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
