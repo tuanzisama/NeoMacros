@@ -52,9 +52,9 @@
 
 ## 类与事件
 
-包装类型（`Vec3`、`BlockPos`、`Block`、`BlockState`、`RayHit` 等）见
-[类型定义](/zh/api/types)页；全部可订阅事件及其负载字段见生成的
-[事件目录](/zh/api/events-reference)。
+每个包装类型（`Vec3`、`BlockPos`、`Block`、`BlockState`、`RayHit`、
+`Player`、`LocalPlayer` 等）与每个可订阅事件（`player:damage`、
+`world:join` 等）都有独立页面——在侧栏的 **类** 与 **事件** 分区浏览。
 
 可取消事件（`player:attackBlock`、`player:attackEntity`、
 `player:interactBlock`、`player:interactEntity`）必须使用

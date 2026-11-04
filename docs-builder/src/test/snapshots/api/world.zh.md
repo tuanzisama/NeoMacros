@@ -4,11 +4,9 @@
 
 Category: test · Since: 0.1.0 · MC availability: >=1.20.6 · Exposed as `neo.world` and `@neomacros/world`
 
-**类树**
+**Classes**
 
-- `WorldHandle`
-  - `RegionHandle`
-- `WorldInfo`
+[`RegionHandle`](classes/RegionHandle.html) · [`WorldHandle`](classes/WorldHandle.html) · [`WorldInfo`](classes/WorldInfo.html)
 
 ## Properties
 
@@ -24,7 +22,7 @@ Category: test · Since: 0.1.0 · MC availability: >=1.20.6 · Exposed as `neo.w
 
 **Parameters**
 
-- `pos` [FixturePos](types.html#fixturepos): the block position to mark
+- `pos` [FixturePos](classes/FixturePos.html): the block position to mark
 
 **Returns** `Promise<void>` — 高亮放置完成后兑现的 Promise
 
@@ -45,60 +43,4 @@ world.mark(new Pos3d(1, 64, 1));
 - `listener` `(message: string) => void`: callback invoked for each message
 
 Since: 0.1.0 · Permission: `command` · Experimental
-
-## Referenced Types
-
-以下类型在方法签名中被引用。
-
-### FixturePos
-
-| Field | Type |
-| --- | --- |
-| `x` | `number` |
-| `y` | `number` |
-| `z` | `number` |
-
-## Class RegionHandle
-
-句柄 · 包装：`net.minecraft.world.fixture.Region` · 继承：`WorldHandle`
-
-单个区域的活引用句柄，继承世界句柄。
-
-## Properties
-
-| Property | Type | Description |
-| --- | --- | --- |
-| `radius` | `number` | 返回区域半径。 (read-only) |
-
-## Class WorldHandle
-
-句柄 · 包装：`net.minecraft.world.fixture.World` · 被继承：`RegionHandle`
-
-fixture 世界的活引用句柄。
-
-## Properties
-
-| Property | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | 返回句柄显示名称。 (read-only) |
-
-## Methods
-
-### `refresh()`
-
-让句柄对实时世界状态重新求值。
-
-Since: 0.1.0
-
-## Class WorldInfo
-
-数据 · 包装：`net.minecraft.world.fixture.World`
-
-世界信息的不可变数据描述。
-
-## Properties
-
-| Property | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | 返回世界标识。 (read-only) |
 

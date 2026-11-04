@@ -24,6 +24,11 @@ fi
 
 mkdir -p "$site/en/api" "$site/zh/api" "$site/public"
 
+# The API trees are fully generated (only the hand-written index.md is
+# tracked), so stale pages from removed generators are wiped first.
+find "$site/en/api" -mindepth 1 -maxdepth 1 ! -name 'index.md' -exec rm -rf {} +
+find "$site/zh/api" -mindepth 1 -maxdepth 1 ! -name 'index.md' -exec rm -rf {} +
+
 # Append the types/java module supplement (non-facade modules that
 # TSDoclet cannot scan: types cells, java module re-exports).
 supplement="$site/api-examples/types-supplement.d.ts"
@@ -40,21 +45,27 @@ append_examples() {
 }
 
 # English pages keep their name; Chinese pages drop the .zh.md suffix so
-# each locale tree maps module name to route identically.
-for f in "$gen_md"/api/*.md; do
+# each locale tree maps module name to route identically. Subdirectories
+# (classes/, events/) are copied preserving their relative path.
+while IFS= read -r f; do
+  rel="${f#"$gen_md"/api/}"
   case "$f" in
     *.zh.md) ;;
     *)
-      cp "$f" "$site/en/api/"
-      append_examples "$site/en/api/$(basename "$f")" "$examples/en/$(basename "$f")"
+      mkdir -p "$site/en/api/$(dirname "$rel")"
+      cp "$f" "$site/en/api/$rel"
+      append_examples "$site/en/api/$rel" "$examples/en/$(basename "$f")"
       ;;
   esac
-done
-for f in "$gen_md"/api/*.zh.md; do
+done < <(find "$gen_md/api" -name '*.md' -type f | sort)
+while IFS= read -r f; do
+  rel="${f#"$gen_md"/api/}"
   name="$(basename "$f" .zh.md).md"
-  cp "$f" "$site/zh/api/$name"
-  append_examples "$site/zh/api/$name" "$examples/zh/$name"
-done
+  target="$site/zh/api/$(dirname "$rel")/$name"
+  mkdir -p "$(dirname "$target")"
+  cp "$f" "$target"
+  append_examples "$target" "$examples/zh/$name"
+done < <(find "$gen_md/api" -name '*.zh.md' -type f | sort)
 
 cp "$gen_ts/types/neomacros.d.ts" "$site/public/neomacros.d.ts"
 

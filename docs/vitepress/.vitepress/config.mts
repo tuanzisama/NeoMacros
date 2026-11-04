@@ -12,25 +12,24 @@ const apiModules: string[] = [
   'fs', 'net', 'java', 'input',
 ]
 
-// Classes deep-link into the generated types page (standalone @ApiClass
-// entries) or the owning module page (nested @ApiClass entries, port models).
-const apiClasses: Array<[string, string]> = [
-  ['Vec3', 'types#vec3'],
-  ['BlockPos', 'types#blockpos'],
-  ['Block', 'types#block'],
-  ['BlockState', 'types#blockstate'],
-  ['RayHit', 'types#rayhit'],
-  ['JavaClass', 'types#javaclass'],
-  ['JavaObject', 'types#javaobject'],
-  ['Player', 'player#class-player'],
-  ['LocalPlayer', 'player#class-localplayer'],
-  ['Entity', 'entity#class-entity'],
-  ['Container', 'inventory#class-container'],
-  ['Pos3d', 'render#pos3d'],
+// Classes live on their own generated pages under api/classes/.
+const apiClasses: string[] = [
+  'Vec3',
+  'BlockPos',
+  'Block',
+  'BlockState',
+  'RayHit',
+  'JavaClass',
+  'JavaObject',
+  'Player',
+  'LocalPlayer',
+  'Entity',
+  'Container',
+  'Pos3d',
 ]
 
-// Subscribable events (the ProductionEventSet roster) grouped by domain,
-// matching the generated events-reference page.
+// Subscribable events (the ProductionEventSet roster) grouped by domain;
+// each event has its own generated page under api/events/.
 const eventDomains: Array<[string, string[]]> = [
   ['tick', ['tick']],
   ['chat', ['chat:send', 'chat:receive']],
@@ -43,9 +42,9 @@ const eventDomains: Array<[string, string[]]> = [
   ['entity', ['entity:load', 'entity:unload', 'entity:damage', 'entity:heal']],
 ]
 
-/** Deep-link anchor of one event on the events-reference page. */
-function eventAnchor(name: string) {
-  return `event-${name.toLowerCase().replace(/:/g, '-')}`
+/** File-name slug of one event page under api/events/. */
+function eventSlug(name: string) {
+  return name.toLowerCase().replace(/:/g, '-')
 }
 
 const guidePages: Array<[string, Record<Locale, string>]> = [
@@ -102,22 +101,19 @@ function apiSidebar(locale: Locale) {
     {
       text: t ? '类' : 'Classes',
       collapsed: false,
-      items: apiClasses.map(([name, anchor]) => ({ text: name, link: `/${locale}/api/${anchor}` })),
+      items: apiClasses.map((name) => ({ text: name, link: `/${locale}/api/classes/${name}` })),
     },
     {
       text: t ? '事件' : 'Events',
       collapsed: false,
-      items: [
-        { text: t ? '目录' : 'Catalog', link: `/${locale}/api/events-reference` },
-        ...eventDomains.map(([domain, names]) => ({
-          text: domain,
-          collapsed: true,
-          items: names.map((name) => ({
-            text: name,
-            link: `/${locale}/api/events-reference#${eventAnchor(name)}`,
-          })),
+      items: eventDomains.map(([domain, names]) => ({
+        text: domain,
+        collapsed: true,
+        items: names.map((name) => ({
+          text: name,
+          link: `/${locale}/api/events/${eventSlug(name)}`,
         })),
-      ],
+      })),
     },
   ]
 }
@@ -197,16 +193,10 @@ export default defineConfig({
     // its own frontmatter. API pages also show h3 (method names) in the
     // right-side outline.
     const path = pageData.relativePath.replace(/\\/g, '/')
-    if (/^(en|zh)\/api\/[^/]+\.md$/.test(path) && !path.endsWith('index.md')) {
+    if (/^(en|zh)\/api\/.+\.md$/.test(path) && !path.endsWith('index.md')) {
       pageData.frontmatter ??= {}
       pageData.frontmatter.pageClass = 'api-facade'
       pageData.frontmatter.outline = [2, 3]
-    }
-    // The event catalog lists 40+ events; keep the right outline to the
-    // domain headings only.
-    if (/^(en|zh)\/api\/events-reference\.md$/.test(path)) {
-      pageData.frontmatter ??= {}
-      pageData.frontmatter.outline = [2]
     }
     // API index page gets its own page class for CSS targeting.
     if (/^(en|zh)\/api\/index\.md$/.test(path)) {

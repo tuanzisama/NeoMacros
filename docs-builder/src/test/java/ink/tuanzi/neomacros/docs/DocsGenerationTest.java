@@ -97,34 +97,58 @@ class DocsGenerationTest {
     }
 
     @Test
-    void classSectionsRenderKindWrapsAndTree() throws IOException {
+    void modulePagesLinkToClassPages() throws IOException {
         String world = read(outMd.outDir().resolve("api/world.md"));
-        assertTrue(world.contains("## Class WorldHandle"), "class section rendered");
-        assertTrue(world.contains("Wraps: `net.minecraft.world.fixture.World`"),
-                "wraps badge rendered");
-        assertTrue(world.contains("**Class tree**"), "class tree rendered");
-        assertTrue(world.contains("- `WorldHandle`"), "tree lists the root class");
-        assertTrue(world.contains("  - `RegionHandle`"), "tree nests the subclass");
-        assertTrue(world.contains("Extended by: `RegionHandle`"), "parent lists its subclasses");
-        assertTrue(world.contains("Extends: `WorldHandle`"), "subclass lists its parent");
-        assertTrue(world.contains("## Class WorldInfo"), "data class rendered");
-        assertTrue(world.contains("Data · Wraps"), "data kind badge rendered");
-        assertFalse(world.contains("## Handle "), "interface-era heading is gone");
-
-        String zh = read(outMd.outDir().resolve("api/world.zh.md"));
-        assertTrue(zh.contains("**类树**"), "Chinese class tree label rendered");
-        assertTrue(zh.contains("包装：`net.minecraft.world.fixture.World`"), "Chinese wraps badge");
-        assertTrue(zh.contains("被继承：`RegionHandle`"), "Chinese extended-by badge");
-        assertTrue(zh.contains("继承：`WorldHandle`"), "Chinese extends badge");
+        assertTrue(world.contains("**Classes**"), "classes link section rendered");
+        assertTrue(world.contains("[`WorldHandle`](classes/WorldHandle.html)"),
+                "class link rendered");
+        assertFalse(world.contains("## Class WorldHandle"), "class sections moved to their own pages");
     }
 
     @Test
-    void typesPageRenderedWithClassTree() throws IOException {
-        String types = read(outMd.outDir().resolve("api/types.md"));
-        assertTrue(types.contains("## StandaloneVec"), "standalone types page rendered");
-        assertTrue(types.contains("Data"), "data kind badge rendered");
-        
-        
+    void classPagesRenderKindWrapsAndInheritance() throws IOException {
+        String handle = read(outMd.outDir().resolve("api/classes/WorldHandle.md"));
+        assertTrue(handle.contains("# WorldHandle"), "class page rendered");
+        assertTrue(handle.contains("Handle · Wraps: `net.minecraft.world.fixture.World`"),
+                "kind and wraps meta rendered");
+        assertTrue(handle.contains("Extended by: [`RegionHandle`](RegionHandle.html)"),
+                "parent lists its subclasses");
+        String region = read(outMd.outDir().resolve("api/classes/RegionHandle.md"));
+        assertTrue(region.contains("Extends: [`WorldHandle`](WorldHandle.html)"),
+                "subclass lists its parent");
+        String info = read(outMd.outDir().resolve("api/classes/WorldInfo.md"));
+        assertTrue(info.contains("Data"), "data kind badge rendered");
+        String pos = read(outMd.outDir().resolve("api/classes/FixturePos.md"));
+        assertTrue(pos.contains("Record type referenced in module signatures."),
+                "referenced record type page rendered");
+    }
+
+    @Test
+    void classPagesKeepEnglishTermsOnChinesePages() throws IOException {
+        String zh = read(outMd.outDir().resolve("api/classes/WorldHandle.zh.md"));
+        assertTrue(zh.contains("Handle · Wraps: `net.minecraft.world.fixture.World`"),
+                "kind and wraps terms stay English on the Chinese page");
+        assertTrue(zh.contains("Extended by: [`RegionHandle`](RegionHandle.html)"),
+                "inheritance terms stay English on the Chinese page");
+        assertTrue(zh.contains("fixture 世界的活引用句柄"), "translated body kept");
+    }
+
+    @Test
+    void standaloneClassPageRendered() throws IOException {
+        String vec = read(outMd.outDir().resolve("api/classes/StandaloneVec.md"));
+        assertTrue(vec.contains("# StandaloneVec"), "standalone class page rendered");
+        assertTrue(vec.contains("Data"), "data kind badge rendered");
+    }
+
+    @Test
+    void eventPagesRendered() throws IOException {
+        String marked = read(outMd.outDir().resolve("api/events/fixture-marked.md"));
+        assertTrue(marked.contains("# fixture:marked"), "event page rendered");
+        assertTrue(marked.contains("Cancellable"), "cancellable badge rendered");
+        assertTrue(marked.contains("`message`"), "payload fields rendered");
+        String zh = read(outMd.outDir().resolve("api/events/fixture-marked.zh.md"));
+        assertTrue(zh.contains("Cancellable"), "cancellable badge stays English on the Chinese page");
+        assertTrue(zh.contains("练习用的可取消事件描述符"), "translated body kept");
     }
 
     @Test

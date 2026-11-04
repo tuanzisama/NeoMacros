@@ -53,10 +53,10 @@ grab a complete script from the [Examples](/en/examples/) section.
 
 ## Classes and events
 
-Wrapper types (`Vec3`, `BlockPos`, `Block`, `BlockState`, `RayHit`, ...) are
-documented on the [Type Definitions](/en/api/types) page. All subscribable
-events and their payload fields live in the generated
-[Event Catalog](/en/api/events-reference).
+Every wrapper type (`Vec3`, `BlockPos`, `Block`, `BlockState`, `RayHit`,
+`Player`, `LocalPlayer`, ...) and every subscribable event (`player:damage`,
+`world:join`, ...) has its own page — browse them in the sidebar under
+**Classes** and **Events**.
 
 Cancellable events (`player:attackBlock`, `player:attackEntity`,
 `player:interactBlock`, `player:interactEntity`) require
