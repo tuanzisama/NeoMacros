@@ -94,6 +94,12 @@ public final class PortEventWiring {
                         edge.down() ? "press" : "release", List.of())).canceled());
         adapter.input().onScroll(amount ->
                 bus.publish("input:wheel", new InputWheelEvent(amount)));
+
+        adapter.inventory().onOpened(info ->
+                bus.publish("inventory:open", java.util.Map.of(
+                        "title", info.title(), "kind", info.kind(), "size", info.size())));
+        adapter.inventory().onUpdated(slot ->
+                bus.publish("inventory:update", java.util.Map.of("mode", "slot", "slot", slot)));
     }
 
     /**

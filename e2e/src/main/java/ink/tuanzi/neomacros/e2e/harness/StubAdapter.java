@@ -168,7 +168,37 @@ public final class StubAdapter implements NeomacrosAdapter {
 
     @Override
     public ink.tuanzi.neomacros.port.InventoryPort inventory() {
-        throw new UnsupportedPortFeature("inventory");
+        return inventory;
+    }
+
+    /** The test-facing inventory port: reads canned data, records actions. */
+    public ink.tuanzi.neomacros.port.InventoryPort inventoryPort() {
+        return inventory;
+    }
+
+    private final StubInventory inventory = new StubInventory();
+
+    /** Inventory port stub serving canned hotbar/main data. */
+    public static final class StubInventory implements ink.tuanzi.neomacros.port.InventoryPort {
+        @Override
+        public java.util.function.Supplier<java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData>> heldItem() {
+            return () -> java.util.Optional.empty();
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> slot(int index) {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public java.util.function.Supplier<List<IndexedStack>> allItems() {
+            return List::of;
+        }
+
+        @Override
+        public int countOf(String item) {
+            return 0;
+        }
     }
 
     @Override

@@ -67,7 +67,8 @@ public final class E2ERuntime implements AutoCloseable {
         var bridge = new TestBridge();
         registry.registerAll(List.of(EventsApi.class, ClockApi.class, ChatApi.class,
                 StorageApi.class, TestBridge.class, WorldApi.class, EntityApi.class, PlayerApi.class,
-                ink.tuanzi.neomacros.core.api.java.JavaApi.class));
+                ink.tuanzi.neomacros.core.api.java.JavaApi.class,
+                ink.tuanzi.neomacros.core.api.inventory.InventoryApi.class));
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
@@ -76,6 +77,7 @@ public final class E2ERuntime implements AutoCloseable {
         registry.registerGuestType("Block", ink.tuanzi.neomacros.core.api.types.Block.class);
         registry.registerGuestType("BlockState", ink.tuanzi.neomacros.core.api.types.BlockState.class);
         registry.registerGuestType("RayHit", ink.tuanzi.neomacros.core.api.types.RayHit.class);
+        registry.registerGuestType("Container", ink.tuanzi.neomacros.core.api.inventory.InventoryApi.Container.class);
         registry.promoteRootMembers("clock", List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(storageDir);

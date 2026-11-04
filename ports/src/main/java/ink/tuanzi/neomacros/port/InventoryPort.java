@@ -38,4 +38,47 @@ public interface InventoryPort {
     /** One stack with its slot index. */
     record IndexedStack(int slot, ItemStackData stack) {
     }
+
+    /** Metadata of the currently open container screen. */
+    record ContainerInfo(String title, String kind, int size) {
+    }
+
+    /** The currently open container, or empty when no screen is open. */
+    default Optional<ContainerInfo> openedContainer() {
+        return Optional.empty();
+    }
+
+    /** Left/right-clicks a container slot (shift = quick move). */
+    default java.util.concurrent.CompletableFuture<Void> click(
+            int slot, int button, boolean shift) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /** Quick-moves a container slot to the other inventory. */
+    default java.util.concurrent.CompletableFuture<Void> quickMove(int slot) {
+        return click(slot, 0, true);
+    }
+
+    /** Drops the stack from a container slot. */
+    default java.util.concurrent.CompletableFuture<Void> drop(int slot, boolean all) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /** Swaps a container slot with a hotbar slot. */
+    default java.util.concurrent.CompletableFuture<Void> swapHotbar(int slot, int hotbarIndex) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /** Closes the currently open container screen. */
+    default java.util.concurrent.CompletableFuture<Void> close() {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /** Registers a sink for container open events (main thread). */
+    default void onOpened(java.util.function.Consumer<ContainerInfo> sink) {
+    }
+
+    /** Registers a sink for container content updates (main thread). */
+    default void onUpdated(java.util.function.Consumer<Integer> sink) {
+    }
 }
