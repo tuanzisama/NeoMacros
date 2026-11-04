@@ -197,7 +197,10 @@ public class MDDoclet implements Doclet {
             }
             String cancellable = event.cancellable()
                     ? (zh ? " \u00b7 \u53ef\u53d6\u6d88" : " · cancellable") : "";
-            sb.append("### `").append(event.name()).append("`").append(cancellable).append("\n\n");
+            // Backticks and the colon in the heading defeat the site's auto
+            // slugger, so each event carries an explicit deep-link anchor.
+            sb.append("### <a id=\"").append(eventAnchor(event.name())).append("\"></a>`")
+                    .append(event.name()).append("`").append(cancellable).append("\n\n");
             sb.append(text(event.doc(), event.zhDoc(), zh)).append("\n\n");
             if (!event.fields().isEmpty()) {
                 sb.append("| Field | Type |\n| --- | --- |\n");
@@ -208,6 +211,11 @@ public class MDDoclet implements Doclet {
             }
         }
         return sb.toString();
+    }
+
+    /** Stable deep-link anchor id of one event name (colon becomes a dash). */
+    private static String eventAnchor(String eventName) {
+        return "event-" + eventName.toLowerCase(Locale.ROOT).replace(':', '-');
     }
 
     /** Renders one module page; {@code zh} selects the translation-fallback view. */
@@ -401,28 +409,33 @@ public class MDDoclet implements Doclet {
 
     /**
      * Wraps known type names in wiki-style links to their definition anchor
-     * on the types page. Unknown types stay as plain backtick code.
+     * on the types page. Unlinked regions stay one code span each so
+     * generics like {@code Promise<void>} render verbatim; bare code spans
+     * are skipped when nothing links.
      */
     private static String linkType(String type, Set<String> knownTypes) {
-        if (type == null || type.isEmpty() || knownTypes.isEmpty()) {
+        if (type == null || type.isEmpty()) {
             return "`" + type + "`";
         }
         var matcher = java.util.regex.Pattern.compile("[A-Z][A-Za-z0-9]+").matcher(type);
         var out = new StringBuilder();
         int last = 0;
+        boolean linked = false;
         while (matcher.find()) {
             String word = matcher.group();
-            String before = type.substring(last, matcher.start());
-            if (!before.isEmpty()) {
-                out.append("`").append(before).append("`");
-            }
             if (knownTypes.contains(word)) {
+                String before = type.substring(last, matcher.start());
+                if (!before.isEmpty()) {
+                    out.append("`").append(before).append("`");
+                }
                 out.append("[").append(word).append("](types.html#")
                         .append(word.toLowerCase(Locale.ROOT)).append(")");
-            } else {
-                out.append("`").append(word).append("`");
+                last = matcher.end();
+                linked = true;
             }
-            last = matcher.end();
+        }
+        if (!linked) {
+            return "`" + type + "`";
         }
         String remaining = type.substring(last);
         if (!remaining.isEmpty()) {

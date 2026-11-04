@@ -24,7 +24,7 @@ Category: test · Since: 0.1.0 · MC availability: >=1.20.6 · Exposed as `neo.w
 
 **Parameters**
 
-- `pos` (`FixturePos`): the block position to mark
+- `pos` [FixturePos](types.html#fixturepos): the block position to mark
 
 **Returns** `Promise<void>` — 高亮放置完成后兑现的 Promise
 
@@ -42,9 +42,21 @@ world.mark(new Pos3d(1, 64, 1));
 
 **Parameters**
 
-- `listener` (`(message: string) => void`): callback invoked for each message
+- `listener` `(message: string) => void`: callback invoked for each message
 
 Since: 0.1.0 · Permission: `command` · Experimental
+
+## Referenced Types
+
+以下类型在方法签名中被引用。
+
+### FixturePos
+
+| Field | Type |
+| --- | --- |
+| `x` | `number` |
+| `y` | `number` |
+| `z` | `number` |
 
 ## Class RegionHandle
 

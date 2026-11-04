@@ -35,6 +35,7 @@ grab a complete script from the [Examples](/en/examples/) section.
 | [`world`](/en/api/world) | time, dimension, weather, block queries |
 | [`player`](/en/api/player) | local player snapshot and status effects |
 | [`entity`](/en/api/entity) | entity lookup by UUID / radius |
+| [`inventory`](/en/api/inventory) | container access and item movement |
 
 ### System
 
@@ -42,6 +43,7 @@ grab a complete script from the [Examples](/en/examples/) section.
 |---|---|
 | [`fs`](/en/api/fs) | sandboxed file access (capability-gated) |
 | [`net`](/en/api/net) | HTTP fetch (capability-gated) |
+| [`java`](/en/api/java) | raw Java interop (permission-gated) |
 
 ### Input
 
@@ -49,23 +51,12 @@ grab a complete script from the [Examples](/en/examples/) section.
 |---|---|
 | [`input`](/en/api/input) | custom keybinds and scroll events |
 
-## Event catalog
+## Classes and events
 
-All built-in events carry plain payload objects. Highlights:
-
-| Event | Payload fields |
-|---|---|
-| `tick` | `tick` |
-| `player:join` / `player:leave` / `player:spawn` | player snapshot fields |
-| `player:damage` / `player:heal` | `amount`, `health` |
-| `player:effect` | `effectId`, `added`, `amplifier` |
-| `player:attackBlock` (cancellable) | `blockId`, position |
-| `world:blockUpdate` | `x`, `y`, `z`, `blockId` |
-| `world:chunkLoad` / `world:chunkUnload` | `chunkX`, `chunkZ` |
-| `world:sound` | `soundId`, position, `volume`, `pitch` |
-| `world:bossbar` | `uuid`, `action`, `name`, `progress` |
-| `entity:damage` / `entity:heal` | `entity`, `amount` |
-| `entity:load` / `entity:unload` | entity identity fields |
+Wrapper types (`Vec3`, `BlockPos`, `Block`, `BlockState`, `RayHit`, ...) are
+documented on the [Type Definitions](/en/api/types) page. All subscribable
+events and their payload fields live in the generated
+[Event Catalog](/en/api/events-reference).
 
 Cancellable events (`player:attackBlock`, `player:attackEntity`,
 `player:interactBlock`, `player:interactEntity`) require

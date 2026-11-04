@@ -20,7 +20,7 @@ Returns a value whose member lacks translation and version annotation.
 
 **Parameters**
 
-- `input` (`string`): the input value
+- `input` `string`: the input value
 
 **Returns** `string` — the untouched input
 

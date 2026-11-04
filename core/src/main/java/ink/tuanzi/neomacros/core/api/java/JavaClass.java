@@ -8,6 +8,7 @@ import java.util.function.Function;
 /**
  * Proxy over one host class: static fields read as values, static methods
  * dispatch as callables, and the {@code new} member constructs instances.
+ * @zh 宿主类的代理：静态字段按值读取，静态方法按可调用分发，{@code new} 成员构造实例。
  */
 @ink.tuanzi.neomacros.doc.api.ApiClass(name = "JavaClass", kind = ink.tuanzi.neomacros.doc.api.ApiClassKind.HANDLE)
 public final class JavaClass implements JavaInterop {

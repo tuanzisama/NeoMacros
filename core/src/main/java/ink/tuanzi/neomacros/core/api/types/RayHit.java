@@ -15,6 +15,7 @@ import java.util.Optional;
 /**
  * Live raycast result: the first hit along the ray. {@code block} and
  * {@code entity} are mutually exclusive; both are live handles.
+ * @zh 活射线检测结果：沿射线的首个命中。{@code block} 与 {@code entity} 互斥，均为活句柄。
  */
 @ApiClass(name = "RayHit", kind = ApiClassKind.HANDLE)
 public final class RayHit implements ScriptHandle {
@@ -23,14 +24,16 @@ public final class RayHit implements ScriptHandle {
     private final Vec3 direction;
     private final RayOptions options;
 
-    /** Creates the handle (facade entry). */
+    /** Creates the handle (facade entry).
+     * @zh 构造句柄（门面入口）。 */
     public RayHit(Vec3 origin, Vec3 direction, RayOptions options) {
         this.origin = origin;
         this.direction = direction;
         this.options = options;
     }
 
-    /** The hit block handle, or undefined on entity hits / misses. */
+    /** The hit block handle, or undefined on entity hits / misses.
+     * @zh 命中方块句柄；命中实体或未命中时为 undefined。 */
     @ApiSince("0.1.0")
     @ApiReadOnly
     public Block getBlock() {
@@ -41,7 +44,8 @@ public final class RayHit implements ScriptHandle {
                 .orElse(null);
     }
 
-    /** The hit entity handle, or undefined on block hits / misses. */
+    /** The hit entity handle, or undefined on block hits / misses.
+     * @zh 命中实体句柄；命中方块或未命中时为 undefined。 */
     @ApiSince("0.1.0")
     @ApiReadOnly
     public ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity getEntity() {
@@ -52,7 +56,8 @@ public final class RayHit implements ScriptHandle {
                 .orElse(null);
     }
 
-    /** The exact hit position. */
+    /** The exact hit position.
+     * @zh 精确命中位置。 */
     @ApiSince("0.1.0")
     @ApiReadOnly
     public Vec3 getPos() {
@@ -61,7 +66,8 @@ public final class RayHit implements ScriptHandle {
                 .orElse(origin.add(direction.normalize().mul(options.maxDist())));
     }
 
-    /** The distance from the origin to the hit (max distance on a miss). */
+    /** The distance from the origin to the hit (max distance on a miss).
+     * @zh 原点到命中点的距离（未命中时为最大距离）。 */
     @ApiSince("0.1.0")
     @ApiReadOnly
     public double getDistance() {
@@ -69,7 +75,8 @@ public final class RayHit implements ScriptHandle {
                 .orElse(options.maxDist());
     }
 
-    /** Whether the ray hit anything at all. */
+    /** Whether the ray hit anything at all.
+     * @zh 射线是否命中了任何目标。 */
     @ApiSince("0.1.0")
     public boolean isHit() {
         return snapshot()

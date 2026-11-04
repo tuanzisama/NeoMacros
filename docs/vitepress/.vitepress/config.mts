@@ -2,15 +2,51 @@ import { defineConfig } from 'vitepress'
 
 type Locale = 'en' | 'zh'
 
-// API module pages are generated from the facade sources by docs-builder;
-// the grouping below must cover the @ApiModule values in core/.../api/.
-const apiGroups: Array<{ label: Record<Locale, string>; modules: string[] }> = [
-  { label: { en: 'Core', zh: '核心' }, modules: ['events', 'clock', 'storage'] },
-  { label: { en: 'UI', zh: '界面' }, modules: ['chat', 'hud', 'command', 'render'] },
-  { label: { en: 'World', zh: '世界' }, modules: ['world', 'player', 'entity'] },
-  { label: { en: 'System', zh: '系统' }, modules: ['fs', 'net', 'java'] },
-  { label: { en: 'Input', zh: '输入' }, modules: ['input'] },
+// API pages are generated from the facade sources by docs-builder; the lists
+// below must cover the @ApiModule / @ApiClass / @ApiEvent values in
+// core/.../api/ and core/.../event/def. They only order the sidebar entries.
+const apiModules: string[] = [
+  'events', 'clock', 'storage',
+  'chat', 'hud', 'command', 'render',
+  'world', 'player', 'entity', 'inventory',
+  'fs', 'net', 'java', 'input',
 ]
+
+// Classes deep-link into the generated types page (standalone @ApiClass
+// entries) or the owning module page (nested @ApiClass entries, port models).
+const apiClasses: Array<[string, string]> = [
+  ['Vec3', 'types#vec3'],
+  ['BlockPos', 'types#blockpos'],
+  ['Block', 'types#block'],
+  ['BlockState', 'types#blockstate'],
+  ['RayHit', 'types#rayhit'],
+  ['JavaClass', 'types#javaclass'],
+  ['JavaObject', 'types#javaobject'],
+  ['Player', 'player#class-player'],
+  ['LocalPlayer', 'player#class-localplayer'],
+  ['Entity', 'entity#class-entity'],
+  ['Container', 'inventory#class-container'],
+  ['Pos3d', 'render#pos3d'],
+]
+
+// Subscribable events (the ProductionEventSet roster) grouped by domain,
+// matching the generated events-reference page.
+const eventDomains: Array<[string, string[]]> = [
+  ['tick', ['tick']],
+  ['chat', ['chat:send', 'chat:receive']],
+  ['input', ['input:wheel']],
+  ['key', ['key:press']],
+  ['screen', ['screen:open', 'screen:close']],
+  ['game', ['game:start', 'game:quit']],
+  ['world', ['world:join', 'world:leave', 'world:dimensionChange', 'world:time', 'world:weather', 'world:blockUpdate', 'world:chunkLoad', 'world:chunkUnload', 'world:sound', 'world:bossbar']],
+  ['player', ['player:join', 'player:leave', 'player:spawn', 'player:death', 'player:respawn', 'player:health', 'player:hunger', 'player:air', 'player:damage', 'player:heal', 'player:effect', 'player:exp', 'player:heldItem', 'player:gamemode', 'player:dimensionChange', 'player:attackBlock', 'player:attackEntity', 'player:interactBlock', 'player:interactEntity']],
+  ['entity', ['entity:load', 'entity:unload', 'entity:damage', 'entity:heal']],
+]
+
+/** Deep-link anchor of one event on the events-reference page. */
+function eventAnchor(name: string) {
+  return `event-${name.toLowerCase().replace(/:/g, '-')}`
+}
 
 const guidePages: Array<[string, Record<Locale, string>]> = [
   ['getting-started', { en: 'Getting Started', zh: '快速上手' }],
@@ -54,16 +90,36 @@ function defaultSidebar(locale: Locale) {
 /** Sidebar shown ONLY on API pages (no guide/examples pollution). */
 function apiSidebar(locale: Locale) {
   const t = locale === 'zh'
-  const items: Array<{ text: string; link: string }> = [
-    { text: t ? '总览' : 'Overview', link: `/${locale}/api/` },
-    { text: t ? '类型定义' : 'Type Definitions', link: `/${locale}/api/types` },
+  return [
+    {
+      text: t ? 'API' : 'APIs',
+      collapsed: false,
+      items: [
+        { text: t ? '总览' : 'Overview', link: `/${locale}/api/` },
+        ...apiModules.map((name) => ({ text: name, link: `/${locale}/api/${name}` })),
+      ],
+    },
+    {
+      text: t ? '类' : 'Classes',
+      collapsed: false,
+      items: apiClasses.map(([name, anchor]) => ({ text: name, link: `/${locale}/api/${anchor}` })),
+    },
+    {
+      text: t ? '事件' : 'Events',
+      collapsed: false,
+      items: [
+        { text: t ? '目录' : 'Catalog', link: `/${locale}/api/events-reference` },
+        ...eventDomains.map(([domain, names]) => ({
+          text: domain,
+          collapsed: true,
+          items: names.map((name) => ({
+            text: name,
+            link: `/${locale}/api/events-reference#${eventAnchor(name)}`,
+          })),
+        })),
+      ],
+    },
   ]
-  for (const group of apiGroups) {
-    for (const name of group.modules) {
-      items.push({ text: name, link: `/${locale}/api/${name}` })
-    }
-  }
-  return items
 }
 
 /** Path-keyed sidebars: API pages get a clean API-only sidebar. */
@@ -145,6 +201,12 @@ export default defineConfig({
       pageData.frontmatter ??= {}
       pageData.frontmatter.pageClass = 'api-facade'
       pageData.frontmatter.outline = [2, 3]
+    }
+    // The event catalog lists 40+ events; keep the right outline to the
+    // domain headings only.
+    if (/^(en|zh)\/api\/events-reference\.md$/.test(path)) {
+      pageData.frontmatter ??= {}
+      pageData.frontmatter.outline = [2]
     }
     // API index page gets its own page class for CSS targeting.
     if (/^(en|zh)\/api\/index\.md$/.test(path)) {

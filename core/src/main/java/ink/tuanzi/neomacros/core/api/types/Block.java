@@ -13,25 +13,29 @@ import java.util.Optional;
 /**
  * Live block handle: state reads re-query the world on every access; a
  * block outside the loaded world reads back as undefined instead of raising.
+ * @zh 活方块句柄：状态读取每次都重新查询世界；未加载世界的方块读取返回 undefined 而不是抛错。
  */
 @ApiClass(name = "Block", kind = ApiClassKind.HANDLE)
 public final class Block implements ScriptHandle {
 
     private final BlockPos pos;
 
-    /** Creates the handle (facade entry; package-private by design otherwise). */
+    /** Creates the handle (facade entry; package-private by design otherwise).
+     * @zh 构造句柄（门面入口）。 */
     public Block(BlockPos pos) {
         this.pos = pos;
     }
 
-    /** The block position. */
+    /** The block position.
+     * @zh 方块坐标。 */
     @ApiSince("0.1.0")
     @ApiReadOnly
     public BlockPos getPos() {
         return pos;
     }
 
-    /** The current block state; undefined outside the loaded world. */
+    /** The current block state; undefined outside the loaded world.
+     * @zh 当前方块状态；未加载世界内为 undefined。 */
     @ApiSince("0.1.0")
     @ApiReadOnly
     public BlockState getState() {
@@ -52,13 +56,15 @@ public final class Block implements ScriptHandle {
                         pos.getX(), pos.getY(), pos.getZ())).orElse(null);
     }
 
-    /** Whether the block is still loaded in the world. */
+    /** Whether the block is still loaded in the world.
+     * @zh 方块是否仍在世界中加载。 */
     @ApiSince("0.1.0")
     public boolean isValid() {
         return snapshot().isPresent();
     }
 
-    /** Human-readable form. */
+    /** Human-readable form.
+     * @zh 人类可读形式。 */
     @Override
     public String toString() {
         return snapshot()

@@ -34,6 +34,7 @@
 | [`world`](/zh/api/world) | 时间、维度、天气、方块查询 |
 | [`player`](/zh/api/player) | 本地玩家快照与状态效果 |
 | [`entity`](/zh/api/entity) | 按 UUID / 半径查询实体 |
+| [`inventory`](/zh/api/inventory) | 容器访问与物品移动 |
 
 ### 系统
 
@@ -41,6 +42,7 @@
 |---|---|
 | [`fs`](/zh/api/fs) | 沙箱化文件访问（需能力授权） |
 | [`net`](/zh/api/net) | HTTP 请求（需能力授权） |
+| [`java`](/zh/api/java) | 原始 Java 互操作（需权限） |
 
 ### 输入
 
@@ -48,23 +50,11 @@
 |---|---|
 | [`input`](/zh/api/input) | 自定义按键与滚轮事件 |
 
-## 事件目录
+## 类与事件
 
-所有内置事件的负载都是普通对象。主要事件：
-
-| 事件 | 负载字段 |
-|---|---|
-| `tick` | `tick` |
-| `player:join` / `player:leave` / `player:spawn` | 玩家快照字段 |
-| `player:damage` / `player:heal` | `amount`、`health` |
-| `player:effect` | `effectId`、`added`、`amplifier` |
-| `player:attackBlock`（可取消） | `blockId`、位置 |
-| `world:blockUpdate` | `x`、`y`、`z`、`blockId` |
-| `world:chunkLoad` / `world:chunkUnload` | `chunkX`、`chunkZ` |
-| `world:sound` | `soundId`、位置、`volume`、`pitch` |
-| `world:bossbar` | `uuid`、`action`、`name`、`progress` |
-| `entity:damage` / `entity:heal` | `entity`、`amount` |
-| `entity:load` / `entity:unload` | 实体标识字段 |
+包装类型（`Vec3`、`BlockPos`、`Block`、`BlockState`、`RayHit` 等）见
+[类型定义](/zh/api/types)页；全部可订阅事件及其负载字段见生成的
+[事件目录](/zh/api/events-reference)。
 
 可取消事件（`player:attackBlock`、`player:attackEntity`、
 `player:interactBlock`、`player:interactEntity`）必须使用

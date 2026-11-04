@@ -24,7 +24,7 @@ Marks a block highlight at the given position.
 
 **Parameters**
 
-- `pos` (`FixturePos`): the block position to mark
+- `pos` [FixturePos](types.html#fixturepos): the block position to mark
 
 **Returns** `Promise<void>` — a promise completing once the highlight is placed
 
@@ -36,9 +36,21 @@ Watches chat messages through the given listener.
 
 **Parameters**
 
-- `listener` (`(message: string) => void`): callback invoked for each message
+- `listener` `(message: string) => void`: callback invoked for each message
 
 Since: 0.1.0 · Permission: `command` · Experimental
+
+## Referenced Types
+
+The following types appear in method signatures on this page.
+
+### FixturePos
+
+| Field | Type |
+| --- | --- |
+| `x` | `number` |
+| `y` | `number` |
+| `z` | `number` |
 
 ## Class RegionHandle
 

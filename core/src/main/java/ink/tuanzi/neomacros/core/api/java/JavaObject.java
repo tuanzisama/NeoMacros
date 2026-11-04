@@ -8,6 +8,7 @@ import java.util.function.Function;
 /**
  * Proxy over one host object: public fields read and write as values,
  * methods dispatch as callables bound to the instance.
+ * @zh 宿主对象的代理：公共字段按值读写，方法按绑定到实例的可调用分发。
  */
 @ink.tuanzi.neomacros.doc.api.ApiClass(name = "JavaObject", kind = ink.tuanzi.neomacros.doc.api.ApiClassKind.HANDLE)
 public final class JavaObject implements JavaInterop {
