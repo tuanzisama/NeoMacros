@@ -56,6 +56,21 @@ public interface PlayerPort {
      */
     void onInteractEntity(Function<EntitySnapshot, Boolean> sink);
 
+    /** Returns the current gamemode identifier (survival/creative/adventure/spectator). */
+    default String gamemode() {
+        return "survival";
+    }
+
+    /** Returns the current experience level. */
+    default int expLevel() {
+        return 0;
+    }
+
+    /** Returns the current experience progress (0.0-1.0 within the level). */
+    default float expProgress() {
+        return 0;
+    }
+
     /**
      * Attacks the entity identified by the snapshot's UUID. The future
      * completes on the main thread once the game processed the attack.

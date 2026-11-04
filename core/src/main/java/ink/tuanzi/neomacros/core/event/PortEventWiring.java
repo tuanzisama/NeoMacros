@@ -18,6 +18,12 @@ import ink.tuanzi.neomacros.core.event.def.player.PlayerHungerEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerInteractBlockEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerInteractEntityEvent;
 import ink.tuanzi.neomacros.core.event.def.input.InputWheelEvent;
+import ink.tuanzi.neomacros.core.event.def.player.PlayerExpEvent;
+import ink.tuanzi.neomacros.core.event.def.player.PlayerGamemodeEvent;
+import ink.tuanzi.neomacros.core.event.def.player.PlayerHeldItemEvent;
+import ink.tuanzi.neomacros.core.event.def.screen.ScreenCloseEvent;
+import ink.tuanzi.neomacros.core.event.def.screen.ScreenOpenEvent;
+import ink.tuanzi.neomacros.core.event.def.world.WorldWeatherEvent;
 import ink.tuanzi.neomacros.core.event.def.input.KeyPressEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerJoinEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerLeaveEvent;
@@ -100,6 +106,9 @@ public final class PortEventWiring {
                         "title", info.title(), "kind", info.kind(), "size", info.size())));
         adapter.inventory().onUpdated(slot ->
                 bus.publish("inventory:update", java.util.Map.of("mode", "slot", "slot", slot)));
+
+        // Poll-based derived events (weather, exp, heldItem, gamemode)
+        // are wired in the SelfStateTracker's tick check.
     }
 
     /**
@@ -123,6 +132,11 @@ public final class PortEventWiring {
         private boolean timeInitialized;
         private final java.util.Map<java.util.UUID, Double> entityHealth = new java.util.HashMap<>();
         private final java.util.Map<String, Integer> effectAmplifiers = new java.util.HashMap<>();
+        private String lastGamemode;
+        private int lastExpLevel = -1;
+        private boolean lastRaining;
+        private boolean weatherInitialized;
+        private String lastHeldItemId;
 
         SelfStateTracker(EventBus bus) {
             this.bus = bus;
@@ -194,6 +208,42 @@ public final class PortEventWiring {
                 }
             }
             entityHealth.keySet().removeIf(uuid -> !present.contains(uuid));
+        }
+
+        /** Publishes weather, gamemode, exp, and held item changes. */
+        void emitDerived(NeomacrosAdapter adapter, PlayerSnapshot now) {
+            var world = adapter.world();
+            boolean raining = world.isRaining();
+            boolean thundering = world.isThundering();
+            if (!weatherInitialized) {
+                lastRaining = raining;
+                weatherInitialized = true;
+            } else if (raining != lastRaining || thundering != (lastRaining && world.isThundering())) {
+                bus.publish("world:weather", new WorldWeatherEvent(raining, thundering));
+                lastRaining = raining;
+            }
+
+            String gamemode = adapter.player().gamemode();
+            if (lastGamemode == null) {
+                lastGamemode = gamemode;
+            } else if (!lastGamemode.equals(gamemode)) {
+                bus.publish("player:gamemode", new PlayerGamemodeEvent(lastGamemode, gamemode));
+                lastGamemode = gamemode;
+            }
+
+            int expLevel = adapter.player().expLevel();
+            if (lastExpLevel >= 0 && expLevel != lastExpLevel) {
+                bus.publish("player:exp", new PlayerExpEvent(expLevel,
+                        adapter.player().expProgress(), expLevel - lastExpLevel));
+            }
+            lastExpLevel = expLevel;
+
+            var held = adapter.inventory().heldItem().get();
+            String heldId = held.map(ink.tuanzi.neomacros.port.model.ItemStackData::id).orElse(null);
+            if (lastHeldItemId != null && !lastHeldItemId.equals(heldId)) {
+                bus.publish("player:heldItem", new PlayerHeldItemEvent(null, held.orElse(null)));
+            }
+            lastHeldItemId = heldId;
         }
 
         /**

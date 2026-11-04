@@ -373,10 +373,31 @@ class PortEventWiringTest {
 
         @Override
         public ink.tuanzi.neomacros.port.InventoryPort inventory() {
-            throw new UnsupportedOperationException("inventory");
+            return new ink.tuanzi.neomacros.port.InventoryPort() {
+                @Override
+                public java.util.function.Supplier<java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData>> heldItem() {
+                    return java.util.Optional::empty;
+                }
+
+                @Override
+                public java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> slot(int index) {
+                    return java.util.Optional.empty();
+                }
+
+                @Override
+                public java.util.function.Supplier<List<IndexedStack>> allItems() {
+                    return List::of;
+                }
+
+                @Override
+                public int countOf(String item) {
+                    return 0;
+                }
+            };
         }
 
         @Override
+
         public ink.tuanzi.neomacros.port.InputPort input() {
             // No-op: the key-press/wheel wiring registers sinks only.
             return new ink.tuanzi.neomacros.port.InputPort() {
