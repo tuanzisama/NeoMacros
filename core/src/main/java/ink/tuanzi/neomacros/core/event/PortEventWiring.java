@@ -137,6 +137,8 @@ public final class PortEventWiring {
         private boolean lastRaining;
         private boolean weatherInitialized;
         private String lastHeldItemId;
+        private boolean lastScreenOpen;
+        private String lastScreenTitle;
 
         SelfStateTracker(EventBus bus) {
             this.bus = bus;
@@ -163,6 +165,8 @@ public final class PortEventWiring {
             last = now;
             emitWorld(adapter, now);
             emitEntityHealth(adapter, now);
+            emitDerived(adapter, now);
+            emitScreen(adapter);
             emitEffectChanges(adapter);
         }
 
@@ -208,6 +212,23 @@ public final class PortEventWiring {
                 }
             }
             entityHealth.keySet().removeIf(uuid -> !present.contains(uuid));
+        }
+
+        /** Publishes screen open/close transitions (tick-granular). */
+        void emitScreen(NeomacrosAdapter adapter) {
+            boolean open = adapter.lifecycle().isScreenOpen();
+            if (open == lastScreenOpen) {
+                return;
+            }
+            if (open) {
+                String title = adapter.lifecycle().screenTitle().orElse("");
+                bus.publish("screen:open", new ScreenOpenEvent(title, "screen"));
+            } else {
+                bus.publish("screen:close",
+                        new ScreenCloseEvent(lastScreenTitle != null ? lastScreenTitle : ""));
+            }
+            lastScreenTitle = open ? adapter.lifecycle().screenTitle().orElse(null) : null;
+            lastScreenOpen = open;
         }
 
         /** Publishes weather, gamemode, exp, and held item changes. */

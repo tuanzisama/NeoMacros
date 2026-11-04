@@ -37,6 +37,16 @@ public interface LifecyclePort {
      * game may decline or delay). Implementations that cannot shut the game
      * down throw {@link UnsupportedPortFeature}.
      */
+    /** Returns whether a screen (GUI) is currently open. */
+    default boolean isScreenOpen() {
+        return false;
+    }
+
+    /** Returns the title of the currently open screen, or empty. */
+    default java.util.Optional<String> screenTitle() {
+        return java.util.Optional.empty();
+    }
+
     default void requestShutdown() {
         throw new UnsupportedPortFeature("shutdown");
     }

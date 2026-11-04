@@ -107,4 +107,30 @@ public final class FabricLifecyclePort implements LifecyclePort {
             return mc.player != null && mc.level != null;
         };
     }
+
+    /** The current screen accessor moved onto Gui in 26.2 (same guard as the key hook). */
+    private static net.minecraft.client.gui.screens.Screen currentScreen() {
+        //? if >=26.2 {
+        return Minecraft.getInstance().gui.screen();
+        //?} else {
+        /*
+        return Minecraft.getInstance().screen;
+        */
+        //?}
+    }
+
+    @Override
+    public boolean isScreenOpen() {
+        return currentScreen() != null;
+    }
+
+    @Override
+    public java.util.Optional<String> screenTitle() {
+        var screen = currentScreen();
+        if (screen == null) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.ofNullable(screen.getTitle() == null
+                ? null : screen.getTitle().getString());
+    }
 }
