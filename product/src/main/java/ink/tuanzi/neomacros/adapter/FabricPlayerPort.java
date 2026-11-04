@@ -55,8 +55,9 @@ public final class FabricPlayerPort implements PlayerPort {
             player.swing(InteractionHand.MAIN_HAND); */
             //?}
             //? if >=26.1 {
-            throw new UnsupportedOperationException(
-                    "attack action pending 26.x interaction API research");
+            Minecraft.getInstance().gameMode.attack(player, entity);
+            player.swing(net.minecraft.world.InteractionHand.MAIN_HAND,
+                    net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
             //?}
         });
     }
@@ -74,8 +75,9 @@ public final class FabricPlayerPort implements PlayerPort {
                     InteractionHand.MAIN_HAND); */
             //?}
             //? if >=26.1 {
-            throw new UnsupportedOperationException(
-                    "useEntity action pending 26.x interaction API research");
+            Minecraft.getInstance().gameMode.interact(player, entity,
+                    new net.minecraft.world.phys.EntityHitResult(entity),
+                    net.minecraft.world.InteractionHand.MAIN_HAND);
             //?}
         });
     }
@@ -97,8 +99,8 @@ public final class FabricPlayerPort implements PlayerPort {
                     InteractionHand.MAIN_HAND, hitResult); */
             //?}
             //? if >=26.1 {
-            throw new UnsupportedOperationException(
-                    "useBlock action pending 26.x interaction API research");
+            Minecraft.getInstance().gameMode.useItemOn(player,
+                    net.minecraft.world.InteractionHand.MAIN_HAND, hitResult);
             //?}
         });
     }
@@ -114,8 +116,8 @@ public final class FabricPlayerPort implements PlayerPort {
             /* player.swing(InteractionHand.MAIN_HAND); */
             //?}
             //? if >=26.1 {
-            throw new UnsupportedOperationException(
-                    "swingHand action pending 26.x interaction API research");
+            player.swing(net.minecraft.world.InteractionHand.MAIN_HAND,
+                    net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
             //?}
         });
     }
@@ -139,8 +141,7 @@ public final class FabricPlayerPort implements PlayerPort {
             } */
             //?}
             //? if >=26.1 {
-            throw new UnsupportedOperationException(
-                    "dropHeld action pending 26.x interaction API research");
+            Minecraft.getInstance().gameMode.dropItem(player, all);
             //?}
         });
     }

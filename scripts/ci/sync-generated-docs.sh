@@ -24,6 +24,13 @@ fi
 
 mkdir -p "$site/en/api" "$site/zh/api" "$site/public"
 
+# Append the types/java module supplement (non-facade modules that
+# TSDoclet cannot scan: types cells, java module re-exports).
+supplement="$site/api-examples/types-supplement.d.ts"
+if [[ -f "$supplement" ]]; then
+  cat "$supplement" >> "$gen_ts/types/neomacros.d.ts"
+fi
+
 # Appends the locale's example snippet for one module, when one exists.
 append_examples() {
   local dest="$1" fragment="$2"
