@@ -43,7 +43,7 @@ class EventBusSubscriptionTest {
     @Test
     void deliversPayloadToSubscriber() {
         List<Object> received = new ArrayList<>();
-        bus.on("tick", received::add);
+        bus.on("tick", p -> received.add(unwrap(p)));
 
         EventBus.PublishResult result = bus.publish("tick", new TickEvent(1));
         assertEquals(new TickEvent(1), received.get(0));
@@ -54,7 +54,7 @@ class EventBusSubscriptionTest {
     @Test
     void publishUnknownEventIsAllowed() {
         AtomicReference<Object> received = new AtomicReference<>();
-        bus.on("custom:unknown", received::set);
+        bus.on("custom:unknown", p -> received.set(unwrap(p)));
         assertNull(received.get());
 
         bus.publish("custom:unknown", "payload");
@@ -64,7 +64,7 @@ class EventBusSubscriptionTest {
     @Test
     void onceFiresExactlyOnceThenDeactivates() {
         List<Object> received = new ArrayList<>();
-        bus.once("tick", received::add);
+        bus.once("tick", p -> received.add(unwrap(p)));
         assertTrue(bus.publish("tick", new TickEvent(1)).notified() > 0);
         assertTrue(bus.publish("tick", new TickEvent(2)).notified() == 0);
 
@@ -75,7 +75,7 @@ class EventBusSubscriptionTest {
     @Test
     void unsubscribeByHandleStopsDelivery() {
         List<Object> received = new ArrayList<>();
-        Subscription sub = bus.on("tick", received::add);
+        Subscription sub = bus.on("tick", p -> received.add(unwrap(p)));
         assertTrue(sub.isActive());
 
         bus.publish("tick", new TickEvent(1));
@@ -90,8 +90,8 @@ class EventBusSubscriptionTest {
     @Test
     void unsubscribeByNameStopsDelivery() {
         List<Object> received = new ArrayList<>();
-        bus.on("tick", received::add);
-        bus.on("tick", received::add);
+        bus.on("tick", p -> received.add(unwrap(p)));
+        bus.on("tick", p -> received.add(unwrap(p)));
 
         bus.off("tick");
         assertEquals(0, bus.publish("tick", new TickEvent(1)).notified());
@@ -103,7 +103,7 @@ class EventBusSubscriptionTest {
         List<Runnable> queued = new CopyOnWriteArrayList<>();
         Executor queueing = queued::add;
         List<Object> received = new ArrayList<>();
-        bus.on("tick", queueing, received::add);
+        bus.on("tick", queueing, p -> received.add(unwrap(p)));
 
         bus.publish("tick", new TickEvent(1));
         assertTrue(received.isEmpty(), "dispatch waited in the executor queue");
@@ -153,4 +153,11 @@ class EventBusSubscriptionTest {
             executor.shutdownNow();
         }
     }
+
+    /** Unwraps the bus transport envelope so assertions see the raw payload. */
+    private static Object unwrap(Object value) {
+        return value instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope
+                ? envelope.payload() : value;
+    }
+
 }

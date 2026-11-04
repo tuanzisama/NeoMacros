@@ -293,9 +293,11 @@ public final class GraalJsEngine implements ScriptEngine {
                         super();
                         // configurable: a base constructor installs the cell
                         // first along the super() chain; the most-derived
-                        // constructor re-defines it with the real value.
+                        // constructor re-defines it with the real value. The
+                        // factory name is the defining closure name so user
+                        // subclasses build the inherited cell type.
                         var cell = selfConstructing
-                            ? __neoMakeCell(new.target.name, ctorArgs)
+                            ? __neoMakeCell(name, ctorArgs)
                             : ctorArgs[0];
                         Object.defineProperty(this, '__cell', {
                             value: cell,
@@ -327,6 +329,13 @@ public final class GraalJsEngine implements ScriptEngine {
                 }
                 Object.defineProperty(C.prototype, Symbol.toStringTag, {
                     value: name,
+                    configurable: true
+                });
+                // The constructor identity must equal the guest name so the
+                // self-constructing factory resolves by new.target.name.
+                Object.defineProperty(C, 'name', {
+                    value: name,
+                    writable: false,
                     configurable: true
                 });
                 table[name] = C;

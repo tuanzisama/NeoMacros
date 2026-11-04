@@ -156,12 +156,6 @@ public final class StubAdapter implements NeomacrosAdapter {
         return world;
     }
 
-    @Override
-    public EntityPort entity() {
-        return entity;
-    }
-
-    @Override
     private final ink.tuanzi.neomacros.port.ClientPort clientPort =
             new ink.tuanzi.neomacros.port.ClientPort() {
                 @Override
@@ -179,6 +173,11 @@ public final class StubAdapter implements NeomacrosAdapter {
                     return null;
                 }
             };
+
+    @Override
+    public EntityPort entity() {
+        return entity;
+    }
 
     @Override
     public ink.tuanzi.neomacros.port.ClientPort client() {

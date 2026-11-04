@@ -17,7 +17,7 @@ async function main() {
   const bp = new BlockPos(10, 64, 200);
   results['vec3'] = sum.x === 5 && sum.y === 7 && sum.z === 9;
   results['lengthSq'] = v.lengthSq() === 14;
-  results['blockpos'] = bp.center().x === 10.5 && bp.up(2).intY === 66;
+  results['blockpos'] = bp.center().x === 10.5 && bp.up(2).y === 66;
   } catch (e) {
     chat.log('[E2E] ERROR: ' + e);
   }

@@ -104,6 +104,7 @@ final class ModelExtractor {
                         DocletSupport.readOnlyOf(exec),
                         since != null ? since : DocletSupport.sinceOf(type),
                         DocletSupport.mcOf(exec),
+                        DocletSupport.loaderOf(exec),
                         DocletSupport.permissionOf(exec),
                         DocletSupport.experimentalOf(exec)));
             } else {
@@ -120,6 +121,7 @@ final class ModelExtractor {
                         DocletSupport.zhExample(mc).orElse(""),
                         since != null ? since : DocletSupport.sinceOf(type),
                         DocletSupport.mcOf(exec),
+                        DocletSupport.loaderOf(exec),
                         DocletSupport.permissionOf(exec),
                         DocletSupport.experimentalOf(exec)));
             }
@@ -197,6 +199,7 @@ final class ModelExtractor {
                         DocletSupport.readOnlyOf(method),
                         since,
                         DocletSupport.mcOf(method),
+                        DocletSupport.loaderOf(method),
                         DocletSupport.permissionOf(method),
                         DocletSupport.experimentalOf(method)));
                 collectReferenced(method.getReturnType(), referenced);
@@ -217,6 +220,7 @@ final class ModelExtractor {
                         DocletSupport.zhExample(memberComment).orElse(""),
                         since,
                         DocletSupport.mcOf(method),
+                        DocletSupport.loaderOf(method),
                         DocletSupport.permissionOf(method),
                         DocletSupport.experimentalOf(method)));
                 collectReferenced(method.getReturnType(), referenced);
@@ -234,6 +238,7 @@ final class ModelExtractor {
                 DocletSupport.docBody(comment),
                 zhBody.orElse(""),
                 moduleSince, DocletSupport.mcOf(type),
+                        DocletSupport.loaderOf(type),
                 List.copyOf(properties), List.copyOf(methods), List.copyOf(classes),
                 List.copyOf(referencedList));
     }
@@ -272,6 +277,7 @@ final class ModelExtractor {
                         DocletSupport.readOnlyOf(method),
                         DocletSupport.sinceOf(method),
                         DocletSupport.mcOf(method),
+                        DocletSupport.loaderOf(method),
                         DocletSupport.permissionOf(method),
                         DocletSupport.experimentalOf(method)));
             } else {
@@ -292,6 +298,7 @@ final class ModelExtractor {
                         DocletSupport.zhExample(memberComment).orElse(""),
                         DocletSupport.sinceOf(method),
                         DocletSupport.mcOf(method),
+                        DocletSupport.loaderOf(method),
                         DocletSupport.permissionOf(method),
                         DocletSupport.experimentalOf(method)));
             }

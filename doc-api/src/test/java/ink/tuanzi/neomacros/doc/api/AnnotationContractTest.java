@@ -79,10 +79,16 @@ class AnnotationContractTest {
 
     @Test
     void timelineAndGatingAnnotationsTargetTypesAndMethods() {
-        for (Class<?> type : List.of(ApiSince.class, ApiMC.class, ApiPermission.class,
+        for (Class<?> type : List.of(ApiPermission.class,
                 ApiExperimental.class, ApiInternal.class)) {
             assertArrayEquals(new ElementType[]{ElementType.TYPE, ElementType.METHOD},
                     targetsOf(type), type.getSimpleName() + " targets");
+        }
+        // Availability annotations also mark constructors (script-facing
+        // factory paths carry the explicit triple themselves).
+        for (Class<?> type : List.of(ApiSince.class, ApiMC.class, ApiLoader.class)) {
+            assertArrayEquals(new ElementType[]{ElementType.TYPE, ElementType.METHOD,
+                    ElementType.CONSTRUCTOR}, targetsOf(type), type.getSimpleName() + " targets");
         }
     }
 

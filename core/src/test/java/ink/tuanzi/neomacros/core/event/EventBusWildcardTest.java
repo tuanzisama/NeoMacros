@@ -42,7 +42,7 @@ class EventBusWildcardTest {
     @Test
     void domainWildcardReceivesAllDomainEvents() {
         List<Object> received = new ArrayList<>();
-        bus.on("player:*", received::add);
+        bus.on("player:*", p -> received.add(unwrap(p)));
 
         bus.publish("player:join", "a");
         bus.publish("player:leave", "b");
@@ -54,7 +54,7 @@ class EventBusWildcardTest {
     @Test
     void globalWildcardReceivesNonIgnoredEvents() {
         List<Object> received = new ArrayList<>();
-        bus.on("*", received::add);
+        bus.on("*", p -> received.add(unwrap(p)));
 
         bus.publish("player:join", "a");
         bus.publish("tick", new TickEvent(1)); // ignored by default
@@ -65,7 +65,7 @@ class EventBusWildcardTest {
     @Test
     void exactSubscriptionsBypassIgnoreList() {
         List<Object> received = new ArrayList<>();
-        bus.on("tick", received::add);
+        bus.on("tick", p -> received.add(unwrap(p)));
 
         bus.publish("tick", new TickEvent(1));
         assertEquals(1, received.size());
@@ -75,7 +75,7 @@ class EventBusWildcardTest {
     void ignoreListIsConfigurable() {
         bus.setWildcardIgnores(Set.of());
         List<Object> received = new ArrayList<>();
-        bus.on("*", received::add);
+        bus.on("*", p -> received.add(unwrap(p)));
 
         bus.publish("tick", new TickEvent(1));
         assertEquals(1, received.size());
@@ -94,12 +94,19 @@ class EventBusWildcardTest {
     @Test
     void mixedExactAndWildcardDispatchCounting() {
         List<Object> received = new ArrayList<>();
-        bus.on("player:join", received::add);
-        bus.on("player:*", received::add);
-        bus.on("*", received::add);
+        bus.on("player:join", p -> received.add(unwrap(p)));
+        bus.on("player:*", p -> received.add(unwrap(p)));
+        bus.on("*", p -> received.add(unwrap(p)));
 
         EventBus.PublishResult result = bus.publish("player:join", "x");
         assertEquals(3, result.notified());
         assertEquals(3, received.size());
     }
+
+    /** Unwraps the bus transport envelope so assertions see the raw payload. */
+    private static Object unwrap(Object value) {
+        return value instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope
+                ? envelope.payload() : value;
+    }
+
 }

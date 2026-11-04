@@ -188,6 +188,9 @@ public class MDDoclet implements Doclet {
         if (module.mc() != null) {
             meta.add("MC availability: " + module.mc());
         }
+        if (module.loader() != null) {
+            meta.add("Loader availability: " + module.loader());
+        }
         meta.add(module.global() ? "Exposed as `neo." + module.name() + "` and `@neomacros/"
                 + module.name() + "`" : "ES module only: `@neomacros/" + module.name() + "`");
         sb.append(String.join(" · ", meta)).append("\n\n");
@@ -344,6 +347,9 @@ public class MDDoclet implements Doclet {
             }
             if (method.mc() != null) {
                 badges.add("MC: " + method.mc());
+            }
+            if (method.loader() != null) {
+                badges.add("Loader: " + method.loader());
             }
             if (method.permission() != null) {
                 badges.add("Permission: `" + method.permission() + "`");

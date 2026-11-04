@@ -107,6 +107,27 @@ public final class PlayerApi {
             super();
         }
 
+        /**
+         * The health value; the local player reads through the player port
+         * (its vitals live on the player snapshot), a remote player falls
+         * back to the entity snapshot.
+         *
+         * @zh 生命值；本地玩家经玩家端口读取（生命在玩家快照上），远端玩家回退到实体快照。
+         */
+        @ApiSince("0.1.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getHealth() {
+            Optional<PlayerSnapshot> self = local();
+            if (self.isPresent()) {
+                return self.get().health();
+            }
+            return current()
+                    .<Double>map(s -> s.living() ? s.health() : null)
+                    .orElse(null);
+        }
+
         /** The hunger value; only the local player carries it.
          * @zh 饥饿值；仅本地玩家有值。 */
         @ApiSince("0.1.0")

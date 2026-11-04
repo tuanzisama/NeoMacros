@@ -15,6 +15,7 @@ import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 import jdk.javadoc.doclet.Doclet;
@@ -195,6 +196,12 @@ final class DocletSupport {
     static String sinceOf(Element element) {
         ApiSince since = element.getAnnotation(ApiSince.class);
         return since == null ? null : since.value();
+    }
+
+    /** Returns the {@code @ApiLoader} value of a type or method element, or null when absent. */
+    static String loaderOf(javax.lang.model.element.Element element) {
+        ApiLoader loader = element.getAnnotation(ApiLoader.class);
+        return loader == null ? null : loader.value();
     }
 
     /** Returns the {@code @ApiMC} range of a type or method element, or null when absent. */

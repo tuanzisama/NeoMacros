@@ -325,7 +325,7 @@ class PortEventWiringTest {
     private static void recordAll(ArrayList<Published> sink, EventBus bus, EventCatalog catalog) {
         for (var descriptor : catalog.all()) {
             String name = descriptor.name();
-            bus.on(name, payload -> sink.add(new Published(name, payload)));
+            bus.on(name, payload -> sink.add(new Published(name, payload instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope ? envelope.payload() : payload)));
         }
     }
 

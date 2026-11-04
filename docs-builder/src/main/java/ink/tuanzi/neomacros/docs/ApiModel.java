@@ -21,7 +21,7 @@ public record ApiModel(List<ModuleModel> modules, List<EventModel> events,
     /** One script-visible ES module. */
     public record ModuleModel(
             String name, String category, boolean global,
-            String doc, String zhDoc, String since, String mc,
+            String doc, String zhDoc, String since, String mc, String loader,
             List<PropertyModel> properties, List<MethodModel> methods,
             List<ClassModel> classes, List<TypeModel> referencedTypes) {
     }
@@ -34,7 +34,8 @@ public record ApiModel(List<ModuleModel> modules, List<EventModel> events,
     public record PropertyModel(
             String name, String type,
             String doc, String zhDoc,
-            boolean readOnly, String since, String mc, String permission, boolean experimental) {
+            boolean readOnly, String since, String mc, String loader, String permission,
+            boolean experimental) {
     }
 
     /** Action member rendered as a script method. */
@@ -42,7 +43,8 @@ public record ApiModel(List<ModuleModel> modules, List<EventModel> events,
             String name, List<ParameterModel> parameters, String returnType,
             String doc, Map<String, String> paramDocs, String returnDoc, String zhDoc,
             Map<String, String> zhParamDocs, String zhReturnDoc, String zhExample,
-            String since, String mc, String permission, boolean experimental) {
+            String since, String mc, String loader, String permission,
+            boolean experimental) {
     }
 
     /** Method parameter. */

@@ -149,7 +149,7 @@ public class TSDoclet implements Doclet {
 
     /** Renders the JSDoc block combining description, badges, and markers. */
     private static void renderJsdoc(StringBuilder sb, String doc, String since, String mc,
-                                    boolean experimental, String permission) {
+                                    String loader, boolean experimental, String permission) {
         if (doc.isEmpty() && !experimental && permission == null) {
             return;
         }
@@ -161,7 +161,7 @@ public class TSDoclet implements Doclet {
             sb.append(" @since ").append(since);
         }
         if (mc != null) {
-            sb.append(" @availability ").append(mc);
+            sb.append(" @mc ").append(mc);
         }
         if (experimental) {
             sb.append(" @experimental");
@@ -175,14 +175,14 @@ public class TSDoclet implements Doclet {
     private static void renderProperty(StringBuilder sb, ApiModel.PropertyModel property) {
         String description = property.doc().isEmpty() ? property.name() : property.doc();
         renderJsdoc(sb, description, property.since(), property.mc(),
-                property.experimental(), property.permission());
+                property.loader(), property.experimental(), property.permission());
         sb.append("        ").append(property.readOnly() ? "readonly " : "")
                 .append(property.name()).append(": ").append(property.type()).append(";\n");
     }
 
     private static void renderMethod(StringBuilder sb, ApiModel.MethodModel method) {
         renderJsdoc(sb, method.doc(), method.since(), method.mc(),
-                method.experimental(), method.permission());
+                method.loader(), method.experimental(), method.permission());
         sb.append("        ").append(method.name()).append("(");
         for (int i = 0; i < method.parameters().size(); i++) {
             if (i > 0) {
@@ -194,24 +194,56 @@ public class TSDoclet implements Doclet {
         sb.append("): ").append(method.returnType()).append(";\n");
     }
 
-    /** Event payload interfaces under the events namespace (skeleton placement). */
+    /**
+     * Event payload classes: every payload dispatches as a frozen
+     * {@code XxxEvent extends BaseEvent} instance, so the definitions are
+     * real classes under the types module (instanceof works in scripts).
+     * The class-name rule mirrors BindingRegistry.eventNameToClassName.
+     */
     private static void renderEvents(StringBuilder sb, ApiModel model) {
         if (model.events().isEmpty()) {
             return;
         }
-        sb.append("declare module '").append(EVENTS_MODULE).append("' {\n");
+        sb.append("declare module '@neomacros/types' {").append("\n");
+        sb.append("    export class BaseEvent {").append("\n");
+        sb.append("        readonly type: string;").append("\n");
+        sb.append("        readonly timestamp: number;").append("\n");
+        sb.append("        readonly cancellable: boolean;").append("\n");
+        sb.append("        toJSON(): object;").append("\n");
+        sb.append("    }").append("\n");
         for (ApiModel.EventModel event : model.events()) {
-            String name = interfaceNameFromEvent(event.name());
+            String name = eventClassName(event.name());
             if (!event.doc().isEmpty()) {
                 sb.append("    ").append(jsdoc(event.doc(), null, null)).append("\n");
             }
-            sb.append("    export interface ").append(name).append(" {\n");
+            sb.append("    export class ").append(name)
+                    .append(" extends BaseEvent {").append("\n");
             for (ApiModel.ParameterModel field : event.fields()) {
-                sb.append("        ").append(field.name()).append(": ").append(field.type()).append(";\n");
+                sb.append("        ").append(field.name())
+                        .append(": ").append(field.type()).append(";").append("\n");
             }
-            sb.append("    }\n");
+            sb.append("    }").append("\n");
         }
-        sb.append("}\n\n");
+        sb.append("}").append("\n").append("\n");
+    }
+
+    /** The script-facing class name of one event ({@code chat:receive} ->
+     * {@code ChatReceiveEvent}); mirrors the engine glue rule. */
+    private static String eventClassName(String eventName) {
+        StringBuilder out = new StringBuilder();
+        boolean upperNext = true;
+        for (char ch : eventName.toCharArray()) {
+            if (ch == ':' || ch == '_' || ch == '-') {
+                upperNext = true;
+            } else if (upperNext) {
+                out.append(Character.toUpperCase(ch));
+                upperNext = false;
+            } else {
+                out.append(ch);
+            }
+        }
+        out.append("Event");
+        return out.toString();
     }
 
     /** Standalone @ApiClass class declarations (types module supplement). */
@@ -277,7 +309,7 @@ public class TSDoclet implements Doclet {
             sb.append(" @since ").append(since);
         }
         if (mc != null) {
-            sb.append(" @availability ").append(mc);
+            sb.append(" @mc ").append(mc);
         }
         sb.append(" */");
         return sb.toString();

@@ -27,20 +27,20 @@ function run() {
   results['self-handle'] = self !== undefined && self.name !== undefined
       && self.health !== undefined && self.valid;
   if (self !== undefined) {
-    chat.log(`[E2E] self: ${self.name} at ${self.x.toFixed(1)},${self.y.toFixed(1)},${self.z.toFixed(1)} hp=${self.health}`);
+    chat.log(`[E2E] self: ${self.name} at ${self.pos.x.toFixed(1)},${self.pos.y.toFixed(1)},${self.pos.z.toFixed(1)} hp=${self.health}`);
     const snap = self.snapshot();
     results['self-snapshot'] = snap !== null && snap.uuid === self.uuid;
 
     // inRadius returns Entity[] handles (not snapshots)
-    const nearby = entity.inRadius(self.x, self.y, self.z, 32);
+    const nearby = entity.inRadius(self.pos.x, self.pos.y, self.pos.z, 32);
     chat.log(`[E2E] entities within 32 blocks: ${nearby.length}`);
     results['radius-handles'] = Array.isArray(nearby)
         && (nearby.length === 0 || nearby[0] instanceof Object);
-    results['nearest'] = entity.nearest(self.x, self.y, self.z, 32) !== undefined;
+    results['nearest'] = entity.nearest(self.pos.x, self.pos.y, self.pos.z, 32) !== undefined;
     results['players'] = Array.isArray(entity.players());
 
     // blockAt returns a Block handle: state.id instead of .id
-    const here = world.blockAt(self.x, self.y - 1, self.z);
+    const here = world.blockAt(self.pos.x, self.pos.y - 1, self.pos.z);
     chat.log(`[E2E] block below: ${here === undefined ? '(air/void)' : here.state.id}`);
     results['block-handle'] = here !== undefined && here.state !== undefined
         && typeof here.state.id === 'string';
@@ -48,7 +48,7 @@ function run() {
 
     // raycast returns a RayHit handle: .block or .entity + .pos + .distance
     const origin = self.pos;
-    const look = self.lookVec;
+    const look = self.direction;
     const hit = world.raycast(origin.add(new Pos3D(0, 1.6, 0)),
         look.scale(4), { maxDist: 4, entities: true, blocks: true });
     chat.log(`[E2E] raycast: ${hit === undefined ? '(no hit fn)' : hit.hit ? 'HIT @ ' + hit.distance.toFixed(1) : 'miss fn returned'}`);

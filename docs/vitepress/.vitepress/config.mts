@@ -6,16 +6,21 @@ type Locale = 'en' | 'zh'
 // below must cover the @ApiModule / @ApiClass / @ApiEvent values in
 // core/.../api/ and core/.../event/def. They only order the sidebar entries.
 const apiModules: string[] = [
-  'events', 'clock', 'storage',
+  'events', 'thread', 'storage',
   'chat', 'hud', 'command', 'render',
-  'world', 'player', 'entity', 'inventory',
+  'world', 'player', 'entity',
   'fs', 'net', 'java', 'input',
+  'client', 'reflect',
 ]
 
 // Classes live on their own generated pages under api/classes/.
 const apiClasses: string[] = [
-  'Vec3',
+  'Pos2D',
+  'Pos3D',
   'BlockPos',
+  'ChunkPos',
+  'ItemStack',
+  'ItemStackBuilder',
   'Block',
   'BlockState',
   'RayHit',
@@ -24,8 +29,11 @@ const apiClasses: string[] = [
   'Player',
   'LocalPlayer',
   'Entity',
-  'Container',
-  'Pos3d',
+  'ItemEntity',
+  'LivingEntity',
+  'Inventory',
+  'PlayerInventory',
+  'BaseEvent',
 ]
 
 // Subscribable events (the ProductionEventSet roster) grouped by domain;
@@ -38,7 +46,7 @@ const eventDomains: Array<[string, string[]]> = [
   ['screen', ['screen:open', 'screen:close']],
   ['game', ['game:start', 'game:quit']],
   ['world', ['world:join', 'world:leave', 'world:dimensionChange', 'world:time', 'world:weather', 'world:blockUpdate', 'world:chunkLoad', 'world:chunkUnload', 'world:sound', 'world:bossbar']],
-  ['player', ['player:join', 'player:leave', 'player:spawn', 'player:death', 'player:respawn', 'player:health', 'player:hunger', 'player:air', 'player:damage', 'player:heal', 'player:effect', 'player:exp', 'player:heldItem', 'player:gamemode', 'player:dimensionChange', 'player:attackBlock', 'player:attackEntity', 'player:interactBlock', 'player:interactEntity']],
+  ['player', ['player:join', 'player:leave', 'player:spawn', 'player:death', 'player:respawn', 'player:health', 'player:hunger', 'player:air', 'player:damage', 'player:heal', 'player:effect', 'player:exp', 'player:heldItem', 'player:gamemode', 'player:dimensionChange', 'player:sneak', 'player:sprint', 'player:gliding', 'player:attackBlock', 'player:attackEntity', 'player:interactBlock', 'player:interactEntity']],
   ['entity', ['entity:load', 'entity:unload', 'entity:damage', 'entity:heal']],
 ]
 

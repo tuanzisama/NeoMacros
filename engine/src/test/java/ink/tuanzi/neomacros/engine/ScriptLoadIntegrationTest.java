@@ -89,6 +89,11 @@ class ScriptLoadIntegrationTest {
             }
 
             @Override
+            public ink.tuanzi.neomacros.port.ClientPort client() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
             public EntityPort entity() {
                 throw new UnsupportedOperationException();
             }
@@ -177,7 +182,7 @@ class ScriptLoadIntegrationTest {
         var manager = new ink.tuanzi.neomacros.core.module.ModuleManager(
                 runtime, registry, PermissionView.ALLOW_ALL, scriptsDir, m -> { });
         manager.load(writeEntry(manager, "smoke", String.join("\n",
-                "import { events, clock } from '@neomacros/core';",
+                "import { events, thread } from '@neomacros/core';",
                 "import { chat } from '@neomacros/chat';",
                 "",
                 "let ticks = 0;",
@@ -187,7 +192,7 @@ class ScriptLoadIntegrationTest {
                 "    chat.log('TICKS-OK');",
                 "  }",
                 "});",
-                "clock.sleep(10).then(() => {",
+                "thread.sleep(10).then(() => {",
                 "  chat.log('SLEEP-OK');",
                 "});",
                 "export function startup() {}",

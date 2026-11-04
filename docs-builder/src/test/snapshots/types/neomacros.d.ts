@@ -15,7 +15,7 @@ declare module '@neomacros/world' {
     export interface WorldApi {
         /** Returns the world time of day in ticks. @since 0.1.0 */
         readonly time: number;
-        /** Marks a block highlight at the given position. @since 0.1.0 @availability >=1.20.6 */
+        /** Marks a block highlight at the given position. @since 0.1.0 @mc >=1.20.6 */
         mark(pos: FixturePos): Promise<void>;
         /** Watches chat messages through the given listener. @since 0.1.0 @experimental @requires permission 'command' */
         watch(listener: (message: string) => void): void;
@@ -57,9 +57,15 @@ declare module '@neomacros/types' {
     }
 }
 
-declare module '@neomacros/events' {
+declare module '@neomacros/types' {
+    export class BaseEvent {
+        readonly type: string;
+        readonly timestamp: number;
+        readonly cancellable: boolean;
+        toJSON(): object;
+    }
     /** Fixture event descriptor with complete bilingual documentation: a cancellable event carrying a message payload. */
-    export interface FixtureMarked {
+    export class FixtureMarkedEvent extends BaseEvent {
         message: string;
         severity: number;
     }

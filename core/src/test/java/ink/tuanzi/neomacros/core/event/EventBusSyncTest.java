@@ -87,8 +87,15 @@ class EventBusSyncTest {
     void payloadIsPassedThroughUnchanged() {
         ChatSendEvent event = new ChatSendEvent("hello");
         Object[] received = new Object[1];
-        bus.onSync("chat:send", (payload, flag) -> received[0] = payload);
+        bus.onSync("chat:send", (payload, flag) -> received[0] = unwrap(payload));
         bus.publish("chat:send", event);
         assertEquals(event, received[0]);
     }
+
+    /** Unwraps the bus transport envelope so assertions see the raw payload. */
+    private static Object unwrap(Object value) {
+        return value instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope
+                ? envelope.payload() : value;
+    }
+
 }

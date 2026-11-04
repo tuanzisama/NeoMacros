@@ -191,11 +191,11 @@ class BaselineScenariosTest {
     void asyncPrimitivesResolve() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "sleeper.js", String.join("\n",
-                    "import { clock } from '@neomacros/core';",
+                    "import { thread } from '@neomacros/core';",
                     "import { report } from '@neomacros/__test';",
                     "report('async-top', true, 'toplevel-ran');",
-                    "clock.sleep(5).then(() => {",
-                    "  clock.ticks(1).then(() => report('async', true, 'resolved'),",
+                    "thread.sleep(5).then(() => {",
+                    "  thread.ticks(1).then(() => report('async', true, 'resolved'),",
                     "    (e) => report('async', false, 'ticks-rejected: ' + e));",
                     "}, (e) => report('async', false, 'sleep-rejected: ' + e));",
                     "globalThis.__stage = 'installed';",

@@ -68,8 +68,7 @@ public final class E2ERuntime implements AutoCloseable {
         registry.registerAll(List.of(EventsApi.class, ThreadApi.class, ChatApi.class,
                 StorageApi.class, TestBridge.class, WorldApi.class, EntityApi.class, PlayerApi.class,
                 ink.tuanzi.neomacros.core.api.java.JavaApi.class,
-                ink.tuanzi.neomacros.core.api.client.ClientApi.class,
-                new ink.tuanzi.neomacros.core.api.reflect.ReflectApi().getClass()));
+                ink.tuanzi.neomacros.core.api.client.ClientApi.class));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.reflect.ReflectApi());
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
@@ -110,7 +109,9 @@ public final class E2ERuntime implements AutoCloseable {
         });
         var runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, 500);
         // Script-side failures must surface in test output, never vanish.
+        StringBuilder errors = new StringBuilder();
         runtime.setErrorHandler(error -> {
+            errors.append(error).append(System.lineSeparator());
             log("SCRIPT-ERROR " + error);
             StringBuilder trace = new StringBuilder();
             for (Throwable t = error; t != null; t = t.getCause()) {
@@ -137,6 +138,7 @@ public final class E2ERuntime implements AutoCloseable {
 
         var harness = new E2ERuntime(adapter, runtime, registry, modules,
                 (TestBridge) registry.instance("__test"), catalog);
+        harness.scriptErrors = errors;
         return harness;
     }
 
@@ -144,6 +146,14 @@ public final class E2ERuntime implements AutoCloseable {
     public StubAdapter adapter() {
         return adapter;
     }
+
+    /** Script-side errors captured since creation (test diagnostics). */
+    public String scriptErrors() {
+        StringBuilder captured = scriptErrors;
+        return captured == null ? "" : captured.toString();
+    }
+
+    private volatile StringBuilder scriptErrors;
 
     /** The event bus (publish helper for tests). */
     public EventBus eventBus() {

@@ -95,7 +95,7 @@ class ModuleManagerTest {
                 @Override
                 public CompletableFuture<Boolean> invokeExport(String exportName, Object payload) {
                     if (exposeStartup.get()) {
-                        invokedPayloads.add(payload);
+                        invokedPayloads.add(payload instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope ? envelope.payload() : payload);
                         return CompletableFuture.completedFuture(true);
                     }
                     return CompletableFuture.completedFuture(false);
@@ -216,7 +216,7 @@ class ModuleManagerTest {
             AtomicInteger disposeCalls = engine.disposeCalls;
             EventBus bus = new EventBus(new EventCatalog(), Runnable::run);
             AtomicReference<Object> received = new AtomicReference<>();
-            module.track(bus.on("tick", received::set));
+            module.track(bus.on("tick", p -> received.set( p instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope env ? env.payload() : p)));
 
             manager.unload("beta");
 
