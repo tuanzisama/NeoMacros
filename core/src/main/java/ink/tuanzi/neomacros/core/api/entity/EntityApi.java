@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.core.api.entity;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.SnapshotViews;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
@@ -208,6 +209,19 @@ public final class EntityApi {
         @ApiSince("0.1.0")
         public boolean isValid() {
             return current().isPresent();
+        }
+
+        /**
+         * Escape hatch: the raw host entity object wrapped as a JavaObject
+         * proxy. Requires the {@code java} permission.
+         *
+         * @zh 穿透口：原始宿主实体对象（需 java 权限）。
+         */
+        @ApiSince("0.1.0")
+        @ApiPermission("java")
+        public Object getRaw() {
+            var raw = adapter().rawByUuid(uuid);
+            return raw.orElse(null);
         }
 
         /**

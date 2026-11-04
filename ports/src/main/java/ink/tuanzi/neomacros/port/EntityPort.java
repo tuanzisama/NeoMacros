@@ -24,4 +24,15 @@ public interface EntityPort {
      * center that pass the filter.
      */
     List<EntitySnapshot> inRadius(Pos3d center, double range, Predicate<EntitySnapshot> filter);
+
+
+    /**
+     * Returns the raw host object behind the entity, or empty when unloaded.
+     * The port is neutral: the returned Object is opaque to core but is the
+     * real game entity in the adapter. The escape layer wraps it as a
+     * JavaObject proxy for the guest.
+     */
+    default java.util.Optional<Object> rawByUuid(java.util.UUID uuid) {
+        return java.util.Optional.empty();
+    }
 }
