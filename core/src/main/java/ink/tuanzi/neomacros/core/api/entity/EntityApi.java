@@ -33,14 +33,14 @@ public final class EntityApi {
      * @zh-return 实体句柄，或 null
      */
     @ApiSince("0.1.0")
-    public EntityApi.EntityHandle lookup(String uuid) {
+    public EntityApi.Entity lookup(String uuid) {
         UUID id;
         try {
             id = UUID.fromString(uuid);
         } catch (IllegalArgumentException e) {
             return null;
         }
-        return adapter().byUuid(id).map(s -> new EntityHandle(id)).orElse(null);
+        return adapter().byUuid(id).map(s -> new Entity(id)).orElse(null);
     }
 
     /**
@@ -70,13 +70,13 @@ public final class EntityApi {
      *
      * @zh 实体句柄：属性实时回读世界状态；实体消失后属性回读为 undefined 而不报错。
      */
-    @ApiClass(name = "EntityHandle", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "Entity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.Entity")
-    public static final class EntityHandle implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+    public static final class Entity implements ink.tuanzi.neomacros.core.api.ScriptHandle {
 
         private final UUID uuid;
 
-        EntityHandle(UUID uuid) {
+        Entity(UUID uuid) {
             this.uuid = uuid;
         }
 
@@ -193,7 +193,7 @@ public final class EntityApi {
         /** Human-readable form. */
         @Override
         public String toString() {
-            return "EntityHandle(uuid=" + uuid + ")";
+            return "Entity(uuid=" + uuid + ")";
         }
 
         /** The latest snapshot of the entity, or empty when gone. */
