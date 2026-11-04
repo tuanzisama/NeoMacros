@@ -89,6 +89,7 @@ public class TSDoclet implements Doclet {
         for (ApiModel.ModuleModel module : model.modules()) {
             renderModule(sb, module, model);
         }
+        renderStandaloneClasses(sb, model);
         renderEvents(sb, model);
         renderGlobal(sb, model);
 
@@ -207,6 +208,30 @@ public class TSDoclet implements Doclet {
             sb.append("    export interface ").append(name).append(" {\n");
             for (ApiModel.ParameterModel field : event.fields()) {
                 sb.append("        ").append(field.name()).append(": ").append(field.type()).append(";\n");
+            }
+            sb.append("    }\n");
+        }
+        sb.append("}\n\n");
+    }
+
+    /** Standalone @ApiClass class declarations (types module supplement). */
+    private static void renderStandaloneClasses(StringBuilder sb, ApiModel model) {
+        if (model.standaloneClasses().isEmpty()) {
+            return;
+        }
+        sb.append("declare module '@neomacros/types' {\n");
+        for (ApiModel.ClassModel clazz : model.standaloneClasses()) {
+            sb.append("    ").append(jsdoc(clazz.doc(), null, null)).append("\n");
+            sb.append("    export class ").append(clazz.name());
+            if (!clazz.extendsName().isEmpty()) {
+                sb.append(" extends ").append(clazz.extendsName());
+            }
+            sb.append(" {\n");
+            for (ApiModel.PropertyModel property : clazz.properties()) {
+                renderProperty(sb, property);
+            }
+            for (ApiModel.MethodModel method : clazz.methods()) {
+                renderMethod(sb, method);
             }
             sb.append("    }\n");
         }

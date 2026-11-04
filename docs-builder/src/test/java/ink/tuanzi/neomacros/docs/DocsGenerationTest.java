@@ -119,6 +119,15 @@ class DocsGenerationTest {
     }
 
     @Test
+    void typesPageRenderedWithClassTree() throws IOException {
+        String types = read(outMd.outDir().resolve("api/types.md"));
+        assertTrue(types.contains("## StandaloneVec"), "standalone types page rendered");
+        assertTrue(types.contains("Data"), "data kind badge rendered");
+        
+        
+    }
+
+    @Test
     void tsDefinitionsEmitClassDeclarations() throws IOException {
         String ts = read(outTs.outDir().resolve("types/neomacros.d.ts"));
         assertTrue(ts.contains("export class WorldHandle"), "classes emitted as class declarations");

@@ -10,11 +10,13 @@ import java.util.Map;
  * doc-api annotations and Javadoc. Both renderers (Markdown and TypeScript)
  * consume the same model, so generated artifacts cannot diverge.
  *
- * @param modules modules sorted by name
- * @param events event descriptors sorted by name (nested and standalone)
- * @param warnings generation warnings (missing @zh translations, missing @ApiSince)
+ * @param modules        modules sorted by name
+ * @param events         event descriptors sorted by name (nested and standalone)
+ * @param standaloneClasses @ApiClass classes not nested in any facade, sorted by name
+ * @param warnings       generation warnings (missing @zh translations, missing @ApiSince)
  */
-public record ApiModel(List<ModuleModel> modules, List<EventModel> events, List<String> warnings) {
+public record ApiModel(List<ModuleModel> modules, List<EventModel> events,
+        List<ClassModel> standaloneClasses, List<String> warnings) {
 
     /** One script-visible ES module. */
     public record ModuleModel(

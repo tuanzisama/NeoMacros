@@ -45,6 +45,18 @@ declare module '@neomacros/world' {
     }
 }
 
+declare module '@neomacros/types' {
+    /** A standalone self-constructing vector cell (not nested in any facade). */
+    export class StandaloneVec {
+        /** The X coordinate. @since 0.1.0 */
+        readonly x: number;
+        /** The Y coordinate. @since 0.1.0 */
+        readonly y: number;
+        /** The Z coordinate. @since 0.1.0 */
+        readonly z: number;
+    }
+}
+
 declare module '@neomacros/events' {
     /** Fixture event descriptor with complete bilingual documentation: a cancellable event carrying a message payload. */
     export interface FixtureMarked {

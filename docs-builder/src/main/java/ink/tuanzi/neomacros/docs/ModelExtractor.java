@@ -39,6 +39,7 @@ final class ModelExtractor {
         DocTrees trees = env.getDocTrees();
         List<ApiModel.ModuleModel> modules = new ArrayList<>();
         List<ApiModel.EventModel> events = new ArrayList<>();
+        List<ApiModel.ClassModel> standaloneClasses = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
 
         Set<TypeElement> types = typesIn(env);
@@ -51,13 +52,85 @@ final class ModelExtractor {
             ApiEvent event = DocletSupport.eventOf(type);
             if (event != null && type.getKind() == ElementKind.RECORD) {
                 events.add(eventModel(type, event, trees, warnings));
+                continue;
+            }
+            // Standalone @ApiClass: not nested in any facade module.
+            ApiClass apiClass = DocletSupport.classOf(type);
+            if (apiClass != null) {
+                // Skip if nested inside a facade — moduleModel already handles those.
+                var enclosing = type.getEnclosingElement();
+                boolean nestedInFacade = enclosing != null
+                        && enclosing.getAnnotation(ink.tuanzi.neomacros.doc.api.ApiModule.class) != null;
+                if (!nestedInFacade) {
+                    standaloneClasses.add(standaloneClassModel(type, apiClass, trees, warnings));
+                }
             }
         }
 
         modules.sort(Comparator.comparing(ApiModel.ModuleModel::name));
         events.sort(Comparator.comparing(ApiModel.EventModel::name));
+        standaloneClasses.sort(java.util.Comparator.comparing(ApiModel.ClassModel::name));
         warnings.sort(String::compareTo);
-        return new ApiModel(List.copyOf(modules), List.copyOf(events), List.copyOf(warnings));
+        return new ApiModel(List.copyOf(modules), List.copyOf(events),
+                List.copyOf(standaloneClasses), List.copyOf(warnings));
+    }
+
+    /** Extracts a standalone (non-facade-nested) @ApiClass into a full ClassModel. */
+    private static ApiModel.ClassModel standaloneClassModel(TypeElement type,
+            ApiClass apiClass, DocTrees trees, List<String> warnings) {
+        var comment = trees.getDocCommentTree(type);
+        var zhBody = DocletSupport.zhBody(comment);
+        if (zhBody.isEmpty()) {
+            warnings.add(apiClass.name() + ": standalone class has no @zh docs");
+        }
+        List<ApiModel.PropertyModel> properties = new ArrayList<>();
+        List<ApiModel.MethodModel> methods = new ArrayList<>();
+        for (var member : type.getEnclosedElements()) {
+            if (member.getKind() != javax.lang.model.element.ElementKind.METHOD
+                    || !member.getModifiers().contains(javax.lang.model.element.Modifier.PUBLIC)
+                    || DocletSupport.internalOf(member)) {
+                continue;
+            }
+            var exec = (javax.lang.model.element.ExecutableElement) member;
+            var mc = trees.getDocCommentTree(exec);
+            String since = DocletSupport.sinceOf(exec);
+            if (DocletSupport.isBeanGetter(exec)) {
+                String prop = DocletSupport.propertyName(exec);
+                properties.add(new ApiModel.PropertyModel(
+                        prop,
+                        DocletSupport.returnTypeOf(exec),
+                        DocletSupport.docBody(mc),
+                        DocletSupport.zhBody(mc).orElse(""),
+                        DocletSupport.readOnlyOf(exec),
+                        since != null ? since : DocletSupport.sinceOf(type),
+                        DocletSupport.mcOf(exec),
+                        DocletSupport.permissionOf(exec),
+                        DocletSupport.experimentalOf(exec)));
+            } else {
+                methods.add(new ApiModel.MethodModel(
+                        exec.getSimpleName().toString(),
+                        DocletSupport.parametersOf(exec),
+                        DocletSupport.returnTypeOf(exec),
+                        DocletSupport.docBody(mc),
+                        DocletSupport.paramDocs(mc),
+                        DocletSupport.returnDoc(mc).orElse(""),
+                        DocletSupport.zhBody(mc).orElse(""),
+                        DocletSupport.zhParamDocs(mc),
+                        DocletSupport.zhReturnDoc(mc).orElse(""),
+                        DocletSupport.zhExample(mc).orElse(""),
+                        since != null ? since : DocletSupport.sinceOf(type),
+                        DocletSupport.mcOf(exec),
+                        DocletSupport.permissionOf(exec),
+                        DocletSupport.experimentalOf(exec)));
+            }
+        }
+        properties.sort(java.util.Comparator.comparing(ApiModel.PropertyModel::name));
+        methods.sort(java.util.Comparator.comparing(ApiModel.MethodModel::name));
+        String parent = extendsNameOf(type);
+        return new ApiModel.ClassModel(
+                apiClass.name(), apiClass.kind(), apiClass.wraps(), parent,
+                DocletSupport.docBody(comment), zhBody.orElse(""),
+                List.copyOf(properties), List.copyOf(methods));
     }
 
     /** Collects the class and record types included in this documentation run, deduplicated. */

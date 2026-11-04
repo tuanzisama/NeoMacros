@@ -92,11 +92,21 @@ public class MDDoclet implements Doclet {
                 }
             }
         }
+        for (ApiModel.ClassModel clazz : model.standaloneClasses()) {
+            if (!clazz.extendsName().isEmpty()) {
+                extendedBy.computeIfAbsent(clazz.extendsName(), k -> new java.util.ArrayList<>())
+                        .add(clazz.name());
+            }
+        }
         try {
             Files.createDirectories(apiDir);
             for (ApiModel.ModuleModel module : model.modules()) {
                 write(apiDir.resolve(module.name() + ".md"), renderModule(module, false, extendedBy));
                 write(apiDir.resolve(module.name() + ".zh.md"), renderModule(module, true, extendedBy));
+            }
+            if (!model.standaloneClasses().isEmpty()) {
+                write(apiDir.resolve("types.md"), renderTypesPage(model.standaloneClasses(), extendedBy, false));
+                write(apiDir.resolve("types.zh.md"), renderTypesPage(model.standaloneClasses(), extendedBy, true));
             }
             write(apiDir.resolve(DocletSupport.WARNINGS_FILE), String.join("\n", model.warnings()) + "\n");
         } catch (IOException e) {
@@ -105,6 +115,45 @@ public class MDDoclet implements Doclet {
         }
         model.warnings().forEach(this::report);
         return true;
+    }
+
+    /** Renders the standalone types page (Vec3, BlockPos, etc.). */
+    private static String renderTypesPage(List<ApiModel.ClassModel> classes,
+            Map<String, List<String>> extendedBy, boolean zh) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(zh ? "# \u7c7b\u578b\u5b9a\u4e49\n\n" : "# Type Definitions\n\n");
+        sb.append(zh
+            ? "\u4ee5\u4e0b\u7c7b\u578b\u7531\u5f15\u64ce\u751f\u6210 guest \u7aef\u771f\u5b9e ES \u7c7b\uff0c\u53ef\u901a\u8fc7 `@neomacros/types` \u5bfc\u5165\u5e76\u4f7f\u7528 `instanceof` \u5224\u65ad\u3002\n\n"
+            : "These types are generated as real guest ES classes by the engine. "
+            + "Import them from `@neomacros/types` and use `instanceof` for type checks.\n\n");
+        java.util.Set<String> allNames = new java.util.HashSet<>();
+        for (ApiModel.ClassModel clazz : classes) {
+            allNames.add(clazz.name());
+        }
+        for (ApiModel.ClassModel clazz : classes) {
+            sb.append("## ").append(clazz.name()).append("\n\n");
+            List<String> meta = new java.util.ArrayList<>();
+            meta.add(switch (clazz.kind()) {
+                case HANDLE -> zh ? "\u53e5\u67c4" : "Handle";
+                case DATA -> zh ? "\u6570\u636e" : "Data";
+            });
+            if (!clazz.wraps().isEmpty()) {
+                meta.add(zh ? "\u5305\u88c5\uff1a`" + clazz.wraps() + "`" : "Wraps: `" + clazz.wraps() + "`");
+            }
+            if (!clazz.extendsName().isEmpty()) {
+                meta.add(zh ? "\u7ee7\u627f\uff1a`" + clazz.extendsName() + "`" : "Extends: `" + clazz.extendsName() + "`");
+            }
+            List<String> children = extendedBy.getOrDefault(clazz.name(), List.of());
+            if (!children.isEmpty()) {
+                meta.add(zh ? "\u88ab\u7ee7\u627f\uff1a" + joinNames(children, "\u3001")
+                        : "Extended by: " + joinNames(children, ", "));
+            }
+            sb.append(String.join(" \u00b7 ", meta)).append("\n\n");
+            sb.append(text(clazz.doc(), clazz.zhDoc(), zh)).append("\n\n");
+            renderProperties(sb, clazz.properties(), zh);
+            renderMethods(sb, clazz.methods(), zh);
+        }
+        return sb.toString();
     }
 
     /** Renders one module page; {@code zh} selects the translation-fallback view. */
