@@ -111,7 +111,7 @@ public final class EntityApi {
         @ApiSince("0.1.0")
         @ApiReadOnly
         public String getName() {
-            return current().map(EntitySnapshot::displayName).orElse(null);
+            return current().map(EntitySnapshot::name).orElse(null);
         }
 
         /**

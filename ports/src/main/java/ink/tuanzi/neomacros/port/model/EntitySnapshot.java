@@ -10,7 +10,7 @@ import java.util.UUID;
  * never a live game reference. Live access goes through the entity facade,
  * which queries {@code EntityPort} and wraps results as handles.</p>
  */
-public record EntitySnapshot(UUID uuid, String type, String displayName, Pos3d pos, double health) {
+public record EntitySnapshot(UUID uuid, String type, String name, Pos3d pos, double health) {
 
     public EntitySnapshot {
         Objects.requireNonNull(uuid, "uuid cannot be null");

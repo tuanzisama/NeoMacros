@@ -362,8 +362,11 @@ public final class StubAdapter implements NeomacrosAdapter {
         }
 
         @Override
-        public Optional<BlockInteraction> raycast(Pos3d from, Pos3d to) {
-            return Optional.ofNullable(raycastHit);
+        public Optional<ink.tuanzi.neomacros.port.model.RayHit> raycast(Pos3d origin,
+                Pos3d direction, ink.tuanzi.neomacros.port.model.RayOptions options) {
+            return Optional.ofNullable(raycastHit).map(hit ->
+                    new ink.tuanzi.neomacros.port.model.RayHit(
+                            new BlockData(hit.id(), hit.pos()), null, hit.pos(), 0));
         }
     }
 

@@ -507,7 +507,8 @@ class PortEventWiringTest {
         }
 
         @Override
-        public Optional<BlockInteraction> raycast(Pos3d from, Pos3d to) {
+        public Optional<ink.tuanzi.neomacros.port.model.RayHit> raycast(Pos3d origin,
+                Pos3d direction, ink.tuanzi.neomacros.port.model.RayOptions options) {
             return Optional.empty();
         }
     }

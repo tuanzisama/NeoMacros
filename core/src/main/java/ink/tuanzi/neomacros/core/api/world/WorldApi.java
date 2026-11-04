@@ -72,24 +72,46 @@ public final class WorldApi {
     }
 
     /**
-     * Casts a ray from one point to another and returns the first solid block
-     * hit, or {@code null} when unobstructed or no world is loaded.
+     * Casts a ray from one point toward another and returns the first hit,
+     * or {@code null} when unobstructed or no world is loaded.
      *
-     * @zh 从起点向终点投射射线，返回第一个实体方块命中；无命中或无世界时返回 null。
+     * @zh 从起点向终点方向投射射线，返回第一个命中；无命中或无世界时返回 null。
      * @zh-param fromX 起点坐标 X
      * @zh-param fromY 起点坐标 Y
      * @zh-param fromZ 起点坐标 Z
      * @zh-param toX 终点坐标 X
      * @zh-param toY 终点坐标 Y
      * @zh-param toZ 终点坐标 Z
-     * @zh-return {@code {id, pos:{x,y,z}}} 或 null
+     * @zh-return {@code {block|entity, pos, distance}} 或 null
      */
     @ApiSince("0.1.0")
     public Map<String, Object> raycast(double fromX, double fromY, double fromZ,
                                        double toX, double toY, double toZ) {
-        Optional<BlockInteraction> hit = ScriptApiEnvironment.adapter().world()
-                .raycast(new Pos3d(fromX, fromY, fromZ), new Pos3d(toX, toY, toZ));
-        return hit.map(WorldApi::blockView).orElse(null);
+        Pos3d from = new Pos3d(fromX, fromY, fromZ);
+        Pos3d to = new Pos3d(toX, toY, toZ);
+        Pos3d direction = new Pos3d(to.x() - from.x(), to.y() - from.y(), to.z() - from.z());
+        var options = new ink.tuanzi.neomacros.port.model.RayOptions(
+                Math.sqrt(Math.pow(to.x() - from.x(), 2) + Math.pow(to.y() - from.y(), 2) + Math.pow(to.z() - from.z(), 2)), true, true, false);
+        Optional<ink.tuanzi.neomacros.port.model.RayHit> hit = ScriptApiEnvironment
+                .adapter().world().raycast(from, direction, options);
+        return hit.map(WorldApi::rayView).orElse(null);
+    }
+
+    /** Renders one ray hit as the plain script object shape. */
+    private static Map<String, Object> rayView(ink.tuanzi.neomacros.port.model.RayHit hit) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        if (hit.block() != null) {
+            Map<String, Object> block = new LinkedHashMap<>();
+            block.put("id", hit.block().id());
+            block.put("pos", SnapshotViews.pos(hit.block().pos()));
+            view.put("block", block);
+        }
+        if (hit.entity() != null) {
+            view.put("entity", SnapshotViews.entity(hit.entity()));
+        }
+        view.put("pos", SnapshotViews.pos(hit.pos()));
+        view.put("distance", hit.distance());
+        return view;
     }
 
     /** Renders one block result as the plain script object shape. */

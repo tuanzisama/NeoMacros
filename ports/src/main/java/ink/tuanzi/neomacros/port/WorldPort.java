@@ -1,8 +1,9 @@
 package ink.tuanzi.neomacros.port;
 
 import ink.tuanzi.neomacros.port.model.BlockData;
-import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.Pos3d;
+import ink.tuanzi.neomacros.port.model.RayHit;
+import ink.tuanzi.neomacros.port.model.RayOptions;
 
 import java.util.Optional;
 
@@ -28,9 +29,39 @@ public interface WorldPort {
     Optional<BlockData> blockAt(Pos3d pos);
 
     /**
-     * Casts a ray from {@code from} toward {@code to} and returns the first
-     * solid block hit, or empty when the ray reaches its end unobstructed or
-     * no world is loaded.
+     * Casts a ray from {@code origin} along {@code direction} and returns
+     * the first hit (block or entity per the options), or empty when the ray
+     * reaches its end unobstructed or no world is loaded.
      */
-    Optional<BlockInteraction> raycast(Pos3d from, Pos3d to);
+    Optional<RayHit> raycast(Pos3d origin, Pos3d direction, RayOptions options);
+
+    /** Returns whether thunder is currently falling in the world. */
+    default boolean isThundering() {
+        return false;
+    }
+
+    /** Returns the current day count (world day number). */
+    default long day() {
+        return 0;
+    }
+
+    /** Returns the total world age in ticks. */
+    default long age() {
+        return 0;
+    }
+
+    /** Returns the difficulty identifier, e.g. {@code normal}. */
+    default String difficulty() {
+        return "unknown";
+    }
+
+    /** Returns the biome identifier at the position, or empty when unloaded. */
+    default java.util.Optional<String> biomeAt(Pos3d pos) {
+        return java.util.Optional.empty();
+    }
+
+    /** Returns whether the chunk containing the position is loaded. */
+    default boolean loaded(Pos3d pos) {
+        return false;
+    }
 }

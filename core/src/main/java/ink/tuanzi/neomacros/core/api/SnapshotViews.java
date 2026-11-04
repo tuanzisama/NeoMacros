@@ -26,7 +26,7 @@ public final class SnapshotViews {
         Map<String, Object> view = new LinkedHashMap<>();
         view.put("uuid", snapshot.uuid().toString());
         view.put("type", snapshot.type());
-        view.put("displayName", snapshot.displayName());
+        view.put("name", snapshot.name());
         view.put("pos", pos(snapshot.pos()));
         view.put("health", snapshot.health());
         return view;
