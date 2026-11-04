@@ -33,16 +33,18 @@ import java.util.stream.Stream;
  * Discovers, loads, unloads, and reloads script folders below the macros
  * root ({@code keypress/event/services}, one folder with a {@code neomacro.*}
  * manifest per script). Loading opens a fresh engine session per module,
- * installs the binding tree, imports the resolved entry file, reads its
- * {@code dispose} export, and tracks every acquired resource for teardown.
- * Invalid folders are collected as {@link ScriptLoadError}s instead of
- * aborting discovery. Load failures mark the module {@code failed} and
- * surface through the error sink without affecting other modules.
+ * installs the binding tree, imports the resolved entry file, requires the
+ * {@code startup} export, wires the manifest-declared triggers (event
+ * auto-subscriptions, the service activation call), reads the {@code
+ * dispose} export, and tracks every acquired resource for teardown. Invalid
+ * folders are collected as {@link ScriptLoadError}s instead of aborting
+ * discovery. Load failures mark the module {@code failed} and surface
+ * through the error sink without affecting other modules.
  */
 public final class ModuleManager implements AutoCloseable {
 
-    /** Export a keypress script must define to receive key events. */
-    public static final String KEY_HANDLER_EXPORT = "onKey";
+    /** Export every macro must define: the startup entry invoked per trigger. */
+    public static final String STARTUP_EXPORT = "startup";
 
     private final ScriptRuntime runtime;
     private final BindingRegistry bindings;
@@ -51,7 +53,8 @@ public final class ModuleManager implements AutoCloseable {
     private final Consumer<String> warn;
     private final Map<String, LoadedModule> loaded = new LinkedHashMap<>();
     private final Map<Path, Map<String, Long>> watchedFolders = new LinkedHashMap<>();
-    private final Set<String> missingHandlerWarned = ConcurrentHashMap.newKeySet();
+    private volatile ink.tuanzi.neomacros.core.event.EventCatalog eventCatalog;
+    private volatile ink.tuanzi.neomacros.core.task.TaskRegistry taskRegistry;
     private Predicate<String> autoloadFilter = name -> true;
     private final List<Consumer<LoadedModule>> loadListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<LoadedModule>> unloadListeners = new CopyOnWriteArrayList<>();
@@ -59,6 +62,7 @@ public final class ModuleManager implements AutoCloseable {
             new CopyOnWriteArrayList<>();
     private final List<java.util.function.BiConsumer<Path, List<String>>> folderChangeListeners =
             new CopyOnWriteArrayList<>();
+    private final List<Consumer<Path>> folderRemovedListeners = new CopyOnWriteArrayList<>();
     private volatile List<ScriptEntry> lastEntries = List.of();
     private volatile List<ScriptLoadError> lastErrors = List.of();
     private boolean watchScanInitialized;
@@ -90,6 +94,22 @@ public final class ModuleManager implements AutoCloseable {
         return this;
     }
 
+    /**
+     * Installs the event catalog used to validate {@code config.event.on}
+     * names at load time. Without it (bare test harnesses) declared event
+     * names are not validated against the catalog.
+     */
+    public ModuleManager withEventCatalog(ink.tuanzi.neomacros.core.event.EventCatalog catalog) {
+        this.eventCatalog = catalog;
+        return this;
+    }
+
+    /** Installs the task registry receiving one task per macro activation. */
+    public ModuleManager withTaskRegistry(ink.tuanzi.neomacros.core.task.TaskRegistry registry) {
+        this.taskRegistry = registry;
+        return this;
+    }
+
     /** Registers a listener invoked after a module finished loading. */
     public ModuleManager onLoad(Consumer<LoadedModule> listener) {
         loadListeners.add(listener);
@@ -115,11 +135,21 @@ public final class ModuleManager implements AutoCloseable {
     /**
      * Registers a listener invoked when files inside an already-watched
      * script folder changed on disk (edited, added, or removed — the forward-
-     * slash paths relative to the folder). Newly created and deleted folders
-     * surface through the load/unload listeners instead.
+     * slash paths relative to the folder). Newly created folders surface
+     * through the load listeners; deleted folders through
+     * {@link #onFolderRemoved} (plus unload for the loaded ones).
      */
     public ModuleManager onFolderChange(java.util.function.BiConsumer<Path, List<String>> listener) {
         folderChangeListeners.add(listener);
+        return this;
+    }
+
+    /**
+     * Registers a listener invoked when an already-watched script folder
+     * disappeared from disk (deleted or renamed outside the panel).
+     */
+    public ModuleManager onFolderRemoved(Consumer<Path> listener) {
+        folderRemovedListeners.add(listener);
         return this;
     }
 
@@ -151,6 +181,7 @@ public final class ModuleManager implements AutoCloseable {
                 ink.tuanzi.neomacros.core.module.manifest.MacroManifest manifest;
                 try {
                     manifest = ManifestParser.parse(folder, warn);
+                    manifest.validateFor(category, warn);
                 } catch (ManifestParseException e) {
                     errors.add(new ScriptLoadError(folder, e.getMessage()));
                     continue;
@@ -204,7 +235,13 @@ public final class ModuleManager implements AutoCloseable {
 
     /** Loads one discovered entry; returns the loaded module. */
     public LoadedModule load(ScriptEntry entry) throws ScriptError {
+        return load(entry, "manual");
+    }
+
+    /** Loads one discovered entry, attributing the activation to {@code startedBy}. */
+    private LoadedModule load(ScriptEntry entry, String startedBy) throws ScriptError {
         String name = entry.name();
+        validateEventNames(entry);
         ScriptContext context = runtime.createContext(name);
         LoadedModule module = new LoadedModule(entry, entry.entryFile(), context);
         // Attribution lives on the context loop thread for the module's whole
@@ -220,7 +257,27 @@ public final class ModuleManager implements AutoCloseable {
                     viewResolver.apply(name, entry.manifest().permissions())));
             session.importModule(name, entry.entryFile());
             session.readExportedFunction("dispose").ifPresent(module::disposeHook);
+            if (session.readExportedFunction(STARTUP_EXPORT).isEmpty()) {
+                throw new ScriptError("'" + name + "' must export a startup(...) function"
+                        + " (see the migration guide)", null, entry.entryFile().toString(), null, null);
+            }
+            subscribeManifestEvents(module);
             loaded.put(name, module);
+            if (taskRegistry != null) {
+                module.taskId(taskRegistry.start(name, entry.category(), startedBy).taskId());
+            }
+            if (entry.category() == ScriptCategory.SERVICES) {
+                // Single activation call; long-running services keep themselves
+                // alive through subscriptions or an async loop inside startup.
+                if (taskRegistry != null && module.taskId() != 0) {
+                    taskRegistry.countTrigger(module.taskId());
+                }
+                session.invokeExport(STARTUP_EXPORT, Map.of()).whenComplete((found, error) -> {
+                    if (error != null) {
+                        warn.accept("startup of '" + name + "' failed: " + error.getMessage());
+                    }
+                });
+            }
             for (Consumer<LoadedModule> listener : loadListeners) {
                 listener.accept(module);
             }
@@ -242,13 +299,13 @@ public final class ModuleManager implements AutoCloseable {
             if (loaded.containsKey(entry.name()) || !autoloadFilter.test(entry.name())) {
                 continue;
             }
+            // Pre-filter by declared lifecycle: scripts of other phases are
+            // never loaded, so no phantom startup/subscription side effects.
+            if (entry.manifest().lifecycleOr(entry.category()) != phase) {
+                continue;
+            }
             try {
-                LoadedModule module = load(entry);
-                if (module.meta().lifecycle() == phase) {
-                    result.add(module);
-                } else {
-                    unload(module.meta().name());
-                }
+                result.add(load(entry, "lifecycle"));
             } catch (ScriptError e) {
                 warn.accept("failed to load " + entry.name() + ": " + e.getMessage()
                         + (e.getSourceName() != null ? " (" + e.getSourceName() + ":" + e.getLine() + ")" : "")
@@ -287,6 +344,54 @@ public final class ModuleManager implements AutoCloseable {
         }
     }
 
+    /**
+     * Rejects declared {@code config.event.on} names that the catalog does
+     * not know, listing the available events in the error.
+     */
+    private void validateEventNames(ScriptEntry entry) throws ScriptError {
+        var event = entry.manifest().configOrEmpty().event();
+        var catalog = eventCatalog;
+        if (event == null || catalog == null) {
+            return;
+        }
+        for (String eventName : event.onOrEmpty()) {
+            if (catalog.descriptor(eventName).isEmpty()) {
+                String available = catalog.all().stream()
+                        .map(d -> d.name())
+                        .collect(java.util.stream.Collectors.joining(", "));
+                throw new ScriptError("'" + entry.name() + "': unknown event '" + eventName
+                        + "' in config.event.on; available events: " + available,
+                        null, entry.entryFile().toString(), null, null);
+            }
+        }
+    }
+
+    /**
+     * Subscribes a freshly loaded event macro to every {@code config.event.on}
+     * entry; each occurrence invokes {@code startup(payload)} on the context
+     * loop (fire-and-forget; async startup returns settle on the loop through
+     * the async primitives). Subscriptions auto-unsubscribe on unload.
+     */
+    private void subscribeManifestEvents(LoadedModule module) {
+        var event = module.entry().manifest().configOrEmpty().event();
+        if (event == null) {
+            return;
+        }
+        for (String eventName : event.onOrEmpty()) {
+            var subscription = runtime.eventBus()
+                    .on(eventName, module.context().loop(), payload ->
+                            module.session().invokeExport(STARTUP_EXPORT, payload)
+                                    .whenComplete((found, error) -> {
+                                        if (error != null) {
+                                            warn.accept("event handler of '"
+                                                    + module.meta().name() + "' failed: "
+                                                    + error.getMessage());
+                                        }
+                                    }));
+            module.track(subscription);
+        }
+    }
+
     /** Notifies the load-error listeners. */
     private void notifyLoadError(String name, ScriptError error) {
         for (var listener : loadErrorListeners) {
@@ -305,21 +410,21 @@ public final class ModuleManager implements AutoCloseable {
     }
 
     /**
-     * Delivers one key event to the named script's {@code onKey} export on
-     * its context loop. Returns false when no such module is loaded; a
-     * missing or failing export is reported once through the error sink.
+     * Delivers one trigger payload to the named script's {@code startup}
+     * export on its context loop. Returns false when no such module is
+     * loaded; a failing export is reported through the error sink.
      */
     public boolean trigger(String name, Object payload) {
         LoadedModule module = loaded.get(name);
         if (module == null) {
             return false;
         }
-        module.session().invokeExport(KEY_HANDLER_EXPORT, payload).whenComplete((found, error) -> {
+        if (taskRegistry != null && module.taskId() != 0) {
+            taskRegistry.countTrigger(module.taskId());
+        }
+        module.session().invokeExport(STARTUP_EXPORT, payload).whenComplete((found, error) -> {
             if (error != null) {
-                warn.accept("key handler of '" + name + "' failed: " + error.getMessage());
-            } else if (!found && missingHandlerWarned.add(name)) {
-                warn.accept("'" + name + "' has a key binding but exports no " + KEY_HANDLER_EXPORT
-                        + "(ev) function");
+                warn.accept("startup handler of '" + name + "' failed: " + error.getMessage());
             }
         });
         return true;
@@ -331,6 +436,9 @@ public final class ModuleManager implements AutoCloseable {
         if (module != null) {
             for (Consumer<LoadedModule> listener : unloadListeners) {
                 listener.accept(module);
+            }
+            if (taskRegistry != null && module.taskId() != 0) {
+                taskRegistry.stop(module.taskId());
             }
             module.close();
         }
@@ -352,6 +460,7 @@ public final class ModuleManager implements AutoCloseable {
             unload(name);
         }
         runtime.engine().clearModuleCache();
+        invalidateDevToolsSession();
         loadPhase(ScriptMeta.Lifecycle.ALWAYS);
         loadPhase(ScriptMeta.Lifecycle.WORLD);
     }
@@ -367,8 +476,9 @@ public final class ModuleManager implements AutoCloseable {
         }
         unload(name);
         runtime.engine().clearModuleCache();
+        invalidateDevToolsSession();
         try {
-            load(entry.get());
+            load(entry.get(), "reload");
         } catch (ScriptError e) {
             warn.accept("failed to reload " + name + ": " + e.getMessage());
             notifyLoadError(name, e);
@@ -385,12 +495,70 @@ public final class ModuleManager implements AutoCloseable {
         return Optional.ofNullable(loaded.get(name));
     }
 
+    // ---- DevTools console session -----------------------------------------
+
+    private static final String DEVTOOLS_CONTEXT = "devtools";
+    private ScriptContext devToolsContext;
+    private ScriptEngine.EngineSession devToolsSession;
+
+    /**
+     * The DevTools console (REPL) session: one persistent engine session on
+     * its own {@code devtools} context loop, opened lazily on first use and
+     * bound with the full binding surface (a paired editor device already
+     * has the power to write arbitrary macro code through the file API, so
+     * evaluation grants it nothing new). Reloads invalidate it, so freshly
+     * reloaded module code is visible to later imports and REPL globals
+     * reset with the modules they may reference.
+     */
+    public synchronized ScriptEngine.EngineSession devToolsSession() throws ScriptError {
+        if (devToolsSession != null) {
+            return devToolsSession;
+        }
+        ScriptContext context = runtime.createContext(DEVTOOLS_CONTEXT);
+        ScriptEngine.EngineSession session = runtime.engine().openSession(context, macrosRoot);
+        try {
+            session.installBindings(bindings.neoTree(
+                    viewResolver.apply(DEVTOOLS_CONTEXT, List.of())));
+        } catch (RuntimeException e) {
+            try {
+                session.close();
+            } catch (Exception closeFailure) {
+                // best effort: the primary failure is what we report
+            }
+            context.close();
+            throw e instanceof ScriptError se ? se : new ScriptError("devtools session init failed", e);
+        }
+        this.devToolsContext = context;
+        this.devToolsSession = session;
+        return session;
+    }
+
+    /** Drops the DevTools console session (the next evaluation reopens it fresh). */
+    public synchronized void invalidateDevToolsSession() {
+        ScriptEngine.EngineSession session = devToolsSession;
+        this.devToolsSession = null;
+        ScriptContext context = devToolsContext;
+        this.devToolsContext = null;
+        if (session != null) {
+            try {
+                session.close();
+            } catch (Exception e) {
+                // the context loop may already be gone; nothing to salvage
+                warn.accept("closing the devtools session failed: " + e.getMessage());
+            }
+        }
+        if (context != null) {
+            context.close();
+        }
+    }
+
     /** Closes every module. */
     @Override
     public void close() {
         for (String name : List.copyOf(loaded.keySet())) {
             unload(name);
         }
+        invalidateDevToolsSession();
     }
 
     /** Runs one task on the context loop and blocks until it completed. */
@@ -430,7 +598,7 @@ public final class ModuleManager implements AutoCloseable {
                 if (watchScanInitialized && !loaded.containsKey(entry.name())
                         && autoloadFilter.test(entry.name())) {
                     try {
-                        load(entry);
+                        load(entry, "autostart");
                     } catch (ScriptError e) {
                         warn.accept("failed to load new script " + entry.name() + ": " + e.getMessage());
                         notifyLoadError(entry.name(), e);
@@ -445,7 +613,7 @@ public final class ModuleManager implements AutoCloseable {
                     // The folder was known but not loadable before (e.g. the
                     // manifest was just fixed); pick it up now.
                     try {
-                        load(entry);
+                        load(entry, "autostart");
                     } catch (ScriptError e) {
                         warn.accept("failed to load " + entry.name() + ": " + e.getMessage());
                         notifyLoadError(entry.name(), e);
@@ -460,6 +628,9 @@ public final class ModuleManager implements AutoCloseable {
                     if (loaded.get(name).entry().folder().equals(folder)) {
                         unload(name);
                     }
+                }
+                for (Consumer<Path> listener : folderRemovedListeners) {
+                    listener.accept(folder);
                 }
             }
         }
@@ -492,16 +663,17 @@ public final class ModuleManager implements AutoCloseable {
     }
 
     /**
-     * A change signature of one script folder: every regular file's relative
-     * path (forward slashes) and modification time, so edits, additions,
-     * renames, and deletions inside the folder all register.
+     * A change signature of one script folder: every entry's (files and
+     * directories) relative path (forward slashes) and modification time,
+     * so edits, additions, renames, deletions, and empty-directory changes
+     * inside the folder all register.
      */
     private Map<String, Long> fingerprint(Path folder) {
         Map<String, Long> files = new LinkedHashMap<>();
         try (Stream<Path> walk = Files.walk(folder)) {
-            for (Path file : walk.filter(Files::isRegularFile).toList()) {
-                files.put(folder.relativize(file).toString().replace('\\', '/'),
-                        Files.getLastModifiedTime(file).toMillis());
+            for (Path entry : walk.filter(p -> !p.equals(folder)).toList()) {
+                files.put(folder.relativize(entry).toString().replace('\\', '/'),
+                        Files.getLastModifiedTime(entry).toMillis());
             }
         } catch (IOException e) {
             // unreadable folder: a stable sentinel (mtime can never be -1) so

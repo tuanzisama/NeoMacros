@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.fabric.web.v1;
 
 import com.sun.net.httpserver.HttpExchange;
+import ink.tuanzi.neomacros.core.console.ScriptConsoleEvent;
 import ink.tuanzi.neomacros.fabric.web.FileContent;
 import ink.tuanzi.neomacros.fabric.web.FileWriteResult;
 import ink.tuanzi.neomacros.fabric.web.GameRunner;
@@ -17,46 +18,65 @@ import ink.tuanzi.neomacros.fabric.web.api.NmPost;
 import ink.tuanzi.neomacros.fabric.web.api.NmPut;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRecord;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry;
+import ink.tuanzi.neomacros.fabric.web.console.ConsoleRing;
 import ink.tuanzi.neomacros.fabric.web.http.ApiContext;
 import ink.tuanzi.neomacros.fabric.web.http.ApiError;
 import ink.tuanzi.neomacros.fabric.web.json.Jsons;
 import ink.tuanzi.neomacros.fabric.web.log.LogRing;
+import ink.tuanzi.neomacros.fabric.web.pair.PairingRequests;
 import ink.tuanzi.neomacros.fabric.web.pair.PairingService;
 import ink.tuanzi.neomacros.fabric.web.sse.SseHub;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
- * The web panel API surface: version probe, pairing, state snapshot, macro
- * lifecycle actions with create/delete, the file editor API, device
- * management, log replay, and the SSE stream with its ticket exchange.
- * Every game-state read and macro action is dispatched onto the game main
- * thread with a five-second budget.
+ * The web panel API surface: version probe, pairing (deep-link token and
+ * tokenless with the in-game decision), state snapshot, macro lifecycle
+ * actions with create/delete, the file editor API, device management, log
+ * replay, and the SSE stream with its ticket exchange. Every game-state
+ * read and macro action is dispatched onto the game main thread with a
+ * five-second budget.
  */
 public final class ApiV1 {
 
     private final PanelBackend backend;
     private final GameRunner game;
     private final PairingService pairing;
+    private final PairingRequests pairingRequests;
+    private final Predicate<String> originAllowed;
+    private final Consumer<PairingRequests.Request> pairRequestListener;
     private final DeviceRegistry devices;
     private final SseHub sse;
     private final LogRing logs;
+    private final ConsoleRing console;
 
-    /** Creates the controller. */
+    /**
+     * Creates the controller. The origin predicate is the CORS allowlist
+     * gate for tokenless pairing; the listener (nullable in tests) is the
+     * game-side hook that renders the in-game decision card.
+     */
     public ApiV1(PanelBackend backend, GameRunner game, PairingService pairing,
-                 DeviceRegistry devices, SseHub sse, LogRing logs) {
+                 PairingRequests pairingRequests, Predicate<String> originAllowed,
+                 Consumer<PairingRequests.Request> pairRequestListener,
+                 DeviceRegistry devices, SseHub sse, LogRing logs, ConsoleRing console) {
         this.backend = backend;
         this.game = game;
         this.pairing = pairing;
+        this.pairingRequests = pairingRequests;
+        this.originAllowed = originAllowed;
+        this.pairRequestListener = pairRequestListener;
         this.devices = devices;
         this.sse = sse;
         this.logs = logs;
+        this.console = console;
     }
 
     @NmGet("/api/v1/meta")
@@ -69,7 +89,7 @@ public final class ApiV1 {
 
     @NmPost("/api/v1/pair")
     @NmApi(tag = "pairing", summary = "Pair a device with the one-time deep-link token"
-            + " (single use, three minutes)", auth = NmAuth.NONE)
+            + " (single use, long-lived and configurable)", auth = NmAuth.NONE)
     @NmError(status = 400, code = "invalid_request",
             desc = "Malformed request or an invalid, expired, or already-used token")
     public PairResponse pair(@NmBody PairRequest request) {
@@ -96,6 +116,74 @@ public final class ApiV1 {
         return new PairResponse(device.id());
     }
 
+    @NmPost("/api/v1/pair-request")
+    @NmApi(tag = "pairing", summary = "Request pairing without a token (loopback browsers"
+            + " only, Origin-gated); answers immediately under loopback trust, otherwise"
+            + " waits for the in-game decision", auth = NmAuth.NONE)
+    @NmError(status = 400, code = "invalid_request", desc = "Malformed request or unusable key")
+    @NmError(status = 403, code = "forbidden",
+            desc = "The Origin is not allowed or the request is not from loopback")
+    public PairApplyResponse requestPair(@NmBody PairApplyRequest request, ApiContext context) {
+        if (request.label() == null || request.label().isBlank()
+                || request.algo() == null || request.algo().isBlank()
+                || request.pubJwk() == null || request.pubJwk().isEmpty()) {
+            throw ApiError.invalidRequest(
+                    "the pairing request needs label, algo, and pubJwk");
+        }
+        try {
+            ink.tuanzi.neomacros.fabric.web.auth.Nm1Keys.publicKey(
+                    request.algo(), request.pubJwk());
+        } catch (IllegalArgumentException e) {
+            throw ApiError.invalidRequest("unusable public key: " + e.getMessage());
+        }
+        // Gate 1: the Origin header must be panel-allowlisted (browsers set
+        // it truthfully, so this keeps drive-by web pages out).
+        if (!originAllowed.test(context.header("Origin"))) {
+            throw ApiError.forbidden(
+                    "request Origin is not allowed for tokenless pairing");
+        }
+        // Gate 2: loopback sources only — LAN devices pair with a deep-link
+        // token. A local process is already trusted with the game, so the
+        // source check is the hard boundary and Origin is the anti-drive-by.
+        java.net.InetAddress source = context.sourceAddress();
+        if (source == null || !source.isLoopbackAddress()) {
+            throw ApiError.forbidden("tokenless pairing is served to loopback"
+                    + " browsers only; use a deep-link token from the game");
+        }
+        // Trust shortcut: a confirmed "trust this machine" decision answers
+        // later loopback browsers without bothering the player again.
+        if (pairing.trustLoopback()) {
+            DeviceRecord device = devices.register(
+                    request.label(), request.algo(), request.pubJwk());
+            return PairApplyResponse.paired(device.id());
+        }
+        PairingRequests.Request submitted = pairingRequests.submit(
+                request.label(), request.algo(), request.pubJwk(),
+                context.header("Origin"), context.source());
+        if (pairRequestListener != null) {
+            pairRequestListener.accept(submitted);
+        }
+        return PairApplyResponse.pending(submitted.id(),
+                (int) (PairingRequests.REQUEST_TTL_MILLIS / 1000));
+    }
+
+    @NmGet("/api/v1/pair-request/{id}")
+    @NmApi(tag = "pairing", summary = "Poll one tokenless pairing request for the"
+            + " in-game decision", auth = NmAuth.NONE)
+    public PairApplyStatus pairRequestStatus(@NmParam("id") String id) {
+        PairingRequests.Outcome outcome = pairingRequests.outcomeOf(id);
+        if (outcome == null || outcome == PairingRequests.Outcome.EXPIRED) {
+            return PairApplyStatus.expired();
+        }
+        return switch (outcome) {
+            case PENDING -> new PairApplyStatus("pending", null);
+            case APPROVED -> new PairApplyStatus("approved",
+                    pairingRequests.clientIdOf(id));
+            case DENIED -> new PairApplyStatus("denied", null);
+            case EXPIRED -> PairApplyStatus.expired();
+        };
+    }
+
     @NmGet("/api/v1/state")
     @NmApi(tag = "macros", summary = "Full state snapshot (panel first screen)")
     @NmError(status = 401, code = "unauthorized",
@@ -120,6 +208,29 @@ public final class ApiV1 {
             @NmParam("action") @NmDesc("One of enable, disable, start, stop, reload")
             String action) {
         return game.call(() -> backend.macroAction(id, action));
+    }
+
+    @NmGet("/api/v1/tasks")
+    @NmApi(tag = "tasks", summary = "Task manager snapshot (active tasks + bounded history)")
+    @NmError(status = 401, code = "unauthorized",
+            desc = "Request unsigned or signature verification failed")
+    public TasksResponse tasks() {
+        return backend.tasks();
+    }
+
+    @NmPost("/api/v1/tasks/{id+}/stop")
+    @NmApi(tag = "tasks", summary = "Stop one task (unloads its macro)")
+    @NmError(status = 404, code = "not_found", desc = "Unknown task id")
+    @NmError(status = 409, code = "conflict", desc = "The task is already stopped")
+    @NmError(status = 504, code = "game_thread_timeout",
+            desc = "The game main thread did not answer within 5 seconds")
+    public TasksResponse stopTask(
+            @NmParam(value = "id", multi = true)
+            @NmDesc("The task id") long id) {
+        return game.call(() -> {
+            backend.stopTask(id);
+            return backend.tasks();
+        });
     }
 
     @NmGet("/api/v1/macros/{id+}/files")
@@ -354,10 +465,73 @@ public final class ApiV1 {
                     + " 0 replays from the start") Long after) {
         long cursor = after == null ? 0 : after;
         List<LogEntry> view = logs.after(cursor).stream()
-                .map(entry -> new LogEntry(entry.seq(), entry.level(), entry.logger(),
-                        entry.line()))
+                .map(entry -> new LogEntry(entry.seq(), entry.ts(), entry.level(),
+                        entry.logger(), entry.line()))
                 .toList();
         return new LogsResponse(view, logs.lastSeq());
+    }
+
+    @NmGet("/api/v1/console")
+    @NmApi(tag = "console", summary = "Replay the script console ring")
+    public ConsoleResponse console(
+            @NmParam("after") @NmDesc("Return entries with a seq greater than this;"
+                    + " 0 replays from the start") Long after) {
+        long cursor = after == null ? 0 : after;
+        return new ConsoleResponse(console.after(cursor), console.lastSeq());
+    }
+
+    /** The pseudo macro name of the shared devtools session. */
+    private static final String DEVTOOLS_TARGET = "devtools";
+
+    @NmPost("/api/v1/console/eval")
+    @NmApi(tag = "console", summary = "Evaluate one DevTools console expression"
+            + " in the shared devtools session (target \"devtools\") or in a"
+            + " loaded macro's context; the echoed input and the result are"
+            + " recorded into the console ring so they replay across reconnects")
+    @NmError(status = 400, code = "invalid_request",
+            desc = "Malformed body (needs a non-empty expression)")
+    @NmError(status = 404, code = "not_found", desc = "The target macro is not loaded")
+    @NmError(status = 504, code = "eval_timeout",
+            desc = "The expression did not settle within the context loop budget")
+    public ConsoleResponse evalConsole(@NmBody EvalRequest request) {
+        if (request.expression() == null || request.expression().isBlank()) {
+            throw ApiError.invalidRequest("the eval request needs a non-empty expression");
+        }
+        String target = request.target() == null || request.target().isBlank()
+                ? DEVTOOLS_TARGET
+                : request.target();
+        PanelBackend.EvalExecution execution = backend.evaluateConsole(target, request.expression());
+        long ts = System.currentTimeMillis();
+        ConsoleEntry input = console.append(new ScriptConsoleEvent(
+                execution.macro(), "input", "log", null, null, null, 0,
+                List.of(strNode(request.expression())), null, null, null, null, ts));
+        ConsoleEntry output = console.append(new ScriptConsoleEvent(
+                execution.macro(), "result",
+                execution.outcome().threw() ? "error" : "info",
+                null, null, null, 0,
+                List.of(execution.outcome().threw()
+                        ? errorNode(execution.outcome())
+                        : execution.outcome().value()),
+                null, null, null, null, ts));
+        return new ConsoleResponse(List.of(input, output), output.seq());
+    }
+
+    /** One neutral string node for the echoed input. */
+    private static Map<String, Object> strNode(String value) {
+        Map<String, Object> node = new java.util.LinkedHashMap<>();
+        node.put("t", "str");
+        node.put("v", value);
+        return node;
+    }
+
+    /** One neutral error node from an eval outcome. */
+    private static Map<String, Object> errorNode(ink.tuanzi.neomacros.core.runtime.EvalOutcome outcome) {
+        Map<String, Object> node = new java.util.LinkedHashMap<>();
+        node.put("t", "err");
+        node.put("name", outcome.errorName() == null ? "Error" : outcome.errorName());
+        node.put("msg", outcome.errorMessage() == null ? "" : outcome.errorMessage());
+        node.put("stack", outcome.errorStack() == null ? "" : outcome.errorStack());
+        return node;
     }
 
     @NmPost("/api/v1/events/ticket")

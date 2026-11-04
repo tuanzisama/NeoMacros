@@ -4,6 +4,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import ink.tuanzi.neomacros.core.console.ScriptConsole;
+import ink.tuanzi.neomacros.core.console.ScriptConsoleEvent;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry;
 import ink.tuanzi.neomacros.fabric.web.http.ApiError;
 import ink.tuanzi.neomacros.fabric.web.json.Jsons;
@@ -79,6 +81,34 @@ class WebApiIntegrationTest {
         FileContent fileToServe;
         String servedPath = "event/auto-welcome/index.js";
         FileWriteResult writeOutcome;
+        final ink.tuanzi.neomacros.core.task.TaskRegistry tasks =
+                new ink.tuanzi.neomacros.core.task.TaskRegistry();
+
+        @Override
+        public ink.tuanzi.neomacros.fabric.web.v1.TasksResponse tasks() {
+            return new ink.tuanzi.neomacros.fabric.web.v1.TasksResponse(
+                    tasks.activeTasks().stream()
+                            .map(t -> ink.tuanzi.neomacros.fabric.web.v1.TaskEntry.of(
+                                    ink.tuanzi.neomacros.core.task.ScriptTask.Snapshot.of(t)))
+                            .toList(),
+                    tasks.historyTasks().stream()
+                            .map(t -> ink.tuanzi.neomacros.fabric.web.v1.TaskEntry.of(
+                                    ink.tuanzi.neomacros.core.task.ScriptTask.Snapshot.of(t)))
+                            .toList());
+        }
+
+        @Override
+        public void stopTask(long taskId) {
+            if (failure != null) {
+                throw failure;
+            }
+            var task = tasks.task(taskId)
+                    .orElseThrow(() -> ApiError.notFound("unknown task: " + taskId));
+            if (task.status() == ink.tuanzi.neomacros.core.task.ScriptTask.Status.STOPPED) {
+                throw ApiError.conflict("task " + taskId + " is already stopped");
+            }
+            tasks.stop(taskId);
+        }
 
         @Override
         public Meta meta() {
@@ -90,7 +120,7 @@ class WebApiIntegrationTest {
             var macro = new MacroView("event/auto-welcome", ink.tuanzi.neomacros.fabric.web.v1
                     .MacroCategory.event, "auto-welcome", "1.0.0", "you",
                     ink.tuanzi.neomacros.fabric.web.v1.MacroLifecycle.world,
-                    true, false, null, List.of(), null);
+                    true, false, null, List.of(), List.of(), List.of(), null);
             return new StateSnapshot(List.of(macro),
                     new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(0, 0, "loopback"),
                     "C:\\macros");
@@ -111,7 +141,7 @@ class WebApiIntegrationTest {
             return new MacroView(id, ink.tuanzi.neomacros.fabric.web.v1.MacroCategory.event,
                     id.contains("/") ? id.substring(id.indexOf('/') + 1) : id,
                     "1.0.0", "you", ink.tuanzi.neomacros.fabric.web.v1.MacroLifecycle.world,
-                    true, true, null, List.of(), null);
+                    true, true, null, List.of(), List.of(), List.of(), null);
         }
 
         @Override
@@ -189,7 +219,7 @@ class WebApiIntegrationTest {
                     ink.tuanzi.neomacros.fabric.web.v1.MacroCategory.event,
                     name, "0.0.1", "your-name",
                     ink.tuanzi.neomacros.fabric.web.v1.MacroLifecycle.world,
-                    true, false, null, List.of(), null);
+                    true, false, null, List.of(), List.of(), List.of(), null);
         }
 
         @Override
@@ -202,7 +232,7 @@ class WebApiIntegrationTest {
                     ink.tuanzi.neomacros.fabric.web.v1.MacroCategory.event,
                     from.contains("/") ? from.substring(from.indexOf('/') + 1) : from,
                     "1.0.0", "you", ink.tuanzi.neomacros.fabric.web.v1.MacroLifecycle.world,
-                    true, false, null, List.of(), null);
+                    true, false, null, List.of(), List.of(), List.of(), null);
         }
 
         @Override
@@ -211,6 +241,27 @@ class WebApiIntegrationTest {
                 throw failure;
             }
             deletions.add(id);
+        }
+
+        final List<String> evals = new ArrayList<>();
+        PanelBackend.EvalExecution evalOutcome;
+
+        @Override
+        public PanelBackend.EvalExecution evaluateConsole(String target, String expression) {
+            if (failure != null) {
+                throw failure;
+            }
+            evals.add(target + ":" + expression);
+            if (evalOutcome != null) {
+                return evalOutcome;
+            }
+            if (!"devtools".equals(target)) {
+                throw ApiError.notFound("the macro '" + target + "' is not loaded");
+            }
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> node = (java.util.Map<String, Object>) strNode("ok");
+            return new PanelBackend.EvalExecution(target,
+                    ink.tuanzi.neomacros.core.runtime.EvalOutcome.ofValue(node, 3));
         }
     }
 
@@ -223,16 +274,29 @@ class WebApiIntegrationTest {
     private StubBackend startWithOrigins(GameRunner runner,
             java.util.List<String> extraOrigins) throws IOException {
         StubBackend backend = new StubBackend();
+        var events = new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents();
+        // The stub mirrors the real WebRuntime wiring: task registry changes
+        // broadcast to the panel as task:state events.
+        backend.tasks.onTaskEvent((event, snapshot) -> events.broadcast("task:state",
+                Jsons.stringify(ink.tuanzi.neomacros.fabric.web.v1.TaskEntry.of(snapshot))));
         device = TestKeys.ed25519("dev_test");
         DeviceRegistry registry = new DeviceRegistry(temp.resolve("web-devices.json"),
                 message -> { });
         device = device.withId(registry
                 .register("integration browser", device.algo, device.pubJwk).id());
-        service = new WebService(backend, runner, registry,
+        service = new WebService(backend, runner, registry, newPairingStore(),
+                new ink.tuanzi.neomacros.fabric.web.pair.PairingRequests(System::currentTimeMillis),
                 () -> "loopback", () -> 0, () -> "http://localhost:5173",
-                () -> extraOrigins, new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents());
+                () -> extraOrigins, events);
         service.start();
         return backend;
+    }
+
+    /** A pairing store over the temp dir with the integration-test lifetime. */
+    private ink.tuanzi.neomacros.fabric.web.pair.PairingService newPairingStore() {
+        return new ink.tuanzi.neomacros.fabric.web.pair.PairingService(
+                temp.resolve("web-pairing.json"), System::currentTimeMillis,
+                () -> 180_000, message -> { });
     }
 
     @AfterEach
@@ -469,9 +533,9 @@ class WebApiIntegrationTest {
         start(DIRECT);
         // The service logs its own boot lines; measure the baseline first.
         long baseline = service.logs().lastSeq();
-        service.logs().append("INFO", "neomacros.test", "one");
-        service.logs().append("WARN", "neomacros.test", "two");
-        service.logs().append("ERROR", "neomacros.test", "three");
+        service.logs().append(System.currentTimeMillis(), "INFO", "neomacros.test", "one");
+        service.logs().append(System.currentTimeMillis(), "WARN", "neomacros.test", "two");
+        service.logs().append(System.currentTimeMillis(), "ERROR", "neomacros.test", "three");
 
         HttpResponse<String> full = signed("GET", "/api/v1/logs?after=" + baseline,
                 new byte[0]);
@@ -486,6 +550,233 @@ class WebApiIntegrationTest {
         assertEquals(1, tailBody.getAsJsonArray("entries").size());
         assertEquals("three", tailBody.getAsJsonArray("entries").get(0)
                 .getAsJsonObject().get("line").getAsString());
+    }
+
+    // ---- script console ----------------------------------------------------
+
+    @Test
+    void consoleReplayIncrementally() throws Exception {
+        start(DIRECT);
+        long baseline = service.console().lastSeq();
+        service.console().append(consoleEvent("info", "index.js", 12,
+                List.of(strNode("hello"), numNode(42))));
+        service.console().append(consoleEvent("error", "lib/util.js", 3,
+                List.of(strNode("boom"))));
+
+        HttpResponse<String> full = signed("GET", "/api/v1/console?after=" + baseline,
+                new byte[0]);
+        assertEquals(200, full.statusCode());
+        JsonObject body = JsonParser.parseString(full.body()).getAsJsonObject();
+        assertEquals(2, body.getAsJsonArray("entries").size());
+        assertEquals(baseline + 2, body.get("lastSeq").getAsLong());
+        JsonObject first = body.getAsJsonArray("entries").get(0).getAsJsonObject();
+        assertEquals("event/auto-welcome", first.get("macro").getAsString());
+        assertEquals("info", first.get("level").getAsString());
+        assertEquals("index.js", first.get("file").getAsString());
+        assertEquals(12, first.get("line").getAsInt());
+        assertEquals("hello", first.getAsJsonArray("args").get(0)
+                .getAsJsonObject().get("v").getAsString());
+        assertTrue(first.get("stack").isJsonNull(), "stack stays null for plain logs");
+
+        HttpResponse<String> tail = signed("GET", "/api/v1/console?after=" + (baseline + 1),
+                new byte[0]);
+        JsonObject tailBody = JsonParser.parseString(tail.body()).getAsJsonObject();
+        assertEquals(1, tailBody.getAsJsonArray("entries").size());
+        assertEquals("error", tailBody.getAsJsonArray("entries").get(0)
+                .getAsJsonObject().get("level").getAsString());
+    }
+
+    @Test
+    void theConsoleSseFrameCarriesScriptEmissions() throws Exception {
+        start(DIRECT);
+        HttpResponse<String> ticketResponse = signed("POST", "/api/v1/events/ticket",
+                new byte[0]);
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl()
+                + "/api/v1/events?ticket="
+                + JsonParser.parseString(ticketResponse.body()).getAsJsonObject()
+                .get("ticket").getAsString()))
+                .timeout(Duration.ofSeconds(10))
+                .GET().build();
+        HttpResponse<InputStream> stream = client.send(request,
+                HttpResponse.BodyHandlers.ofInputStream());
+        assertEquals(200, stream.statusCode());
+        InputStream input = stream.body();
+        readUntil(input, "\n\n");
+
+        CompletableFuture<Void> append = CompletableFuture.runAsync(() ->
+                service.console().append(consoleEvent("warn", "index.js", 7,
+                        List.of(strNode("careful")))));
+        append.get(5, TimeUnit.SECONDS);
+        String frame = readUntil(input, "\n\n");
+        assertTrue(frame.contains("event: console"), frame);
+        assertTrue(frame.contains("\"macro\":\"event/auto-welcome\""), frame);
+        assertTrue(frame.contains("\"kind\":\"warn\""), frame);
+        input.close();
+    }
+
+    @Test
+    void theConsoleDispatcherWiresCoreEventsIntoTheRing() throws Exception {
+        start(DIRECT);
+        long baseline = service.console().lastSeq();
+        ScriptConsole.dispatch(consoleEvent("log", "index.js", 5,
+                List.of(strNode("live"))));
+        // The core pipeline thread hands the event to the ring asynchronously.
+        long deadline = System.currentTimeMillis() + 5000;
+        while (service.console().lastSeq() == baseline
+                && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20);
+        }
+        assertEquals(baseline + 1, service.console().lastSeq());
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> firstArg = (java.util.Map<String, Object>)
+                service.console().after(baseline).get(0).args().get(0);
+        assertEquals("live", firstArg.get("v"));
+    }
+
+    /** One ScriptConsoleEvent addressed to the stub backend's macro. */
+    private static ScriptConsoleEvent consoleEvent(String level, String file, int line,
+                                                   List<Object> args) {
+        return new ScriptConsoleEvent("event/auto-welcome", level, level,
+                file, line, 1, 0, args, null, null, null, null,
+                System.currentTimeMillis());
+    }
+
+    /** A neutral string argument node. */
+    private static Object strNode(String value) {
+        return Map.of("t", "str", "v", value);
+    }
+
+    // ---- DevTools console eval ---------------------------------------------
+
+    @Test
+    void evalRecordsInputAndResultIntoTheRing() throws Exception {
+        StubBackend backend = start(DIRECT);
+        long baseline = service.console().lastSeq();
+
+        HttpResponse<String> response = signed("POST", "/api/v1/console/eval",
+                Jsons.stringify(Map.of("target", "devtools", "expression", "1 + 1"))
+                        .getBytes(StandardCharsets.UTF_8));
+        assertEquals(200, response.statusCode());
+        JsonObject body = JsonParser.parseString(response.body()).getAsJsonObject();
+        assertEquals(2, body.getAsJsonArray("entries").size());
+        assertEquals(baseline + 2, body.get("lastSeq").getAsLong());
+        assertEquals(List.of("devtools:1 + 1"), backend.evals);
+
+        // Both entries landed in the ring (SSE and replay share this source).
+        assertEquals(2, service.console().after(baseline).size());
+        JsonObject input = body.getAsJsonArray("entries").get(0).getAsJsonObject();
+        assertEquals("input", input.get("kind").getAsString());
+        assertEquals("devtools", input.get("macro").getAsString());
+        assertEquals("1 + 1", input.getAsJsonArray("args").get(0)
+                .getAsJsonObject().get("v").getAsString());
+        JsonObject result = body.getAsJsonArray("entries").get(1).getAsJsonObject();
+        assertEquals("result", result.get("kind").getAsString());
+        assertEquals("info", result.get("level").getAsString());
+        assertEquals("ok", result.getAsJsonArray("args").get(0)
+                .getAsJsonObject().get("v").getAsString());
+    }
+
+    @Test
+    void evalReportsGuestFailuresAsErrorResults() throws Exception {
+        StubBackend backend = start(DIRECT);
+        backend.evalOutcome = new PanelBackend.EvalExecution("devtools",
+                ink.tuanzi.neomacros.core.runtime.EvalOutcome.ofError(
+                        "ReferenceError", "nope is not defined", "    at devtools-repl:1:1", 1));
+
+        HttpResponse<String> response = signed("POST", "/api/v1/console/eval",
+                Jsons.stringify(Map.of("expression", "nope")).getBytes(StandardCharsets.UTF_8));
+        assertEquals(200, response.statusCode());
+        JsonObject result = JsonParser.parseString(response.body()).getAsJsonObject()
+                .getAsJsonArray("entries").get(1).getAsJsonObject();
+        assertEquals("error", result.get("level").getAsString());
+        JsonObject node = result.getAsJsonArray("args").get(0).getAsJsonObject();
+        assertEquals("err", node.get("t").getAsString());
+        assertEquals("ReferenceError", node.get("name").getAsString());
+        assertEquals("nope is not defined", node.get("msg").getAsString());
+    }
+
+    @Test
+    void evalMapsBackendFailuresToTheirStatusCodes() throws Exception {
+        start(DIRECT);
+        assertEquals(404, signed("POST", "/api/v1/console/eval",
+                Jsons.stringify(Map.of("target", "event/missing", "expression", "1"))
+                        .getBytes(StandardCharsets.UTF_8)).statusCode());
+        assertEquals(400, signed("POST", "/api/v1/console/eval",
+                Jsons.stringify(Map.of("target", "devtools", "expression", "  "))
+                        .getBytes(StandardCharsets.UTF_8)).statusCode());
+    }
+
+    // ---- tasks ---------------------------------------------------------------
+
+    @Test
+    void theTaskSnapshotServesActiveAndHistoryAndStopWorks() throws Exception {
+        StubBackend backend = start(DIRECT);
+        var tasks = backend.tasks;
+        var finished = tasks.start("auto-welcome",
+                ink.tuanzi.neomacros.core.module.manifest.ScriptCategory.EVENT, "manual");
+        tasks.stop(finished.taskId());
+        var running = tasks.start("uptime",
+                ink.tuanzi.neomacros.core.module.manifest.ScriptCategory.SERVICES, "lifecycle");
+        tasks.countTrigger(running.taskId());
+
+        HttpResponse<String> response = signed("GET", "/api/v1/tasks", new byte[0]);
+        assertEquals(200, response.statusCode());
+        JsonObject body = JsonParser.parseString(response.body()).getAsJsonObject();
+        assertEquals(1, body.getAsJsonArray("active").size());
+        assertEquals(1, body.getAsJsonArray("history").size());
+        JsonObject runningEntry = body.getAsJsonArray("active").get(0).getAsJsonObject();
+        assertEquals("uptime", runningEntry.get("macro").getAsString());
+        assertEquals("running", runningEntry.get("status").getAsString());
+        assertEquals(1, runningEntry.get("triggers").getAsInt());
+
+        // Stop by id moves the task into history.
+        HttpResponse<String> stop = signed("POST", "/api/v1/tasks/" + running.taskId() + "/stop",
+                new byte[0]);
+        assertEquals(200, stop.statusCode());
+        JsonObject stoppedBody = JsonParser.parseString(stop.body()).getAsJsonObject();
+        assertEquals(0, stoppedBody.getAsJsonArray("active").size());
+        assertEquals(2, stoppedBody.getAsJsonArray("history").size());
+        assertEquals("stopped", stoppedBody.getAsJsonArray("history").get(1)
+                .getAsJsonObject().get("status").getAsString());
+
+        // Error shapes: unknown id, double stop.
+        assertEquals(404, signed("POST", "/api/v1/tasks/9999/stop", new byte[0]).statusCode());
+        assertEquals(409, signed("POST", "/api/v1/tasks/" + running.taskId() + "/stop",
+                new byte[0]).statusCode());
+    }
+
+    @Test
+    void taskStateChangesBroadcastOverSse() throws Exception {
+        StubBackend backend = start(DIRECT);
+        HttpResponse<String> ticketResponse = signed("POST", "/api/v1/events/ticket",
+                new byte[0]);
+        JsonObject ticket = JsonParser.parseString(ticketResponse.body()).getAsJsonObject();
+        HttpResponse<InputStream> stream = client.send(HttpRequest.newBuilder(
+                        URI.create(baseUrl() + "/api/v1/events?ticket="
+                                + ticket.get("ticket").getAsString()))
+                .timeout(Duration.ofSeconds(10)).GET().build(),
+                HttpResponse.BodyHandlers.ofInputStream());
+        assertEquals(200, stream.statusCode());
+        InputStream input = stream.body();
+        readUntil(input, "\n\n");
+
+        backend.tasks.start("auto-welcome",
+                ink.tuanzi.neomacros.core.module.manifest.ScriptCategory.EVENT, "manual");
+        // Heartbeats interleave with the frames; read until the task frame shows up.
+        String frame = "";
+        long deadline = System.currentTimeMillis() + 5000;
+        while (!frame.contains("event: task:state") && System.currentTimeMillis() < deadline) {
+            frame = readUntil(input, "\n\n");
+        }
+        assertTrue(frame.contains("event: task:state"), frame);
+        assertTrue(frame.contains("\"macro\":\"auto-welcome\""), frame);
+        assertTrue(frame.contains("\"status\":\"running\""), frame);
+        input.close();
+    }
+
+    /** A neutral number argument node. */
+    private static Object numNode(long value) {
+        return Map.of("t", "num", "v", value);
     }
 
     // ---- SSE ---------------------------------------------------------------
@@ -580,6 +871,43 @@ class WebApiIntegrationTest {
     }
 
     @Test
+    void pairingTokenSurvivesAServiceRestart() throws Exception {
+        StubBackend backend = new StubBackend();
+        device = TestKeys.ed25519("dev_test");
+        DeviceRegistry registry = new DeviceRegistry(temp.resolve("web-devices.json"),
+                message -> { });
+        device = device.withId(registry
+                .register("integration browser", device.algo, device.pubJwk).id());
+        var file = temp.resolve("web-pairing-restart.json");
+        var store = new ink.tuanzi.neomacros.fabric.web.pair.PairingService(
+                file, System::currentTimeMillis, () -> 3_600_000, message -> { });
+        service = new WebService(backend, DIRECT, registry, store,
+                new ink.tuanzi.neomacros.fabric.web.pair.PairingRequests(System::currentTimeMillis),
+                () -> "loopback", () -> 0, () -> "http://localhost:5173",
+                () -> java.util.List.of(), new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents());
+        service.start();
+        String token = service.newPairingToken();
+        service.stop();
+
+        // A fresh store over the same file simulates a full process restart.
+        var reloaded = new ink.tuanzi.neomacros.fabric.web.pair.PairingService(
+                file, System::currentTimeMillis, () -> 3_600_000, message -> { });
+        service = new WebService(backend, DIRECT, registry, reloaded,
+                new ink.tuanzi.neomacros.fabric.web.pair.PairingRequests(System::currentTimeMillis),
+                () -> "loopback", () -> 0, () -> "http://localhost:5173",
+                () -> java.util.List.of(), new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents());
+        service.start();
+        TestKeys.Device browser = TestKeys.ed25519("dev_browser_restart");
+        byte[] body = Jsons.stringify(Map.of(
+                "token", token,
+                "label", "Chrome on Windows",
+                "algo", "ed25519",
+                "pubJwk", browser.pubJwk)).getBytes(StandardCharsets.UTF_8);
+        assertEquals(200, send("POST", "/api/v1/pair", body, null).statusCode(),
+                "the pre-restart token still pairs");
+    }
+
+    @Test
     void aNewPairingTokenKillsThePreviousOne() throws Exception {
         start(DIRECT);
         TestKeys.Device browser = TestKeys.ed25519("dev_browser2");
@@ -617,6 +945,110 @@ class WebApiIntegrationTest {
                 "token", token, "label", "x", "algo", "ed25519",
                 "pubJwk", Map.of("kty", "oct"))).getBytes(StandardCharsets.UTF_8);
         assertEquals(400, send("POST", "/api/v1/pair", badKey, null).statusCode());
+    }
+
+    // ---- tokenless pairing ---------------------------------------------------
+
+    /** Posts to the tokenless pair-request endpoint with an Origin header. */
+    private HttpResponse<String> sendPairRequest(byte[] body, String origin) throws Exception {
+        var builder = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/v1/pair-request"))
+                .header("Content-Type", "application/json");
+        if (origin != null) {
+            builder.header("Origin", origin);
+        }
+        builder.POST(HttpRequest.BodyPublishers.ofByteArray(body));
+        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    @Test
+    void tokenlessPairingWaitsForTheInGameDecision() throws Exception {
+        start(DIRECT);
+        TestKeys.Device browser = TestKeys.ed25519("dev_browser_tokenless");
+        byte[] body = Jsons.stringify(Map.of(
+                "label", "Chrome@Windows",
+                "algo", "ed25519",
+                "pubJwk", browser.pubJwk)).getBytes(StandardCharsets.UTF_8);
+        HttpResponse<String> response = sendPairRequest(body, "http://localhost:5173");
+        assertEquals(200, response.statusCode());
+        JsonObject answer = JsonParser.parseString(response.body()).getAsJsonObject();
+        assertEquals("pending", answer.get("status").getAsString());
+        String requestId = answer.get("requestId").getAsString();
+        assertFalse(requestId.isBlank());
+        assertTrue(answer.get("expiresIn").getAsInt() > 0);
+        assertEquals(1, service.pendingPairRequests().size());
+
+        // Polling before the decision reads pending.
+        HttpResponse<String> poll = send("GET", "/api/v1/pair-request/" + requestId,
+                new byte[0], null);
+        assertEquals("pending", JsonParser.parseString(poll.body()).getAsJsonObject()
+                .get("status").getAsString());
+
+        // The in-game approve registers the device and freezes the client id.
+        String deviceId = service.approvePairRequest(requestId);
+        assertFalse(deviceId == null || deviceId.isBlank());
+        HttpResponse<String> after = send("GET", "/api/v1/pair-request/" + requestId,
+                new byte[0], null);
+        JsonObject decided = JsonParser.parseString(after.body()).getAsJsonObject();
+        assertEquals("approved", decided.get("status").getAsString());
+        assertEquals(deviceId, decided.get("clientId").getAsString());
+
+        // Deciding twice is refused.
+        assertTrue(service.approvePairRequest(requestId) == null);
+        assertTrue(service.denyPairRequest(requestId) == false);
+    }
+
+    @Test
+    void tokenlessPairingRejectsForeignOrigins() throws Exception {
+        start(DIRECT);
+        TestKeys.Device browser = TestKeys.ed25519("dev_browser_evil");
+        byte[] body = Jsons.stringify(Map.of(
+                "label", "Chrome@Windows",
+                "algo", "ed25519",
+                "pubJwk", browser.pubJwk)).getBytes(StandardCharsets.UTF_8);
+        // An origin outside the allowlist.
+        assertEquals(403, sendPairRequest(body, "https://evil.example").statusCode());
+        // No Origin header at all (non-browser client).
+        assertEquals(403, sendPairRequest(body, null).statusCode());
+        // Nothing pended, and the unknown id polls as expired.
+        assertEquals(0, service.pendingPairRequests().size());
+    }
+
+    @Test
+    void tokenlessPairingRejectsBadBodies() throws Exception {
+        start(DIRECT);
+        var validKey = Map.of("kty", "OKP", "crv", "Ed25519", "x", "aa");
+        byte[] incomplete = "{\"label\":\"x\"}".getBytes(StandardCharsets.UTF_8);
+        assertEquals(400, sendPairRequest(incomplete, "http://localhost:5173").statusCode());
+        byte[] badKey = Jsons.stringify(Map.of(
+                "label", "x", "algo", "ed25519", "pubJwk", Map.of("kty", "oct")))
+                .getBytes(StandardCharsets.UTF_8);
+        assertEquals(400, sendPairRequest(badKey, "http://localhost:5173").statusCode());
+    }
+
+    @Test
+    void loopbackTrustAnswersTokenlessPairingImmediately() throws Exception {
+        start(DIRECT);
+        service.setTrustLoopback(true);
+        TestKeys.Device browser = TestKeys.ed25519("dev_browser_trusted");
+        byte[] body = Jsons.stringify(Map.of(
+                "label", "Chrome@Windows",
+                "algo", "ed25519",
+                "pubJwk", browser.pubJwk)).getBytes(StandardCharsets.UTF_8);
+        HttpResponse<String> response = sendPairRequest(body, "http://localhost:5173");
+        assertEquals(200, response.statusCode());
+        JsonObject answer = JsonParser.parseString(response.body()).getAsJsonObject();
+        assertEquals("paired", answer.get("status").getAsString());
+        String clientId = answer.get("clientId").getAsString();
+        assertFalse(clientId.isBlank());
+
+        // The trusted pairing never asked the game: no pending requests.
+        assertEquals(0, service.pendingPairRequests().size());
+
+        // The device signs immediately, like a token pairing would.
+        String authorization = browser.withId(clientId).authorize("GET", "/api/v1/state",
+                "", new byte[0], System.currentTimeMillis() / 1000, nonce());
+        assertEquals(200, send("GET", "/api/v1/state", new byte[0], authorization)
+                .statusCode());
     }
 
     // ---- files --------------------------------------------------------------
@@ -854,7 +1286,8 @@ class WebApiIntegrationTest {
                 "/api/v1/files/reveal",
                 "/api/v1/devices", "/api/v1/devices/{id}",
                 "/api/v1/logs", "/api/v1/events/ticket",
-                "/api/v1/events", "/api-docs/openapi.json"}) {
+                "/api/v1/events", "/api/v1/pair-request", "/api/v1/pair-request/{id}",
+                "/api-docs/openapi.json"}) {
             assertTrue(paths.has(path), "missing path " + path);
         }
         JsonObject filesGet = paths.getAsJsonObject("/api/v1/files/{path}")
@@ -917,7 +1350,8 @@ class WebApiIntegrationTest {
                 message -> { });
         device = device.withId(registry
                 .register("integration browser", device.algo, device.pubJwk).id());
-        service = new WebService(backend, DIRECT, registry,
+        service = new WebService(backend, DIRECT, registry, newPairingStore(),
+                new ink.tuanzi.neomacros.fabric.web.pair.PairingRequests(System::currentTimeMillis),
                 () -> "127.0.0.1", () -> 0, () -> "http://localhost:5173",
                 () -> java.util.List.of("*"), new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents());
         service.start();

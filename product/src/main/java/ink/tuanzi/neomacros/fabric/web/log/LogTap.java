@@ -73,7 +73,7 @@ public final class LogTap {
             if (line.isEmpty()) {
                 return;
             }
-            ring.append(levelName(event.getLevel()), logger, line);
+            ring.append(event.getTimeMillis(), levelName(event.getLevel()), logger, line);
         }
 
         private static String levelName(Level level) {

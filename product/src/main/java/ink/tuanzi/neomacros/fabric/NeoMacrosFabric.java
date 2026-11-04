@@ -82,6 +82,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     private static TrustManager trustManager;
     private static java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts;
     private static boolean quitOnDone;
+    private static ink.tuanzi.neomacros.core.task.TaskRegistry tasks;
     private static ink.tuanzi.neomacros.fabric.web.WebService webService;
     private static ink.tuanzi.neomacros.fabric.web.WebRuntime webRuntime;
 
@@ -167,6 +168,12 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.promoteRootMembers("clock", java.util.List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(configDir.resolve("storage"));
+        // Script console: MC components render through this node's real API,
+        // and the plain-text mirror into the logging tree is always on (the
+        // web service adds its ring/SSE dispatcher per start).
+        ink.tuanzi.neomacros.core.console.ScriptConsole.installComponentView(
+                ink.tuanzi.neomacros.adapter.ComponentViews::toChatView);
+        ink.tuanzi.neomacros.adapter.ConsoleMirror.install();
 
         var commandPort = new FabricCommandPort();
         var commandApi = new CommandApi(commandPort);
@@ -218,8 +225,15 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
         modules = new ModuleManager(runtime, registry, viewResolver, macrosDir,
                 message -> LOGGER.warn("neomacros scripts: {}", message));
+        modules.withEventCatalog(catalog);
+        // Task manager: one task per macro activation, enriched with session
+        // metadata captured on the main thread at start.
+        tasks = new ink.tuanzi.neomacros.core.task.TaskRegistry();
+        tasks.metadataProvider(NeoMacrosFabric::captureTaskMetadata);
+        modules.withTaskRegistry(tasks);
         // An explicit enable/disable (panel or command) always wins; without
-        // one, the manifest's autostart is the initial default (null = true).
+        // one, the manifest's config.service.autostart is the initial default
+        // (absent or null = true).
         modules.withAutoloadFilter(name -> {
             Boolean saved = options.autoload.get(name);
             if (saved != null) {
@@ -228,8 +242,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             return modules.entries().stream()
                     .filter(entry -> entry.name().equals(name))
                     .findFirst()
-                    .map(entry -> entry.manifest().autostart() == null
-                            || entry.manifest().autostart())
+                    .map(entry -> {
+                        var service = entry.manifest().configOrEmpty().service();
+                        return service == null || service.autostart() == null || service.autostart();
+                    })
                     .orElse(true);
         });
         modules.onLoad(NeoMacrosFabric::registerScriptBinding);
@@ -242,7 +258,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var panelEvents = new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents();
         webRuntime = new ink.tuanzi.neomacros.fabric.web.WebRuntime(
                 modules, options, configManager, macrosDir, runtime.mainThread(), panelEvents,
-                NeoMacros.VERSION, mcVersion());
+                NeoMacros.VERSION, mcVersion(), tasks);
         modules.onLoadError(webRuntime::moduleLoadError);
         modules.onLoad(webRuntime::moduleLoaded);
         modules.onUnload(webRuntime::moduleUnloaded);
@@ -250,10 +266,20 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var devices = new ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry(
                 configDir.resolve("web-devices.json"),
                 message -> LOGGER.warn("neomacros web-devices: {}", message));
+        var pairingStore = new ink.tuanzi.neomacros.fabric.web.pair.PairingService(
+                configDir.resolve("web-pairing.json"), System::currentTimeMillis,
+                () -> options.web.pairingTokenTtlMinutes * 60_000L,
+                message -> LOGGER.warn("neomacros web-pairing: {}", message));
+        var pairingRequests = new ink.tuanzi.neomacros.fabric.web.pair.PairingRequests(
+                System::currentTimeMillis);
         webService = new ink.tuanzi.neomacros.fabric.web.WebService(
-                webRuntime, webRuntime, devices,
+                webRuntime, webRuntime, devices, pairingStore, pairingRequests,
                 () -> options.web.listen, () -> options.web.port,
                 () -> options.web.panelUrl, () -> options.web.allowedOrigins, panelEvents);
+        // Tokenless pairing prompts: each new request renders one chat line
+        // with clickable approve/trust/deny commands (the trust-prompt idiom).
+        webService.onPairRequest(request ->
+                sendPairRequestCard(request));
         webRuntime.serverInfo(() -> new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(
                 webService.port(), webService.status().uptimeMs(), options.web.listen));
         // Error presentation chain: script failures become a throttled
@@ -354,6 +380,9 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             }
         });
         preRegisterScriptBindings();
+        // Raw keyboard source: drives keydown/keyup macro edges (the mixin
+        // only fires while no screen is open).
+        ink.tuanzi.neomacros.adapter.KeyEdgeHub.register(NeoMacrosFabric::dispatchRawKey);
     }
 
     /**
@@ -374,7 +403,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             }
             String name = entry.name();
             adapter.input().registerScriptBinding(name, key,
-                    clicks -> modules.trigger(name, Map.of("key", key, "clicks", clicks)));
+                    clicks -> triggerKeypress(name, key, clicks));
         }
     }
 
@@ -389,7 +418,133 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         }
         String name = module.meta().name();
         adapter.input().registerScriptBinding(name, key,
-                clicks -> modules.trigger(name, Map.of("key", key, "clicks", clicks)));
+                clicks -> triggerKeypress(name, key, clicks));
+    }
+
+    /**
+     * Delivers one raw key edge to matching keydown/keyup macros: the edge,
+     * effective binding, and required modifiers must all match.
+     */
+    private static void dispatchRawKey(ink.tuanzi.neomacros.adapter.KeyEdgeHub.RawKey event) {
+        String edge = event.down() ? "keydown" : "keyup";
+        String keyName = event.keyName();
+        List<String> modifiers = polledModifiers();
+        for (LoadedModule module : modules.loaded()) {
+            if (module.entry().category() != ScriptCategory.KEYPRESS) {
+                continue;
+            }
+            var keypress = module.entry().manifest().configOrEmpty().keypress();
+            if (keypress == null || !keypress.onOrDefault().equals(edge)) {
+                continue;
+            }
+            String effective = module.entry().effectiveKey(options.keybinds);
+            if (effective.isEmpty() || !effective.equals(keyName)) {
+                continue;
+            }
+            if (!holdsAllModifiers(modifiers, keypress.modifiersOrEmpty())) {
+                continue;
+            }
+            Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("event", edge);
+            payload.put("key", keyName);
+            payload.put("code", event.keyCode());
+            payload.put("clicks", 1);
+            payload.put("modifiers", modifiers);
+            modules.trigger(module.meta().name(), payload);
+        }
+    }
+
+    /** Delivers one polled press-edge keypress trigger with fresh modifiers. */
+    private static void triggerKeypress(String name, String key, int clicks) {
+        LoadedModule module = modules.loaded(name).orElse(null);
+        if (module == null) {
+            return;
+        }
+        var keypress = module.entry().manifest().configOrEmpty().keypress();
+        List<String> modifiers = polledModifiers();
+        if (keypress != null && !holdsAllModifiers(modifiers, keypress.modifiersOrEmpty())) {
+            return;
+        }
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("event", "keypress");
+        payload.put("key", key);
+        payload.put("code", com.mojang.blaze3d.platform.InputConstants.getKey(key).getValue());
+        payload.put("clicks", clicks);
+        payload.put("modifiers", modifiers);
+        modules.trigger(name, payload);
+    }
+
+    /**
+     * Modifier names currently held, polled at dispatch time (the key-state
+     * hook carries no modifier mask). The isKeyDown signature changed
+     * per input back end: SDL scancode on 26.3, window+key on older nodes.
+     */
+    private static List<String> polledModifiers() {
+        List<String> out = new java.util.ArrayList<>();
+        if (keyDown("key.keyboard.left.control") || keyDown("key.keyboard.right.control")) {
+            out.add("ctrl");
+        }
+        if (keyDown("key.keyboard.left.shift") || keyDown("key.keyboard.right.shift")) {
+            out.add("shift");
+        }
+        if (keyDown("key.keyboard.left.alt") || keyDown("key.keyboard.right.alt")) {
+            out.add("alt");
+        }
+        return out;
+    }
+
+    /** Whether one named key is currently held down. */
+    private static boolean keyDown(String keyName) {
+        int value = com.mojang.blaze3d.platform.InputConstants.getKey(keyName).getValue();
+        //? if >=26.3 {
+        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(value);
+        //?} elif >=26.1 {
+        /*
+        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(
+                net.minecraft.client.Minecraft.getInstance().getWindow(), value);
+        */
+        //?} else {
+        /*
+        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(
+                net.minecraft.client.Minecraft.getInstance().getWindow().getWindow(), value);
+        */
+        //?}
+    }
+
+    /** Lenient modifier matching: every required key must be held; extras are fine. */
+    private static boolean holdsAllModifiers(List<String> held, List<String> required) {
+        for (String modifier : required) {
+            if (!held.contains(modifier)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Captures the session metadata a new task row shows (main-thread marshalled). */
+    private static ink.tuanzi.neomacros.core.task.TaskRegistry.Metadata captureTaskMetadata() {
+        var captured = ink.tuanzi.neomacros.adapter.MainThread.run(() -> {
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            //? if >=26.2 {
+            boolean singleplayer = mc.hasSingleplayerServer();
+            //?} else {
+            /*
+            boolean singleplayer = mc.isSingleplayer();
+            */
+            //?}
+            String server = singleplayer ? "Integrated" : "";
+            var connection = mc.getConnection();
+            if (!singleplayer && connection != null && connection.getServerData() != null) {
+                server = connection.getServerData().ip;
+            }
+            String uuid = mc.player != null ? mc.player.getUUID().toString() : "";
+            String player = mc.player != null ? mc.player.getName().getString() : "";
+            String gameType = singleplayer ? "single" : (server.isEmpty() ? "" : "multi");
+            return new ink.tuanzi.neomacros.core.task.TaskRegistry.Metadata(
+                    uuid, player, gameType, server, mcVersion());
+        });
+        return captured != null ? captured
+                : ink.tuanzi.neomacros.core.task.TaskRegistry.Metadata.EMPTY;
     }
 
     /** Logs a one-time notice when the legacy flat scripts directory still holds scripts. */
@@ -691,15 +846,54 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 panel = panel.substring(0, hash);
             }
             // Query-parameter deep link: the panel reads search params and
-            // clears them with history.replaceState. The one-time 120s token
-            // plus the in-game approve gate are the security boundary.
+            // clears them with history.replaceState. The long-lived one-time
+            // token plus the loopback/Origin gates are the security boundary.
             return new StringBuilder(panel)
-                    .append("/?host=127.0.0.1:").append(webService.port())
+                    .append("/?host=").append(deepLinkHost()).append(':')
+                    .append(webService.port())
                     .append("&view=editor&pair=")
                     .append(webService.newPairingToken())
                     .toString();
         };
         return new WebCommands.Context(webService, links);
+    }
+
+    /**
+     * The host the browser should use in the deep link, derived from the
+     * listen scope: the loopback literals pass through (IPv6 bracketed),
+     * and a wildcard bind falls back to loopback — always reachable when
+     * the game is local.
+     */
+    private static String deepLinkHost() {
+        String listen = options.web.listen == null ? "" : options.web.listen.strip();
+        return switch (listen) {
+            case "::1" -> "[::1]";
+            default -> "127.0.0.1";
+        };
+    }
+
+    /**
+     * Renders the in-game decision card for one tokenless pairing request:
+     * a header line plus three clickable commands (the trust-prompt
+     * idiom). Arrives on an HTTP thread; the chat port marshals to main.
+     */
+    private static void sendPairRequestCard(
+            ink.tuanzi.neomacros.fabric.web.pair.PairingRequests.Request request) {
+        String label = request.label() == null || request.label().isBlank()
+                ? "?" : request.label();
+        String source = request.source() == null ? "" : request.source().replaceFirst("^/", "");
+        adapter.chat().log(Msg.line(UiText.tr("neomacros.chat.pair_request",
+                Msg.name(label), Msg.num(source))));
+        String id = request.id();
+        adapter.chat().logClickable(
+                Msg.line(UiText.tr("neomacros.chat.pair_request_approve")),
+                "/neomacros editor approve " + id);
+        adapter.chat().logClickable(
+                Msg.line(UiText.tr("neomacros.chat.pair_request_trust")),
+                "/neomacros editor trust-host " + id);
+        adapter.chat().logClickable(
+                Msg.line(UiText.tr("neomacros.chat.pair_request_deny")),
+                "/neomacros editor deny " + id);
     }
 
     /** Reloads one script when it is currently loaded (live binding application). */

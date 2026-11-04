@@ -16,7 +16,7 @@ NeoMacros 在 Minecraft 客户端内运行 ECMAScript（JavaScript）脚本。�
 
 1. 为你的游戏版本安装 Fabric Loader。
 2. 将 NeoMacros 与 Fabric API 的 jar 放入 `mods` 目录。
-3. 启动一次游戏；NeoMacros 会创建 `config/neomacros/scripts`。
+3. 启动一次游戏；NeoMacros 会创建 `config/neomacros/macros`。
 
 ## 目录结构
 
@@ -26,7 +26,7 @@ NeoMacros 在 Minecraft 客户端内运行 ECMAScript（JavaScript）脚本。�
 .minecraft/
 └── config/
     └── neomacros/
-        ├── options.json   # 模组设置
+        ├── config.json    # 模组设置
         └── macros/        # 你的脚本，一个文件夹一个脚本
             ├── keypress/  # 按键触发
             ├── event/     # 事件驱动

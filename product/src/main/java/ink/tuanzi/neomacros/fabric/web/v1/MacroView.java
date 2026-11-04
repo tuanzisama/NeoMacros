@@ -18,6 +18,8 @@ import java.util.List;
  * @param enabled     the persisted autoload intent
  * @param running     whether the module is currently loaded
  * @param key         the effective key binding, null when unbound
+ * @param on          the declared trigger definitions (keypress edge or event names)
+ * @param modifiers   the required keypress modifiers, empty when none
  * @param permissions the declared capabilities
  * @param error       the current located error, null when none
  */
@@ -31,6 +33,8 @@ public record MacroView(
         boolean enabled,
         boolean running,
         @NmNullable String key,
+        List<String> on,
+        List<String> modifiers,
         List<String> permissions,
         @NmNullable LocatedError error) {
 }

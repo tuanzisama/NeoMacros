@@ -92,5 +92,15 @@
   "neomacros.ui.state.stopped": "stopped",
   "neomacros.ui.state.unbound": "(unbound)",
   "neomacros.ui.state.version": "v%s by %s",
-  "neomacros.ui.viewer.title": "[NeoMacros] %s"
+  "neomacros.ui.viewer.title": "[NeoMacros] %s",
+  "neomacros.chat.pair_request": "Panel pairing request: %s (from %s), valid for 60s",
+  "neomacros.chat.pair_request_approve": "[Allow this browser]",
+  "neomacros.chat.pair_request_trust": "[Trust this machine]",
+  "neomacros.chat.pair_request_deny": "[Deny]",
+  "neomacros.cmd.web.approved": "Paired: device %s",
+  "neomacros.cmd.web.trusted": "Paired and trusted this machine (device %s); local browsers pair without asking",
+  "neomacros.cmd.web.denied": "Pairing request denied",
+  "neomacros.cmd.web.no_pending_request": "No pending pairing request (%s)",
+  "neomacros.cmd.web.untrusted": "Loopback trust disabled",
+  "neomacros.cmd.web.not_trusted": "Loopback trust was not enabled"
 }

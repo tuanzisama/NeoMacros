@@ -7,6 +7,11 @@ loop. This page covers the full subscription toolkit from the
 
 ## Subscribing: `events.on`
 
+Event macros can also declare their events in the manifest
+(`config.event.on`) — the engine subscribes automatically and delivers each
+occurrence to the exported `startup(payload)`. Everything on this page
+applies to manual subscriptions, which coexist with the declared ones.
+
 `events.on(name, handler)` registers an asynchronous listener. The handler
 runs on the script context's event loop and receives the event payload as a
 plain object:

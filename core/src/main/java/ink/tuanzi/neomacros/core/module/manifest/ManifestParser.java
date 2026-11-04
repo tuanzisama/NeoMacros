@@ -84,7 +84,11 @@ public final class ManifestParser {
         }
     }
 
-    /** Narrows a parsed document to a string-keyed object map. */
+    /**
+     * Narrows a parsed document to a string-keyed object map. YAML 1.1
+     * resolves the bare keys {@code on}/{@code off} to booleans; they are
+     * normalized back so legacy-field detection sees the written form.
+     */
     private static Map<String, Object> asDocument(Object value, String fileName) {
         if (!(value instanceof Map<?, ?> map)) {
             throw new ManifestParseException(fileName + ": manifest must be an object/mapping");
@@ -92,7 +96,11 @@ public final class ManifestParser {
         Map<String, Object> out = new LinkedHashMap<>();
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             if (entry.getKey() != null) {
-                out.put(String.valueOf(entry.getKey()), entry.getValue());
+                Object key = entry.getKey();
+                if (key instanceof Boolean flag) {
+                    key = flag ? "on" : "off";
+                }
+                out.put(String.valueOf(key), entry.getValue());
             }
         }
         return out;

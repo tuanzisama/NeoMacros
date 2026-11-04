@@ -1,12 +1,18 @@
 # Event-script example.
-# Scripts below event/ subscribe themselves with events.on / events.onSync;
-# the directory is only a category - the panel and commands filter by it.
+# Event macros declare the events they react to in config.event.on; for each
+# occurrence NeoMacros invokes the exported startup(ev) with the event
+# payload. Manual subscriptions (events.on / events.onSync / events.waitFor)
+# still work alongside the declared ones.
 #
 # The full event catalog lives in the docs (player:join, chat:receive, tick,
-# world:* and more). Cancellable events use events.onSync; returning a truthy
-# value cancels the event.
+# world:* and more). Names are validated when the macro loads: an unknown
+# name is rejected and lists the available events. Cancellable events use
+# events.onSync; returning a truthy value cancels the event.
 name: hello-world
-version: 1.0.0
+version: 2.0.0
 author: NeoMacros
 description: greets you on world join (event example)
-# lifecycle: world   # loads on world join by default; also always / manual
+
+config:
+  event:
+    on: [world:join]

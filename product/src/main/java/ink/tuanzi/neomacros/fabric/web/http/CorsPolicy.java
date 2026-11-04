@@ -60,6 +60,14 @@ public final class CorsPolicy {
         return wildcard;
     }
 
+    /** Whether the given Origin header value may talk to the panel. */
+    public boolean allowsOrigin(String origin) {
+        if (origin == null || origin.isBlank()) {
+            return false;
+        }
+        return wildcard || allowedOrigins.contains(origin.strip());
+    }
+
     /** The origin of a site URL (default ports normalized), or null when unusable. */
     private static String originOf(String siteUrl) {
         if (siteUrl == null || siteUrl.isBlank()) {

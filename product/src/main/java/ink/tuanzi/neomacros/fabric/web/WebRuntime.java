@@ -31,6 +31,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -78,14 +79,17 @@ public final class WebRuntime implements PanelBackend, GameRunner {
     private final PanelEvents events;
     private final String modVersion;
     private final String gameVersion;
+    private final ink.tuanzi.neomacros.core.task.TaskRegistry tasks;
     private final Map<String, LocatedError> lastErrors = new ConcurrentHashMap<>();
     private volatile Supplier<ServerInfo> serverInfo = () -> new ServerInfo(0, 0, "loopback");
-    private Path suppressDiskEvent;
+    /** Folders whose watch-scan changes are panel-caused (echo suppression). */
+    private final Set<Path> suppressDiskEvents = new HashSet<>();
 
     /** Creates the backend over the live module manager and options. */
     public WebRuntime(ModuleManager modules, CoreOptions options, ConfigManager configManager,
                       Path macrosDir, MainThreadScheduler mainThread, PanelEvents events,
-                      String modVersion, String gameVersion) {
+                      String modVersion, String gameVersion,
+                      ink.tuanzi.neomacros.core.task.TaskRegistry tasks) {
         this.modules = modules;
         this.options = options;
         this.configManager = configManager;
@@ -94,6 +98,20 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         this.events = events;
         this.modVersion = modVersion;
         this.gameVersion = gameVersion;
+        this.tasks = tasks;
+        // Task feed: every registry change broadcasts to the panel (the
+        // events facade is no-op while the web service is stopped).
+        if (tasks != null) {
+            tasks.onTaskEvent((event, snapshot) -> events.broadcast("task:state",
+                    Jsons.stringify(ink.tuanzi.neomacros.fabric.web.v1.TaskEntry.of(snapshot))));
+        }
+        // A watched folder deleted outside the panel: the panel needs the
+        // structural signal or its macro list keeps a ghost entry.
+        modules.onFolderRemoved(folder -> {
+            if (!suppressDiskEvents.contains(folder)) {
+                announceStructureChange();
+            }
+        });
     }
 
     /** Wires the server-status source once the service exists. */
@@ -129,11 +147,6 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         broadcastState(module.entry());
     }
 
-    /** Notifies the panel that one module stopped running. */
-    public void moduleUnloaded(LoadedModule module) {
-        broadcastState(module.entry());
-    }
-
     /** Records a load failure and notifies the panel. */
     public void moduleLoadError(String name, ScriptError error) {
         recordLoadError(name, error);
@@ -144,12 +157,14 @@ public final class WebRuntime implements PanelBackend, GameRunner {
     }
 
     /**
-     * Notifies the panel that files inside one macro folder changed on
-     * disk. Writes made through the panel itself are suppressed here and
-     * announced by {@link #writeFile} with {@code by:"web"} instead.
+     * Notifies the panel that files or directories inside one macro folder
+     * changed on disk. Writes made through the panel itself are suppressed
+     * here and announced by {@link #writeFile} with {@code by:"web"}
+     * instead. Every batch also carries one structural {@code
+     * macros:changed} signal so the panel re-syncs its lists and trees.
      */
     public void folderChanged(Path folder, List<String> files) {
-        if (folder.equals(suppressDiskEvent)) {
+        if (suppressDiskEvents.contains(folder)) {
             return;
         }
         String prefix = relativePath(folder);
@@ -157,6 +172,21 @@ public final class WebRuntime implements PanelBackend, GameRunner {
             events.broadcast("file:changed", Jsons.stringify(new FileChanged(
                     prefix.isEmpty() ? file : prefix + "/" + file, "disk")));
         }
+        announceStructureChange();
+    }
+
+    /**
+     * One lightweight structural-change signal: the panel responds with a
+     * full state re-sync (debounced), which covers macros appearing or
+     * disappearing, folder trees changing, and manifest edits.
+     */
+    private void announceStructureChange() {
+        events.broadcast("macros:changed", "{\"reason\":\"disk\"}");
+    }
+
+    /** Notifies the panel that one module stopped running. */
+    public void moduleUnloaded(LoadedModule module) {
+        broadcastState(module.entry());
     }
 
     private LocatedError toLocatedError(ScriptError error) {
@@ -236,6 +266,57 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         }
         broadcastState(entry);
         return view(entry);
+    }
+
+    @Override
+    public ink.tuanzi.neomacros.fabric.web.v1.TasksResponse tasks() {
+        if (tasks == null) {
+            return new ink.tuanzi.neomacros.fabric.web.v1.TasksResponse(java.util.List.of(),
+                    java.util.List.of());
+        }
+        return new ink.tuanzi.neomacros.fabric.web.v1.TasksResponse(
+                tasks.activeTasks().stream()
+                        .map(t -> ink.tuanzi.neomacros.fabric.web.v1.TaskEntry.of(
+                                ink.tuanzi.neomacros.core.task.ScriptTask.Snapshot.of(t)))
+                        .toList(),
+                tasks.historyTasks().stream()
+                        .map(t -> ink.tuanzi.neomacros.fabric.web.v1.TaskEntry.of(
+                                ink.tuanzi.neomacros.core.task.ScriptTask.Snapshot.of(t)))
+                        .toList());
+    }
+
+    @Override
+    public void stopTask(long taskId) {
+        if (tasks == null) {
+            throw ApiError.notFound("unknown task: " + taskId);
+        }
+        var task = tasks.task(taskId)
+                .orElseThrow(() -> ApiError.notFound("unknown task: " + taskId));
+        if (task.status() == ink.tuanzi.neomacros.core.task.ScriptTask.Status.STOPPED) {
+            throw ApiError.conflict("task " + taskId + " is already stopped");
+        }
+        modules.unload(task.macro());
+    }
+
+    /** The pseudo macro name the shared devtools session reports. */
+    private static final String DEVTOOLS_TARGET = "devtools";
+
+    @Override
+    public EvalExecution evaluateConsole(String target, String expression) {
+        try {
+            if (DEVTOOLS_TARGET.equals(target)) {
+                return new EvalExecution(DEVTOOLS_TARGET,
+                        modules.devToolsSession().eval(expression));
+            }
+            LoadedModule module = modules.loaded(target)
+                    .orElseThrow(() -> ApiError.notFound("the macro '" + target + "' is not loaded"));
+            return new EvalExecution(module.entry().name(), module.evaluate(expression));
+        } catch (ink.tuanzi.neomacros.core.runtime.EvalTimeoutError e) {
+            throw new ApiError(504, "eval_timeout", e.getMessage());
+        } catch (ScriptError e) {
+            throw new ApiError(500, ApiError.INTERNAL,
+                    "eval failed: " + e.getMessage());
+        }
     }
 
     @Override
@@ -460,15 +541,26 @@ public final class WebRuntime implements PanelBackend, GameRunner {
      * suppressed (the caller announces by=web instead).
      */
     private LocatedError hotReload(ScriptEntry owner) {
-        suppressDiskEvent = owner.folder();
+        return runScanSuppressing(owner.folder(), () -> {
+            LocatedError error = lastErrors.get(owner.name());
+            broadcastState(owner);
+            return error;
+        });
+    }
+
+    /**
+     * Runs one watch scan with the disk echo of the given folders
+     * suppressed (panel-caused mutations announce themselves instead); a
+     * reload that fails still clears the suppression.
+     */
+    private <T> T runScanSuppressing(Path folder, Supplier<T> action) {
+        suppressDiskEvents.add(folder);
         try {
             modules.checkForChanges();
+            return action.get();
         } finally {
-            suppressDiskEvent = null;
+            suppressDiskEvents.remove(folder);
         }
-        LocatedError error = lastErrors.get(owner.name());
-        broadcastState(owner);
-        return error;
     }
 
     @Override
@@ -541,24 +633,28 @@ public final class WebRuntime implements PanelBackend, GameRunner {
                 manifest.append("description: ").append(yamlQuote(oneLine(description)))
                         .append('\n');
             }
+            manifest.append(scaffoldConfig(parsed));
             Files.writeString(folder.resolve("neomacro.yml"), manifest.toString());
             Files.writeString(folder.resolve("index.js"), String.join("\n",
-                    "// Entry script: top-level code runs once at load.",
+                    "// Entry script: NeoMacros invokes startup(...) per trigger -",
+                    "// once at activation for services, and once per key press /",
+                    "// event occurrence for the other categories.",
                     "import { chat } from '@neomacros/chat';",
                     "",
-                    "chat.log('" + name + " loaded');",
+                    "export function startup(ev) {",
+                    "  chat.log('" + name + " started', ev);",
+                    "}",
                     ""));
         } catch (IOException e) {
             throw new ApiError(500, ApiError.INTERNAL,
                     "cannot create the macro folder: " + e.getMessage());
         }
-        modules.checkForChanges();
-        return modules.discover().stream()
+        return runScanSuppressing(folder, () -> modules.discover().stream()
                 .filter(entry -> entry.name().equals(name))
                 .findFirst()
                 .map(this::view)
                 .orElseThrow(() -> new ApiError(500, ApiError.INTERNAL,
-                        "the scaffold was written but the macro did not parse"));
+                        "the scaffold was written but the macro did not parse")));
     }
 
     @Override
@@ -598,19 +694,23 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         }
         try {
             Files.move(source, destination);
+            // The config block is category-typed: a cross-category move
+            // regenerates it (identity fields are preserved verbatim).
+            Files.writeString(destination.resolve("neomacro.yml"),
+                    rewriteManifestFor(entry.manifest(), target));
+            Files.deleteIfExists(destination.resolve("neomacro.json"));
         } catch (IOException e) {
             throw new ApiError(500, ApiError.INTERNAL,
                     "cannot move the macro folder: " + e.getMessage());
         }
         // The name-keyed autoload/keybinds state follows automatically; the
         // scan drops the old folder's watch and loads the new one.
-        modules.checkForChanges();
-        return modules.discover().stream()
+        return runScanSuppressing(entry.folder(), () -> modules.discover().stream()
                 .filter(fresh -> fresh.name().equals(name))
                 .findFirst()
                 .map(this::view)
                 .orElseThrow(() -> new ApiError(500, ApiError.INTERNAL,
-                        "the macro moved but did not re-parse in '" + to + "'"));
+                        "the macro moved but did not re-parse in '" + to + "'")));
     }
 
     @Override
@@ -639,7 +739,7 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         options.keybinds.remove(name);
         configManager.save();
         clearError(name);
-        modules.checkForChanges();
+        runScanSuppressing(folder, () -> null);
     }
 
     /** Finds the entry for a bare manifest name or a category/name id. */
@@ -756,6 +856,83 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
+    /** The per-category {@code config:} block of a scaffolded manifest. */
+    private static String scaffoldConfig(ScriptCategory category) {
+        return switch (category) {
+            case KEYPRESS -> "config:\n  keypress:\n    on: keypress\n";
+            case EVENT -> "config:\n  event:\n    on: [game:start]\n";
+            case SERVICES -> "config:\n  service:\n    lifecycle: always\n";
+        };
+    }
+
+    /**
+     * Regenerates a manifest for its new category after a cross-category
+     * move: identity fields carry over, the config block is rebuilt for the
+     * target type (existing values of the matching section are kept).
+     */
+    private static String rewriteManifestFor(ink.tuanzi.neomacros.core.module.manifest.MacroManifest manifest,
+                                             ScriptCategory target) {
+        StringBuilder out = new StringBuilder();
+        out.append("name: ").append(yamlQuote(manifest.name())).append('\n');
+        out.append("version: ").append(yamlQuote(manifest.version())).append('\n');
+        out.append("author: ").append(yamlQuote(manifest.author())).append('\n');
+        if (!manifest.description().isEmpty()) {
+            out.append("description: ").append(yamlQuote(manifest.description())).append('\n');
+        }
+        if (!manifest.license().isEmpty()) {
+            out.append("license: ").append(yamlQuote(manifest.license())).append('\n');
+        }
+        if (!manifest.homepage().isEmpty()) {
+            out.append("homepage: ").append(yamlQuote(manifest.homepage())).append('\n');
+        }
+        if (!manifest.supportURL().isEmpty()) {
+            out.append("supportURL: ").append(yamlQuote(manifest.supportURL())).append('\n');
+        }
+        if (!manifest.main().isEmpty()) {
+            out.append("main: ").append(yamlQuote(manifest.main())).append('\n');
+        }
+        if (!manifest.permissions().isEmpty()) {
+            out.append("permissions:\n");
+            for (String permission : manifest.permissions()) {
+                out.append("  - ").append(yamlQuote(permission)).append('\n');
+            }
+        }
+        var cfg = manifest.configOrEmpty();
+        out.append("config:\n");
+        switch (target) {
+            case KEYPRESS -> {
+                var keypress = cfg.keypress();
+                out.append("  keypress:\n");
+                out.append("    on: ").append(keypress == null ? "keypress" : keypress.onOrDefault())
+                        .append('\n');
+                if (keypress != null && !keypress.defaultKeyOrEmpty().isEmpty()) {
+                    out.append("    default-key: ").append(yamlQuote(keypress.defaultKeyOrEmpty()))
+                            .append('\n');
+                }
+                if (keypress != null && !keypress.modifiersOrEmpty().isEmpty()) {
+                    out.append("    modifiers: [")
+                            .append(String.join(", ", keypress.modifiersOrEmpty())).append("]\n");
+                }
+            }
+            case EVENT -> {
+                var event = cfg.event();
+                java.util.List<String> on = event == null || event.onOrEmpty().isEmpty()
+                        ? java.util.List.of("game:start") : event.onOrEmpty();
+                out.append("  event:\n    on: [").append(String.join(", ", on)).append("]\n");
+            }
+            case SERVICES -> {
+                var service = cfg.service();
+                out.append("  service:\n    lifecycle: ").append(service == null || service.lifecycle() == null
+                        ? target.defaultLifecycle().name().toLowerCase(java.util.Locale.ROOT)
+                        : service.lifecycle().name().toLowerCase(java.util.Locale.ROOT)).append('\n');
+                if (service != null && service.autostart() != null) {
+                    out.append("    autostart: ").append(service.autostart()).append('\n');
+                }
+            }
+        }
+        return out.toString();
+    }
+
     /** A macros-root-relative forward-slash path. */
     private String relativePath(Path path) {
         return macrosDir.toAbsolutePath().normalize()
@@ -791,6 +968,15 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         MacroCategory category = MacroCategory.valueOf(entry.category().dirName());
         MacroLifecycle lifecycle = MacroLifecycle.valueOf(
                 entry.meta().lifecycle().name().toLowerCase(Locale.ROOT));
+        var config = entry.manifest().configOrEmpty();
+        java.util.List<String> on = new ArrayList<>();
+        java.util.List<String> modifiers = new ArrayList<>();
+        if (entry.category() == ScriptCategory.KEYPRESS && config.keypress() != null) {
+            on.add(config.keypress().onOrDefault());
+            modifiers.addAll(config.keypress().modifiersOrEmpty());
+        } else if (config.event() != null) {
+            on.addAll(config.event().onOrEmpty());
+        }
         return new MacroView(
                 entry.category().dirName() + "/" + name,
                 category,
@@ -801,6 +987,8 @@ public final class WebRuntime implements PanelBackend, GameRunner {
                 options.autoload.getOrDefault(name, true),
                 modules.loaded(name).isPresent(),
                 key.isEmpty() ? null : key,
+                on,
+                modifiers,
                 entry.manifest().permissions(),
                 lastErrors.get(name));
     }

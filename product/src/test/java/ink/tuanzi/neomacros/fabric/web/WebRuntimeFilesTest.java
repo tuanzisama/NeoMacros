@@ -77,7 +77,8 @@ class WebRuntimeFilesTest {
 
     private WebRuntime backend() {
         WebRuntime runtime = new WebRuntime(
-                modules, options, config, root, null, events, "0.0.0-test", "26.3");
+                modules, options, config, root, null, events, "0.0.0-test", "26.3",
+                new ink.tuanzi.neomacros.core.task.TaskRegistry());
         modules.onFolderChange(runtime::folderChanged);
         return runtime;
     }
@@ -87,8 +88,13 @@ class WebRuntimeFilesTest {
             throws IOException {
         Path folder = root.resolve(category).resolve(name);
         Files.createDirectories(folder);
+        String config = switch (category) {
+            case "keypress" -> "config:\n  keypress: {}\n";
+            case "event" -> "config:\n  event:\n    on: [game:start]\n";
+            default -> "";
+        };
         Files.writeString(folder.resolve("neomacro.yml"),
-                "name: \"" + name + "\"\nversion: \"1.0.0\"\nauthor: \"tester\"\n");
+                "name: \"" + name + "\"\nversion: \"1.0.0\"\nauthor: \"tester\"\n" + config);
         Files.writeString(folder.resolve("index.js"), "// initial\n");
     }
 
@@ -300,6 +306,68 @@ class WebRuntimeFilesTest {
         String announced = frames.toString(StandardCharsets.UTF_8);
         assertTrue(announced.contains("\"by\":\"disk\""), announced);
         assertTrue(announced.contains("\"path\":\"event/auto-welcome/index.js\""), announced);
+        // The structural signal rides along so the panel re-syncs its trees.
+        assertTrue(announced.contains("event: macros:changed"), announced);
+    }
+
+    @Test
+    void anEmptyDirectoryShowsUpInTheWatchAndAnnouncesStructure() throws IOException {
+        writeMacro(root, "event", "auto-welcome");
+        WebRuntime backend = backend();
+        modules.checkForChanges();
+        frames.reset();
+        // A freshly created empty folder is fingerprinted too, so its
+        // creation (and later deletion) announces the structural change.
+        Files.createDirectories(root.resolve("event/auto-welcome/lib"));
+        Files.setLastModifiedTime(root.resolve("event/auto-welcome/lib"),
+                FileTime.from(Instant.now().plusSeconds(60)));
+        modules.checkForChanges();
+        String announced = frames.toString(StandardCharsets.UTF_8);
+        assertTrue(announced.contains("event: macros:changed"), announced);
+    }
+
+    @Test
+    void aVanishedMacroFolderAnnouncesTheStructuralChange() throws IOException {
+        writeMacro(root, "event", "doomed");
+        backend();
+        modules.checkForChanges();
+        frames.reset();
+        // Deleted outside the panel (even while not loaded): the removal
+        // listener announces so the panel drops the ghost entry.
+        deleteRecursively(root.resolve("event/doomed"));
+        modules.checkForChanges();
+        String announced = frames.toString(StandardCharsets.UTF_8);
+        assertTrue(announced.contains("event: macros:changed"), announced);
+    }
+
+    @Test
+    void panelCausedScansDoNotEchoDiskEvents() throws IOException {
+        writeMacro(root, "event", "auto-welcome");
+        WebRuntime backend = backend();
+        modules.checkForChanges();
+        frames.reset();
+        // A panel write announces by=web and suppresses the disk echo
+        // (including the structural signal) of the follow-up scan.
+        backend.writeFile("event/auto-welcome/index.js",
+                "// from panel".getBytes(StandardCharsets.UTF_8), null);
+        String announced = frames.toString(StandardCharsets.UTF_8);
+        assertTrue(announced.contains("\"by\":\"web\""), announced);
+        assertFalse(announced.contains("\"by\":\"disk\""), announced);
+        assertFalse(announced.contains("event: macros:changed"), announced);
+    }
+
+    private static void deleteRecursively(Path path) throws IOException {
+        if (!Files.exists(path)) {
+            return;
+        }
+        try (var files = Files.walk(path)) {
+            files.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.delete(p);
+                } catch (IOException ignored) {
+                }
+            });
+        }
     }
 
     // ---- tree mutations -------------------------------------------------------

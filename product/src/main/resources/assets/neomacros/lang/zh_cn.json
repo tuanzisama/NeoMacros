@@ -92,5 +92,15 @@
   "neomacros.ui.state.stopped": "已停止",
   "neomacros.ui.state.unbound": "（未绑定）",
   "neomacros.ui.state.version": "v%s 作者：%s",
-  "neomacros.ui.viewer.title": "[NeoMacros] %s"
+  "neomacros.ui.viewer.title": "[NeoMacros] %s",
+  "neomacros.chat.pair_request": "面板配对请求：%s（来自 %s），60 秒内有效",
+  "neomacros.chat.pair_request_approve": "[仅允许此浏览器]",
+  "neomacros.chat.pair_request_trust": "[信任本机]",
+  "neomacros.chat.pair_request_deny": "[拒绝]",
+  "neomacros.cmd.web.approved": "已允许配对：设备 %s",
+  "neomacros.cmd.web.trusted": "已允许配对并信任本机（设备 %s）；本机浏览器后续免确认",
+  "neomacros.cmd.web.denied": "已拒绝配对请求",
+  "neomacros.cmd.web.no_pending_request": "没有可处理的配对请求（%s）",
+  "neomacros.cmd.web.untrusted": "已取消信任本机",
+  "neomacros.cmd.web.not_trusted": "本机信任本来就没有开启"
 }

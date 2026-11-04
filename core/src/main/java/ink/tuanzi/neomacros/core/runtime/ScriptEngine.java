@@ -72,5 +72,18 @@ public interface ScriptEngine extends AutoCloseable {
         default java.util.concurrent.CompletableFuture<Boolean> invokeExport(String exportName, Object payload) {
             return java.util.concurrent.CompletableFuture.completedFuture(false);
         }
+
+        /**
+         * Evaluates one REPL expression in the session's global scope with
+         * script semantics: top-level {@code let/const/function} persist in
+         * the global lexical environment across evaluations, and a promise
+         * completion value is awaited before the outcome is returned.
+         * Guest-level failures (the expression threw) are reported through
+         * {@link EvalOutcome}; engine or transport failures (busy loop,
+         * unsupported engine) throw {@link ScriptError}.
+         */
+        default EvalOutcome eval(String expression) throws ScriptError {
+            throw new ScriptError("this engine does not support REPL evaluation");
+        }
     }
 }

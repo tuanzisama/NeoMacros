@@ -1,5 +1,7 @@
 package ink.tuanzi.neomacros.e2e;
 
+import ink.tuanzi.neomacros.core.console.ScriptConsole;
+import ink.tuanzi.neomacros.core.console.ScriptConsoleEvent;
 import ink.tuanzi.neomacros.e2e.harness.E2ERuntime;
 import ink.tuanzi.neomacros.e2e.harness.TestBridge;
 import org.junit.jupiter.api.Test;
@@ -7,6 +9,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -32,8 +36,11 @@ class BaselineScenariosTest {
                 "name: " + stem,
                 "version: 1.0.0",
                 "author: e2e",
+                "config:",
+                "  event:",
+                "    on: [game:start]",
                 ""));
-        Files.writeString(folder.resolve("index.js"), source);
+        Files.writeString(folder.resolve("index.js"), source + "\nexport function startup() {}\n");
     }
 
     @Test
@@ -203,6 +210,38 @@ class BaselineScenariosTest {
             TestBridge.Report report = e2e.bridge().get("async");
             assertTrue(report != null && report.pass(),
                     "report was: " + report + " reports=" + e2e.bridge().all());
+        }
+    }
+
+    @Test
+    void consoleOutputCarriesIdentityAndLocation() throws Exception {
+        var events = new LinkedBlockingQueue<ScriptConsoleEvent>();
+        java.util.function.Consumer<ScriptConsoleEvent> dispatcher = events::add;
+        ScriptConsole.installDispatcher(dispatcher);
+        try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
+            fixture(dir.resolve("scripts"), "logger.js", String.join("\n",
+                    "import { events } from '@neomacros/core';",
+                    "console.log('boot', {n: 1});",
+                    "events.on('game:start', () => console.warn('started'));",
+                    ""));
+            e2e.loadScript(dir.resolve("scripts").resolve("logger.js"));
+
+            ScriptConsoleEvent boot = events.poll(5, TimeUnit.SECONDS);
+            assertTrue(boot != null, "the top-level console event is missing");
+            assertEquals("logger", boot.macro(), "the macro id is the manifest name");
+            assertEquals("index.js", boot.file());
+            assertEquals(2, boot.line());
+            assertEquals("log", boot.level());
+
+            e2e.adapter().lifecyclePort().fireGameStart();
+            e2e.awaitSettle();
+            ScriptConsoleEvent started = events.poll(5, TimeUnit.SECONDS);
+            assertTrue(started != null && "warn".equals(started.level()),
+                    "event was: " + started);
+            assertEquals("logger", started.macro());
+            assertEquals("index.js", started.file());
+        } finally {
+            ScriptConsole.removeDispatcher(dispatcher);
         }
     }
 }

@@ -7,7 +7,7 @@
 name: hello-key            # unique ID: commands, the trust table and the
                            # enable table are all keyed by it; unique across
                            # all three category directories
-version: 1.0.0
+version: 2.0.0
 author: NeoMacros
 
 # ---- Optional fields (Tampermonkey-style) ----
@@ -16,13 +16,16 @@ license: MIT
 # homepage: https://example.com
 # supportURL: https://example.com/support
 # main: index.js            # entry file, index.js by default
-# lifecycle: world          # world = on world join (default) / always = at
-#                           # game start / manual = explicit start only
 # permissions: []           # capabilities to trust: fs / net / command / java
 
-# ---- Keypress-specific ----
-key: key.keyboard.j         # default key binding. Changes made in the panel
-                            # or via /neomacros keypress bind are stored in
-                            # the central binding table and win over this
-                            # default. A press invokes the exported
-                            # onKey(ev) function of this script.
+# ---- Behavior (the config block, grouped per type) ----
+config:
+  keypress:
+    on: keypress           # trigger edge: keypress (default) / keydown / keyup
+    default-key: key.keyboard.j
+                           # suggested initial binding. Changes made in the
+                           # panel or via /neomacros keypress bind are stored
+                           # in the central keymapping and win over this
+                           # suggestion. Every trigger invokes the exported
+                           # startup(ev) function of this script.
+    # modifiers: [ctrl]    # require ctrl/shift/alt to be held (optional)

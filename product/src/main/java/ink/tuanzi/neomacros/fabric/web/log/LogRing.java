@@ -12,8 +12,8 @@ import java.util.function.Consumer;
  */
 public final class LogRing {
 
-    /** One log line as the panel sees it. */
-    public record Entry(long seq, String level, String logger, String line) {
+    /** One log line as the panel sees it (ts = originating event time, epoch millis). */
+    public record Entry(long seq, long ts, String level, String logger, String line) {
     }
 
     private final int capacity;
@@ -32,9 +32,9 @@ public final class LogRing {
         this.listener = listener;
     }
 
-    /** Appends one line, evicting the oldest when full. */
-    public synchronized void append(String level, String logger, String line) {
-        Entry entry = new Entry(++nextSeq, level, logger, line);
+    /** Appends one line stamped with the given event time, evicting the oldest when full. */
+    public synchronized void append(long ts, String level, String logger, String line) {
+        Entry entry = new Entry(++nextSeq, ts, level, logger, line);
         entries.addLast(entry);
         while (entries.size() > capacity) {
             entries.removeFirst();

@@ -163,6 +163,7 @@ class ScriptLoadIntegrationTest {
                 "import { storage } from '@neomacros/storage';",
                 "storage.put('count', { n: 7 });",
                 "chat.log('COUNT-' + storage.get('count').n);",
+                "export function startup() {}",
                 "")));
 
         assertTrue(chatLines.contains("log:COUNT-7"), "chat lines were: " + chatLines);
@@ -189,6 +190,7 @@ class ScriptLoadIntegrationTest {
                 "clock.sleep(10).then(() => {",
                 "  chat.log('SLEEP-OK');",
                 "});",
+                "export function startup() {}",
                 "")));
 
         runtime.eventBus().publish("tick", 1L);
@@ -207,7 +209,8 @@ class ScriptLoadIntegrationTest {
         Path folder = scriptsDir.resolve("event").resolve(name);
         Files.createDirectories(folder);
         Files.writeString(folder.resolve("neomacro.yml"),
-                "name: " + name + "\nversion: 1.0.0\nauthor: test\n");
+                "name: " + name + "\nversion: 1.0.0\nauthor: test\n"
+                        + "config:\n  event:\n    on: [tick]\n");
         Files.writeString(folder.resolve("index.js"), source);
         return manager.discover().stream()
                 .filter(e -> e.name().equals(name))

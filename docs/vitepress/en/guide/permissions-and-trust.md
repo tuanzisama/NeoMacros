@@ -52,7 +52,7 @@ has two consequences:
 
 - a trusted script can never silently grow new capabilities — editing the
   file changes its hash, and the prompt appears again on the next load;
-- trust decisions survive restarts (stored in `options.json`).
+- trust decisions survive restarts (stored in `config.json`).
 
 Re-approving after an edit is the normal workflow; the prompt is the review
 step.

@@ -1,8 +1,10 @@
 package ink.tuanzi.neomacros.core.module;
 
 import ink.tuanzi.neomacros.core.event.Subscription;
+import ink.tuanzi.neomacros.core.runtime.EvalOutcome;
 import ink.tuanzi.neomacros.core.runtime.ScriptContext;
 import ink.tuanzi.neomacros.core.runtime.ScriptEngine;
+import ink.tuanzi.neomacros.core.runtime.ScriptError;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -25,6 +27,7 @@ public final class LoadedModule implements AutoCloseable {
     private final List<Subscription> subscriptions = new ArrayList<>();
     private final List<Runnable> releaseHooks = new ArrayList<>();
     private volatile Runnable disposeHook;
+    private volatile long taskId;
 
     LoadedModule(ScriptEntry entry, Path source, ScriptContext context) {
         this.entry = entry;
@@ -63,6 +66,21 @@ public final class LoadedModule implements AutoCloseable {
         return session;
     }
 
+    /**
+     * Evaluates one DevTools console (REPL) expression in this module's
+     * engine session: the expression runs on the module's context loop and
+     * sees the module's injected bindings. Returns the formatted outcome, or
+     * throws {@link ScriptError} when the engine does not support evaluation
+     * or the loop did not answer.
+     */
+    public EvalOutcome evaluate(String expression) throws ScriptError {
+        ScriptEngine.EngineSession current = session;
+        if (current == null) {
+            throw new ScriptError("module '" + entry.name() + "' has no engine session");
+        }
+        return current.eval(expression);
+    }
+
     /** Tracks one event subscription for auto-unsubscribe on unload. */
     public void track(Subscription subscription) {
         subscriptions.add(subscription);
@@ -86,6 +104,16 @@ public final class LoadedModule implements AutoCloseable {
     /** The dispose hook, when the module exported one. */
     public Optional<Runnable> disposeHook() {
         return Optional.ofNullable(disposeHook);
+    }
+
+    /** The task-manager id of this activation; 0 when no task registry is wired. */
+    public long taskId() {
+        return taskId;
+    }
+
+    /** Assigns the task-manager id (loading step). */
+    void taskId(long taskId) {
+        this.taskId = taskId;
     }
 
     /**

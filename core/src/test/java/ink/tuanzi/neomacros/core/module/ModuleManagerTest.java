@@ -5,6 +5,7 @@ import ink.tuanzi.neomacros.core.api.bindgen.LoadTracker;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
 import ink.tuanzi.neomacros.core.event.EventBus;
 import ink.tuanzi.neomacros.core.event.EventCatalog;
+import ink.tuanzi.neomacros.core.event.ProductionEventSet;
 import ink.tuanzi.neomacros.core.module.manifest.ScriptCategory;
 import ink.tuanzi.neomacros.core.runtime.ScriptEngine;
 import ink.tuanzi.neomacros.core.runtime.ScriptError;
@@ -21,8 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,20 +35,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Module lifecycle over a stub engine: folder discovery with manifests,
- * entry resolution, category lifecycles, invalid-folder isolation, load-phase
- * filtering, manual loads, key dispatch, the autoload filter, watch scans,
- * and unload teardown.
+ * config-block validation, entry resolution, category lifecycles, invalid-
+ * folder isolation, load-phase pre-filtering, manual loads, startup dispatch,
+ * manifest event auto-subscription, the autoload filter, watch scans, and
+ * unload teardown.
  */
 class ModuleManagerTest {
 
-    /** Stub engine recording imports, the dispose export, and key invocations. */
+    /** Stub engine recording imports, the exports, and startup invocations. */
     static final class StubEngine implements ScriptEngine {
         final List<String> imported = new ArrayList<>();
         final List<String> trackerOwnerAtImport = new ArrayList<>();
         final List<Object> invokedPayloads = new ArrayList<>();
         final AtomicInteger disposeCalls = new AtomicInteger();
         final AtomicBoolean failNext = new AtomicBoolean();
-        final AtomicBoolean exposeOnKey = new AtomicBoolean();
+        final AtomicBoolean exposeStartup = new AtomicBoolean();
+        final AtomicBoolean hideStartup = new AtomicBoolean();
         private ink.tuanzi.neomacros.core.runtime.ScriptContext sessionContext;
 
         @Override
@@ -80,15 +83,18 @@ class ModuleManagerTest {
 
                 @Override
                 public Optional<Runnable> readExportedFunction(String exportName) {
-                    if (!exportName.equals("dispose")) {
-                        return Optional.empty();
+                    if (exportName.equals("dispose")) {
+                        return Optional.of(disposeCalls::incrementAndGet);
                     }
-                    return Optional.of(disposeCalls::incrementAndGet);
+                    if (exportName.equals(ModuleManager.STARTUP_EXPORT) && !hideStartup.get()) {
+                        return Optional.of(() -> { });
+                    }
+                    return Optional.empty();
                 }
 
                 @Override
                 public CompletableFuture<Boolean> invokeExport(String exportName, Object payload) {
-                    if (exposeOnKey.get()) {
+                    if (exposeStartup.get()) {
                         invokedPayloads.add(payload);
                         return CompletableFuture.completedFuture(true);
                     }
@@ -141,10 +147,14 @@ class ModuleManagerTest {
             author: tester
             """;
 
+    private static final String EVENT_CONFIG = "config:\n  event:\n    on: [tick]\n";
+
+    private static final String KEYPRESS_CONFIG = "config:\n  keypress: {}\n";
+
     @Test
     void loadsFolderAndBuildsMetaFromManifest(@TempDir Path root) throws Exception {
         writeScript(root, "event", "hello",
-                MANIFEST.formatted("hello") + "permissions:\n  - fs\n", "// stub");
+                MANIFEST.formatted("hello") + EVENT_CONFIG + "permissions:\n  - fs\n", "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
@@ -164,7 +174,7 @@ class ModuleManagerTest {
     @Test
     void categorySuppliesDefaultLifecycle(@TempDir Path root) throws Exception {
         writeScript(root, "services", "svc", MANIFEST.formatted("svc"), "// stub");
-        writeScript(root, "keypress", "key", MANIFEST.formatted("key"), "// stub");
+        writeScript(root, "keypress", "key", MANIFEST.formatted("key") + KEYPRESS_CONFIG, "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
@@ -180,22 +190,24 @@ class ModuleManagerTest {
     }
 
     @Test
-    void manifestLifecycleOverridesCategory(@TempDir Path root) throws Exception {
-        writeScript(root, "event", "early",
-                MANIFEST.formatted("early") + "lifecycle: always\n", "// stub");
+    void serviceLifecycleOverridesCategoryDefault(@TempDir Path root) throws Exception {
+        writeScript(root, "services", "late",
+                MANIFEST.formatted("late") + "config:\n  service:\n    lifecycle: world\n", "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
              ModuleManager manager = manager(rt, root, m -> { })) {
             manager.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
-            assertTrue(manager.loaded("early").isPresent());
-            assertEquals(ScriptMeta.Lifecycle.ALWAYS, manager.loaded("early").get().meta().lifecycle());
+            assertTrue(manager.loaded("late").isEmpty());
+            manager.loadPhase(ScriptMeta.Lifecycle.WORLD);
+            assertTrue(manager.loaded("late").isPresent());
+            assertEquals(ScriptMeta.Lifecycle.WORLD, manager.loaded("late").get().meta().lifecycle());
         }
     }
 
     @Test
     void unloadRunsDisposeUnsubscribesAndCloses(@TempDir Path root) throws Exception {
-        writeScript(root, "event", "beta", MANIFEST.formatted("beta"), "// stub");
+        writeScript(root, "event", "beta", MANIFEST.formatted("beta") + EVENT_CONFIG, "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
@@ -221,10 +233,10 @@ class ModuleManagerTest {
     void invalidFoldersAreCollectedWithoutBlockingOthers(@TempDir Path root) throws Exception {
         writeScript(root, "event", "no-manifest", null, "// stub");
         writeScript(root, "event", "no-author", "name: x\nversion: 1.0.0\n", "// stub");
-        writeScript(root, "event", "no-entry", MANIFEST.formatted("no-entry"), null);
+        writeScript(root, "event", "no-entry", MANIFEST.formatted("no-entry") + EVENT_CONFIG, null);
         writeScript(root, "services", "dup", MANIFEST.formatted("dup"), "// stub");
-        writeScript(root, "keypress", "dup-alias", MANIFEST.formatted("dup"), "// stub");
-        writeScript(root, "event", "good", MANIFEST.formatted("good"), "// stub");
+        writeScript(root, "keypress", "dup-alias", MANIFEST.formatted("dup") + KEYPRESS_CONFIG, "// stub");
+        writeScript(root, "event", "good", MANIFEST.formatted("good") + EVENT_CONFIG, "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
@@ -242,11 +254,27 @@ class ModuleManagerTest {
     }
 
     @Test
+    void keypressFoldersRequireTheKeypressConfig(@TempDir Path root) throws Exception {
+        writeScript(root, "keypress", "bare", MANIFEST.formatted("bare"), "// stub");
+        writeScript(root, "keypress", "fine", MANIFEST.formatted("fine") + KEYPRESS_CONFIG, "// stub");
+        var engine = new StubEngine();
+
+        try (ScriptRuntime rt = runtime(engine);
+             ModuleManager manager = manager(rt, root, m -> { })) {
+            manager.loadPhase(ScriptMeta.Lifecycle.WORLD);
+            assertTrue(manager.loaded("bare").isEmpty());
+            assertTrue(manager.loaded("fine").isPresent());
+            assertTrue(manager.errors().stream()
+                    .anyMatch(e -> e.message().contains("config.keypress")));
+        }
+    }
+
+    @Test
     void entryResolutionPrefersIndexThenMain(@TempDir Path root) throws Exception {
         Path folder = root.resolve("event").resolve("custom");
         Files.createDirectories(folder);
         Files.writeString(folder.resolve("neomacro.yml"),
-                MANIFEST.formatted("custom") + "main: run/start.js\n");
+                MANIFEST.formatted("custom") + EVENT_CONFIG + "main: run/start.js\n");
         Files.createDirectories(folder.resolve("run"));
         Files.writeString(folder.resolve("run").resolve("start.js"), "// stub");
         var engine = new StubEngine();
@@ -265,7 +293,7 @@ class ModuleManagerTest {
         Path folder = root.resolve("event").resolve("escape");
         Files.createDirectories(folder);
         Files.writeString(folder.resolve("neomacro.yml"),
-                MANIFEST.formatted("escape") + "main: ../outside.js\n");
+                MANIFEST.formatted("escape") + EVENT_CONFIG + "main: ../outside.js\n");
         Files.writeString(root.resolve("event").resolve("outside.js"), "// stub");
         var engine = new StubEngine();
 
@@ -278,55 +306,156 @@ class ModuleManagerTest {
     }
 
     @Test
-    void loadPhaseUnloadsNonMatchingLifecycle(@TempDir Path root) throws Exception {
-        writeScript(root, "event", "gamma",
-                MANIFEST.formatted("gamma") + "lifecycle: manual\n", "// stub");
+    void loadPhasePrefiltersNonMatchingLifecycle(@TempDir Path root) throws Exception {
+        writeScript(root, "keypress", "gamma", MANIFEST.formatted("gamma") + KEYPRESS_CONFIG, "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
              ModuleManager manager = manager(rt, root, m -> { })) {
-            manager.loadPhase(ScriptMeta.Lifecycle.WORLD);
+            manager.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
             assertTrue(manager.loaded("gamma").isEmpty());
+            // Pre-filtered before load: no phantom module ever instantiated.
+            assertTrue(engine.imported.isEmpty());
         }
     }
 
     @Test
     void loadByNameStartsManualScripts(@TempDir Path root) throws Exception {
-        writeScript(root, "event", "manual",
-                MANIFEST.formatted("manual") + "lifecycle: manual\n", "// stub");
+        writeScript(root, "services", "manual",
+                MANIFEST.formatted("manual") + "config:\n  service:\n    lifecycle: manual\n", "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
              ModuleManager manager = manager(rt, root, m -> { })) {
+            manager.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
+            assertTrue(manager.loaded("manual").isEmpty());
             assertTrue(manager.loadByName("manual").isPresent());
             assertTrue(manager.loaded("manual").isPresent());
             assertTrue(manager.loadByName("unknown").isEmpty());
         }
     }
 
+    /** Bounded poll: waits until the condition holds (test-side async settle). */
+    private static void assertEventually(java.util.function.Supplier<Boolean> condition,
+                                         String message) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (System.currentTimeMillis() < deadline) {
+            if (condition.get()) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        assertTrue(condition.get(), message);
+    }
+
     @Test
-    void triggerDispatchesToKeyHandlerExport(@TempDir Path root) throws Exception {
-        writeScript(root, "keypress", "ping", MANIFEST.formatted("ping") + "key: key.keyboard.j\n", "// stub");
+    void triggerDispatchesToStartupExport(@TempDir Path root) throws Exception {
+        writeScript(root, "keypress", "ping",
+                MANIFEST.formatted("ping") + "config:\n  keypress:\n    default-key: key.keyboard.j\n",
+                "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
              ModuleManager manager = manager(rt, root, m -> { })) {
             manager.loadPhase(ScriptMeta.Lifecycle.WORLD);
-            engine.exposeOnKey.set(true);
+            engine.exposeStartup.set(true);
 
             assertTrue(manager.trigger("ping", Map.of("key", "key.keyboard.j")));
             assertFalse(manager.trigger("absent", Map.of()));
             // Let the queued invocation run on the context loop.
-            manager.loaded("ping").get().context().loop().awaitIdle(5000);
-            assertEquals(1, engine.invokedPayloads.size());
+            assertEventually(() -> engine.invokedPayloads.size() == 1,
+                    "payloads were: " + engine.invokedPayloads);
+        }
+    }
+
+    @Test
+    void eventOnAutoSubscribesStartup(@TempDir Path root) throws Exception {
+        writeScript(root, "event", "sub", MANIFEST.formatted("sub") + EVENT_CONFIG, "// stub");
+        var engine = new StubEngine();
+
+        try (ScriptRuntime rt = runtime(engine);
+             ModuleManager manager = manager(rt, root, m -> { })) {
+            manager.loadPhase(ScriptMeta.Lifecycle.WORLD);
+            engine.exposeStartup.set(true);
+            LoadedModule module = manager.loaded("sub").get();
+
+            rt.eventBus().publish("tick", Map.of("n", 1));
+
+            assertEventually(() -> engine.invokedPayloads.size() == 1,
+                    "payloads were: " + engine.invokedPayloads);
+            assertEquals(Map.of("n", 1), engine.invokedPayloads.get(0));
+
+            // Unload tears the auto-subscription down: no further dispatch.
+            manager.unload("sub");
+            rt.eventBus().publish("tick", Map.of("n", 2));
+            Thread.sleep(100);
+            assertEquals(1, engine.invokedPayloads.size(),
+                    "payloads were: " + engine.invokedPayloads);
+        }
+    }
+
+    @Test
+    void eventOnNamesValidateAgainstTheCatalog(@TempDir Path root) throws Exception {
+        writeScript(root, "event", "bad-event",
+                MANIFEST.formatted("bad-event") + "config:\n  event:\n    on: [totally:bogus]\n", "// stub");
+        writeScript(root, "event", "good-event",
+                MANIFEST.formatted("good-event") + EVENT_CONFIG, "// stub");
+        var engine = new StubEngine();
+        EventCatalog catalog = new EventCatalog();
+        catalog.registerAll(ProductionEventSet.records());
+
+        try (ScriptRuntime rt = runtime(engine);
+             ModuleManager manager = manager(rt, root, m -> { })) {
+            List<String> loadErrors = new ArrayList<>();
+            manager.onLoadError((name, error) -> loadErrors.add(error.getMessage()));
+            manager.withEventCatalog(catalog);
+            manager.loadPhase(ScriptMeta.Lifecycle.WORLD);
+            assertTrue(manager.loaded("bad-event").isEmpty());
+            assertTrue(manager.loaded("good-event").isPresent());
+            assertEquals(1, loadErrors.size());
+            assertTrue(loadErrors.get(0).contains("unknown event 'totally:bogus'"), loadErrors.get(0));
+            assertTrue(loadErrors.get(0).contains("available events:"), loadErrors.get(0));
+            assertTrue(loadErrors.get(0).contains("tick"), loadErrors.get(0));
+        }
+    }
+
+    @Test
+    void missingStartupExportIsALoadError(@TempDir Path root) throws Exception {
+        writeScript(root, "event", "old-style", MANIFEST.formatted("old-style") + EVENT_CONFIG, "// stub");
+        var engine = new StubEngine();
+        engine.hideStartup.set(true);
+
+        try (ScriptRuntime rt = runtime(engine);
+             ModuleManager manager = manager(rt, root, m -> { })) {
+            List<String> loadErrors = new ArrayList<>();
+            manager.onLoadError((name, error) -> loadErrors.add(error.getMessage()));
+            manager.loadPhase(ScriptMeta.Lifecycle.WORLD);
+            assertTrue(manager.loaded("old-style").isEmpty());
+            assertEquals(1, loadErrors.size());
+            assertTrue(loadErrors.get(0).contains("must export"), loadErrors.get(0));
+            assertTrue(loadErrors.get(0).contains("startup"), loadErrors.get(0));
+        }
+    }
+
+    @Test
+    void servicesGetStartupOnActivation(@TempDir Path root) throws Exception {
+        writeScript(root, "services", "boot", MANIFEST.formatted("boot"), "// stub");
+        var engine = new StubEngine();
+
+        try (ScriptRuntime rt = runtime(engine);
+             ModuleManager manager = manager(rt, root, m -> { })) {
+            engine.exposeStartup.set(true);
+            manager.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
+            assertEventually(() -> engine.invokedPayloads.size() == 1,
+                    "payloads were: " + engine.invokedPayloads);
+            assertEquals(Map.of(), engine.invokedPayloads.get(0));
         }
     }
 
     @Test
     void autoloadFilterSuppressesAutomaticAndManualLoads(@TempDir Path root) throws Exception {
-        // NB: 'on'/'off' would be YAML booleans; identity names quote or avoid them.
-        writeScript(root, "event", "disabled-one", MANIFEST.formatted("disabled-one"), "// stub");
-        writeScript(root, "event", "enabled-one", MANIFEST.formatted("enabled-one"), "// stub");
+        writeScript(root, "event", "disabled-one", MANIFEST.formatted("disabled-one") + EVENT_CONFIG, "// stub");
+        writeScript(root, "event", "enabled-one", MANIFEST.formatted("enabled-one") + EVENT_CONFIG, "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
@@ -340,8 +469,43 @@ class ModuleManagerTest {
     }
 
     @Test
+    void taskRegistryTracksActivationsTriggersAndStops(@TempDir Path root) throws Exception {
+        writeScript(root, "keypress", "ping", MANIFEST.formatted("ping") + KEYPRESS_CONFIG, "// stub");
+        writeScript(root, "services", "boot", MANIFEST.formatted("boot"), "// stub");
+        var engine = new StubEngine();
+        var tasks = new ink.tuanzi.neomacros.core.task.TaskRegistry();
+
+        try (ScriptRuntime rt = runtime(engine);
+             ModuleManager manager = manager(rt, root, m -> { })) {
+            manager.withTaskRegistry(tasks);
+            engine.exposeStartup.set(true);
+            manager.loadPhase(ScriptMeta.Lifecycle.WORLD);
+            manager.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
+
+            assertEquals(2, tasks.activeTasks().size());
+            var ping = tasks.activeTasks().stream()
+                    .filter(t -> t.macro().equals("ping")).findFirst().orElseThrow();
+            var boot = tasks.activeTasks().stream()
+                    .filter(t -> t.macro().equals("boot")).findFirst().orElseThrow();
+
+            manager.trigger("ping", Map.of("key", "key.keyboard.j"));
+            assertEventually(() -> ping.triggerCount() == 1, "trigger count was " + ping.triggerCount());
+            // The service activation call counts as its first trigger.
+            assertEventually(() -> boot.triggerCount() == 1, "service trigger count was " + boot.triggerCount());
+
+            manager.unload("ping");
+            assertEquals(1, tasks.activeTasks().size());
+            assertEquals(1, tasks.historyTasks().size());
+            assertEquals(ink.tuanzi.neomacros.core.task.ScriptTask.Status.STOPPED,
+                    tasks.historyTasks().get(0).status());
+            assertEquals(ping.taskId(), tasks.historyTasks().get(0).taskId());
+            assertEquals("keypress", tasks.historyTasks().get(0).category().dirName());
+        }
+    }
+
+    @Test
     void watchScanLoadsNewReloadsChangedUnloadsDeleted(@TempDir Path root) throws Exception {
-        writeScript(root, "event", "watched", MANIFEST.formatted("watched"), "// stub");
+        writeScript(root, "event", "watched", MANIFEST.formatted("watched") + EVENT_CONFIG, "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
@@ -353,7 +517,7 @@ class ModuleManagerTest {
             assertTrue(manager.loaded("watched").isEmpty());
 
             // A new folder appears.
-            writeScript(root, "event", "fresh", MANIFEST.formatted("fresh"), "// stub");
+            writeScript(root, "event", "fresh", MANIFEST.formatted("fresh") + EVENT_CONFIG, "// stub");
             manager.checkForChanges();
             assertTrue(manager.loaded("fresh").isPresent());
 
@@ -379,7 +543,7 @@ class ModuleManagerTest {
 
     @Test
     void loadAndUnloadListenersFire(@TempDir Path root) throws Exception {
-        writeScript(root, "event", "listened", MANIFEST.formatted("listened"), "// stub");
+        writeScript(root, "event", "listened", MANIFEST.formatted("listened") + EVENT_CONFIG, "// stub");
         var engine = new StubEngine();
         List<String> events = new ArrayList<>();
 
@@ -395,7 +559,7 @@ class ModuleManagerTest {
 
     @Test
     void trackerIsAttributedDuringImport(@TempDir Path root) throws Exception {
-        writeScript(root, "event", "epsilon", MANIFEST.formatted("epsilon"), "// stub");
+        writeScript(root, "event", "epsilon", MANIFEST.formatted("epsilon") + EVENT_CONFIG, "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);
@@ -407,7 +571,7 @@ class ModuleManagerTest {
 
     @Test
     void loadFailureIsolatesAndCleansUp(@TempDir Path root) throws Exception {
-        writeScript(root, "event", "zeta", MANIFEST.formatted("zeta"), "// stub");
+        writeScript(root, "event", "zeta", MANIFEST.formatted("zeta") + EVENT_CONFIG, "// stub");
         var engine = new StubEngine();
 
         try (ScriptRuntime rt = runtime(engine);

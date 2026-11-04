@@ -1,11 +1,19 @@
 # Service-script example.
-# Scripts below services/ default to lifecycle: always - pulled up at game
-# start and stopped at quit - and can be controlled manually with
-# /neomacros service start|stop|restart or the management panel.
-# Services suit long-running tasks: monitoring, reminders, polling, etc.
+# Scripts below services/ are pulled up at game start and stopped at quit;
+# they can be controlled manually with /neomacros service start|stop|restart
+# or the management panel. Services suit long-running tasks: monitoring,
+# reminders, polling, etc.
+#
+# On activation NeoMacros calls the exported startup() once; the service
+# then keeps itself alive (here: an async loop with neo.clock.sleep).
 name: uptime
-version: 1.0.0
+version: 2.0.0
 author: NeoMacros
 description: reports the session uptime every 5 minutes (service example)
-lifecycle: always          # services default to game start; 'world' would
+
+config:
+  service:
+    lifecycle: always      # services default to game start; 'world' would
                            # load it on world join instead
+    # autostart: true      # initial enable default; an explicit enable/disable
+                           # in the panel or via commands wins over this

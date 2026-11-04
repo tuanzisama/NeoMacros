@@ -1,7 +1,7 @@
 # 第一个脚本
 
-本页带你完整走一遍第一个脚本：一个带清单声明的脚本文件夹、输出聊天、
-响应事件、不退出游戏热重载。
+本页带你完整走一遍第一个脚本：一个带清单声明的脚本文件夹、导出 `startup`
+入口、输出聊天、响应事件、不退出游戏热重载。
 
 ## 创建文件夹
 
@@ -10,9 +10,9 @@ GUI 与命令也只从对应目录里选择候选：
 
 | 目录 | 分类 | 运行时机 |
 |---|---|---|
-| `macros/keypress/<名字>/` | 按键脚本 | 绑定的按键被按下时 |
-| `macros/event/<名字>/` | 事件脚本 | 其订阅的事件触发时 |
-| `macros/services/<名字>/` | 服务脚本 | 游戏启动拉起、退出停止（面板/命令可手动启停） |
+| `macros/keypress/<名字>/` | 按键脚本 | 声明的触发边沿（按下/松开/点击）发生时 |
+| `macros/event/<名字>/` | 事件脚本 | `config.event.on` 声明的事件触发时 |
+| `macros/services/<名字>/` | 服务脚本 | 激活时调用一次 `startup`，此后自持运行 |
 
 创建清单文件 `config/neomacros/macros/event/hello/neomacro.yml`：
 
@@ -21,35 +21,56 @@ name: hello            # 唯一 ID：命令、信任表、启停表都以它为�
 version: 1.0.0
 author: you            # name / version / author 三项必填
 description: 进世界时打招呼
+
+config:
+  event:
+    on: [world:join]   # 事件宏必须声明要订阅的事件
 ```
 
-清单支持 `neomacro.yml`、`neomacro.json` 两种格式（多个
-并存时按此优先级取一）。可选字段包括 `description`、`license`、`homepage`、
-`supportURL`、`main`（入口文件，默认 `index.js`）、`key`（按键脚本的默认
-绑定）、`lifecycle`（`always` / `world` / `manual`；目录默认：services 为
-`always`，其余为 `world`）以及 `permissions`（见
-[权限与信任](./permissions-and-trust)）。
+清单支持 `neomacro.yml`、`neomacro.json` 两种格式（多个并存时按此优先级
+取一）。顶层只放身份字段：必填的 `name` / `version` / `author`，可选的
+`description`、`license`、`homepage`、`supportURL`、`main`（入口文件，默认
+`index.js`）、`permissions`（见[权限与信任](./permissions-and-trust)）。
+
+**行为配置统一收在 `config:` 块里**，按类型分组：
+
+| 类型 | config 块 | 字段 |
+|---|---|---|
+| keypress | `config.keypress` | `on`（`keydown`/`keyup`/`keypress`，默认 `keypress`）、`default-key`（建议初始绑定）、`modifiers`（要求按住的 ctrl/shift/alt） |
+| event | `config.event` | `on`（一个或多个事件名，加载时校验） |
+| services | `config.service`（可选） | `lifecycle`（`always`/`world`/`manual`，默认 `always`）、`autostart`（初始启用默认） |
+
+旧的顶层行为字段（`key`、`lifecycle`、`autostart`、`events`）已废弃——
+加载时会报错并提示迁移目标，见文末迁移表。
 
 ## 添加入口文件
 
 创建 `config/neomacros/macros/event/hello/index.js`：
 
 ```js
-const { events, chat } = neo;
+const { chat } = neo;
 
-chat.log("Hello from NeoMacros!");
-
-events.on("world:join", (payload) => {
+export function startup(payload) {
     chat.log("欢迎回来！");
-});
+}
 ```
 
-脚本就是普通的 ES 模块。这里有几件事值得注意：
+脚本就是普通的 ES 模块，**必须导出 `startup` 函数**（支持 `async`）——
+它是 NeoMacros 调用的入口：
 
-- `neo` 是全局命名空间，挂载了所有[门面](/zh/api/)：`chat`、`events`、
-  `world`、`player` 等。用到哪个就解构哪个。
-- 顶层代码就是程序本体，脚本加载时执行一次。可选的
-  `export function dispose() { }` 做额外的清理——订阅本来就会自动注销。
+- **事件宏**：`config.event.on` 声明的每个事件触发时，`startup(payload)`
+  收到事件载荷（与 `events.on` 的处理器拿到的一致）。
+- **按键宏**：每次触发边沿发生时调用 `startup(ev)`，
+  `ev = { event, key, code, clicks, modifiers }`。
+- **服务宏**：激活时调用一次；长驻任务在 `startup` 内自持（tick 订阅或
+  `async` 循环 + `clock.sleep`），返回的 Promise 在脚本自己的事件循环上
+  落定。
+
+顶层代码在模块加载时仍会执行一次，适合放常量与模块级状态；可选的
+`export function dispose() { }` 做额外清理——订阅本来就会自动注销。
+
+在 `startup` 之外仍可用 `events.on` / `events.onSync` / `events.waitFor`
+手动订阅任意事件（含通配与自定义事件），与清单声明并存。
 
 ## 加载
 
@@ -60,37 +81,66 @@ events.on("world:join", (payload) => {
 /neomacros reload
 ```
 
-再用 `/neomacros list` 确认脚本已加载。聊天区应出现 `Hello from
-NeoMacros!`——`chat.log` 只在本地渲染，而 `chat.say` 会把消息发送到服务
-器，就像玩家自己输入的一样。
+再用 `/neomacros list` 确认脚本已加载。任务管理器（面板的活动栏或
+DevTools 的「任务」页签）里会出现一条运行中任务，记录任务 ID、启动方式、
+触发次数、玩家与服务器信息。
 
 ## 绑定按键（按键脚本）
 
-`macros/keypress/` 下的脚本在清单里写默认按键（`key: key.keyboard.j`），
-并导出按键触发时调用的处理函数：
+`macros/keypress/` 下的脚本在 `config.keypress` 里声明触发定义：
+
+```yaml
+config:
+  keypress:
+    on: keydown           # keydown / keyup / keypress（默认）
+    default-key: key.keyboard.j
+    modifiers: [ctrl]     # 可选：要求按住 ctrl/shift/alt
+```
 
 ```js
-export function onKey(ev) {
+export function startup(ev) {
+    // ev = { event: 'keydown', key: 'key.keyboard.j', code: 74,
+    //        clicks: 1, modifiers: ['ctrl'] }
     neo.chat.log(`按下了 ${ev.key}`);
 }
 ```
 
-在管理面板（`/neomacros panel`）或用 `/neomacros keypress bind|unbind`
-改绑定的记录保存在中央绑定表中，优先于清单默认值。
+`default-key` 只是**建议值**：在管理面板（`/neomacros panel`）或用
+`/neomacros keypress bind|unbind` 改绑定的记录保存在中央 keymapping
+表中，优先于清单建议值；改键永不回写清单。`modifiers` 宽松匹配——列出的
+修饰键必须按住，额外按住的不影响触发；有 GUI 打开时（如聊天框）按键不
+触发，与原版按键一致。
 
 ## 响应事件
 
-`events.on("world:join", ...)` 订阅了进世界事件。处理器运行在脚本自己的
-事件循环上，永远不会卡住游戏。每次订阅都会返回句柄，调用句柄上的
-`.deactivate()`（或 `events.off(handle)`）即可取消订阅。
+`config.event.on` 声明的事件由引擎自动订阅，每次触发都调用
+`startup(payload)`；卸载（重载/退出）时自动注销。事件名在加载时校验：
+写错的名字会被拒绝，并列出全部可用事件。`events.on` 手动订阅的句柄照常
+支持 `.deactivate()`（或 `events.off(handle)`）。
 
 试着进入一个世界——每次进世界都会打印一条欢迎。
 
 ## 出错时
 
-清单非法或入口缺失时，该文件夹会被跳过，原因显示在 `/neomacros errors`
-和管理面板里。脚本抛错时 NeoMacros 会捕获它，其他脚本不受影响；打开
-`/neomacros errors` 可查看最近的失败记录，含指回你文件的堆栈。
+清单非法、`config` 块缺失、事件名未知或缺少 `startup` 导出时，该文件夹
+会被跳过，原因显示在 `/neomacros errors` 和管理面板里。脚本抛错时
+NeoMacros 会捕获它，其他脚本不受影响；打开 `/neomacros errors` 可查看
+最近的失败记录，含指回你文件的堆栈。
+
+## 从旧版迁移
+
+旧模型（顶层代码 + `onKey`）的脚本加载时会报「需要迁移」错误。对照下表
+改写：
+
+| 旧写法 | 新写法 |
+|---|---|
+| 顶层代码作为程序本体 | 逻辑收进 `export function startup(...)`（顶层仍可放初始化） |
+| `export function onKey(ev)` | `export function startup(ev)` + `config.keypress` 声明 `on` 边沿 |
+| 顶层 `events.on("evt", ...)` 自订阅 | `config.event.on: [evt]` 声明，`startup(payload)` 接收载荷（手动订阅仍可用） |
+| 顶层 `key: ...` | `config.keypress.default-key` |
+| 顶层 `lifecycle: ...` | `config.service.lifecycle` |
+| 顶层 `autostart: ...` | `config.service.autostart` |
+| 顶层 `events: [...]`（仅文档用途） | `config.event.on`（现在是真正的运行时订阅） |
 
 ## 下一步
 

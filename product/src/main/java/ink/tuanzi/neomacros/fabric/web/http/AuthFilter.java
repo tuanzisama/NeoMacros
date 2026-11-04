@@ -12,6 +12,7 @@ public final class AuthFilter {
     private static final java.util.Set<String> EXEMPT = java.util.Set.of(
             "GET /api/v1/meta",
             "POST /api/v1/pair",
+            "POST /api/v1/pair-request",
             "GET /api-docs/openapi.json");
 
     private final Nm1Verifier verifier;
@@ -23,7 +24,13 @@ public final class AuthFilter {
 
     /** Whether this verb+path may skip the NM1 signature. */
     public static boolean exempt(String method, String path) {
-        return EXEMPT.contains(method + " " + path);
+        if (EXEMPT.contains(method + " " + path)) {
+            return true;
+        }
+        // The tokenless pairing poll is unauthenticated by design (the
+        // browser holds no credentials yet); the random request id is the
+        // capability, and the decision itself happens in game.
+        return method.equals("GET") && path.startsWith("/api/v1/pair-request/");
     }
 
     /**

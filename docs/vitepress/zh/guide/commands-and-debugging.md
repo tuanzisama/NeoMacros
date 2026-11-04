@@ -27,6 +27,34 @@ chat.actionbar("快捷栏上方，会淡出");  // 动作栏
 
 `chat.log` 只在本地渲染——不会发到服务器——所以可以放心刷调试日志。
 
+## 脚本控制台（console）
+
+宏里还可以使用浏览器风格的 **`console`** 全局——输出实时推送到 Web 面板
+DevTools 的 **控制台** 页，附宏名、文件与行号（可点击跳转到编辑器对应行），
+同时镜像一份纯文本进游戏日志：
+
+```js
+console.log("hello", { a: 1 }, [1, 2, 3]);   // 对象/数组在面板中可展开
+console.info("info");  console.warn("warn"); console.error("error"); console.debug("debug");
+console.count("hits");                        // hits: 1 / 2 / …
+console.time("boot");  console.timeEnd("boot");  // boot: 12.34ms
+console.group("ctx");  console.log("nested"); console.groupEnd();
+console.trace("who called");                  // 展开查看调用栈
+console.table([{ item: "apple", n: 3 }]);     // 面板里渲染为表格
+console.assert(cond, "cond 为假时才输出");
+console.clear();                              // 清空面板视图
+```
+
+要点：
+
+- **结构化渲染**：对象/数组是可展开的预览树（深度/长度有限制）；MC
+  `Component` 渲染为带颜色的富文本；Java `Class` 显示全限定名。
+- **占位符**：`console.log("玩家 %s 等级 %d", name, level)` 支持
+  `%s %d %i %f %j %o %c`。
+- **限流**：每脚本突发 50 条、持续 25 条/秒，超出部分被丢弃并以一条
+  WARN 提示（"N message(s) suppressed"），不会打瘫面板。
+- console 无需在 `meta.permissions` 声明，所有脚本可用。
+
 ## 读懂错误界面
 
 处理器抛出的异常会被 NeoMacros 捕获，不会把游戏带崩。`/neomacros

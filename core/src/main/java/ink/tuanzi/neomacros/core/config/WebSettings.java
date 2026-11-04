@@ -21,6 +21,13 @@ public final class WebSettings {
     @Option(description = "Web panel port", min = 0, max = 65535)
     public int port = 30636;
 
+    /**
+     * Lifetime of the deep-link pairing token; it persists across restarts,
+     * so a chat link stays clickable for this long.
+     */
+    @Option(description = "Pairing token lifetime in minutes", min = 1, max = 20160)
+    public int pairingTokenTtlMinutes = 1440;
+
     /** Bind address: {@code 127.0.0.1}, {@code 0.0.0.0}, or {@code ::1}. */
     @Option(description = "Bind address: 127.0.0.1, 0.0.0.0, or ::1")
     public String listen = "127.0.0.1";

@@ -66,6 +66,11 @@ public final class ApiContext {
         return String.valueOf(exchange.getRemoteAddress().getAddress());
     }
 
+    /** The remote IP address (loopback checks for tokenless pairing). */
+    public java.net.InetAddress sourceAddress() {
+        return exchange.getRemoteAddress().getAddress();
+    }
+
     /** One request header, or null. */
     public String header(String name) {
         return exchange.getRequestHeaders().getFirst(name);

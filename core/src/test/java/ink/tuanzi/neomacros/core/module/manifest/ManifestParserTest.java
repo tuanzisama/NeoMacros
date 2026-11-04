@@ -15,11 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Manifest discovery, format priority, validation, and category defaults. */
+/** Manifest discovery, format priority, config block validation, category defaults. */
 class ManifestParserTest {
 
     @Test
-    void parsesYamlManifest(@TempDir Path dir) throws IOException {
+    void parsesYamlManifestWithConfigBlock(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("neomacro.yml"), """
                 name: demo
                 version: 1.2.0
@@ -29,11 +29,17 @@ class ManifestParserTest {
                 homepage: https://example.com
                 supportURL: https://example.com/support
                 main: src/main.js
-                key: key.keyboard.j
-                lifecycle: always
                 permissions:
                   - fs
                   - net
+                config:
+                  keypress:
+                    default-key: key.keyboard.j
+                    on: keydown
+                    modifiers: [ctrl, shift]
+                  service:
+                    lifecycle: always
+                    autostart: false
                 """);
 
         MacroManifest manifest = ManifestParser.parse(dir, m -> { });
@@ -46,9 +52,18 @@ class ManifestParserTest {
         assertEquals("https://example.com", manifest.homepage());
         assertEquals("https://example.com/support", manifest.supportURL());
         assertEquals("src/main.js", manifest.main());
-        assertEquals("key.keyboard.j", manifest.key());
-        assertEquals(ScriptMeta.Lifecycle.ALWAYS, manifest.lifecycle());
         assertEquals(List.of("fs", "net"), manifest.permissions());
+
+        MacroConfig.Keypress keypress = manifest.configOrEmpty().keypress();
+        assertEquals("keydown", keypress.on());
+        assertEquals("key.keyboard.j", keypress.defaultKey());
+        assertEquals(List.of("ctrl", "shift"), keypress.modifiers());
+        assertEquals("keydown", keypress.onOrDefault());
+
+        MacroConfig.Service service = manifest.configOrEmpty().service();
+        assertEquals(ScriptMeta.Lifecycle.ALWAYS, service.lifecycle());
+        assertEquals(Boolean.FALSE, service.autostart());
+        assertEquals(ScriptMeta.Lifecycle.ALWAYS, manifest.lifecycleOr(ScriptCategory.KEYPRESS));
     }
 
     @Test
@@ -58,6 +73,7 @@ class ManifestParserTest {
                 """);
         MacroManifest json = ManifestParser.parse(dir, m -> { });
         assertEquals("j", json.name());
+        assertEquals(MacroConfig.EMPTY, json.configOrEmpty());
     }
 
     @Test
@@ -121,53 +137,127 @@ class ManifestParserTest {
     }
 
     @Test
-    void categoryDefaultsResolveThroughLifecycleOr(@TempDir Path dir) {
-        MacroManifest without = new MacroManifest("n", "1", "a", "", "", "", "", "", "",
-                null, List.of(), List.of(), null);
+    void categoryDefaultsResolveThroughLifecycleOr() {
+        MacroManifest without = new MacroManifest("n", "1", "a", "", "", "", "", "",
+                List.of(), MacroConfig.EMPTY);
         assertEquals(ScriptMeta.Lifecycle.ALWAYS, without.lifecycleOr(ScriptCategory.SERVICES));
         assertEquals(ScriptMeta.Lifecycle.WORLD, without.lifecycleOr(ScriptCategory.EVENT));
         assertEquals(ScriptMeta.Lifecycle.WORLD, without.lifecycleOr(ScriptCategory.KEYPRESS));
 
-        MacroManifest with = new MacroManifest("n", "1", "a", "", "", "", "", "", "",
-                ScriptMeta.Lifecycle.MANUAL, List.of(), List.of(), null);
+        MacroConfig.Service manual = new MacroConfig.Service(ScriptMeta.Lifecycle.MANUAL, null);
+        MacroManifest with = new MacroManifest("n", "1", "a", "", "", "", "", "",
+                List.of(), new MacroConfig(null, null, manual));
         assertEquals(ScriptMeta.Lifecycle.MANUAL, with.lifecycleOr(ScriptCategory.SERVICES));
     }
 
     @Test
-    void eventsAndAutostartAreRecognized(@TempDir Path dir) throws IOException {
+    void eventOnAcceptsScalarAndList(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("neomacro.yml"), """
                 name: demo
                 version: 1.0.0
                 author: tuanzi
-                events:
-                  - ChatReceive
-                  - PlayerConnect
-                autostart: false
+                config:
+                  event:
+                    on: player:join
                 """);
-        List<String> warnings = new ArrayList<>();
-        MacroManifest manifest = ManifestParser.parse(dir, warnings::add);
-
-        assertEquals(List.of("ChatReceive", "PlayerConnect"), manifest.events());
-        assertEquals(Boolean.FALSE, manifest.autostart());
-        // Both are known fields: no unknown-field warnings.
-        assertTrue(warnings.isEmpty(), String.valueOf(warnings));
+        MacroManifest scalar = ManifestParser.parse(dir, m -> { });
+        assertEquals(List.of("player:join"), scalar.configOrEmpty().event().on());
 
         Files.writeString(dir.resolve("neomacro.yml"), """
                 name: demo
                 version: 1.0.0
                 author: tuanzi
-                autostart: true
+                config:
+                  event:
+                    on: [chat:receive, world:join]
                 """);
-        assertEquals(Boolean.TRUE, ManifestParser.parse(dir, m -> { }).autostart());
+        MacroManifest list = ManifestParser.parse(dir, m -> { });
+        assertEquals(List.of("chat:receive", "world:join"), list.configOrEmpty().event().on());
     }
 
     @Test
-    void aTypedAutostartRejectsTheManifest(@TempDir Path dir) throws IOException {
+    void keypressDefaultsAreApplied(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("neomacro.yml"), """
                 name: demo
                 version: 1.0.0
                 author: tuanzi
-                autostart: maybe
+                config:
+                  keypress: {}
+                """);
+        MacroConfig.Keypress keypress = ManifestParser.parse(dir, m -> { }).configOrEmpty().keypress();
+        assertEquals("keypress", keypress.onOrDefault());
+        assertEquals("", keypress.defaultKeyOrEmpty());
+        assertEquals(List.of(), keypress.modifiersOrEmpty());
+    }
+
+    @Test
+    void legacyTopLevelBehaviorFieldsRejectWithMigrationHint(@TempDir Path dir) throws IOException {
+        for (String legacy : List.of("key: key.keyboard.j", "lifecycle: always",
+                "autostart: false", "on: keydown", "modifiers: [ctrl]",
+                "events: [chat:receive]")) {
+            Files.writeString(dir.resolve("neomacro.yml"),
+                    "name: demo\nversion: 1.0.0\nauthor: a\n" + legacy + "\n");
+            ManifestParseException e = assertThrows(ManifestParseException.class,
+                    () -> ManifestParser.parse(dir, m -> { }),
+                    "legacy field should reject: " + legacy);
+            assertTrue(e.getMessage().contains("migration guide"), e.getMessage());
+        }
+    }
+
+    @Test
+    void legacyKeypressKeyInsideConfigRejects(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("neomacro.yml"), """
+                name: demo
+                version: 1.0.0
+                author: tuanzi
+                config:
+                  keypress:
+                    key: key.keyboard.j
+                """);
+        ManifestParseException e = assertThrows(ManifestParseException.class,
+                () -> ManifestParser.parse(dir, m -> { }));
+        assertTrue(e.getMessage().contains("default-key"), e.getMessage());
+    }
+
+    @Test
+    void unknownTriggerEdgeRejects(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("neomacro.yml"), """
+                name: demo
+                version: 1.0.0
+                author: tuanzi
+                config:
+                  keypress:
+                    on: keyleft
+                """);
+        ManifestParseException e = assertThrows(ManifestParseException.class,
+                () -> ManifestParser.parse(dir, m -> { }));
+        assertTrue(e.getMessage().contains("config.keypress.on"), e.getMessage());
+    }
+
+    @Test
+    void unknownModifierRejects(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("neomacro.yml"), """
+                name: demo
+                version: 1.0.0
+                author: tuanzi
+                config:
+                  keypress:
+                    modifiers: [ctrl, hyper]
+                """);
+        ManifestParseException e = assertThrows(ManifestParseException.class,
+                () -> ManifestParser.parse(dir, m -> { }));
+        assertTrue(e.getMessage().contains("modifiers"), e.getMessage());
+    }
+
+    @Test
+    void typedAutostartRejects(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("neomacro.yml"), """
+                name: demo
+                version: 1.0.0
+                author: tuanzi
+                config:
+                  service:
+                    autostart: maybe
                 """);
         ManifestParseException e = assertThrows(ManifestParseException.class,
                 () -> ManifestParser.parse(dir, m -> { }));
@@ -175,16 +265,50 @@ class ManifestParserTest {
     }
 
     @Test
-    void anEventsScalarRejectsTheManifest(@TempDir Path dir) throws IOException {
+    void configMustBeAMapping(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("neomacro.yml"),
+                "name: demo\nversion: 1.0.0\nauthor: a\nconfig: nope\n");
+        ManifestParseException e = assertThrows(ManifestParseException.class,
+                () -> ManifestParser.parse(dir, m -> { }));
+        assertTrue(e.getMessage().contains("'config' must be a mapping"), e.getMessage());
+    }
+
+    @Test
+    void validateForRequiresTheCategorySection(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("neomacro.yml"),
+                "name: demo\nversion: 1.0.0\nauthor: a\n");
+        MacroManifest identity = ManifestParser.parse(dir, m -> { });
+
+        ManifestParseException keypress = assertThrows(ManifestParseException.class,
+                () -> identity.validateFor(ScriptCategory.KEYPRESS, m -> { }));
+        assertTrue(keypress.getMessage().contains("config.keypress"));
+        ManifestParseException event = assertThrows(ManifestParseException.class,
+                () -> identity.validateFor(ScriptCategory.EVENT, m -> { }));
+        assertTrue(event.getMessage().contains("config.event"));
+        // Services may omit config.service entirely (category defaults apply).
+        identity.validateFor(ScriptCategory.SERVICES, m -> { });
+    }
+
+    @Test
+    void validateForWarnsOnForeignSections(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("neomacro.yml"), """
                 name: demo
                 version: 1.0.0
                 author: tuanzi
-                events: ChatReceive
+                config:
+                  keypress:
+                    on: keydown
+                  service:
+                    lifecycle: always
                 """);
-        ManifestParseException e = assertThrows(ManifestParseException.class,
-                () -> ManifestParser.parse(dir, m -> { }));
-        assertTrue(e.getMessage().contains("events"), e.getMessage());
+        MacroManifest manifest = ManifestParser.parse(dir, m -> { });
+        // A keypress macro moved to services keeps its old section; it is
+        // warned about, not rejected. config.service is the section of the
+        // target category and produces no warning.
+        List<String> warnings = new ArrayList<>();
+        manifest.validateFor(ScriptCategory.SERVICES, warnings::add);
+        assertEquals(1, warnings.size());
+        assertTrue(warnings.get(0).contains("config.keypress"));
     }
 
     @Test

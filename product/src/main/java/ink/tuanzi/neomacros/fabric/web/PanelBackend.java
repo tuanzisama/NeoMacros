@@ -1,9 +1,11 @@
 package ink.tuanzi.neomacros.fabric.web;
 
+import ink.tuanzi.neomacros.core.runtime.EvalOutcome;
 import ink.tuanzi.neomacros.fabric.web.v1.FilesResponse;
 import ink.tuanzi.neomacros.fabric.web.v1.MacroView;
 import ink.tuanzi.neomacros.fabric.web.v1.Meta;
 import ink.tuanzi.neomacros.fabric.web.v1.StateSnapshot;
+import ink.tuanzi.neomacros.fabric.web.v1.TasksResponse;
 
 /**
  * The mod-side capabilities the web panel exposes, implemented by the
@@ -12,6 +14,10 @@ import ink.tuanzi.neomacros.fabric.web.v1.StateSnapshot;
  * timeout to 504); everything else is plain thread-safe state.
  */
 public interface PanelBackend {
+
+    /** One DevTools console evaluation: the owning macro name plus the outcome. */
+    record EvalExecution(String macro, EvalOutcome outcome) {
+    }
 
     /** The version-negotiation probe payload. */
     Meta meta();
@@ -27,6 +33,18 @@ public interface PanelBackend {
      * reload}). Must be called on the game main thread.
      */
     MacroView macroAction(String id, String action);
+
+    /**
+     * The task-manager snapshot: active tasks plus the bounded history.
+     * Plain registry state, safe on any thread.
+     */
+    TasksResponse tasks();
+
+    /**
+     * Stops one task by id (unloads its macro). Must be called on the game
+     * main thread; unknown ids are a 404, stopped tasks a 409.
+     */
+    void stopTask(long taskId);
 
     /**
      * Reads one file under the macros root. Pure file IO (no game state),
@@ -98,4 +116,15 @@ public interface PanelBackend {
      * Must be called on the game main thread.
      */
     void deleteMacro(String id);
+
+    /**
+     * Evaluates one DevTools console (REPL) expression. {@code target}
+     * {@code devtools} runs in the shared devtools session; any other value
+     * names a loaded macro whose context (and bindings) the expression
+     * runs in. Guest-level failures (the expression threw) come back inside
+     * the outcome; unknown targets are a 404 and loop timeouts surface as a
+     * 504 {@code eval_timeout} {@code ApiError}. Plain thread-safe: the
+     * engine funnels the work onto the target context loop itself.
+     */
+    EvalExecution evaluateConsole(String target, String expression);
 }

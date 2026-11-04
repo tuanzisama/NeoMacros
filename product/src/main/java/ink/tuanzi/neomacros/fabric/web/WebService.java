@@ -1,9 +1,12 @@
 package ink.tuanzi.neomacros.fabric.web;
 
+import ink.tuanzi.neomacros.core.console.ScriptConsole;
+import ink.tuanzi.neomacros.core.console.ScriptConsoleEvent;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRecord;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry;
 import ink.tuanzi.neomacros.fabric.web.auth.Nm1Verifier;
 import ink.tuanzi.neomacros.fabric.web.auth.NonceStore;
+import ink.tuanzi.neomacros.fabric.web.console.ConsoleRing;
 import ink.tuanzi.neomacros.fabric.web.http.ApiRoute;
 import ink.tuanzi.neomacros.fabric.web.http.AuthFilter;
 import ink.tuanzi.neomacros.fabric.web.http.CorsPolicy;
@@ -13,6 +16,7 @@ import ink.tuanzi.neomacros.fabric.web.log.LogRing;
 import ink.tuanzi.neomacros.fabric.web.log.LogTap;
 import ink.tuanzi.neomacros.fabric.web.openapi.DocsRoutes;
 import ink.tuanzi.neomacros.fabric.web.openapi.OpenApiGenerator;
+import ink.tuanzi.neomacros.fabric.web.pair.PairingRequests;
 import ink.tuanzi.neomacros.fabric.web.pair.PairingService;
 import ink.tuanzi.neomacros.fabric.web.sse.PanelEvents;
 import ink.tuanzi.neomacros.fabric.web.sse.SseHub;
@@ -49,30 +53,39 @@ public final class WebService {
     private final PanelBackend backend;
     private final GameRunner game;
     private final DeviceRegistry devices;
+    private final PairingService pairing;
+    private final PairingRequests pairingRequests;
     private final Supplier<String> listenScope;
     private final IntSupplier configuredPort;
     private final Supplier<String> panelUrl;
     private final Supplier<java.util.List<String>> extraOrigins;
     private final PanelEvents events;
+    private volatile Consumer<PairingRequests.Request> pairRequestListener;
     private LogRing logs;
     private LogTap logTap;
-    private PairingService pairing;
+    private ConsoleRing console;
+    private Consumer<ScriptConsoleEvent> consoleDispatcher;
     private SseHub sse;
     private WebServer server;
 
     /**
-     * Creates the service. The setting suppliers are read per start so
-     * config changes apply without recreating the service; the events
-     * facade carries broadcasts from game-side surfaces to the per-start
-     * hub.
+     * Creates the service. The pairing store, request table, and device
+     * registry are process-lifetime collaborators handed in by the fabric
+     * layer (the stores' files survive service stop/start); the setting
+     * suppliers are read per start so config changes apply without
+     * recreating the service; the events facade carries broadcasts from
+     * game-side surfaces to the per-start hub.
      */
     public WebService(PanelBackend backend, GameRunner game, DeviceRegistry devices,
+                      PairingService pairing, PairingRequests pairingRequests,
                       Supplier<String> listenScope, IntSupplier configuredPort,
-                      Supplier<String> panelUrl, Supplier<java.util.List<String>> extraOrigins,
-                      PanelEvents events) {
+                      Supplier<String> panelUrl,
+                      Supplier<java.util.List<String>> extraOrigins, PanelEvents events) {
         this.backend = backend;
         this.game = game;
         this.devices = devices;
+        this.pairing = pairing;
+        this.pairingRequests = pairingRequests;
         this.listenScope = listenScope;
         this.configuredPort = configuredPort;
         this.panelUrl = panelUrl;
@@ -102,12 +115,18 @@ public final class WebService {
         }
         String scope = listenScope.get();
         LogRing ring = new LogRing(1000);
-        PairingService pairingService = new PairingService(System::currentTimeMillis);
+        ConsoleRing consoleRing = new ConsoleRing(1000);
         SseHub hub = new SseHub(System::currentTimeMillis);
         Nm1Verifier verifier = new Nm1Verifier(devices,
                 new NonceStore(2 * Nm1Verifier.WINDOW_MILLIS), System::currentTimeMillis);
         AuthFilter auth = new AuthFilter(verifier);
-        ApiV1 controller = new ApiV1(backend, game, pairingService, devices, hub, ring);
+        var origins = new ArrayList<String>();
+        origins.add(panelUrl.get());
+        origins.addAll(extraOrigins.get());
+        CorsPolicy cors = new CorsPolicy(origins);
+        ApiV1 controller = new ApiV1(backend, game, pairing, pairingRequests,
+                cors::allowsOrigin, pairRequestListener, devices, hub, ring,
+                consoleRing);
         // The contract document is built over the live route set (the docs
         // endpoint included), then rebuilt with the bound port once known.
         var document = new java.util.concurrent.atomic.AtomicReference<
@@ -119,23 +138,27 @@ public final class WebService {
         OpenApiGenerator generator = new OpenApiGenerator(routes,
                 "NeoMacros Web Panel API", meta.modVersion(), meta.gameVersion(), 0);
         document.set(generator.generate());
-        var origins = new ArrayList<String>();
-        origins.add(panelUrl.get());
-        origins.addAll(extraOrigins.get());
-        WebServer http = new WebServer(controller, docs, hub, auth, new CorsPolicy(origins));
+        WebServer http = new WebServer(controller, docs, hub, auth, cors);
         int bound = http.start(scope, configuredPort.getAsInt());
         document.set(new OpenApiGenerator(routes, "NeoMacros Web Panel API",
                 meta.modVersion(), meta.gameVersion(), bound).generate());
         this.logs = ring;
-        this.pairing = pairingService;
+        this.console = consoleRing;
         this.sse = hub;
         this.server = http;
         events.attach(hub);
         ring.addListener(entry -> events.broadcast("log",
                 Jsons.stringify(new LogEntry(
-                        entry.seq(), entry.level(), entry.logger(), entry.line()))));
+                        entry.seq(), entry.ts(), entry.level(), entry.logger(),
+                        entry.line()))));
         this.logTap = LogTap.install("neomacros", ring);
-        ring.append("INFO", "neomacros.web", "web panel listening on "
+        // Script console feed: core events land in the ring (replay) and the
+        // SSE console event (live tail). The dispatcher is removed on stop;
+        // the always-on log4j mirror is separate and stays installed.
+        this.consoleDispatcher = consoleRing::append;
+        ScriptConsole.installDispatcher(this.consoleDispatcher);
+        consoleRing.addListener(entry -> events.broadcast("console", Jsons.stringify(entry)));
+        ring.append(System.currentTimeMillis(), "INFO", "neomacros.web", "web panel listening on "
                 + scope + " port " + bound);
         LOG.info("web panel listening on {} port {} (apifox import: "
                         + "http://127.0.0.1:{}/api-docs/openapi.json)",
@@ -163,20 +186,79 @@ public final class WebService {
             logTap.remove();
             logTap = null;
         }
+        if (consoleDispatcher != null) {
+            ScriptConsole.removeDispatcher(consoleDispatcher);
+            consoleDispatcher = null;
+        }
         server = null;
         sse = null;
-        pairing = null;
         logs = null;
+        console = null;
         LOG.info("web panel stopped");
     }
 
     /**
-     * Mints a fresh pairing token for a deep link; the service must be
-     * running (the token belongs to a listener the browser can reach).
+     * Mints a fresh pairing token for a deep link. Callers ensure the
+     * service is running first (the token belongs to a listener the
+     * browser can reach); the store itself lives across stop/start.
      */
     public String newPairingToken() {
-        requirePairing();
         return pairing.newToken();
+    }
+
+    /** Registers the game-side listener rendered for each new request. */
+    public void onPairRequest(Consumer<PairingRequests.Request> listener) {
+        this.pairRequestListener = listener;
+    }
+
+    /**
+     * Approves one pending pairing request: registers the device and
+     * freezes its client id. Returns the new device id, or {@code null}
+     * when the request is unknown, expired, or already decided.
+     */
+    public String approvePairRequest(String id) {
+        PairingRequests.Request request = pairingRequests.get(id);
+        if (request == null
+                || pairingRequests.outcomeOf(id) != PairingRequests.Outcome.PENDING) {
+            return null;
+        }
+        DeviceRecord device = devices.register(
+                request.label(), request.algo(), request.pubJwk());
+        pairingRequests.approve(id, device.id());
+        return device.id();
+    }
+
+    /**
+     * Approves one pending request and remembers the machine: later
+     * loopback browsers pair without asking again. Returns the new device
+     * id, or {@code null} when the request is not decidable.
+     */
+    public String trustPairRequest(String id) {
+        String deviceId = approvePairRequest(id);
+        if (deviceId != null) {
+            pairing.setTrustLoopback(true);
+        }
+        return deviceId;
+    }
+
+    /** Denies one pending pairing request; false when not decidable. */
+    public boolean denyPairRequest(String id) {
+        return pairingRequests.deny(id);
+    }
+
+    /** The live pending pairing requests (tab completion and prompts). */
+    public List<PairingRequests.Request> pendingPairRequests() {
+        return pairingRequests.pending();
+    }
+
+    /** Whether tokenless pairing from loopback browsers is auto-approved. */
+    public boolean trustLoopback() {
+        return pairing.trustLoopback();
+    }
+
+    /** Toggles tokenless loopback trust (persisted immediately). */
+    public void setTrustLoopback(boolean value) {
+        pairing.setTrustLoopback(value);
     }
 
     /** The live editor sessions (empty while the service is stopped). */
@@ -215,20 +297,19 @@ public final class WebService {
         return logs;
     }
 
+    /** The script console ring (the SSE console feed for tests). */
+    ConsoleRing console() {
+        return console;
+    }
+
     /** The SSE hub (tests broadcast panels events through it). */
     SseHub sse() {
         return sse;
     }
 
-    private void requirePairing() {
-        if (pairing == null) {
-            throw new IllegalStateException("the web service is not running");
-        }
-    }
-
     private void logLine(String line) {
         if (logs != null) {
-            logs.append("INFO", "neomacros.web", line);
+            logs.append(System.currentTimeMillis(), "INFO", "neomacros.web", line);
         }
         LOG.info(line);
     }

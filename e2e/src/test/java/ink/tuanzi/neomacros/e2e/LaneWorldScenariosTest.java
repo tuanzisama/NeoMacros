@@ -39,8 +39,11 @@ class LaneWorldScenariosTest {
                 "name: " + stem,
                 "version: 1.0.0",
                 "author: e2e",
+                "config:",
+                "  event:",
+                "    on: [game:start]",
                 ""));
-        Files.writeString(folder.resolve("index.js"), source);
+        Files.writeString(folder.resolve("index.js"), source + "\nexport function startup() {}\n");
     }
 
     @Test

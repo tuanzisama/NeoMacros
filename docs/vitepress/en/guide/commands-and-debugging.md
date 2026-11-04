@@ -35,6 +35,36 @@ chat.actionbar("above the hotbar, fades out");     // action bar
 `chat.log` is local-only — it never reaches the server — so it is safe for
 verbose debugging.
 
+## The script console
+
+Macros also get the browser-style **`console`** global. Output streams live
+into the **控制台 (Console)** tab of the web panel DevTools, tagged with the
+macro name, file, and line (click the location to jump to that line in the
+editor), and a plain-text copy mirrors into the game log:
+
+```js
+console.log("hello", { a: 1 }, [1, 2, 3]);   // objects/arrays expand in the panel
+console.info("info");  console.warn("warn"); console.error("error"); console.debug("debug");
+console.count("hits");                        // hits: 1 / 2 / …
+console.time("boot");  console.timeEnd("boot");  // boot: 12.34ms
+console.group("ctx");  console.log("nested"); console.groupEnd();
+console.trace("who called");                  // expandable call stack
+console.table([{ item: "apple", n: 3 }]);     // rendered as a table
+console.assert(cond, "only when cond is falsy");
+console.clear();                              // clears the panel view
+```
+
+Notes:
+
+- **Structured rendering**: objects and arrays are expandable preview trees
+  (depth/length capped); MC `Component`s render as colored rich text; Java
+  `Class`es show their fully-qualified name.
+- **Placeholders**: `console.log("player %s level %d", name, level)` supports
+  `%s %d %i %f %j %o %c`.
+- **Rate limiting**: 50-burst, 25/s sustained per script; excess emissions are
+  dropped and surfaced as one WARN notice ("N message(s) suppressed").
+- `console` needs no `meta.permissions` entry — every script has it.
+
 ## Reading the errors screen
 
 When a handler throws, NeoMacros captures the error; the script does not

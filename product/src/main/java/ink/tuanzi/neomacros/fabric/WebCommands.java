@@ -99,6 +99,61 @@ final class WebCommands {
                                             "neomacros.cmd.web.unknown_session", Msg.name(id));
                                     return 0;
                                 })))
+                // Tokenless pairing decisions; the ids complete from the
+                // live pending set. Approve registers the browser, trust
+                // also answers future loopback browsers without asking.
+                .then(literal("approve")
+                        .then(argument("id", StringArgumentType.word())
+                                .suggests(suggestPendingRequests(context))
+                                .executes(ctx -> {
+                                    String id = StringArgumentType.getString(ctx, "id");
+                                    String deviceId = context.web().approvePairRequest(id);
+                                    if (deviceId != null) {
+                                        feedback(ctx.getSource(),
+                                                "neomacros.cmd.web.approved", Msg.name(deviceId));
+                                        return Command.SINGLE_SUCCESS;
+                                    }
+                                    feedback(ctx.getSource(),
+                                            "neomacros.cmd.web.no_pending_request", Msg.name(id));
+                                    return 0;
+                                })))
+                .then(literal("trust-host")
+                        .then(argument("id", StringArgumentType.word())
+                                .suggests(suggestPendingRequests(context))
+                                .executes(ctx -> {
+                                    String id = StringArgumentType.getString(ctx, "id");
+                                    String deviceId = context.web().trustPairRequest(id);
+                                    if (deviceId != null) {
+                                        feedback(ctx.getSource(),
+                                                "neomacros.cmd.web.trusted", Msg.name(deviceId));
+                                        return Command.SINGLE_SUCCESS;
+                                    }
+                                    feedback(ctx.getSource(),
+                                            "neomacros.cmd.web.no_pending_request", Msg.name(id));
+                                    return 0;
+                                })))
+                .then(literal("deny")
+                        .then(argument("id", StringArgumentType.word())
+                                .suggests(suggestPendingRequests(context))
+                                .executes(ctx -> {
+                                    String id = StringArgumentType.getString(ctx, "id");
+                                    if (context.web().denyPairRequest(id)) {
+                                        feedback(ctx.getSource(), "neomacros.cmd.web.denied");
+                                        return Command.SINGLE_SUCCESS;
+                                    }
+                                    feedback(ctx.getSource(),
+                                            "neomacros.cmd.web.no_pending_request", Msg.name(id));
+                                    return 0;
+                                })))
+                .then(literal("untrust").executes(ctx -> {
+                    if (context.web().trustLoopback()) {
+                        context.web().setTrustLoopback(false);
+                        feedback(ctx.getSource(), "neomacros.cmd.web.untrusted");
+                        return Command.SINGLE_SUCCESS;
+                    }
+                    feedback(ctx.getSource(), "neomacros.cmd.web.not_trusted");
+                    return 0;
+                }))
                 .then(literal("devices").executes(ctx -> {
                     var devices = context.web().devices();
                     feedback(ctx.getSource(), "neomacros.cmd.web.devices_header",
@@ -123,6 +178,17 @@ final class WebCommands {
                                                     "neomacros.cmd.web.unknown_device", Msg.name(id));
                                             return 0;
                                         }))));
+    }
+
+    /** Tab completion over the live pending pairing request ids. */
+    private static com.mojang.brigadier.suggestion.SuggestionProvider<FabricClientCommandSource>
+            suggestPendingRequests(Context context) {
+        return (ctx, builder) -> {
+            for (var request : context.web().pendingPairRequests()) {
+                builder.suggest(request.id());
+            }
+            return builder.buildFuture();
+        };
     }
 
     /**

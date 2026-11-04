@@ -17,7 +17,7 @@ per script.
 1. Install Fabric Loader for your Minecraft version.
 2. Drop the NeoMacros jar and the matching Fabric API jar into your `mods`
    folder.
-3. Launch the game once; NeoMacros creates `config/neomacros/scripts`.
+3. Launch the game once; NeoMacros creates `config/neomacros/macros`.
 
 ## Folder layout
 
@@ -27,7 +27,7 @@ Everything a script touches lives under the game directory:
 .minecraft/
 └── config/
     └── neomacros/
-        ├── options.json   # mod settings
+        ├── config.json    # mod settings
         └── macros/        # your scripts, one folder per script
             ├── keypress/  # key-bound scripts
             ├── event/     # event-driven scripts

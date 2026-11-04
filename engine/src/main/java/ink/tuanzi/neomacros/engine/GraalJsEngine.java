@@ -2,6 +2,10 @@ package ink.tuanzi.neomacros.engine;
 
 import ink.tuanzi.neomacros.core.api.bindgen.ModuleBinding;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionError;
+import ink.tuanzi.neomacros.core.console.ScriptConsole;
+import ink.tuanzi.neomacros.core.console.ScriptConsoleEvent;
+import ink.tuanzi.neomacros.core.runtime.EvalOutcome;
+import ink.tuanzi.neomacros.core.runtime.EvalTimeoutError;
 import ink.tuanzi.neomacros.core.runtime.ScriptContext;
 import ink.tuanzi.neomacros.core.runtime.ScriptEngine;
 import ink.tuanzi.neomacros.core.runtime.ScriptError;
@@ -27,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 /**
  * GraalJS implementation of the engine SPI. One polyglot {@link Context} per
@@ -48,9 +53,11 @@ public final class GraalJsEngine implements ScriptEngine {
 
     /**
      * Engine glue evaluated once per session on the loop thread: the async
-     * binding wrapper, guest Error construction for rejections, and the
-     * deeply-frozen {@code neo} global installation. The binding tree itself
-     * is built from Java through the polyglot Value API (host maps are not
+     * binding wrapper, guest Error construction for rejections, the
+     * deeply-frozen {@code neo} global installation, and the {@code console}
+     * global (thin wrappers over the host emit proxy; the host formats
+     * values and resolves call sites). The binding tree itself is built
+     * from Java through the polyglot Value API (host maps are not
      * enumerable from guest code when host access is disabled).
      */
     private static final String GLUE = """
@@ -88,6 +95,107 @@ public final class GraalJsEngine implements ScriptEngine {
                 });
                 return tree;
             };
+            // Console: thin JS wrappers over the host emit proxy. Wrappers
+            // only capture the call-site stack and keep group/timer/counter
+            // state; all value formatting happens host-side. The host skips
+            // frames from this glue source when resolving the location.
+            globalThis.__neoInstallConsole = function (emit) {
+                const groupDepth = { value: 0 };
+                const timers = Object.create(null);
+                const counters = Object.create(null);
+                const nowMs = function () { return (new Date()).getTime(); };
+                const channel = function (value) {
+                    return value === undefined ? 'default' : String(value);
+                };
+                const send = function (level, kind, args, extra) {
+                    let stack = '';
+                    try {
+                        stack = (new Error()).stack || '';
+                    } catch (e) {
+                        stack = '';
+                    }
+                    emit(level, kind, args, extra || {}, stack);
+                };
+                const basic = function (level) {
+                    return function () {
+                        send(level, level, Array.prototype.slice.call(arguments),
+                                { depth: groupDepth.value });
+                    };
+                };
+                const consoleObject = {
+                    log: basic('log'),
+                    info: basic('info'),
+                    warn: basic('warn'),
+                    error: basic('error'),
+                    debug: basic('debug'),
+                    trace: function () {
+                        send('log', 'trace', Array.prototype.slice.call(arguments),
+                                { depth: groupDepth.value });
+                    },
+                    dir: function () {
+                        send('log', 'dir', Array.prototype.slice.call(arguments),
+                                { depth: groupDepth.value });
+                    },
+                    table: function () {
+                        send('log', 'table', Array.prototype.slice.call(arguments),
+                                { depth: groupDepth.value });
+                    },
+                    assert: function (condition) {
+                        if (!condition) {
+                            const rest = Array.prototype.slice.call(arguments, 1);
+                            send('error', 'assert', rest, { depth: groupDepth.value });
+                        }
+                    },
+                    count: function (value) {
+                        const key = channel(value);
+                        counters[key] = (counters[key] || 0) + 1;
+                        send('log', 'count', [],
+                                { depth: groupDepth.value, label: key, count: counters[key] });
+                    },
+                    countReset: function (value) {
+                        counters[channel(value)] = 0;
+                    },
+                    time: function (value) {
+                        timers[channel(value)] = nowMs();
+                    },
+                    timeLog: function (value) {
+                        const key = channel(value);
+                        if (timers[key] !== undefined) {
+                            send('log', 'time', [],
+                                    { depth: groupDepth.value, label: key, ms: nowMs() - timers[key] });
+                        }
+                    },
+                    timeEnd: function (value) {
+                        const key = channel(value);
+                        if (timers[key] !== undefined) {
+                            const ms = nowMs() - timers[key];
+                            delete timers[key];
+                            send('log', 'timeEnd', [],
+                                    { depth: groupDepth.value, label: key, ms: ms });
+                        }
+                    },
+                    group: function () {
+                        send('log', 'group', Array.prototype.slice.call(arguments),
+                                { depth: groupDepth.value });
+                        groupDepth.value = groupDepth.value + 1;
+                    },
+                    groupEnd: function () {
+                        if (groupDepth.value > 0) {
+                            groupDepth.value = groupDepth.value - 1;
+                        }
+                    },
+                    clear: function () {
+                        send('log', 'clear', [], { depth: 0 });
+                    }
+                };
+                consoleObject.groupCollapsed = consoleObject.group;
+                Object.defineProperty(globalThis, 'console', {
+                    value: Object.freeze(consoleObject),
+                    writable: false,
+                    enumerable: true,
+                    configurable: false
+                });
+            };
             """;
 
     private final ModuleResolver resolver;
@@ -114,6 +222,7 @@ public final class GraalJsEngine implements ScriptEngine {
                 throw translate("neomacros-engine-glue", e);
             }
             session.glue = session.context.getBindings("js");
+            session.installConsole();
             return null;
         });
         sessions.add(session);
@@ -167,12 +276,15 @@ public final class GraalJsEngine implements ScriptEngine {
 
         private final ScriptContext owner;
         private final Context context;
+        private final Path moduleRoot;
+        private final ConsoleRateLimiter rateLimiter = new ConsoleRateLimiter();
         private Value glue;
         private Value lastNamespace;
         private Value cachedUndefined;
 
         private GraalJsSession(ScriptContext owner, Path moduleRoot) {
             this.owner = owner;
+            this.moduleRoot = moduleRoot;
             this.context = Context.newBuilder("js")
                     .allowHostAccess(HostAccess.NONE)
                     .allowIO(IOAccess.newBuilder()
@@ -251,9 +363,297 @@ public final class GraalJsEngine implements ScriptEngine {
             });
         }
 
+        /** Matches any {@code await} token; script-mime eval cannot run top-level await. */
+        private static final Pattern AWAIT_TOKEN = Pattern.compile("\\bawait\\b");
+
+        /** Source name REPL frames report in error stacks. */
+        private static final String REPL_SOURCE_NAME = "devtools-repl";
+
+        /**
+         * Evaluates one REPL expression with script semantics: top-level
+         * {@code let/const/function} persist in the global lexical environment
+         * across evaluations (module-mime eval would scope them to the module
+         * record). Sources containing {@code await} are wrapped in an async
+         * IIFE, and a promise completion value is settled on the loop without
+         * blocking it (mirroring {@link #importModule}). Guest-level failures
+         * come back as an error outcome; loop trouble throws
+         * {@link EvalTimeoutError} / {@link ScriptError}.
+         */
+        @Override
+        public EvalOutcome eval(String expression) throws ScriptError {
+            long startNanos = System.nanoTime();
+            CompletableFuture<EvalOutcome> done = new CompletableFuture<>();
+            owner.loop().execute(() -> {
+                try {
+                    Value result = context.eval(Source.newBuilder("js", awaitWrapped(expression),
+                            REPL_SOURCE_NAME).buildLiteral());
+                    if (isPromiseLike(result)) {
+                        result.getMember("then").execute(
+                                executable(arguments -> {
+                                    done.complete(valueOutcome(
+                                            arguments.length > 0 ? arguments[0] : undefinedValue(),
+                                            startNanos));
+                                    return null;
+                                }),
+                                executable(arguments -> {
+                                    done.complete(errorOutcome(
+                                            arguments.length > 0 ? arguments[0] : null,
+                                            startNanos));
+                                    return null;
+                                }));
+                        return;
+                    }
+                    done.complete(valueOutcome(result, startNanos));
+                } catch (PolyglotException e) {
+                    done.complete(polyglotErrorOutcome(e, startNanos));
+                } catch (Throwable t) {
+                    done.completeExceptionally(t);
+                }
+            });
+            try {
+                return done.get(LOOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof ScriptError scriptError) {
+                    throw scriptError;
+                }
+                throw new ScriptError(cause.getMessage(), cause);
+            } catch (TimeoutException e) {
+                throw new EvalTimeoutError("the expression did not settle within "
+                        + LOOP_TIMEOUT_SECONDS + "s");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ScriptError("interrupted while waiting on the context loop", e);
+            }
+        }
+
+        /** Script-mime eval cannot run top-level await; wrap such sources in an async IIFE. */
+        private static String awaitWrapped(String expression) {
+            if (AWAIT_TOKEN.matcher(expression).find()) {
+                return "(async () => {\n" + expression + "\n})()";
+            }
+            return expression;
+        }
+
+        /** Promise-shaped check: any object whose {@code then} member is callable. */
+        private static boolean isPromiseLike(Value value) {
+            try {
+                if (value == null || value.isNull() || !value.hasMembers()) {
+                    return false;
+                }
+                Value then = value.getMember("then");
+                return then != null && then.canExecute();
+            } catch (RuntimeException e) {
+                return false;
+            }
+        }
+
+        /** Renders one settled value as a value outcome (loop thread). */
+        private EvalOutcome valueOutcome(Value value, long startNanos) {
+            ConsoleFormatter formatter = new ConsoleFormatter(context, ConsoleFormatter.MAX_NODES);
+            return EvalOutcome.ofValue(formatter.node(value), elapsedMs(startNanos));
+        }
+
+        /** Renders one rejection reason as an error outcome (loop thread). */
+        private EvalOutcome errorOutcome(Value thrown, long startNanos) {
+            long durationMs = elapsedMs(startNanos);
+            if (thrown == null || thrown.isNull()) {
+                return EvalOutcome.ofError("Error", "promise rejected without a reason", null, durationMs);
+            }
+            ConsoleFormatter formatter = new ConsoleFormatter(context, ConsoleFormatter.MAX_NODES);
+            Map<String, Object> node = formatter.node(thrown);
+            if ("err".equals(node.get("t"))) {
+                return EvalOutcome.ofError(String.valueOf(node.get("name")),
+                        String.valueOf(node.get("msg")),
+                        String.valueOf(node.get("stack")), durationMs);
+            }
+            // Non-Error rejection reason (a string, a number, ...): generic wrapper.
+            return EvalOutcome.ofError("Error", ConsoleFormatter.previewOf(node), null, durationMs);
+        }
+
+        /** Renders a host-visible polyglot failure as an error outcome (loop thread). */
+        private EvalOutcome polyglotErrorOutcome(PolyglotException pe, long startNanos) {
+            try {
+                Object guest = pe.getGuestObject();
+                if (guest != null) {
+                    Value asValue = context.asValue(guest);
+                    if (asValue != null && !asValue.isNull()) {
+                        return errorOutcome(asValue, startNanos);
+                    }
+                }
+            } catch (Throwable ignored) {
+                // fall through to the frame-derived rendering
+            }
+            String message = pe.getMessage() == null ? "eval failed" : pe.getMessage();
+            return EvalOutcome.ofError(fallbackErrorName(message), message,
+                    synthesizedStack(pe), elapsedMs(startNanos));
+        }
+
+        /** Splits a "TypeError: ..." style message into name and message. */
+        private static String fallbackErrorName(String message) {
+            int split = message.indexOf(": ");
+            if (split > 0 && split <= 32 && !message.substring(0, split).contains(" ")) {
+                return message.substring(0, split);
+            }
+            return "Error";
+        }
+
+        /** Guest frames of a polyglot failure as a displayable stack string. */
+        private static String synthesizedStack(PolyglotException pe) {
+            StringBuilder sb = new StringBuilder();
+            for (var frame : pe.getPolyglotStackTrace()) {
+                if (!frame.isGuestFrame() || frame.getSourceLocation() == null) {
+                    continue;
+                }
+                var location = frame.getSourceLocation();
+                if (sb.length() > 0) {
+                    sb.append('\n');
+                }
+                sb.append("    at ")
+                        .append(frame.getRootName() == null || frame.getRootName().isEmpty()
+                                ? "<anonymous>" : frame.getRootName())
+                        .append(" (").append(location.getSource().getName())
+                        .append(':').append(location.getStartLine())
+                        .append(':').append(location.getStartColumn()).append(')');
+                if (sb.length() > 2000) {
+                    break;
+                }
+            }
+            return sb.toString();
+        }
+
+        private static long elapsedMs(long startNanos) {
+            return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+        }
+
         /** Reads a global left behind by executed modules (observation surface). */
         Value global(String name) throws ScriptError {
             return onLoop(() -> context.getBindings("js").getMember(name));
+        }
+
+        /**
+         * Installs the console global: a host emit proxy (value formatting,
+         * rate limiting, call-site resolution, dispatch) handed to the GLUE
+         * wrappers that define the browser-shaped methods. Runs on the loop
+         * thread; the proxy body therefore also runs on the loop when a
+         * script emits, and ScriptConsole.dispatch hands the finished event
+         * to the ordered pipeline thread so sinks never block the loop.
+         */
+        void installConsole() {
+            Value emit = context.asValue((ProxyExecutable) arguments -> {
+                emitConsole(arguments);
+                return null;
+            });
+            glue.getMember("__neoInstallConsole").execute(emit);
+        }
+
+        /** One console emission from the GLUE wrapper (loop thread). */
+        private void emitConsole(Value[] arguments) {
+            ConsoleRateLimiter.Decision decision = rateLimiter.acquire();
+            if (!decision.allowed() && decision.suppressedCount() == 0) {
+                return;
+            }
+            String level = stringArg(arguments, 0, "log");
+            String kind = stringArg(arguments, 1, "log");
+            Value jsArgs = arguments.length > 2 && arguments[2] != null ? arguments[2] : null;
+            Value extra = arguments.length > 3 && arguments[3] != null ? arguments[3] : null;
+            String stack = stringArg(arguments, 4, "");
+            ConsoleLocation.Location location = ConsoleLocation.parse(stack, moduleRoot);
+
+            if (decision.suppressedCount() > 0) {
+                Map<String, Object> notice = new LinkedHashMap<>();
+                notice.put("t", "str");
+                notice.put("v", "console: " + decision.suppressedCount()
+                        + " message(s) suppressed by rate limit");
+                ScriptConsole.dispatch(new ScriptConsoleEvent(owner.name(), "log", "warn",
+                        location.file(), location.line(), location.column(), depthOf(extra),
+                        List.of(notice), null, null, null, null, System.currentTimeMillis()));
+            }
+            if (!decision.allowed()) {
+                return;
+            }
+
+            ConsoleFormatter formatter = new ConsoleFormatter(context, ConsoleFormatter.MAX_NODES);
+            List<Object> args = new ArrayList<>();
+            if (jsArgs != null && jsArgs.hasArrayElements()) {
+                long shown = Math.min(jsArgs.getArraySize(), ConsoleFormatter.MAX_ARGS);
+                for (long i = 0; i < shown; i++) {
+                    args.add(formatter.node(jsArgs.getArrayElement(i)));
+                }
+            }
+
+            boolean wantsStack = kind.equals("trace") || kind.equals("assert");
+            ScriptConsole.dispatch(new ScriptConsoleEvent(owner.name(), kind, level,
+                    location.file(), location.line(), location.column(), depthOf(extra),
+                    args,
+                    stringOf(extra, "label"), intOf(extra, "count"), doubleOf(extra, "ms"),
+                    wantsStack ? ConsoleFormatter.capStack(stack) : null,
+                    System.currentTimeMillis()));
+        }
+
+        /** Extra-object member readers (GLUE sends depth/label/count/ms). */
+        private static int depthOf(Value extra) {
+            try {
+                if (extra != null && extra.hasMember("depth")) {
+                    return extra.getMember("depth").asInt();
+                }
+            } catch (RuntimeException ignored) {
+                // fall through to the default
+            }
+            return 0;
+        }
+
+        private static String stringOf(Value extra, String name) {
+            try {
+                if (extra != null && extra.hasMember(name)) {
+                    Value member = extra.getMember(name);
+                    if (member != null && !member.isNull() && member.isString()) {
+                        return member.asString();
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                // fall through to null
+            }
+            return null;
+        }
+
+        private static Integer intOf(Value extra, String name) {
+            try {
+                if (extra != null && extra.hasMember(name)) {
+                    Value member = extra.getMember(name);
+                    if (member != null && member.isNumber()) {
+                        return member.asInt();
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                // fall through to null
+            }
+            return null;
+        }
+
+        private static Double doubleOf(Value extra, String name) {
+            try {
+                if (extra != null && extra.hasMember(name)) {
+                    Value member = extra.getMember(name);
+                    if (member != null && member.isNumber()) {
+                        return member.asDouble();
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                // fall through to null
+            }
+            return null;
+        }
+
+        private static String stringArg(Value[] arguments, int index, String fallback) {
+            try {
+                if (index < arguments.length && arguments[index] != null && arguments[index].isString()) {
+                    return arguments[index].asString();
+                }
+            } catch (RuntimeException ignored) {
+                // fall through to the fallback
+            }
+            return fallback;
         }
 
         /** Guest-side Error factory for binding rejections (host throwables cannot cross). */

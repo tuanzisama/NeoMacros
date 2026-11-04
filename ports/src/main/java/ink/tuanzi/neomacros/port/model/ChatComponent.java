@@ -14,7 +14,7 @@ import java.util.Objects;
  */
 public record ChatComponent(String text, String color,
                             Boolean bold, Boolean italic, Boolean underlined, Boolean strikethrough,
-                            List<ChatComponent> children) {
+                            Boolean obfuscated, List<ChatComponent> children) {
 
     public ChatComponent {
         Objects.requireNonNull(text, "text cannot be null");
@@ -23,6 +23,6 @@ public record ChatComponent(String text, String color,
 
     /** Component with the given plain text and all styling inherited. */
     public static ChatComponent plain(String text) {
-        return new ChatComponent(text, null, null, null, null, null, List.of());
+        return new ChatComponent(text, null, null, null, null, null, null, List.of());
     }
 }

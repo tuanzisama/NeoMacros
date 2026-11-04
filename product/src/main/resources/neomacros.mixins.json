@@ -6,6 +6,7 @@
   "client": [
     "ChatDisplayMixin",
     "MouseScrollMixin",
+    "KeyMappingHookMixin",
     "ClientLevelEntityMixin",
     "ClientLevelWorldMixin",
     "ClientChunkCacheMixin",

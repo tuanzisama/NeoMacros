@@ -23,7 +23,7 @@ class NeutralTypeImmutabilityTest {
     void chatComponentCopiesChildrenDefensively() {
         List<ChatComponent> children = new ArrayList<>();
         children.add(ChatComponent.plain("child"));
-        ChatComponent component = new ChatComponent("text", "red", true, null, null, null, children);
+        ChatComponent component = new ChatComponent("text", "red", true, null, null, null, null, children);
 
         children.add(ChatComponent.plain("late"));
         assertEquals(1, component.children().size(), "late mutation must not leak in");
@@ -36,7 +36,7 @@ class NeutralTypeImmutabilityTest {
     @Test
     void chatComponentRejectsNullText() {
         assertThrows(NullPointerException.class,
-                () -> new ChatComponent(null, null, null, null, null, null, List.of()));
+                () -> new ChatComponent(null, null, null, null, null, null, null, List.of()));
     }
 
     @Test
