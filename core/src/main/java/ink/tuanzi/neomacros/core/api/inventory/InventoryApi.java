@@ -17,8 +17,11 @@ import java.util.Optional;
  * The {@code neo.inventory} facade: container queries and item movement.
  * The {@code opened} property is a live Container handle for the currently
  * open container screen; actions dispatch on the main thread.
+ *
+ * @zh {@code neo.inventory} 门面：容器查询与物品移动。{@code opened} 属性是当前打开容器屏幕的活句柄；操作在主线程派发。
  */
 @ApiModule(name = "inventory", category = "世界")
+@ApiSince("0.1.0")
 public final class InventoryApi {
 
     /**
@@ -43,6 +46,8 @@ public final class InventoryApi {
      * Live container handle: slot reads re-query the inventory port on every
      * access; actions (click/quickMove/drop/close) dispatch on the main
      * thread and resolve once processed.
+     *
+     * @zh 容器句柄：槽位读取每次都重新查询物品栏端口；click/quickMove/drop/close 操作在主线程派发，处理完成后落定。
      */
     @ApiClass(name = "Container", kind = ApiClassKind.HANDLE)
     public static class Container implements ScriptHandle {
@@ -57,28 +62,32 @@ public final class InventoryApi {
             this.size = size;
         }
 
-        /** The container display title. */
+        /** The container display title.
+         * @zh 容器显示标题。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public String getTitle() {
             return title;
         }
 
-        /** The container kind ({@code player}, {@code chest}, {@code crafting}, ...). */
+        /** The container kind ({@code player}, {@code chest}, {@code crafting}, ...).
+         * @zh 容器种类（{@code player}、{@code chest}、{@code crafting} 等）。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public String getKind() {
             return kind;
         }
 
-        /** The container slot count. */
+        /** The container slot count.
+         * @zh 容器槽位总数。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public int getSize() {
             return size;
         }
 
-        /** Reads the stack at a slot, or undefined when out of range or empty. */
+        /** Reads the stack at a slot, or undefined when out of range or empty.
+         * @zh 读取指定槽位的物品；越界或空槽为 undefined。 */
         @ApiSince("0.1.0")
         public Map<String, Object> slot(int index) {
             return adapter().slot(index)
@@ -86,7 +95,8 @@ public final class InventoryApi {
                     .orElse(null);
         }
 
-        /** All non-empty stacks with their slot indices. */
+        /** All non-empty stacks with their slot indices.
+         * @zh 全部非空物品及其槽位号。 */
         @ApiSince("0.1.0")
         public List<Map<String, Object>> getItems() {
             return adapter().allItems().get().stream()
@@ -98,38 +108,44 @@ public final class InventoryApi {
                     .toList();
         }
 
-        /** Counts occurrences of one item id. */
+        /** Counts occurrences of one item id.
+         * @zh 统计某物品 ID 的数量。 */
         @ApiSince("0.1.0")
         public int countOf(String item) {
             return adapter().countOf(item);
         }
 
-        /** Clicks a slot (button 0 = left, 1 = right; shift = quick move). */
+        /** Clicks a slot (button 0 = left, 1 = right; shift = quick move).
+         * @zh 点击槽位（button 0 = 左键，1 = 右键；shift = 快速移动）。 */
         @ApiSince("0.1.0")
         public java.util.concurrent.CompletableFuture<Void> click(int slot,
                 int button, boolean shift) {
             return adapter().click(slot, button, shift);
         }
 
-        /** Quick-moves a slot to the other inventory. */
+        /** Quick-moves a slot to the other inventory.
+         * @zh 将槽位物品快速移动到另一侧物品栏。 */
         @ApiSince("0.1.0")
         public java.util.concurrent.CompletableFuture<Void> quickMove(int slot) {
             return adapter().quickMove(slot);
         }
 
-        /** Drops the stack from a slot. */
+        /** Drops the stack from a slot.
+         * @zh 丢弃槽位中的物品（all = 全部）。 */
         @ApiSince("0.1.0")
         public java.util.concurrent.CompletableFuture<Void> drop(int slot, boolean all) {
             return adapter().drop(slot, all);
         }
 
-        /** Swaps a container slot with a hotbar slot. */
+        /** Swaps a container slot with a hotbar slot.
+         * @zh 将容器槽位与快捷栏槽位交换。 */
         @ApiSince("0.1.0")
         public java.util.concurrent.CompletableFuture<Void> swapHotbar(int slot, int hotbarIndex) {
             return adapter().swapHotbar(slot, hotbarIndex);
         }
 
-        /** Closes the container screen. */
+        /** Closes the container screen.
+         * @zh 关闭容器屏幕。 */
         @ApiSince("0.1.0")
         public java.util.concurrent.CompletableFuture<Void> close() {
             return adapter().close();

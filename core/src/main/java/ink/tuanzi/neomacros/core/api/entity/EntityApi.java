@@ -21,8 +21,11 @@ import java.util.UUID;
  * The {@code neo.entity} facade: entity queries over the loaded world.
  * Queries return plain snapshots; {@link #lookup} hands out a live handle
  * whose getters read current state in real time.
+ *
+ * @zh {@code neo.entity} 门面：对已加载世界的实体查询。查询返回纯快照；{@code lookup} 发放活句柄，其属性实时回读当前状态。
  */
 @ApiModule(name = "entity", category = "世界")
+@ApiSince("0.1.0")
 public final class EntityApi {
 
     /**
@@ -246,7 +249,8 @@ public final class EntityApi {
             return SnapshotViews.entity(current().orElse(null));
         }
 
-        /** Human-readable form. */
+        /** Human-readable form.
+         * @zh 人类可读形式。 */
         @Override
         public String toString() {
             return "Entity(uuid=" + uuid + ")";

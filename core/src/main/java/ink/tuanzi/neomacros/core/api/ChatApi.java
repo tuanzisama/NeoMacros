@@ -6,8 +6,11 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 /**
  * The {@code neo.chat} facade: chat output services. Sending targets the
  * connected server; log and actionbar render locally only.
+ *
+ * @zh {@code neo.chat} 门面：聊天输出服务。say 发往所连服务器；log 与 actionbar 仅本地渲染。
  */
 @ApiModule(name = "chat", category = "界面")
+@ApiSince("0.1.0")
 public final class ChatApi {
 
     /**

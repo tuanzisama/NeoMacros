@@ -17,8 +17,11 @@ import java.util.Optional;
  * The {@code neo.world} facade: world queries over the loaded client world.
  * Positions use plain world coordinates; results are plain point-in-time
  * objects.
+ *
+ * @zh {@code neo.world} 门面：对已加载客户端世界的查询。位置使用普通世界坐标；结果为纯时点对象。
  */
 @ApiModule(name = "world", category = "世界")
+@ApiSince("0.1.0")
 public final class WorldApi {
 
     /**

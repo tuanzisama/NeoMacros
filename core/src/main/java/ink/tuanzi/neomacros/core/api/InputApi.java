@@ -15,8 +15,11 @@ import java.util.function.Consumer;
  * The {@code neo.input} facade: keybind registration (surfaced in the vanilla
  * controls menu), raw key press listening, mouse wheel events, and key
  * injection ({@code press/release/hold/set}).
+ *
+ * @zh {@code neo.input} 门面：按键绑定注册（显示在原版控制设置中）、原始按键监听、鼠标滚轮事件与按键注入（{@code press/release/hold/set}）。
  */
 @ApiModule(name = "input", category = "输入")
+@ApiSince("0.1.0")
 public final class InputApi {
 
     private final InputBridge bridge;
@@ -86,7 +89,8 @@ public final class InputApi {
         return CompletableFuture.completedFuture(null);
     }
 
-    /** Removes a previously registered keybind or press listener. */
+    /** Removes a previously registered keybind or press listener.
+     * @zh 注销先前注册的按键绑定或按下监听。 */
     @ApiSince("0.1.0")
     public void unregister(Object handle) {
         if (handle instanceof Subscription subscription) {

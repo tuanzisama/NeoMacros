@@ -18,6 +18,8 @@ import java.util.Map;
  * access with no class filtering. Construction happens through the class
  * proxy's {@code new(...)} member; results wrap as object proxies whose
  * members reach unwrapped Java fields and methods.
+ *
+ * @zh {@code neo.java} 门面：宿主 JVM 的穿透层。类查找使用二进制名（Minecraft 类为 Mojmap 名，调用点经映射层翻译）；本模块全部能力需 java 权限——授予权限即交给脚本完整宿主访问，无类过滤。构造经类代理的 {@code new(...)} 成员完成，结果包装为对象代理，其成员直达未包装的 Java 字段与方法。
  */
 @ApiModule(name = "java", category = "系统")
 @ApiPermission("java")

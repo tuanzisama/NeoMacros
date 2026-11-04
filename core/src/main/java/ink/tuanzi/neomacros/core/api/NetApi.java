@@ -22,8 +22,11 @@ import java.util.concurrent.ExecutorService;
  * on a dedicated IO executor and require the {@code net} capability; the
  * promise settles with a live {@link NetApi.Response} whose body readers
  * ({@code text()}, {@code json()}, {@code bytes()}) are async.
+ *
+ * @zh {@code neo.net} 门面：fetch 语义的 HTTP 客户端。请求在专用 IO 线程池执行，需 net 能力授权；Promise 以活 {@code Response} 落定，其 body 读取器（{@code text()}、{@code json()}、{@code bytes()}）均为异步。
  */
 @ApiModule(name = "net", category = "系统")
+@ApiSince("0.1.0")
 public final class NetApi {
 
     private final HttpClient client;

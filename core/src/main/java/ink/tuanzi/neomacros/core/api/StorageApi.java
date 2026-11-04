@@ -10,8 +10,11 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  * Values must be JSON-serializable plain data (objects, arrays, strings,
  * numbers, booleans); each script owns an isolated store keyed by its source
  * file name, surviving reloads and game restarts.
+ *
+ * @zh {@code neo.storage} 门面：按脚本隔离的持久键值存储。值必须是可 JSON 序列化的纯数据（对象/数组/字符串/数字/布尔）；每个脚本按源文件名拥有独立存储，跨重载与游戏重启保留。
  */
 @ApiModule(name = "storage", category = "核心")
+@ApiSince("0.1.0")
 public final class StorageApi {
 
     /**

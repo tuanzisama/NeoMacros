@@ -24,8 +24,11 @@ import java.util.concurrent.CompletableFuture;
  * The {@code neo.player} facade: the local player. {@code self} is a live
  * handle reading current state through the player port; outside a world it
  * reads back as {@code undefined}.
+ *
+ * @zh {@code neo.player} 门面：本地玩家。{@code self} 是经玩家端口回读当前状态的活句柄；不在世界内时回读为 undefined。
  */
 @ApiModule(name = "player", category = "世界")
+@ApiSince("0.1.0")
 public final class PlayerApi {
 
     /**
@@ -66,56 +69,64 @@ public final class PlayerApi {
             this.uuid = uuid;
         }
 
-        /** The player UUID string. */
+        /** The player UUID string.
+         * @zh 玩家 UUID 字符串。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public String getUuid() {
             return uuid.toString();
         }
 
-        /** The player name; undefined outside a world. */
+        /** The player name; undefined outside a world.
+         * @zh 玩家名称；不在世界内时为 undefined。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public String getName() {
             return current().map(PlayerSnapshot::name).orElse(null);
         }
 
-        /** The X coordinate; undefined outside a world. */
+        /** The X coordinate; undefined outside a world.
+         * @zh X 坐标；不在世界内时为 undefined。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public Double getX() {
             return pos(Pos3d::x);
         }
 
-        /** The Y coordinate; undefined outside a world. */
+        /** The Y coordinate; undefined outside a world.
+         * @zh Y 坐标；不在世界内时为 undefined。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public Double getY() {
             return pos(Pos3d::y);
         }
 
-        /** The Z coordinate; undefined outside a world. */
+        /** The Z coordinate; undefined outside a world.
+         * @zh Z 坐标；不在世界内时为 undefined。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public Double getZ() {
             return pos(Pos3d::z);
         }
 
-        /** The health value; undefined outside a world. */
+        /** The health value; undefined outside a world.
+         * @zh 生命值；不在世界内时为 undefined。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public Double getHealth() {
             return current().<Double>map(PlayerSnapshot::health).orElse(null);
         }
 
-        /** The hunger value; undefined outside a world. */
+        /** The hunger value; undefined outside a world.
+         * @zh 饥饿值；不在世界内时为 undefined。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public Integer getHunger() {
             return current().<Integer>map(PlayerSnapshot::hunger).orElse(null);
         }
 
-        /** The air (breath) value; undefined outside a world. */
+        /** The air (breath) value; undefined outside a world.
+         * @zh 氧气值；不在世界内时为 undefined。 */
         @ApiSince("0.1.0")
         @ApiReadOnly
         public Integer getAir() {
@@ -134,7 +145,8 @@ public final class PlayerApi {
             return adapter().rawSelf().orElse(null);
         }
 
-        /** Whether the local player is currently in a world. */
+        /** Whether the local player is currently in a world.
+         * @zh 本地玩家当前是否在世界内。 */
         @ApiSince("0.1.0")
         public boolean isValid() {
             return current().isPresent();
@@ -151,13 +163,15 @@ public final class PlayerApi {
             return current().orElse(null);
         }
 
-        /** JSON form of {@link #snapshot}; lets JSON.stringify render the handle directly. */
+        /** JSON form of {@link #snapshot}; lets JSON.stringify render the handle directly.
+         * @zh 等价 snapshot 的 JSON 形式；JSON.stringify 可直接序列化句柄。 */
         @ApiSince("0.1.0")
         public Map<String, Object> toJSON() {
             return SnapshotViews.player(current().orElse(null));
         }
 
-        /** Human-readable form. */
+        /** Human-readable form.
+         * @zh 人类可读形式。 */
         @Override
         public String toString() {
             return snapshot() == null ? "Player(unloaded)" : "Player(" + getName() + ")";
@@ -184,7 +198,8 @@ public final class PlayerApi {
             super(uuid);
         }
 
-        /** Attacks the entity behind the target handle. */
+        /** Attacks the entity behind the target handle.
+         * @zh 攻击目标句柄背后的实体。 */
         @ApiSince("0.1.0")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> attack(EntityApi.Entity target) {
@@ -196,7 +211,8 @@ public final class PlayerApi {
             return adapter().attack(targetData);
         }
 
-        /** Uses (right-clicks) the entity behind the target handle. */
+        /** Uses (right-clicks) the entity behind the target handle.
+         * @zh 与目标句柄背后的实体交互（右键）。 */
         @ApiSince("0.1.0")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> interactEntity(EntityApi.Entity target) {
@@ -208,7 +224,8 @@ public final class PlayerApi {
             return adapter().useEntity(targetData);
         }
 
-        /** Uses (right-clicks) the block behind the position handle. */
+        /** Uses (right-clicks) the block behind the position handle.
+         * @zh 与坐标句柄背后的方块交互（右键）。 */
         @ApiSince("0.1.0")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> interactBlock(
@@ -218,20 +235,24 @@ public final class PlayerApi {
             return adapter().useBlock(hit);
         }
 
-        /** Swings the main hand. */
+        /** Swings the main hand.
+         * @zh 挥动主手。 */
         @ApiSince("0.1.0")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> swingHand() {
             return adapter().swingHand();
         }
 
-        /** Drops the held item stack ({@code all} = the whole stack). */
+        /** Drops the held item stack ({@code all} = the whole stack).
+         * @zh 丢弃手持物品（all = 整组）。 */
         @ApiSince("0.1.0")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> dropHeld(boolean all) {
             return adapter().dropHeld(all);
         }
 
+        /** Human-readable form.
+         * @zh 人类可读形式。 */
         @Override
         public String toString() {
             var snapshot = snapshot();

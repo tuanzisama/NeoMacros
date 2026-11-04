@@ -25,8 +25,11 @@ import java.util.concurrent.ExecutorService;
  * directory. Paths are resolved against the game directory; absolute paths
  * and traversal above it raise {@link SecurityException}. Every function is
  * async (promise-returning) and requires the {@code fs} capability.
+ *
+ * @zh {@code neo.fs} 门面：以游戏目录为根的文件系统访问。路径相对游戏目录解析；绝对路径与向上越界抛 SecurityException。全部函数异步返回 Promise，且需 fs 能力授权。
  */
 @ApiModule(name = "fs", category = "系统")
+@ApiSince("0.1.0")
 public final class FsApi {
 
     private final FsBridge bridge;

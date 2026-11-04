@@ -21,8 +21,11 @@ import java.util.function.Consumer;
  * player() pos()} plus {@code optional()} and {@code default(v)}); the
  * handler receives a context whose {@code args} carry parsed values and
  * whose {@code raw} keeps the remainder string.
+ *
+ * @zh {@code neo.command} 门面：客户端命令注册与派发。命令以声明式注册，经 {@code command.arg} 构建带类型的参数槽（{@code int() float() bool() word() string() greedy() player() pos()}，另有 {@code optional()} 与 {@code default(v)}）；处理器收到的上下文 {@code args} 携带解析值，{@code raw} 保留剩余字符串。
  */
 @ApiModule(name = "command", category = "界面")
+@ApiSince("0.1.0")
 public final class CommandApi {
 
     private final CommandRegistry registry;
@@ -33,7 +36,8 @@ public final class CommandApi {
         this.registry = registry;
     }
 
-    /** The typed argument-slot factory ({@code command.arg}). */
+    /** The typed argument-slot factory ({@code command.arg}).
+     * @zh 带类型的参数槽工厂（{@code command.arg}）。 */
     @ApiSince("0.1.0")
     @ApiReadOnly
     public CommandArgFactory getArg() {
@@ -145,7 +149,9 @@ public final class CommandApi {
         return registry.execute(commandLine);
     }
 
-    /** Kind names the slot factory answers to (kept for tests and docs). */
+    /** Kind names the slot factory answers to (kept for tests and docs).
+     * @zh 参数槽工厂应答的全部槽位类型名（供测试与文档保留）。 */
+    @ApiSince("0.1.0")
     public static List<String> argKindNames() {
         return new ArrayList<>(CommandArg.KIND_NAMES);
     }

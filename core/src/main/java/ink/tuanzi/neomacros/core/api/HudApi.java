@@ -11,8 +11,11 @@ import java.util.concurrent.CompletableFuture;
  * The {@code neo.hud} facade: HUD overlay text rendered on top of the vanilla
  * HUD. Text entries persist across frames until removed or the module
  * unloads.
+ *
+ * @zh {@code neo.hud} 门面：叠加在原版 HUD 之上的文本层。文本条目跨帧保留，直到移除或模块卸载。
  */
 @ApiModule(name = "hud", category = "界面")
+@ApiSince("0.1.0")
 public final class HudApi {
 
     private final HudRegistry registry;

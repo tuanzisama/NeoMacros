@@ -13,8 +13,11 @@ import java.util.concurrent.Callable;
  * The {@code neo.clock} facade: time-based and main-thread asynchronous
  * primitives, each bound to the calling script's context event loop. Every
  * function returns a promise.
+ *
+ * @zh {@code neo.clock} 门面：基于时间与主线程的异步原语，各自绑定调用脚本的上下文事件循环；每个函数都返回 Promise。
  */
 @ApiModule(name = "clock", category = "核心")
+@ApiSince("0.1.0")
 public final class ClockApi {
 
     /**
