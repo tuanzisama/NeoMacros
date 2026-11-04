@@ -171,6 +171,10 @@ class ClassTreeIntegrationTest {
             "import { chat } from '@neomacros/chat';",
             "import { tree } from '@neomacros/tree';",
             "",
+            "export function startup() {",
+            "  chat.log('TREE-STARTUP');",
+            "}",
+            "",
             "const leaf = tree.leaf();",
             "const LeafCtor = leaf.constructor;",
             "const TwigCtor = Object.getPrototypeOf(LeafCtor);",
@@ -208,7 +212,8 @@ class ClassTreeIntegrationTest {
         Path folder = scriptsDir.resolve("event").resolve(name);
         Files.createDirectories(folder);
         Files.writeString(folder.resolve("neomacro.yml"),
-                "name: " + name + "\nversion: 1.0.0\nauthor: test\n");
+                "name: " + name + "\nversion: 1.0.0\nauthor: test\n"
+                        + "config:\n  event:\n    on: [tick]\n");
         Files.writeString(folder.resolve("index.js"), source);
         return manager.discover().stream()
                 .filter(e -> e.name().equals(name))
