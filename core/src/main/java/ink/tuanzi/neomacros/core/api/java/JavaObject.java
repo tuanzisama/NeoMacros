@@ -23,6 +23,11 @@ public final class JavaObject implements JavaInterop {
     }
 
     @Override
+    public Object rawValue() {
+        return raw;
+    }
+
+    @Override
     public String className() {
         return raw.getClass().getName();
     }

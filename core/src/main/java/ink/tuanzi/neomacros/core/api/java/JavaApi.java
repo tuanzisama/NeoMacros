@@ -4,6 +4,12 @@ import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
+import java.lang.reflect.Array;
+import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 /**
  * The {@code neo.java} facade: the escape layer over the host JVM. Class
  * lookup uses binary names (Mojmap for Minecraft classes, translated at the
@@ -18,6 +24,24 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 public final class JavaApi {
 
+    /** Translates a script-supplied class name into the runtime binary name. */
+    @FunctionalInterface
+    public interface ClassResolver {
+        String resolve(String name) throws ClassNotFoundException;
+    }
+
+    private final ClassResolver resolver;
+
+    /** Creates the facade with identity name resolution (tests, unobf nodes). */
+    public JavaApi() {
+        this(name -> name);
+    }
+
+    /** Creates the facade with a mapping-layer name resolver. */
+    public JavaApi(ClassResolver resolver) {
+        this.resolver = resolver;
+    }
+
     /**
      * Looks up one host class by its binary name, e.g.
      * {@code java.util.UUID}. The returned class proxy exposes static fields
@@ -29,6 +53,144 @@ public final class JavaApi {
      */
     @ApiSince("0.1.0")
     public JavaClass type(String name) throws ClassNotFoundException {
-        return new JavaClass(Class.forName(name, true, JavaApi.class.getClassLoader()));
+        return new JavaClass(Class.forName(resolver.resolve(name), true,
+                JavaApi.class.getClassLoader()));
+    }
+
+    /**
+     * Builds one host object implementing the named interfaces, dispatching
+     * method calls to the handler map's functions (void-return dispatch;
+     * unhandled methods raise).
+     *
+     * @zh 构造实现指定接口的宿主对象，方法调用派发给处理表中的函数（void 派发；未处理的方法抛错）。
+     * @zh-param interfaces 接口二进制名列表
+     * @zh-param handlers 方法名到函数的映射
+     * @zh-return 宿主代理对象
+     */
+    @ApiSince("0.1.0")
+    public Object proxy(Object interfaces, Object handlers) throws ClassNotFoundException {
+        List<String> names = new ArrayList<>();
+        if (interfaces instanceof List<?> list) {
+            for (Object entry : list) {
+                names.add(String.valueOf(entry));
+            }
+        } else if (interfaces != null) {
+            names.add(String.valueOf(interfaces));
+        }
+        if (names.isEmpty()) {
+            throw new IllegalArgumentException("proxy needs at least one interface name");
+        }
+        if (!(handlers instanceof Map<?, ?> handlerMap)) {
+            throw new IllegalArgumentException("proxy handlers must be a member map");
+        }
+        Class<?>[] types = new Class<?>[names.size()];
+        for (int i = 0; i < names.size(); i++) {
+            Class<?> type = Class.forName(resolver.resolve(names.get(i)), true,
+                    JavaApi.class.getClassLoader());
+            if (!type.isInterface()) {
+                throw new IllegalArgumentException("proxy target is not an interface: "
+                        + names.get(i));
+            }
+            types[i] = type;
+        }
+        return Proxy.newProxyInstance(JavaApi.class.getClassLoader(), types,
+                (proxy, method, args) -> {
+                    if (method.getDeclaringClass() == Object.class) {
+                        return switch (method.getName()) {
+                            case "toString" -> "JavaProxy" + names;
+                            case "hashCode" -> System.identityHashCode(proxy);
+                            case "equals" -> proxy == args[0];
+                            default -> null;
+                        };
+                    }
+                    Object handler = handlerMap.get(method.getName());
+                    if (handler instanceof java.util.function.Consumer<?> consumer) {
+                        ((java.util.function.Consumer<Object[]>) consumer)
+                                .accept(args == null ? new Object[0] : args);
+                        return defaultValue(method.getReturnType());
+                    }
+                    throw new IllegalStateException("proxy has no handler for "
+                            + method.getName());
+                });
+    }
+
+    /** The value a primitive-returning proxy method observes when handlers return nothing. */
+    private static Object defaultValue(Class<?> type) {
+        if (type == boolean.class) {
+            return false;
+        }
+        if (type == void.class) {
+            return null;
+        }
+        if (type.isPrimitive()) {
+            return Integer.valueOf(0);
+        }
+        return null;
+    }
+
+    /**
+     * Converts one script array into a host list wrapped as an interop
+     * object, so it crosses back into Java APIs as a live java.util.List.
+     *
+     * @zh 把脚本数组包装为宿主 List 对象，可传回 Java API。
+     */
+    @ApiSince("0.1.0")
+    public Object toList(Object scriptArray) {
+        if (scriptArray instanceof List<?> list) {
+            return JavaInterop.wrap(new ArrayList<>(list));
+        }
+        throw new IllegalArgumentException("toList expects an array, got "
+                + (scriptArray == null ? "null" : scriptArray.getClass().getName()));
+    }
+
+    /**
+     * Converts one host collection into a script array (element by element).
+     *
+     * @zh 把宿主集合逐元素转为脚本数组。
+     */
+    @ApiSince("0.1.0")
+    public Object fromList(Object javaCollection) {
+        if (javaCollection instanceof java.util.Collection<?> collection) {
+            return new ArrayList<>(collection);
+        }
+        throw new IllegalArgumentException("fromList expects a Java collection, got "
+                + (javaCollection == null ? "null" : javaCollection.getClass().getName()));
+    }
+
+    /**
+     * Converts one script array into a host array of the named component
+     * type (empty name → Object[]).
+     *
+     * @zh 把脚本数组转为指定组件类型的宿主数组（空名 → Object[]）。
+     */
+    @ApiSince("0.1.0")
+    public Object toArray(Object scriptArray, String componentTypeName)
+            throws ClassNotFoundException {
+        if (!(scriptArray instanceof List<?> list)) {
+            throw new IllegalArgumentException("toArray expects an array");
+        }
+        Class<?> component = switch (componentTypeName == null ? "" : componentTypeName) {
+            case "", "java.lang.Object" -> Object.class;
+            case "int" -> Integer.TYPE;
+            case "long" -> Long.TYPE;
+            case "boolean" -> Boolean.TYPE;
+            case "double" -> Double.TYPE;
+            case "float" -> Float.TYPE;
+            case "short" -> Short.TYPE;
+            case "byte" -> Byte.TYPE;
+            case "char" -> Character.TYPE;
+            default -> Class.forName(resolver.resolve(componentTypeName), true,
+                    JavaApi.class.getClassLoader());
+        };
+        Object out = Array.newInstance(component, list.size());
+        for (int i = 0; i < list.size(); i++) {
+            Object adapted = JavaInteropResolver.adapt(component, list.get(i));
+            if (adapted == null && list.get(i) != null) {
+                throw new IllegalArgumentException("element " + i + " is not a "
+                        + component.getName());
+            }
+            Array.set(out, i, adapted);
+        }
+        return out;
     }
 }

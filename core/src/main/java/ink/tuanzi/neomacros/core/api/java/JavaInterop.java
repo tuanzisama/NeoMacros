@@ -36,6 +36,13 @@ public interface JavaInterop {
     boolean instanceOf(String className);
 
     /**
+     * The raw host value behind this proxy (the wrapped instance or class);
+     * the engine's hidden {@code __neoRaw} member probes it to unwrap
+     * interop proxies crossing back into host code.
+     */
+    Object rawValue();
+
+    /**
      * Marshals one interop result for the guest: scalars pass through,
      * already-interop values pass through, and every other host object
      * (collections included, per the escape-layer marshalling contract)

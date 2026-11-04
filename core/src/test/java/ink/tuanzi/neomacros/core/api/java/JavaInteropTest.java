@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -81,6 +82,45 @@ class JavaInteropTest {
                 .get("java");
         assertTrue(allowed.members().get("type") instanceof ModuleBinding.FunctionMember,
                 "the trusted view reaches the facade function");
+    }
+
+    @Test
+    void proxyDispatchesToGuestHandlers() throws Exception {
+        JavaApi api = new JavaApi();
+        var handled = new ArrayList<String>();
+        // The engine delivers handler functions as Consumer<Object[]>; the
+        // host test applies the same shape.
+        Object proxy = api.proxy(List.of("java.lang.Runnable"), Map.of(
+                "run", (java.util.function.Consumer<Object[]>) args -> handled.add("run")));
+        assertTrue(proxy instanceof java.lang.Runnable, "proxy implements the interface");
+        ((java.lang.Runnable) proxy).run();
+        assertEquals(List.of("run"), handled, "handler dispatched with no arguments");
+    }
+
+    @Test
+    void collectionHelpersRoundTrip() throws Exception {
+        JavaApi api = new JavaApi();
+        Object hostList = api.toList(List.of("a", "b"));
+        JavaObject wrapped = assertInstanceOf(JavaObject.class, hostList,
+                "toList wraps the host list as an interop object");
+        assertInstanceOf(java.util.List.class, wrapped.raw());
+
+        Object back = api.fromList(wrapped.raw());
+        assertInstanceOf(java.util.List.class, back);
+        assertEquals(List.of("a", "b"), back, "host collection became a script array");
+
+        Object array = api.toArray(List.of(1, 2), "int");
+        assertInstanceOf(int[].class, array);
+        assertEquals(2, ((int[]) array).length);
+        assertEquals(2, ((int[]) array)[1], "component adaptation applied");
+    }
+
+    @Test
+    void customResolverTranslatesNames() throws Exception {
+        JavaApi mapping = new JavaApi(name -> name.equals("MyString")
+                ? "java.lang.String" : name);
+        assertEquals("java.lang.String", mapping.type("MyString").className(),
+                "resolver output feeds the lookup");
     }
 
     @Test

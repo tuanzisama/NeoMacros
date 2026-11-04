@@ -124,4 +124,9 @@ public final class JavaClass implements JavaInterop {
     Class<?> target() {
         return target;
     }
+
+    @Override
+    public Object rawValue() {
+        return target;
+    }
 }

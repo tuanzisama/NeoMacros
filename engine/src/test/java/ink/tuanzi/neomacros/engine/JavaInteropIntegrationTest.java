@@ -77,7 +77,8 @@ class JavaInteropIntegrationTest {
                 scriptsDir, m -> { });
         manager.load(writeEntry(manager, "java-test", SCRIPT));
 
-        for (String key : List.of("pi", "floor", "list", "uuid", "instanceOf")) {
+        for (String key : List.of("pi", "floor", "list", "uuid", "instanceOf",
+                "proxy", "fromList", "toList")) {
             assertEventually(() -> chatLines.contains("log:JAVA-" + key + "=true"),
                     "interop result '" + key + "' should hold; chat lines were: " + chatLines);
         }
@@ -104,6 +105,15 @@ class JavaInteropIntegrationTest {
             "const id = java.type('java.util.UUID').fromString('00000000-0000-0000-0000-000000000000');",
             "chat.log('JAVA-uuid=' + (id.toString() === '00000000-0000-0000-0000-000000000000'));",
             "chat.log('JAVA-instanceOf=' + id.instanceOf('java.util.UUID'));",
+            "",
+            "let ran = false;",
+            "const runnable = java.proxy(['java.lang.Runnable'], { run() { ran = true; } });",
+            "runnable.run();",
+            "chat.log('JAVA-proxy=' + ran);",
+            "const arr = java.fromList(list);",
+            "chat.log('JAVA-fromList=' + (Array.isArray(arr) && arr.length === 2 && arr[0] === 'alpha'));",
+            "const hostList = java.toList(['x', 'y']);",
+            "chat.log('JAVA-toList=' + (hostList.size() === 2 && hostList.get(1) === 'y'));",
             "");
 
     /** Writes one script folder (manifest + index.js) and returns its discovery entry. */

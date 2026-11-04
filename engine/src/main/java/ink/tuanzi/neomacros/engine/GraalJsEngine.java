@@ -751,6 +751,18 @@ public final class GraalJsEngine implements ScriptEngine {
             if (value == null || value.isNull()) {
                 return null;
             }
+            try {
+                if (value.hasMember("__neoRaw")) {
+                    Value rawValue = value.getMember("__neoRaw");
+                    Object raw = rawValue != null && rawValue.isHostObject()
+                            ? rawValue.asHostObject() : null;
+                    if (raw != null) {
+                        return raw;
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                // guest objects without the probe fall through to the normal mapping
+            }
             if (value.isString()) {
                 return value.asString();
             }
@@ -1077,7 +1089,15 @@ public final class GraalJsEngine implements ScriptEngine {
                 return context.asValue(
                         org.graalvm.polyglot.proxy.ProxyArray.fromList(copy));
             }
-            return context.asValue(plain);
+            if (plain instanceof String || plain instanceof Boolean
+                    || plain instanceof Number || plain instanceof Character) {
+                return context.asValue(plain);
+            }
+            // Any other host object crossing the boundary wraps as an interop
+            // proxy: the guest can read its members under HostAccess.NONE
+            // (escape-layer auto-wrapping; scalars above stay plain).
+            return interopProxy((ink.tuanzi.neomacros.core.api.java.JavaObject)
+                    ink.tuanzi.neomacros.core.api.java.JavaInterop.wrap(plain));
         }
 
         /** Converts one container level into its guest-readable proxy form. */
@@ -1109,7 +1129,7 @@ public final class GraalJsEngine implements ScriptEngine {
          * with automatic {@code JavaObject} wrapping.
          */
         private Value interopProxy(ink.tuanzi.neomacros.core.api.java.JavaInterop target) {
-            return context.asValue(new org.graalvm.polyglot.proxy.ProxyObject() {
+            org.graalvm.polyglot.proxy.ProxyObject proxy = new org.graalvm.polyglot.proxy.ProxyObject() {
                 @Override
                 public Object getMember(String name) {
                     if (name.equals("className")) {
@@ -1118,6 +1138,11 @@ public final class GraalJsEngine implements ScriptEngine {
                     if (name.equals("instanceOf")) {
                         return executable(arguments -> context.asValue(
                                 target.instanceOf(stringArg(arguments, 0, null))));
+                    }
+                    if (name.equals("__neoRaw")) {
+                        // Hidden probe: hands the raw host value to the host
+                        // side when an interop proxy crosses back into Java.
+                        return target.rawValue();
                     }
                     var callable = target.readCallable(name);
                     if (callable != null) {
@@ -1131,7 +1156,7 @@ public final class GraalJsEngine implements ScriptEngine {
                 @Override
                 public boolean hasMember(String name) {
                     return name.equals("className") || name.equals("instanceOf")
-                            || target.hasMember(name);
+                            || name.equals("__neoRaw") || target.hasMember(name);
                 }
 
                 @Override
@@ -1159,7 +1184,8 @@ public final class GraalJsEngine implements ScriptEngine {
                 public void putMember(String key, Value value) {
                     target.write(key, interopValue(value));
                 }
-            });
+            };
+            return context.asValue(proxy);
         }
 
         /** Converts guest call arguments to their neutral Java form. */
