@@ -69,4 +69,19 @@ public final class FabricEntityPort implements EntityPort {
         return new EntitySnapshot(entity.getUUID(), typeId, entity.getName().getString(),
                 new Pos3d(entity.getX(), entity.getY(), entity.getZ()), health);
     }
+
+
+    @Override
+    public java.util.Optional<Object> rawByUuid(java.util.UUID uuid) {
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level == null) {
+            return java.util.Optional.empty();
+        }
+        for (var entity : level.entitiesForRendering()) {
+            if (entity.getUUID().equals(uuid)) {
+                return java.util.Optional.of(entity);
+            }
+        }
+        return java.util.Optional.empty();
+    }
 }

@@ -6,6 +6,7 @@ import ink.tuanzi.neomacros.core.api.SnapshotViews;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
@@ -119,6 +120,18 @@ public final class PlayerApi {
         @ApiReadOnly
         public Integer getAir() {
             return current().<Integer>map(PlayerSnapshot::air).orElse(null);
+        }
+
+        /**
+         * Escape hatch: the raw host player object. Requires the
+         * {@code java} permission.
+         *
+         * @zh 穿透口：原始宿主玩家对象（需 java 权限）。
+         */
+        @ApiSince("0.1.0")
+        @ApiPermission("java")
+        public Object getRaw() {
+            return adapter().rawSelf().orElse(null);
         }
 
         /** Whether the local player is currently in a world. */

@@ -64,4 +64,12 @@ public interface WorldPort {
     default boolean loaded(Pos3d pos) {
         return false;
     }
+
+    /**
+     * Returns the raw host block state at the position, or empty when
+     * unloaded. Port-neutral: the returned Object is opaque to core.
+     */
+    default java.util.Optional<Object> rawByPos(Pos3d pos) {
+        return java.util.Optional.empty();
+    }
 }

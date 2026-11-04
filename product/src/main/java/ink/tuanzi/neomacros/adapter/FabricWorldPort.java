@@ -156,4 +156,17 @@ public final class FabricWorldPort implements WorldPort {
     private static Pos3d toPos3d(BlockPos pos) {
         return new Pos3d(pos.getX(), pos.getY(), pos.getZ());
     }
+
+    @Override
+    public java.util.Optional<Object> rawByPos(Pos3d pos) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return java.util.Optional.empty();
+            }
+            var blockPos = new BlockPos((int) Math.floor(pos.x()),
+                    (int) Math.floor(pos.y()), (int) Math.floor(pos.z()));
+            return java.util.Optional.of(level.getBlockState(blockPos));
+        });
+    }
 }

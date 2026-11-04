@@ -92,4 +92,12 @@ public interface PlayerPort {
 
     /** Drops the held item stack (all = the whole stack). */
     java.util.concurrent.CompletableFuture<Void> dropHeld(boolean all);
+
+    /**
+     * Returns the raw host player object, or empty when not in a world.
+     * Port-neutral: the returned Object is opaque to core.
+     */
+    default java.util.Optional<Object> rawSelf() {
+        return java.util.Optional.empty();
+    }
 }

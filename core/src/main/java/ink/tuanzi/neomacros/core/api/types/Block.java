@@ -4,6 +4,7 @@ import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
@@ -35,6 +36,20 @@ public final class Block implements ScriptHandle {
     @ApiReadOnly
     public BlockState getState() {
         return snapshot().map(data -> new BlockState(data.id())).orElse(null);
+    }
+
+    /**
+     * Escape hatch: the raw host block state object. Requires the
+     * {@code java} permission.
+     *
+     * @zh 穿透口：原始宿主方块状态对象（需 java 权限）。
+     */
+    @ApiSince("0.1.0")
+    @ApiPermission("java")
+    public Object getRaw() {
+        return ScriptApiEnvironment.adapter().world().rawByPos(
+                new ink.tuanzi.neomacros.port.model.Pos3d(
+                        pos.getX(), pos.getY(), pos.getZ())).orElse(null);
     }
 
     /** Whether the block is still loaded in the world. */

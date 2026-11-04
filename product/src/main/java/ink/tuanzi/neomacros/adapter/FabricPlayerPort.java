@@ -264,4 +264,9 @@ public final class FabricPlayerPort implements PlayerPort {
     private static InteractionResult verdict(boolean canceled) {
         return canceled ? InteractionResult.FAIL : InteractionResult.PASS;
     }
+
+    @Override
+    public java.util.Optional<Object> rawSelf() {
+        return java.util.Optional.ofNullable(Minecraft.getInstance().player);
+    }
 }
