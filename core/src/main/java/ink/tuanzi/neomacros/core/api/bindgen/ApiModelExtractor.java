@@ -44,6 +44,8 @@ public final class ApiModelExtractor {
                 continue;
             }
             String since = annotationSince(method, classSince);
+            String permission = permissionOf(method) != null
+                    ? permissionOf(method) : classPermission;
             if (isBeanGetter(method)) {
                 properties.add(new ApiModel.PropertyModel(
                         propertyName(method),
@@ -51,7 +53,7 @@ public final class ApiModelExtractor {
                         method.getAnnotation(ApiInternal.class) != null,
                         since,
                         mcOf(method),
-                        permissionOf(method),
+                        permission,
                         method.getAnnotation(ApiExperimental.class) != null,
                         method));
             } else {
@@ -61,7 +63,7 @@ public final class ApiModelExtractor {
                         CompletableFuture.class.isAssignableFrom(method.getReturnType()),
                         since,
                         mcOf(method),
-                        permissionOf(method),
+                        permission,
                         method.getAnnotation(ApiExperimental.class) != null,
                         method));
             }

@@ -1051,6 +1051,9 @@ public final class GraalJsEngine implements ScriptEngine {
                 // host null (missing handles/properties per the facade spec).
                 return undefinedValue();
             }
+            if (plain instanceof ink.tuanzi.neomacros.core.api.java.JavaInterop interop) {
+                return interopProxy(interop);
+            }
             if (plain instanceof ink.tuanzi.neomacros.core.api.ScriptHandle handle) {
                 return guestHandle(handle);
             }
@@ -1096,6 +1099,93 @@ public final class GraalJsEngine implements ScriptEngine {
                 return context.asValue(org.graalvm.polyglot.proxy.ProxyArray.fromList(copy));
             }
             return asGuestValue(plain);
+        }
+
+        /**
+         * Renders a Java-interop object as a dynamic guest proxy: member
+         * reads resolve per call through the interop contract (fields as
+         * values, methods as callables, {@code new} on classes), writes
+         * reach public fields, and results marshal through the neutral path
+         * with automatic {@code JavaObject} wrapping.
+         */
+        private Value interopProxy(ink.tuanzi.neomacros.core.api.java.JavaInterop target) {
+            return context.asValue(new org.graalvm.polyglot.proxy.ProxyObject() {
+                @Override
+                public Object getMember(String name) {
+                    if (name.equals("className")) {
+                        return context.asValue(target.className());
+                    }
+                    if (name.equals("instanceOf")) {
+                        return executable(arguments -> context.asValue(
+                                target.instanceOf(stringArg(arguments, 0, null))));
+                    }
+                    var callable = target.readCallable(name);
+                    if (callable != null) {
+                        return executable(arguments -> asInteropResult(
+                                callable.apply(interopArgs(arguments))));
+                    }
+                    Object value = target.readValue(name);
+                    return value == null ? undefinedValue() : asInteropResult(value);
+                }
+
+                @Override
+                public boolean hasMember(String name) {
+                    return name.equals("className") || name.equals("instanceOf")
+                            || target.hasMember(name);
+                }
+
+                @Override
+                public Object getMemberKeys() {
+                    String[] keys = {"className", "instanceOf"};
+                    return new org.graalvm.polyglot.proxy.ProxyArray() {
+                        @Override
+                        public long getSize() {
+                            return keys.length;
+                        }
+
+                        @Override
+                        public Object get(long index) {
+                            return keys[(int) index];
+                        }
+
+                        @Override
+                        public void set(long index, Value value) {
+                            throw new UnsupportedOperationException("member keys are read-only");
+                        }
+                    };
+                }
+
+                @Override
+                public void putMember(String key, Value value) {
+                    target.write(key, interopValue(value));
+                }
+            });
+        }
+
+        /** Converts guest call arguments to their neutral Java form. */
+        private Object[] interopArgs(Value[] arguments) {
+            Object[] out = new Object[arguments.length];
+            for (int i = 0; i < arguments.length; i++) {
+                out[i] = asNeutral(arguments[i]);
+            }
+            return out;
+        }
+
+        /** Converts one guest value for a field write. */
+        private Object interopValue(Value value) {
+            return value == null || value.isNull() ? null : asNeutral(value);
+        }
+
+        /** Marshals one interop result for the guest. */
+        private Value asInteropResult(Object value) {
+            Object marshalled = ink.tuanzi.neomacros.core.api.java.JavaInterop.wrap(value);
+            if (marshalled == null) {
+                return undefinedValue();
+            }
+            if (marshalled instanceof ink.tuanzi.neomacros.core.api.java.JavaInterop interop) {
+                return interopProxy(interop);
+            }
+            return asGuestValue(marshalled);
         }
 
         /**
