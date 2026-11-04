@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AnnotationContractTest {
 
     private static final List<Class<?>> ALL_ANNOTATIONS = List.of(
-            ApiModule.class, ApiEvent.class, ApiHandle.class, ApiReadOnly.class,
+            ApiModule.class, ApiEvent.class, ApiClass.class, ApiReadOnly.class,
             ApiType.class, ApiSince.class, ApiMC.class, ApiPermission.class,
             ApiExperimental.class, ApiInternal.class);
 
@@ -60,9 +60,9 @@ class AnnotationContractTest {
     }
 
     @Test
-    void handleTargetsNestedClassesOnly() {
+    void classTargetsTypesOnly() {
         assertArrayEquals(new ElementType[]{ElementType.TYPE},
-                targetsOf(ApiHandle.class));
+                targetsOf(ApiClass.class));
     }
 
     @Test
@@ -104,10 +104,19 @@ class AnnotationContractTest {
 
     @Test
     void singleValueAnnotationsHaveNoDefault() {
-        for (Class<?> type : List.of(ApiHandle.class, ApiType.class, ApiSince.class,
+        for (Class<?> type : List.of(ApiType.class, ApiSince.class,
                 ApiMC.class, ApiPermission.class)) {
             assertNull(defaultValue(type, "value"), type.getSimpleName() + ".value is mandatory");
         }
+    }
+
+    @Test
+    void apiClassDefaults() {
+        assertNull(defaultValue(ApiClass.class, "name"), "class name is mandatory");
+        assertEquals(ApiClassKind.HANDLE, defaultValue(ApiClass.class, "kind"),
+                "classes default to the live-handle kind");
+        assertEquals("", defaultValue(ApiClass.class, "wraps"),
+                "classes default to wrapping nothing");
     }
 
     @Test

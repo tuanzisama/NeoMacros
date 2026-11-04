@@ -21,12 +21,22 @@ declare module '@neomacros/world' {
         watch(listener: (message: string) => void): void;
     }
     export const world: WorldApi;
+    /** Live handle for one region, extending the world handle. */
+    export class RegionHandle extends WorldHandle {
+        /** Returns the region radius in blocks. @since 0.1.0 */
+        readonly radius: number;
+    }
     /** Live handle for the fixture world. */
-    export interface WorldHandle {
+    export class WorldHandle {
         /** Returns the handle display name. @since 0.1.0 */
         readonly name: string;
         /** Refreshes the handle against the live world. @since 0.1.0 */
         refresh(): void;
+    }
+    /** Immutable data description of a world. */
+    export class WorldInfo {
+        /** Returns the world identifier. @since 0.1.0 */
+        readonly id: string;
     }
     export interface FixturePos {
         x: number;

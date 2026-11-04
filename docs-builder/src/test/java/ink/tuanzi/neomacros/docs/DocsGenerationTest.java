@@ -97,6 +97,38 @@ class DocsGenerationTest {
     }
 
     @Test
+    void classSectionsRenderKindWrapsAndTree() throws IOException {
+        String world = read(outMd.outDir().resolve("api/world.md"));
+        assertTrue(world.contains("## Class WorldHandle"), "class section rendered");
+        assertTrue(world.contains("Wraps: `net.minecraft.world.fixture.World`"),
+                "wraps badge rendered");
+        assertTrue(world.contains("**Class tree**"), "class tree rendered");
+        assertTrue(world.contains("- `WorldHandle`"), "tree lists the root class");
+        assertTrue(world.contains("  - `RegionHandle`"), "tree nests the subclass");
+        assertTrue(world.contains("Extended by: `RegionHandle`"), "parent lists its subclasses");
+        assertTrue(world.contains("Extends: `WorldHandle`"), "subclass lists its parent");
+        assertTrue(world.contains("## Class WorldInfo"), "data class rendered");
+        assertTrue(world.contains("Data · Wraps"), "data kind badge rendered");
+        assertFalse(world.contains("## Handle "), "interface-era heading is gone");
+
+        String zh = read(outMd.outDir().resolve("api/world.zh.md"));
+        assertTrue(zh.contains("**类树**"), "Chinese class tree label rendered");
+        assertTrue(zh.contains("包装：`net.minecraft.world.fixture.World`"), "Chinese wraps badge");
+        assertTrue(zh.contains("被继承：`RegionHandle`"), "Chinese extended-by badge");
+        assertTrue(zh.contains("继承：`WorldHandle`"), "Chinese extends badge");
+    }
+
+    @Test
+    void tsDefinitionsEmitClassDeclarations() throws IOException {
+        String ts = read(outTs.outDir().resolve("types/neomacros.d.ts"));
+        assertTrue(ts.contains("export class WorldHandle"), "classes emitted as class declarations");
+        assertFalse(ts.contains("export interface WorldHandle"), "class form replaces interface form");
+        assertTrue(ts.contains("export class RegionHandle extends WorldHandle"),
+                "extends chain rendered");
+        assertTrue(ts.contains("export class WorldInfo"), "data kind is a class too");
+    }
+
+    @Test
     void tsDefinitionsMatchSnapshot() throws IOException {
         assertEquals(readSnapshot("types/neomacros.d.ts"),
                 read(outTs.outDir().resolve("types/neomacros.d.ts")),

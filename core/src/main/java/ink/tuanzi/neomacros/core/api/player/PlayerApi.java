@@ -2,7 +2,8 @@ package ink.tuanzi.neomacros.core.api.player;
 
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.SnapshotViews;
-import ink.tuanzi.neomacros.doc.api.ApiHandle;
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
@@ -48,7 +49,8 @@ public final class PlayerApi {
      *
      * @zh 本地玩家句柄：属性实时回读；不在世界内时属性回读为 undefined。
      */
-    @ApiHandle("PlayerHandle")
+    @ApiClass(name = "PlayerHandle", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.player.LocalPlayer")
     public static final class PlayerHandle implements ink.tuanzi.neomacros.core.api.ScriptHandle {
 
         private final UUID uuid;

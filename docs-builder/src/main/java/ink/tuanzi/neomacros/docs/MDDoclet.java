@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -82,11 +83,20 @@ public class MDDoclet implements Doclet {
     public boolean run(DocletEnvironment env) {
         ApiModel model = ModelExtractor.extract(env);
         Path apiDir = outDir.resolve("api");
+        Map<String, List<String>> extendedBy = new java.util.LinkedHashMap<>();
+        for (ApiModel.ModuleModel module : model.modules()) {
+            for (ApiModel.ClassModel clazz : module.classes()) {
+                if (!clazz.extendsName().isEmpty()) {
+                    extendedBy.computeIfAbsent(clazz.extendsName(), k -> new java.util.ArrayList<>())
+                            .add(clazz.name());
+                }
+            }
+        }
         try {
             Files.createDirectories(apiDir);
             for (ApiModel.ModuleModel module : model.modules()) {
-                write(apiDir.resolve(module.name() + ".md"), renderModule(module, false));
-                write(apiDir.resolve(module.name() + ".zh.md"), renderModule(module, true));
+                write(apiDir.resolve(module.name() + ".md"), renderModule(module, false, extendedBy));
+                write(apiDir.resolve(module.name() + ".zh.md"), renderModule(module, true, extendedBy));
             }
             write(apiDir.resolve(DocletSupport.WARNINGS_FILE), String.join("\n", model.warnings()) + "\n");
         } catch (IOException e) {
@@ -98,7 +108,8 @@ public class MDDoclet implements Doclet {
     }
 
     /** Renders one module page; {@code zh} selects the translation-fallback view. */
-    private static String renderModule(ApiModel.ModuleModel module, boolean zh) {
+    private static String renderModule(ApiModel.ModuleModel module, boolean zh,
+                                       Map<String, List<String>> extendedBy) {
         StringBuilder sb = new StringBuilder();
         sb.append("# ").append(module.name()).append("\n\n");
         sb.append(text(module.doc(), module.zhDoc(), zh)).append("\n\n");
@@ -117,15 +128,85 @@ public class MDDoclet implements Doclet {
                 + module.name() + "`" : "ES module only: `@neomacros/" + module.name() + "`");
         sb.append(String.join(" · ", meta)).append("\n\n");
 
+        renderClassTree(sb, module.classes(), extendedBy, zh);
+
         renderProperties(sb, module.properties(), zh);
         renderMethods(sb, module.methods(), zh);
-        for (ApiModel.HandleModel handle : module.handles()) {
-            sb.append("## Handle ").append(handle.name()).append("\n\n");
-            sb.append(text(handle.doc(), handle.zhDoc(), zh)).append("\n\n");
-            renderProperties(sb, handle.properties(), zh);
-            renderMethods(sb, handle.methods(), zh);
+        for (ApiModel.ClassModel clazz : module.classes()) {
+            sb.append("## Class ").append(clazz.name()).append("\n\n");
+            sb.append(String.join(" · ", classMeta(clazz, extendedBy, zh))).append("\n\n");
+            sb.append(text(clazz.doc(), clazz.zhDoc(), zh)).append("\n\n");
+            renderProperties(sb, clazz.properties(), zh);
+            renderMethods(sb, clazz.methods(), zh);
         }
         return sb.toString();
+    }
+
+    /** Composes the kind/wraps/inheritance meta line of one class section. */
+    private static List<String> classMeta(ApiModel.ClassModel clazz,
+                                          Map<String, List<String>> extendedBy, boolean zh) {
+        List<String> meta = new java.util.ArrayList<>();
+        meta.add(switch (clazz.kind()) {
+            case HANDLE -> zh ? "句柄" : "Handle";
+            case DATA -> zh ? "数据" : "Data";
+        });
+        if (!clazz.wraps().isEmpty()) {
+            meta.add(zh ? "包装：`" + clazz.wraps() + "`" : "Wraps: `" + clazz.wraps() + "`");
+        }
+        if (!clazz.extendsName().isEmpty()) {
+            meta.add(zh ? "继承：`" + clazz.extendsName() + "`" : "Extends: `" + clazz.extendsName() + "`");
+        }
+        List<String> children = extendedBy.getOrDefault(clazz.name(), List.of());
+        if (!children.isEmpty()) {
+            meta.add(zh ? "被继承：" + joinNames(children, "、")
+                    : "Extended by: " + joinNames(children, ", "));
+        }
+        return meta;
+    }
+
+    /** Backtick-joins type names with the given separator. */
+    private static String joinNames(List<String> names, String separator) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < names.size(); i++) {
+            if (i > 0) {
+                sb.append(separator);
+            }
+            sb.append("`").append(names.get(i)).append("`");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Renders the inheritance forest of a module's classes as an indented
+     * list; roots are classes whose parent is not a class of this module.
+     * Skipped entirely when the module declares no classes.
+     */
+    private static void renderClassTree(StringBuilder sb, List<ApiModel.ClassModel> classes,
+                                        Map<String, List<String>> extendedBy, boolean zh) {
+        if (classes.isEmpty()) {
+            return;
+        }
+        Set<String> localNames = new java.util.HashSet<>();
+        for (ApiModel.ClassModel clazz : classes) {
+            localNames.add(clazz.name());
+        }
+        sb.append(zh ? "**类树**\n\n" : "**Class tree**\n\n");
+        for (ApiModel.ClassModel clazz : classes) {
+            if (clazz.extendsName().isEmpty() || !localNames.contains(clazz.extendsName())) {
+                renderTreeNode(sb, clazz.name(), 0, localNames, extendedBy);
+            }
+        }
+        sb.append("\n");
+    }
+
+    private static void renderTreeNode(StringBuilder sb, String name, int depth,
+                                       Set<String> localNames, Map<String, List<String>> extendedBy) {
+        sb.append("  ".repeat(depth)).append("- `").append(name).append("`\n");
+        for (String child : extendedBy.getOrDefault(name, List.of())) {
+            if (localNames.contains(child)) {
+                renderTreeNode(sb, child, depth + 1, localNames, extendedBy);
+            }
+        }
     }
 
     private static void renderProperties(StringBuilder sb, List<ApiModel.PropertyModel> properties, boolean zh) {

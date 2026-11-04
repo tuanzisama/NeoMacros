@@ -18,8 +18,10 @@ import java.util.Set;
  * Renders the TypeScript ambient definitions ({@code neomacros.d.ts}): one
  * {@code declare module '@neomacros/<name>'} block per module plus the
  * {@code declare const neo} global aggregate. Modules with
- * {@code global=false} appear as modules only; event payload interfaces and
- * referenced record types are emitted alongside.
+ * {@code global=false} appear as modules only; script-facing classes are
+ * emitted as real class declarations (with their {@code extends} chain),
+ * and event payload interfaces and referenced record types are emitted
+ * alongside.
  */
 public class TSDoclet implements Doclet {
 
@@ -119,13 +121,17 @@ public class TSDoclet implements Doclet {
             sb.append("    export const ").append(module.name()).append(": ")
                     .append(interfaceName(module)).append(";\n");
         }
-        for (ApiModel.HandleModel handle : module.handles()) {
-            sb.append("    ").append(jsdoc(handle.doc(), null, null)).append("\n");
-            sb.append("    export interface ").append(handle.name()).append(" {\n");
-            for (ApiModel.PropertyModel property : handle.properties()) {
+        for (ApiModel.ClassModel clazz : module.classes()) {
+            sb.append("    ").append(jsdoc(clazz.doc(), null, null)).append("\n");
+            sb.append("    export class ").append(clazz.name());
+            if (!clazz.extendsName().isEmpty()) {
+                sb.append(" extends ").append(clazz.extendsName());
+            }
+            sb.append(" {\n");
+            for (ApiModel.PropertyModel property : clazz.properties()) {
                 renderProperty(sb, property);
             }
-            for (ApiModel.MethodModel method : handle.methods()) {
+            for (ApiModel.MethodModel method : clazz.methods()) {
                 renderMethod(sb, method);
             }
             sb.append("    }\n");

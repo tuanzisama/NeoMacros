@@ -1,7 +1,8 @@
 package ink.tuanzi.neomacros.docs.fixture;
 
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiExperimental;
-import ink.tuanzi.neomacros.doc.api.ApiHandle;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
@@ -77,8 +78,9 @@ public final class FixtureWorldApi {
      *
      * @zh fixture 世界的活引用句柄。
      */
-    @ApiHandle("WorldHandle")
-    public static final class WorldHandle {
+    @ApiClass(name = "WorldHandle", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.fixture.World")
+    public static class WorldHandle {
 
         /**
          * Returns the handle display name.
@@ -100,6 +102,52 @@ public final class FixtureWorldApi {
          */
         @ApiSince("0.1.0")
         public void refresh() {
+        }
+    }
+
+    /**
+     * Live handle for one region, extending the world handle.
+     *
+     * @zh 单个区域的活引用句柄，继承世界句柄。
+     */
+    @ApiClass(name = "RegionHandle", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.fixture.Region")
+    public static final class RegionHandle extends WorldHandle {
+
+        /**
+         * Returns the region radius in blocks.
+         *
+         * @return the radius in blocks
+         * @zh 返回区域半径。
+         * @zh-return 以格为单位的半径
+         */
+        @ApiSince("0.1.0")
+        @ApiReadOnly
+        public int getRadius() {
+            return 16;
+        }
+    }
+
+    /**
+     * Immutable data description of a world.
+     *
+     * @zh 世界信息的不可变数据描述。
+     */
+    @ApiClass(name = "WorldInfo", kind = ApiClassKind.DATA,
+            wraps = "net.minecraft.world.fixture.World")
+    public static final class WorldInfo {
+
+        /**
+         * Returns the world identifier.
+         *
+         * @return the world identifier
+         * @zh 返回世界标识。
+         * @zh-return 世界标识
+         */
+        @ApiSince("0.1.0")
+        @ApiReadOnly
+        public String getId() {
+            return "world";
         }
     }
 }

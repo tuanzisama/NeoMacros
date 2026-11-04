@@ -7,9 +7,9 @@ import com.sun.source.doctree.ReturnTree;
 import com.sun.source.doctree.TextTree;
 import com.sun.source.doctree.UnknownBlockTagTree;
 import com.sun.source.doctree.UnknownInlineTagTree;
+import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
 import ink.tuanzi.neomacros.doc.api.ApiExperimental;
-import ink.tuanzi.neomacros.doc.api.ApiHandle;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
@@ -186,9 +186,9 @@ final class DocletSupport {
         return type.getAnnotation(ApiModule.class);
     }
 
-    /** Extracts the handle declaration from an annotated nested class, or null when absent. */
-    static ApiHandle handleOf(TypeElement type) {
-        return type.getAnnotation(ApiHandle.class);
+    /** Extracts the class declaration from an annotated type, or null when absent. */
+    static ApiClass classOf(TypeElement type) {
+        return type.getAnnotation(ApiClass.class);
     }
 
     /** Returns the {@code @ApiSince} value of a type or method element, or null when absent. */
@@ -274,7 +274,11 @@ final class DocletSupport {
         if (override.isPresent()) {
             return override.get();
         }
-        if (element.getKind() == ElementKind.RECORD || handleOf(element) != null) {
+        ApiClass apiClass = classOf(element);
+        if (apiClass != null) {
+            return apiClass.name();
+        }
+        if (element.getKind() == ElementKind.RECORD) {
             return element.getSimpleName().toString();
         }
         List<? extends TypeMirror> args = type.getTypeArguments();

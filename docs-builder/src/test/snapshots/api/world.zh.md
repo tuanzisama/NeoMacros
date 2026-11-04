@@ -4,6 +4,12 @@
 
 Category: test · Since: 0.1.0 · MC availability: >=1.20.6 · Exposed as `neo.world` and `@neomacros/world`
 
+**类树**
+
+- `WorldHandle`
+  - `RegionHandle`
+- `WorldInfo`
+
 ## Properties
 
 | Property | Type | Description |
@@ -40,7 +46,21 @@ world.mark(new Pos3d(1, 64, 1));
 
 Since: 0.1.0 · Permission: `command` · Experimental
 
-## Handle WorldHandle
+## Class RegionHandle
+
+句柄 · 包装：`net.minecraft.world.fixture.Region` · 继承：`WorldHandle`
+
+单个区域的活引用句柄，继承世界句柄。
+
+## Properties
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `radius` | `number` | 返回区域半径。 (read-only) |
+
+## Class WorldHandle
+
+句柄 · 包装：`net.minecraft.world.fixture.World` · 被继承：`RegionHandle`
 
 fixture 世界的活引用句柄。
 
@@ -57,4 +77,16 @@ fixture 世界的活引用句柄。
 让句柄对实时世界状态重新求值。
 
 Since: 0.1.0
+
+## Class WorldInfo
+
+数据 · 包装：`net.minecraft.world.fixture.World`
+
+世界信息的不可变数据描述。
+
+## Properties
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | 返回世界标识。 (read-only) |
 

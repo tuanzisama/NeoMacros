@@ -1,8 +1,9 @@
 package ink.tuanzi.neomacros.doc.api.fixture;
 
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
 import ink.tuanzi.neomacros.doc.api.ApiExperimental;
-import ink.tuanzi.neomacros.doc.api.ApiHandle;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
@@ -39,13 +40,25 @@ public class DocApiFixture {
     }
 
     /** Live handle type with a read-only bean getter. */
-    @ApiHandle("FixtureHandle")
+    @ApiClass(name = "FixtureHandle", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.fixture.World")
     public static final class FixtureHandle {
 
         /** Display name of the fixture. */
         @ApiReadOnly
         public String getName() {
             return "fixture";
+        }
+    }
+
+    /** Immutable data type exercising the data kind. */
+    @ApiClass(name = "FixtureData", kind = ApiClassKind.DATA)
+    public static final class FixtureData {
+
+        /** Arbitrary stored value. */
+        @ApiReadOnly
+        public String getValue() {
+            return "data";
         }
     }
 

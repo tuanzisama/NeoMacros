@@ -1,5 +1,7 @@
 package ink.tuanzi.neomacros.docs;
 
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+
 import java.util.List;
 import java.util.Map;
 
@@ -19,7 +21,7 @@ public record ApiModel(List<ModuleModel> modules, List<EventModel> events, List<
             String name, String category, boolean global,
             String doc, String zhDoc, String since, String mc,
             List<PropertyModel> properties, List<MethodModel> methods,
-            List<HandleModel> handles, List<TypeModel> referencedTypes) {
+            List<ClassModel> classes, List<TypeModel> referencedTypes) {
     }
 
     /** Record type referenced in a module's signatures, rendered as a TS interface of its components. */
@@ -45,9 +47,10 @@ public record ApiModel(List<ModuleModel> modules, List<EventModel> events, List<
     public record ParameterModel(String name, String type) {
     }
 
-    /** Live handle type declared with {@code @ApiHandle}. */
-    public record HandleModel(
-            String name, String doc, String zhDoc,
+    /** Script-facing class declared with {@code @ApiClass} (live handle or immutable data). */
+    public record ClassModel(
+            String name, ApiClassKind kind, String wraps, String extendsName,
+            String doc, String zhDoc,
             List<PropertyModel> properties, List<MethodModel> methods) {
     }
 

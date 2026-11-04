@@ -4,6 +4,12 @@ Fixture module exercising the full annotation set with complete bilingual docume
 
 Category: test · Since: 0.1.0 · MC availability: >=1.20.6 · Exposed as `neo.world` and `@neomacros/world`
 
+**Class tree**
+
+- `WorldHandle`
+  - `RegionHandle`
+- `WorldInfo`
+
 ## Properties
 
 | Property | Type | Description |
@@ -34,7 +40,21 @@ Watches chat messages through the given listener.
 
 Since: 0.1.0 · Permission: `command` · Experimental
 
-## Handle WorldHandle
+## Class RegionHandle
+
+Handle · Wraps: `net.minecraft.world.fixture.Region` · Extends: `WorldHandle`
+
+Live handle for one region, extending the world handle.
+
+## Properties
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `radius` | `number` | Returns the region radius in blocks. (read-only) |
+
+## Class WorldHandle
+
+Handle · Wraps: `net.minecraft.world.fixture.World` · Extended by: `RegionHandle`
 
 Live handle for the fixture world.
 
@@ -51,4 +71,16 @@ Live handle for the fixture world.
 Refreshes the handle against the live world.
 
 Since: 0.1.0
+
+## Class WorldInfo
+
+Data · Wraps: `net.minecraft.world.fixture.World`
+
+Immutable data description of a world.
+
+## Properties
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Returns the world identifier. (read-only) |
 

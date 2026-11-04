@@ -1,8 +1,8 @@
 package ink.tuanzi.neomacros.docs;
 
 import com.sun.source.util.DocTrees;
+import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
-import ink.tuanzi.neomacros.doc.api.ApiHandle;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import jdk.javadoc.doclet.DocletEnvironment;
 
@@ -13,6 +13,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import java.util.ArrayList;
@@ -25,9 +26,9 @@ import java.util.TreeMap;
 
 /**
  * Builds the {@link ApiModel} from a doclet environment: picks annotated
- * module classes, handle classes, event records, and referenced record types;
- * collects generation warnings (missing @zh translations, missing @ApiSince)
- * in deterministic (sorted) order.
+ * module classes, script-facing class types, event records, and referenced
+ * record types; collects generation warnings (missing @zh translations,
+ * missing @ApiSince) in deterministic (sorted) order.
  */
 final class ModelExtractor {
 
@@ -90,14 +91,14 @@ final class ModelExtractor {
 
         List<ApiModel.PropertyModel> properties = new ArrayList<>();
         List<ApiModel.MethodModel> methods = new ArrayList<>();
-        List<ApiModel.HandleModel> handles = new ArrayList<>();
+        List<ApiModel.ClassModel> classes = new ArrayList<>();
 
         for (Element member : type.getEnclosedElements()) {
             if (member.getKind() == ElementKind.CLASS || member.getKind() == ElementKind.RECORD) {
                 TypeElement nested = (TypeElement) member;
-                var handle = DocletSupport.handleOf(nested);
-                if (handle != null) {
-                    handles.add(handleModel(nested, handle, trees, referenced, warnings,
+                var apiClass = DocletSupport.classOf(nested);
+                if (apiClass != null) {
+                    classes.add(classModel(nested, apiClass, trees, referenced, warnings,
                             module.name()));
                 }
                 continue;
@@ -152,7 +153,7 @@ final class ModelExtractor {
 
         properties.sort(java.util.Comparator.comparing(ApiModel.PropertyModel::name));
         methods.sort(java.util.Comparator.comparing(ApiModel.MethodModel::name));
-        handles.sort(java.util.Comparator.comparing(ApiModel.HandleModel::name));
+        classes.sort(java.util.Comparator.comparing(ApiModel.ClassModel::name));
         List<ApiModel.TypeModel> referencedList = new ArrayList<>(referenced.values());
         referencedList.sort(java.util.Comparator.comparing(ApiModel.TypeModel::name));
         return new ApiModel.ModuleModel(
@@ -160,19 +161,19 @@ final class ModelExtractor {
                 DocletSupport.docBody(comment),
                 zhBody.orElse(""),
                 moduleSince, DocletSupport.mcOf(type),
-                List.copyOf(properties), List.copyOf(methods), List.copyOf(handles),
+                List.copyOf(properties), List.copyOf(methods), List.copyOf(classes),
                 List.copyOf(referencedList));
     }
 
-    private static ApiModel.HandleModel handleModel(TypeElement type,
-                                                    ApiHandle handle,
-                                                    DocTrees trees,
-                                                    Map<String, ApiModel.TypeModel> referenced,
-                                                    List<String> warnings, String moduleName) {
+    private static ApiModel.ClassModel classModel(TypeElement type,
+                                                  ApiClass apiClass,
+                                                  DocTrees trees,
+                                                  Map<String, ApiModel.TypeModel> referenced,
+                                                  List<String> warnings, String moduleName) {
         var comment = trees.getDocCommentTree(type);
         var zhBody = DocletSupport.zhBody(comment);
         if (zhBody.isEmpty()) {
-            warnings.add(moduleName + "." + handle.value() + ": handle has no @zh docs");
+            warnings.add(moduleName + "." + apiClass.name() + ": class has no @zh docs");
         }
         List<ApiModel.PropertyModel> properties = new ArrayList<>();
         List<ApiModel.MethodModel> methods = new ArrayList<>();
@@ -187,7 +188,7 @@ final class ModelExtractor {
             if (DocletSupport.isBeanGetter(method)) {
                 String prop = DocletSupport.propertyName(method);
                 if (DocletSupport.zhBody(memberComment).isEmpty()) {
-                    warnings.add(moduleName + "." + handle.value() + "." + prop
+                    warnings.add(moduleName + "." + apiClass.name() + "." + prop
                             + ": property has no @zh docs");
                 }
                 properties.add(new ApiModel.PropertyModel(
@@ -202,7 +203,7 @@ final class ModelExtractor {
                         DocletSupport.experimentalOf(method)));
             } else {
                 if (DocletSupport.zhBody(memberComment).isEmpty()) {
-                    warnings.add(moduleName + "." + handle.value() + "." + method.getSimpleName()
+                    warnings.add(moduleName + "." + apiClass.name() + "." + method.getSimpleName()
                             + ": method has no @zh docs");
                 }
                 methods.add(new ApiModel.MethodModel(
@@ -224,8 +225,26 @@ final class ModelExtractor {
         }
         properties.sort(java.util.Comparator.comparing(ApiModel.PropertyModel::name));
         methods.sort(java.util.Comparator.comparing(ApiModel.MethodModel::name));
-        return new ApiModel.HandleModel(handle.value(), DocletSupport.docBody(comment),
+        return new ApiModel.ClassModel(apiClass.name(), apiClass.kind(), apiClass.wraps(),
+                extendsNameOf(type), DocletSupport.docBody(comment),
                 zhBody.orElse(""), List.copyOf(properties), List.copyOf(methods));
+    }
+
+    /**
+     * Resolves the script-visible name of the nearest annotated ancestor
+     * class, or empty when the type has no {@code @ApiClass} superclass.
+     */
+    private static String extendsNameOf(TypeElement type) {
+        TypeMirror sup = type.getSuperclass();
+        while (sup.getKind() == TypeKind.DECLARED) {
+            TypeElement element = (TypeElement) ((DeclaredType) sup).asElement();
+            ApiClass ann = DocletSupport.classOf(element);
+            if (ann != null) {
+                return ann.name();
+            }
+            sup = element.getSuperclass();
+        }
+        return "";
     }
 
     private static ApiModel.EventModel eventModel(TypeElement type, ApiEvent event,

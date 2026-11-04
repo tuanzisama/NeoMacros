@@ -2,7 +2,8 @@ package ink.tuanzi.neomacros.core.api.entity;
 
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.SnapshotViews;
-import ink.tuanzi.neomacros.doc.api.ApiHandle;
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
@@ -69,7 +70,8 @@ public final class EntityApi {
      *
      * @zh 实体句柄：属性实时回读世界状态；实体消失后属性回读为 undefined 而不报错。
      */
-    @ApiHandle("EntityHandle")
+    @ApiClass(name = "EntityHandle", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.Entity")
     public static final class EntityHandle implements ink.tuanzi.neomacros.core.api.ScriptHandle {
 
         private final UUID uuid;

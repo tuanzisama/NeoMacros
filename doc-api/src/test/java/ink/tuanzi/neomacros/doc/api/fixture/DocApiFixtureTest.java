@@ -1,8 +1,9 @@
 package ink.tuanzi.neomacros.doc.api.fixture;
 
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
 import ink.tuanzi.neomacros.doc.api.ApiExperimental;
-import ink.tuanzi.neomacros.doc.api.ApiHandle;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
@@ -64,9 +65,19 @@ class DocApiFixtureTest {
     }
 
     @Test
-    void handleAndItsGetterAreReadable() throws Exception {
+    void classDeclarationsAndTheirMembersAreReadable() throws Exception {
         Class<?> handle = Class.forName(DocApiFixture.class.getName() + "$FixtureHandle");
-        assertEquals("FixtureHandle", handle.getAnnotation(ApiHandle.class).value());
+        ApiClass handleClass = handle.getAnnotation(ApiClass.class);
+        assertNotNull(handleClass);
+        assertEquals("FixtureHandle", handleClass.name());
+        assertEquals(ApiClassKind.HANDLE, handleClass.kind());
+        assertEquals("net.minecraft.world.fixture.World", handleClass.wraps());
+
+        Class<?> data = Class.forName(DocApiFixture.class.getName() + "$FixtureData");
+        ApiClass dataClass = data.getAnnotation(ApiClass.class);
+        assertNotNull(dataClass);
+        assertEquals(ApiClassKind.DATA, dataClass.kind());
+        assertEquals("", dataClass.wraps(), "data class without wraps stays empty");
 
         Method getter = handle.getMethod("getName");
         assertNotNull(getter.getAnnotation(ApiReadOnly.class),
