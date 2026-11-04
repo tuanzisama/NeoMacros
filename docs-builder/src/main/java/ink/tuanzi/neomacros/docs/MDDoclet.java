@@ -125,6 +125,12 @@ public class MDDoclet implements Doclet {
                 write(apiDir.resolve("types.zh.md"),
                         renderTypesPage(model.standaloneClasses(), extendedBy, knownTypes, true));
             }
+            if (!model.events().isEmpty()) {
+                write(apiDir.resolve("events-reference.md"),
+                        renderEventsReference(model.events(), false));
+                write(apiDir.resolve("events-reference.zh.md"),
+                        renderEventsReference(model.events(), true));
+            }
             write(apiDir.resolve(DocletSupport.WARNINGS_FILE),
                     String.join("\n", model.warnings()) + "\n");
         } catch (IOException e) {
@@ -166,6 +172,40 @@ public class MDDoclet implements Doclet {
             sb.append(text(clazz.doc(), clazz.zhDoc(), zh)).append("\n\n");
             renderProperties(sb, clazz.properties(), zh, knownTypes);
             renderMethods(sb, clazz.methods(), zh, knownTypes);
+        }
+        return sb.toString();
+    }
+
+    /** Renders the event catalog page: every @ApiEvent record with payload fields. */
+    private static String renderEventsReference(List<ApiModel.EventModel> events, boolean zh) {
+        var sb = new StringBuilder();
+        sb.append(zh ? "# \u4e8b\u4ef6\u76ee\u5f55\n\n" : "# Event Catalog\n\n");
+        sb.append(zh
+            ? "\u4ee5\u4e0b\u662f\u6240\u6709\u53ef\u8ba2\u9605\u7684\u4e8b\u4ef6\u53ca\u5176\u8f7d\u8377\u5b57\u6bb5\u3002\u4f7f\u7528 `events.on(name, handler)` \u8ba2\u9605\u3002\n\n"
+            : "All subscribable events and their payload fields. Subscribe via `events.on(name, handler)`.\n\n");
+        String lastDomain = "";
+        for (ApiModel.EventModel event : events) {
+            String domain = event.name().contains(":")
+                    ? event.name().substring(0, event.name().indexOf(':'))
+                    : event.name();
+            if (!domain.equals(lastDomain)) {
+                if (!lastDomain.isEmpty()) {
+                    sb.append("\n");
+                }
+                sb.append("## ").append(domain).append("\n\n");
+                lastDomain = domain;
+            }
+            String cancellable = event.cancellable()
+                    ? (zh ? " \u00b7 \u53ef\u53d6\u6d88" : " · cancellable") : "";
+            sb.append("### `").append(event.name()).append("`").append(cancellable).append("\n\n");
+            sb.append(text(event.doc(), event.zhDoc(), zh)).append("\n\n");
+            if (!event.fields().isEmpty()) {
+                sb.append("| Field | Type |\n| --- | --- |\n");
+                for (ApiModel.ParameterModel field : event.fields()) {
+                    sb.append("| `").append(field.name()).append("` | `").append(field.type()).append("` |\n");
+                }
+                sb.append("\n");
+            }
         }
         return sb.toString();
     }
