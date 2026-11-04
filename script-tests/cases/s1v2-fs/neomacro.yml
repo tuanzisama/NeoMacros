@@ -1,0 +1,7 @@
+name: s1v2-fs
+version: 1.0.0
+author: neomacros
+description: s1v2-fs E2E-G case
+config:
+  event:
+    on: [game:start]

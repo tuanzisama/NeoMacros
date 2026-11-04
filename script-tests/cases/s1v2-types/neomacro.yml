@@ -1,0 +1,7 @@
+name: s1v2-types
+version: 1.0.0
+author: neomacros
+description: s1v2-types E2E-G case
+config:
+  event:
+    on: [game:start]
