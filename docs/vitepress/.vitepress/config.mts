@@ -8,7 +8,7 @@ const apiGroups: Array<{ label: Record<Locale, string>; modules: string[] }> = [
   { label: { en: 'Core', zh: '核心' }, modules: ['events', 'clock', 'storage'] },
   { label: { en: 'UI', zh: '界面' }, modules: ['chat', 'hud', 'command', 'render'] },
   { label: { en: 'World', zh: '世界' }, modules: ['world', 'player', 'entity'] },
-  { label: { en: 'System', zh: '系统' }, modules: ['fs', 'net'] },
+  { label: { en: 'System', zh: '系统' }, modules: ['fs', 'net', 'java'] },
   { label: { en: 'Input', zh: '输入' }, modules: ['input'] },
 ]
 
