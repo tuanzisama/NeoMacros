@@ -1,5 +1,13 @@
 /* Site styles extending the VitePress default theme. */
 
+/* API pages (pageClass: api-facade / api-index): hide the top navbar menu
+   so the API section reads as a standalone reference with its own sidebar.
+   The navbar content-bar (title + search + social) stays visible. */
+.api-facade .VPNavBarMenu,
+.api-index .VPNavBarMenu {
+  display: none;
+}
+
 /* Generated API pages (pageClass: api-facade): present each member heading as
    a card — monospace signature, brand-colored left edge, soft background —
    matching the reference documentation's member entries. */

@@ -20,7 +20,7 @@ const guidePages: Array<[string, Record<Locale, string>]> = [
   ['commands-and-debugging', { en: 'Commands & Debugging', zh: '命令与排错' }],
 ]
 
-const examplePages: Array<[string, Record<Locale, string>]> = [
+const examplePages: Array<[string, Record<Locale, string]>] = [
   ['index', { en: 'Overview', zh: '总览' }],
   ['auto-greet', { en: 'Auto Greet', zh: '进服欢迎' }],
   ['coords-hud', { en: 'Coords HUD', zh: '坐标 HUD' }],
@@ -32,7 +32,8 @@ function link(section: 'guide' | 'examples', page: string, locale: Locale) {
   return `/${locale}/${section}/${page}`
 }
 
-function sidebar(locale: Locale) {
+/** Sidebar shown on guide/examples/index pages (includes an API link). */
+function defaultSidebar(locale: Locale) {
   const t = locale === 'zh'
   return [
     {
@@ -47,15 +48,11 @@ function sidebar(locale: Locale) {
       text: t ? 'API 参考' : 'API Reference',
       link: `/${locale}/api/`,
     },
-    ...apiGroups.map((group) => ({
-      text: group.label[locale],
-      items: group.modules.map((name) => ({ text: name, link: `/${locale}/api/${name}` })),
-    })),
   ]
 }
 
-/** Dropdown nav entry for the API Reference (all module pages + types). */
-function apiNav(locale: Locale) {
+/** Sidebar shown ONLY on API pages (no guide/examples pollution). */
+function apiSidebar(locale: Locale) {
   const t = locale === 'zh'
   const items: Array<{ text: string; link: string }> = [
     { text: t ? '总览' : 'Overview', link: `/${locale}/api/` },
@@ -66,10 +63,29 @@ function apiNav(locale: Locale) {
       items.push({ text: name, link: `/${locale}/api/${name}` })
     }
   }
+  return items
+}
+
+/** Path-keyed sidebars: API pages get a clean API-only sidebar. */
+function allSidebars(locale: Locale) {
+  const prefix = `/${locale}`
+  const guide = defaultSidebar(locale)
+  const api = apiSidebar(locale)
   return {
-    text: t ? 'API 参考' : 'API Reference',
-    items,
+    [`${prefix}/guide/`]: guide,
+    [`${prefix}/examples/`]: guide,
+    [`${prefix}/api/`]: api,
+    [prefix]: guide,
   }
+}
+
+/** Top nav shown on guide/examples pages only (hidden on API pages via CSS). */
+function guideNav(locale: Locale) {
+  const t = locale === 'zh'
+  return [
+    { text: t ? '指南' : 'Guide', link: `/${locale}/guide/getting-started` },
+    { text: t ? '示例' : 'Examples', link: `/${locale}/examples/` },
+  ]
 }
 
 export default defineConfig({
@@ -84,12 +100,8 @@ export default defineConfig({
       lang: 'en',
       link: '/en/',
       themeConfig: {
-        nav: [
-          { text: 'Guide', link: '/en/guide/getting-started' },
-          { text: 'Examples', link: '/en/examples/' },
-          apiNav('en'),
-        ],
-        sidebar: sidebar('en'),
+        nav: guideNav('en'),
+        sidebar: allSidebars('en'),
       },
     },
     zh: {
@@ -97,12 +109,8 @@ export default defineConfig({
       lang: 'zh-CN',
       link: '/zh/',
       themeConfig: {
-        nav: [
-          { text: '指南', link: '/zh/guide/getting-started' },
-          { text: '示例', link: '/zh/examples/' },
-          apiNav('zh'),
-        ],
-        sidebar: sidebar('zh'),
+        nav: guideNav('zh'),
+        sidebar: allSidebars('zh'),
         search: {
           options: {
             translations: {
@@ -137,6 +145,11 @@ export default defineConfig({
       pageData.frontmatter ??= {}
       pageData.frontmatter.pageClass = 'api-facade'
       pageData.frontmatter.outline = [2, 3]
+    }
+    // API index page gets its own page class for CSS targeting.
+    if (/^(en|zh)\/api\/index\.md$/.test(path)) {
+      pageData.frontmatter ??= {}
+      pageData.frontmatter.pageClass = 'api-index'
     }
   },
 })
