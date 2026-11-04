@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.input;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 import java.util.List;
@@ -16,6 +18,8 @@ import java.util.List;
  * @zh-param modifiers 按下的修饰键列表
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "key:press", cancellable = true)
 public record KeyPressEvent(String key, int code, String action, List<String> modifiers) {
 }

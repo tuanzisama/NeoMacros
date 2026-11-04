@@ -4,6 +4,7 @@ import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
@@ -21,6 +22,8 @@ import java.util.Map;
  * @zh 不可变的物品堆副本。实例只来自查询（容器槽位、事件载荷）或 {@link ItemStackBuilder}；不提供直接构造器。{@code JSON.stringify} 输出纯字段。
  */
 @ApiClass(name = "ItemStack", kind = ApiClassKind.DATA)
+@ApiSince("0.2.0")
+@ApiLoader("*")
 @ApiMC("*")
 public final class ItemStack implements ScriptHandle {
 
@@ -80,6 +83,7 @@ public final class ItemStack implements ScriptHandle {
     /** The namespaced item identifier, e.g. {@code minecraft:diamond_sword}.
      * @zh 命名空间物品标识，如 {@code minecraft:diamond_sword}。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public String getId() {
@@ -89,6 +93,7 @@ public final class ItemStack implements ScriptHandle {
     /** The stack size.
      * @zh 物品数量。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public int getCount() {
@@ -98,6 +103,7 @@ public final class ItemStack implements ScriptHandle {
     /** The display name (styled text flattened).
      * @zh 显示名（样式文本平铺）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public String getName() {
@@ -107,6 +113,7 @@ public final class ItemStack implements ScriptHandle {
     /** The current durability damage (0 for undamageable items).
      * @zh 当前耐久损伤（无耐久物品为 0）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public int getDamage() {
@@ -116,6 +123,7 @@ public final class ItemStack implements ScriptHandle {
     /** The maximum durability (0 for undamageable items).
      * @zh 最大耐久（无耐久物品为 0）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public int getMaxDamage() {
@@ -125,6 +133,7 @@ public final class ItemStack implements ScriptHandle {
     /** The lore lines, in order.
      * @zh 按序排列的 Lore 行。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public List<String> getLore() {
@@ -134,6 +143,7 @@ public final class ItemStack implements ScriptHandle {
     /** The enchantments as {@code {id, level}} entries, in stored order.
      * @zh 按 {id, level} 形态的附魔列表，按存储顺序。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public List<Map<String, Object>> getEnchantments() {
@@ -150,6 +160,7 @@ public final class ItemStack implements ScriptHandle {
     /** Whether the stack represents nothing (air or a zero count).
      * @zh 物品堆是否为空（空气或数量为零）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public boolean getIsEmpty() {
         return count <= 0 || id.equals("minecraft:air");
@@ -158,6 +169,7 @@ public final class ItemStack implements ScriptHandle {
     /** Whether the stack's item id equals the identifier (namespace optional).
      * @zh 物品标识是否等于给定 id（命名空间可省略）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public boolean is(String itemId) {
         return id.equals(namespaced(itemId));
@@ -167,6 +179,7 @@ public final class ItemStack implements ScriptHandle {
      * and components.
      * @zh 另一物品堆是否为同类物品（忽略数量、耐久与组件）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public boolean isSameItem(Object other) {
         String otherId = itemIdOf(other);
@@ -176,6 +189,7 @@ public final class ItemStack implements ScriptHandle {
     /** Whether the other stack is a full copy of this one.
      * @zh 另一物品堆是否与本堆完全相同。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public boolean same(Object other) {
         return equals(other);
@@ -184,6 +198,7 @@ public final class ItemStack implements ScriptHandle {
     /** JSON form so {@code JSON.stringify} renders the stack directly.
      * @zh JSON 形式，使 {@code JSON.stringify} 直接输出物品堆。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Map<String, Object> toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();

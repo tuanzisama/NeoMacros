@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.player;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 import java.util.Objects;
@@ -14,6 +16,8 @@ import java.util.UUID;
  * @zh-param name 玩家名称
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "player:leave")
 public record PlayerLeaveEvent(UUID uuid, String name) {
     public PlayerLeaveEvent {

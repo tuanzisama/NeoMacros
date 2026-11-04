@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.input;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 /**
@@ -10,6 +12,8 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  * @zh-param amount 滚动偏移量
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "input:wheel")
 public record InputWheelEvent(double amount) {
 }

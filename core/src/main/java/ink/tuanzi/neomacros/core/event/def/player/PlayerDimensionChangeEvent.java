@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.player;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 import java.util.Objects;
@@ -13,6 +15,8 @@ import java.util.Objects;
  * @zh-param to 新维度标识
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "player:dimensionChange")
 public record PlayerDimensionChangeEvent(String from, String to) {
     public PlayerDimensionChangeEvent {

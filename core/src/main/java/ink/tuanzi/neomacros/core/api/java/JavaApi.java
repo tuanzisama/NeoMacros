@@ -2,6 +2,8 @@ package ink.tuanzi.neomacros.core.api.java;
 
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 import java.lang.reflect.Array;
@@ -24,6 +26,8 @@ import java.util.Map;
 @ApiModule(name = "java", category = "系统")
 @ApiPermission("java")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class JavaApi {
 
     /** Translates a script-supplied class name into the runtime binary name. */
@@ -54,6 +58,8 @@ public final class JavaApi {
      * @zh-return 类代理
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     /**
      * Loads one class as a {@code JavaClass} proxy. The name goes through
      * the mapping-layer translation; a primitive name ({@code int},
@@ -119,6 +125,8 @@ public final class JavaApi {
      * @zh-return 宿主代理对象
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public Object proxy(Object interfaces, Object handlers) throws ClassNotFoundException {
         List<String> names = new ArrayList<>();
         if (interfaces instanceof List<?> list) {
@@ -186,6 +194,8 @@ public final class JavaApi {
      * @zh 把脚本数组包装为宿主 List 对象，可传回 Java API。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public Object toList(Object scriptArray) {
         if (scriptArray instanceof List<?> list) {
             return JavaInterop.wrap(new ArrayList<>(list));
@@ -200,6 +210,8 @@ public final class JavaApi {
      * @zh 把宿主集合逐元素转为脚本数组。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public Object fromList(Object javaCollection) {
         if (javaCollection instanceof java.util.Collection<?> collection) {
             return new ArrayList<>(collection);
@@ -215,6 +227,8 @@ public final class JavaApi {
      * @zh 把脚本数组转为指定组件类型的宿主数组（空名 → Object[]）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public Object toArray(Object scriptArray, String componentTypeName)
             throws ClassNotFoundException {
         if (!(scriptArray instanceof List<?> list)) {

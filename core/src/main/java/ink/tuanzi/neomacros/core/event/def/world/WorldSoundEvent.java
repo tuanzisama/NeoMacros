@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.world;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 /**
@@ -14,6 +16,8 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  * @zh-param pitch 音调
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "world:sound")
 public record WorldSoundEvent(String soundId,
                               ink.tuanzi.neomacros.core.api.types.Pos3D pos,

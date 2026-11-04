@@ -1,5 +1,6 @@
 package ink.tuanzi.neomacros.core.runtime;
 
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
@@ -12,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @zh thread 门面创建的单个定时器句柄；cancel 停止调度（幂等）。
  */
 @ApiSince("0.2.0")
+@ApiLoader("*")
 @ApiMC("*")
 public final class TimerHandle {
 

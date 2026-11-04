@@ -6,6 +6,8 @@ import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 import ink.tuanzi.neomacros.port.model.RayOptions;
@@ -35,6 +37,8 @@ public final class RayHit implements ScriptHandle {
     /** The hit block handle, or undefined on entity hits / misses.
      * @zh 命中方块句柄；命中实体或未命中时为 undefined。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public Block getBlock() {
         return snapshot()
@@ -47,6 +51,8 @@ public final class RayHit implements ScriptHandle {
     /** The hit entity handle, or undefined on block hits / misses.
      * @zh 命中实体句柄；命中方块或未命中时为 undefined。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity getEntity() {
         return snapshot()
@@ -59,6 +65,8 @@ public final class RayHit implements ScriptHandle {
     /** The exact hit position.
      * @zh 精确命中位置。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public Pos3D getPos() {
         return snapshot()
@@ -69,6 +77,8 @@ public final class RayHit implements ScriptHandle {
     /** The distance from the origin to the hit (max distance on a miss).
      * @zh 原点到命中点的距离（未命中时为最大距离）。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public double getDistance() {
         return snapshot().map(ink.tuanzi.neomacros.port.model.RayHit::distance)
@@ -78,6 +88,8 @@ public final class RayHit implements ScriptHandle {
     /** Whether the ray hit anything at all.
      * @zh 射线是否命中了任何目标。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public boolean isHit() {
         return snapshot()
                 .map(hit -> hit.block() != null || hit.entity() != null)

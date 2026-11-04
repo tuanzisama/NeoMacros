@@ -24,7 +24,7 @@ class JavaInteropTest {
     @Test
     void classProxyReadsStaticMembersAndDispatches() throws Exception {
         JavaApi api = new JavaApi();
-        JavaClass math = api.type("java.lang.Math");
+        JavaClass math = api.type("java.lang.Math", null);
 
         assertEquals("java.lang.Math", math.className());
         assertTrue((Double) math.readValue("PI") > 3.14 && (Double) math.readValue("PI") < 3.15,
@@ -36,7 +36,7 @@ class JavaInteropTest {
     @Test
     void objectProxyConstructsDispatchesAndChecksInstances() throws Exception {
         JavaApi api = new JavaApi();
-        JavaClass listClass = api.type("java.util.ArrayList");
+        JavaClass listClass = api.type("java.util.ArrayList", null);
         JavaObject list = (JavaObject) JavaInterop.wrap(listClass.constructInstance(new Object[0]));
 
         list.invoke("add", new Object[]{"alpha"});
@@ -47,7 +47,7 @@ class JavaInteropTest {
         assertTrue(list.instanceOf("java.util.List"), "instance check through the hierarchy");
         assertTrue(!list.instanceOf("java.util.HashMap"), "unrelated class rejects");
 
-        JavaClass uuidClass = api.type("java.util.UUID");
+        JavaClass uuidClass = api.type("java.util.UUID", null);
         JavaObject id = (JavaObject) JavaInterop.wrap(uuidClass.constructInstance(new Object[]{
                 0L, 0L}));
         assertEquals("00000000-0000-0000-0000-000000000000",
@@ -57,7 +57,7 @@ class JavaInteropTest {
     @Test
     void interopArgumentsUnwrapAndAdapt() throws Exception {
         JavaApi api = new JavaApi();
-        JavaClass listClass = api.type("java.util.ArrayList");
+        JavaClass listClass = api.type("java.util.ArrayList", null);
         JavaObject list = (JavaObject) JavaInterop.wrap(listClass.constructInstance(new Object[0]));
 
         // A wrapped interop argument contributes its raw object.
@@ -119,7 +119,7 @@ class JavaInteropTest {
     void customResolverTranslatesNames() throws Exception {
         JavaApi mapping = new JavaApi(name -> name.equals("MyString")
                 ? "java.lang.String" : name);
-        assertEquals("java.lang.String", mapping.type("MyString").className(),
+        assertEquals("java.lang.String", mapping.type("MyString", null).className(),
                 "resolver output feeds the lookup");
     }
 
@@ -128,7 +128,7 @@ class JavaInteropTest {
         var api = new JavaApi();
         var thrown = recordThrowable(() -> {
             try {
-                api.type("java.util.NoSuchClassXYZ");
+                api.type("java.util.NoSuchClassXYZ", null);
             } catch (ClassNotFoundException expected) {
                 // the lookup must fail loudly for unknown names
             }

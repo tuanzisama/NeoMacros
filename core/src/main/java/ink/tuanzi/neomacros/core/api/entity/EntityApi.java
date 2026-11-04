@@ -9,6 +9,7 @@ import ink.tuanzi.neomacros.core.api.types.Pos2D;
 import ink.tuanzi.neomacros.core.api.types.Pos3D;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
@@ -36,6 +37,7 @@ import java.util.UUID;
  */
 @ApiModule(name = "entity", category = "世界")
 @ApiSince("0.1.0")
+@ApiLoader("*")
 @ApiMC("*")
 public final class EntityApi {
 
@@ -48,6 +50,7 @@ public final class EntityApi {
      * @zh-return 实体句柄，或 undefined
      */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Entity lookup(String uuid) {
         UUID id;
@@ -71,6 +74,7 @@ public final class EntityApi {
      * @zh-return 实体句柄数组
      */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public List<Entity> inRadius(double x, double y, double z, double range) {
         return adapter().inRadius(new Pos3d(x, y, z), range, snapshot -> true).stream()
@@ -85,6 +89,7 @@ public final class EntityApi {
      * @zh-return 玩家句柄数组
      */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public List<Entity> players() {
         return adapter().inRadius(new Pos3d(0, 0, 0), Double.MAX_VALUE,
@@ -104,6 +109,7 @@ public final class EntityApi {
      * @zh-return 最近实体句柄或 undefined
      */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Entity nearest(double x, double y, double z, double range) {
         double cx = x;
@@ -161,6 +167,7 @@ public final class EntityApi {
 
         /** Creates the handle for one entity UUID (cross-cell factory use). */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public Entity(UUID uuid) {
             this.uuid = uuid;
@@ -177,6 +184,7 @@ public final class EntityApi {
          * @zh 实体 UUID 字符串。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public String getUuid() {
@@ -190,6 +198,7 @@ public final class EntityApi {
          * @zh 实体类型标识（如 {@code minecraft:pig}）；实体消失后为 undefined。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public String getType() {
@@ -202,6 +211,7 @@ public final class EntityApi {
          * @zh 显示名称；实体消失后为 undefined。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public String getName() {
@@ -214,6 +224,7 @@ public final class EntityApi {
          * @zh 世界坐标位置；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Pos3D getPos() {
@@ -227,6 +238,7 @@ public final class EntityApi {
          * @zh 方块网格坐标（向下取整）；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public BlockPos getBlockPos() {
@@ -243,6 +255,7 @@ public final class EntityApi {
          * @zh 实体所在区块坐标；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public ChunkPos getChunk() {
@@ -256,6 +269,7 @@ public final class EntityApi {
          * @zh 速度向量；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Pos3D getVelocity() {
@@ -268,6 +282,7 @@ public final class EntityApi {
          * @zh 眼睛位置；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Pos3D getEyePos() {
@@ -283,6 +298,7 @@ public final class EntityApi {
          * @zh 眼睛高度；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Double getEyeHeight() {
@@ -296,6 +312,7 @@ public final class EntityApi {
          * @zh 视线方向单位向量；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Pos3D getDirection() {
@@ -309,6 +326,7 @@ public final class EntityApi {
          * @zh 朝向 {@code Pos2D(yaw, pitch)}（角度）；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Pos2D getRotation() {
@@ -323,6 +341,7 @@ public final class EntityApi {
          * @zh 偏航角（角度）；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Double getYaw() {
@@ -335,6 +354,7 @@ public final class EntityApi {
          * @zh 俯仰角（角度）；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Double getPitch() {
@@ -348,6 +368,7 @@ public final class EntityApi {
          * @zh 轴对齐包围盒 {@code {min, max}}；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Map<String, Object> getBoundingBox() {
@@ -368,6 +389,7 @@ public final class EntityApi {
         /** Whether the entity stands on the ground.
          * @zh 实体是否站在地面上。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isOnGround() {
             return current().map(EntitySnapshot::onGround).orElse(false);
@@ -376,6 +398,7 @@ public final class EntityApi {
         /** Whether the entity is in water.
          * @zh 实体是否在水中。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isInWater() {
             return current().map(EntitySnapshot::inWater).orElse(false);
@@ -384,6 +407,7 @@ public final class EntityApi {
         /** Whether the entity is in lava.
          * @zh 实体是否在熔岩中。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isInLava() {
             return current().map(EntitySnapshot::inLava).orElse(false);
@@ -392,6 +416,7 @@ public final class EntityApi {
         /** Whether the entity is on fire.
          * @zh 实体是否着火。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isOnFire() {
             return current().map(EntitySnapshot::onFire).orElse(false);
@@ -400,6 +425,7 @@ public final class EntityApi {
         /** Whether the entity is sneaking.
          * @zh 实体是否在潜行。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isSneaking() {
             return current().map(EntitySnapshot::sneaking).orElse(false);
@@ -408,6 +434,7 @@ public final class EntityApi {
         /** Whether the entity is sprinting.
          * @zh 实体是否在疾跑。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isSprinting() {
             return current().map(EntitySnapshot::sprinting).orElse(false);
@@ -416,6 +443,7 @@ public final class EntityApi {
         /** Whether the entity is swimming.
          * @zh 实体是否在游泳。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isSwimming() {
             return current().map(EntitySnapshot::swimming).orElse(false);
@@ -424,6 +452,7 @@ public final class EntityApi {
         /** Whether the entity is gliding with an elytra.
          * @zh 实体是否在鞘翅滑翔。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isGliding() {
             return current().map(EntitySnapshot::gliding).orElse(false);
@@ -436,6 +465,7 @@ public final class EntityApi {
          * @zh 骑在本实体上的乘客句柄数组；无乘客时为空数组。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public List<Entity> getPassengers() {
@@ -453,6 +483,7 @@ public final class EntityApi {
          * @zh 本实体骑乘的载具句柄；无骑乘时为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Entity getVehicle() {
@@ -469,6 +500,7 @@ public final class EntityApi {
          * @zh 实体姿态名（{@code standing}、{@code crouching} 等）；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public String getPose() {
@@ -482,6 +514,7 @@ public final class EntityApi {
          * @zh 离散水平朝向（{@code north/south/east/west}）；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public String getFacing() {
@@ -495,6 +528,7 @@ public final class EntityApi {
          * @zh 实体所在维度标识；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public String getDimension() {
@@ -508,6 +542,7 @@ public final class EntityApi {
          * @zh 实体是否仍在世界中加载。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isValid() {
             return current().isPresent();
@@ -520,6 +555,7 @@ public final class EntityApi {
          * @zh 实体是否加载且存活（生物需生命值大于零）。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isAlive() {
             Optional<EntitySnapshot> snapshot = current();
@@ -535,6 +571,7 @@ public final class EntityApi {
          * @zh-return 距离（格）
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public double distanceTo(Object target) {
             Pos3d from = current().map(EntitySnapshot::pos).orElse(null);
@@ -556,6 +593,7 @@ public final class EntityApi {
          * @zh 穿透口：原始宿主实体对象（需 java 权限）。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiPermission("java")
         public Object getRaw() {
@@ -570,6 +608,7 @@ public final class EntityApi {
          * @zh 返回时点快照；实体消失时返回 null。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public EntitySnapshot snapshot() {
             return current().orElse(null);
@@ -582,6 +621,7 @@ public final class EntityApi {
          * @zh 等价 snapshot 的 JSON 形式；JSON.stringify 可直接序列化句柄。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public Map<String, Object> toJSON() {
             return SnapshotViews.entity(current().orElse(null));
@@ -650,6 +690,7 @@ public final class EntityApi {
          * @zh 掉落的物品堆；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public ItemStack getStack() {
@@ -686,6 +727,7 @@ public final class EntityApi {
          * @zh 生命值；实体消失后为 undefined。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Double getHealth() {
@@ -700,6 +742,7 @@ public final class EntityApi {
          * @zh 最大生命值；实体消失后为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Double getMaxHealth() {
@@ -711,6 +754,7 @@ public final class EntityApi {
         /** Whether the entity is sleeping in a bed.
          * @zh 实体是否睡在床上。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isSleeping() {
             return current()
@@ -725,6 +769,7 @@ public final class EntityApi {
          * @zh 主手物品；空手或实体消失时为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public ItemStack getHeldItem() {
@@ -738,6 +783,7 @@ public final class EntityApi {
          * @zh 副手物品；空手或实体消失时为 undefined。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public ItemStack getOffhandItem() {
@@ -751,6 +797,7 @@ public final class EntityApi {
          * @zh 主/副手任一是否持有指定 id 的物品（命名空间可省略）。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean isHolding(String itemId) {
             String wanted = ItemStack.namespaced(itemId);

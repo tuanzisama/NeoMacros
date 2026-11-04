@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.api;
 
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
@@ -16,6 +18,8 @@ import java.util.concurrent.CompletableFuture;
  */
 @ApiModule(name = "hud", category = "界面")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class HudApi {
 
     private final HudRegistry registry;
@@ -36,6 +40,8 @@ public final class HudApi {
      * @zh 在 HUD 覆盖层上添加一条持久文本。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     public CompletableFuture<Void> addText(String id, String text, int x, int y, int color) {
         return registry.addText(id, text, x, y, color);
@@ -47,6 +53,8 @@ public final class HudApi {
      * @zh 移除一条 HUD 文本。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     public CompletableFuture<Void> removeText(String id) {
         return registry.removeText(id);
@@ -58,6 +66,8 @@ public final class HudApi {
      * @zh 列出所有已注册的 HUD 文本标识。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public List<String> textIds() {
         return registry.textIds();
     }

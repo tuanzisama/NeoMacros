@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.core.api.client;
 
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
@@ -15,6 +16,7 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  */
 @ApiModule(name = "client", category = "系统")
 @ApiSince("0.2.0")
+@ApiLoader("*")
 @ApiMC("*")
 public final class ClientApi {
 
@@ -24,6 +26,7 @@ public final class ClientApi {
      * @zh 客户端当前帧率。
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public int getFps() {
@@ -36,6 +39,7 @@ public final class ClientApi {
      * @zh 客户端运行的游戏版本串。
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public String getGameVersion() {
@@ -50,6 +54,7 @@ public final class ClientApi {
      * @zh 原始宿主客户端实例（{@code JavaObject} 代理）。需 {@code java} 权限；等价于 {@code java.type('net.minecraft.client.Minecraft').getInstance()}。
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiPermission("java")
     public Object getMinecraft() {

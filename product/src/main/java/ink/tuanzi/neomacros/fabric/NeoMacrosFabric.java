@@ -126,7 +126,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         catalog.registerAll(ProductionEventSet.records());
         var pool = new ScriptThreadPool(Runtime.getRuntime().availableProcessors());
         var bus = new EventBus(catalog, pool.workers());
-        var registry = new BindingRegistry(mcVersion());
+        var registry = new BindingRegistry(mcVersion(), loaderVersion());
 
         var ioExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
             Thread thread = new Thread(r, "neomacros-io");
@@ -628,6 +628,12 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         return FabricLoader.getInstance().getModContainer("minecraft")
                 .map(c -> c.getMetadata().getVersion().getFriendlyString())
                 .orElse("26.3");
+    }
+
+    private static String loaderVersion() {
+        return FabricLoader.getInstance().getModContainer("fabricloader")
+                .map(c -> c.getMetadata().getVersion().getFriendlyString())
+                .orElse("*");
     }
 
     // ---- command helpers -------------------------------------------------

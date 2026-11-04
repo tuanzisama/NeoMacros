@@ -3,6 +3,8 @@ package ink.tuanzi.neomacros.core.api;
 import ink.tuanzi.neomacros.core.util.JsonLite;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
@@ -27,6 +29,8 @@ import java.util.concurrent.ExecutorService;
  */
 @ApiModule(name = "net", category = "系统")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class NetApi {
 
     private final HttpClient client;
@@ -49,6 +53,8 @@ public final class NetApi {
      * @zh-return Promise，以 Response 落定
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<Response>")
     @ApiPermission("net")
     public CompletableFuture<Response> fetch(String url, Object init) {
@@ -92,6 +98,8 @@ public final class NetApi {
      * @zh 发起 HTTP GET（fetch 的便捷形式）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<Response>")
     @ApiPermission("net")
     public CompletableFuture<Response> get(String url) {
@@ -105,6 +113,8 @@ public final class NetApi {
      * @zh 发起带文本请求体的 HTTP POST（fetch 的便捷形式）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<Response>")
     @ApiPermission("net")
     public CompletableFuture<Response> post(String url, String body) {
@@ -150,6 +160,8 @@ public final class NetApi {
 
         /** Reads the body as UTF-8 text. */
         @ApiSince("0.1.0")
+        @ApiMC("*")
+        @ApiLoader("*")
         @ApiType("Promise<string>")
         public CompletableFuture<String> text() {
             return CompletableFuture.completedFuture(
@@ -158,6 +170,8 @@ public final class NetApi {
 
         /** Parses the body as JSON; rejects when the body is not valid JSON. */
         @ApiSince("0.1.0")
+        @ApiMC("*")
+        @ApiLoader("*")
         @ApiType("Promise<any>")
         public CompletableFuture<Object> json() {
             try {
@@ -173,6 +187,8 @@ public final class NetApi {
 
         /** Reads the body as raw bytes (rendered as a Uint8Array). */
         @ApiSince("0.1.0")
+        @ApiMC("*")
+        @ApiLoader("*")
         @ApiType("Promise<Uint8Array>")
         public CompletableFuture<byte[]> bytes() {
             return CompletableFuture.completedFuture(body);

@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.player;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.core.api.types.Block;
 
@@ -13,6 +15,8 @@ import ink.tuanzi.neomacros.core.api.types.Block;
  * @zh-param face 交互面方向名（如 north）
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "player:attackBlock", cancellable = true)
 public record PlayerAttackBlockEvent(Block block, String face) {
 }

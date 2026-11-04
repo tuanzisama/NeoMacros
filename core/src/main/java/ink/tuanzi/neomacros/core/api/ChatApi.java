@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.api;
 
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 /**
@@ -11,6 +13,8 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  */
 @ApiModule(name = "chat", category = "界面")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class ChatApi {
 
     /**
@@ -19,6 +23,8 @@ public final class ChatApi {
      * @zh 以玩家身份向服务器发送聊天消息。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void say(String message) {
         ScriptApiEnvironment.adapter().chat().say(message);
     }
@@ -29,6 +35,8 @@ public final class ChatApi {
      * @zh 仅在本地聊天栏打印消息。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void log(String message) {
         ScriptApiEnvironment.adapter().chat().log(message);
     }
@@ -39,6 +47,8 @@ public final class ChatApi {
      * @zh 在快捷栏上方的动作条显示消息。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void actionbar(String message) {
         ScriptApiEnvironment.adapter().chat().actionbar(message);
     }

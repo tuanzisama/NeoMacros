@@ -2,6 +2,8 @@ package ink.tuanzi.neomacros.core.api;
 
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
@@ -30,6 +32,8 @@ import java.util.concurrent.ExecutorService;
  */
 @ApiModule(name = "fs", category = "系统")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class FsApi {
 
     private final FsBridge bridge;
@@ -49,6 +53,8 @@ public final class FsApi {
      * @zh 读取 UTF-8 文本文件，Promise 以文件内容落定。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<string>")
     @ApiPermission("fs")
     public CompletableFuture<String> readText(String path) {
@@ -61,6 +67,8 @@ public final class FsApi {
      * @zh 写入 UTF-8 文本文件（自动创建父目录）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     @ApiPermission("fs")
     public CompletableFuture<Void> writeText(String path, String content) {
@@ -77,6 +85,8 @@ public final class FsApi {
      * @zh 列出目录下一级的条目名（排序后返回）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<Array<string>>")
     @ApiPermission("fs")
     public CompletableFuture<List<String>> list(String path) {
@@ -98,6 +108,8 @@ public final class FsApi {
      * @zh 创建目录（含父目录）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     @ApiPermission("fs")
     public CompletableFuture<Void> mkdir(String path) {
@@ -110,6 +122,8 @@ public final class FsApi {
      * @zh 删除文件或空目录。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     @ApiPermission("fs")
     public CompletableFuture<Void> delete(String path) {
@@ -122,6 +136,8 @@ public final class FsApi {
      * @zh 判断路径是否存在。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<boolean>")
     @ApiPermission("fs")
     public CompletableFuture<Boolean> exists(String path) {
@@ -135,6 +151,8 @@ public final class FsApi {
      * @zh 读取 JSON 文件为中性值（对象/数组/字符串/数字/布尔）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<any>")
     @ApiPermission("fs")
     public CompletableFuture<Object> readJSON(String path) {
@@ -148,6 +166,8 @@ public final class FsApi {
      * @zh 把中性值写入 JSON 文件（自动创建父目录）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     @ApiPermission("fs")
     public CompletableFuture<Void> writeJSON(String path, Object value) {
@@ -165,6 +185,8 @@ public final class FsApi {
      * @zh 按字节读取文件（元素 0-255，引擎侧渲染为 Uint8Array）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<Uint8Array>")
     @ApiPermission("fs")
     public CompletableFuture<byte[]> readBytes(String path) {
@@ -178,6 +200,8 @@ public final class FsApi {
      * @zh 按字节写入文件（自动创建父目录），data 为字节值数组。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     @ApiPermission("fs")
     public CompletableFuture<Void> writeBytes(String path, Object data) {
@@ -195,6 +219,8 @@ public final class FsApi {
      * @zh 返回文件元信息：size/mtimeMs/isDir/isFile。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<object>")
     @ApiPermission("fs")
     public CompletableFuture<Map<String, Object>> stat(String path) {
@@ -216,6 +242,8 @@ public final class FsApi {
      * @zh 移动文件或目录；目标已存在时失败。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     @ApiPermission("fs")
     public CompletableFuture<Void> move(String from, String to) {
@@ -232,6 +260,8 @@ public final class FsApi {
      * @zh 复制文件；目标已存在时失败。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     @ApiPermission("fs")
     public CompletableFuture<Void> copy(String from, String to) {

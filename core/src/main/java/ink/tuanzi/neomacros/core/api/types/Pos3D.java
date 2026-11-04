@@ -4,6 +4,7 @@ import ink.tuanzi.neomacros.core.api.SelfConstructing;
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
@@ -17,6 +18,8 @@ import java.util.Map;
  * @zh 不可变三维点/向量：所有运算都返回新实例。位置、方向与偏移的脚本端主力类型；{@code JSON.stringify} 直接输出 {@code {"x":…,"y":…,"z":…}}。
  */
 @ApiClass(name = "Pos3D", kind = ApiClassKind.DATA)
+@ApiSince("0.2.0")
+@ApiLoader("*")
 @ApiMC("*")
 public class Pos3D implements ScriptHandle, SelfConstructing {
 
@@ -27,6 +30,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Creates the point from world coordinates.
      * @zh 由世界坐标构造。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D(double x, double y, double z) {
         this.x = x;
@@ -43,6 +47,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** The X coordinate.
      * @zh X 坐标。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public double getX() {
         return x;
@@ -51,6 +56,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** The Y coordinate.
      * @zh Y 坐标。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public double getY() {
         return y;
@@ -59,6 +65,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** The Z coordinate.
      * @zh Z 坐标。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public double getZ() {
         return z;
@@ -67,6 +74,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Adds another point or vector.
      * @zh 加上另一个点/向量。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D add(Pos3D other) {
         return new Pos3D(x + other.x, y + other.y, z + other.z);
@@ -75,6 +83,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Subtracts another point or vector.
      * @zh 减去另一个点/向量。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D sub(Pos3D other) {
         return new Pos3D(x - other.x, y - other.y, z - other.z);
@@ -83,6 +92,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Multiplies component-wise by another vector.
      * @zh 与另一向量按分量相乘。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D mul(Pos3D other) {
         return new Pos3D(x * other.x, y * other.y, z * other.z);
@@ -91,6 +101,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Scales by a factor.
      * @zh 按系数缩放。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D scale(double factor) {
         return new Pos3D(x * factor, y * factor, z * factor);
@@ -99,6 +110,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Divides component-wise by another vector.
      * @zh 与另一向量按分量相除。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D div(Pos3D other) {
         return new Pos3D(x / other.x, y / other.y, z / other.z);
@@ -107,6 +119,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** The vector length.
      * @zh 向量长度。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public double length() {
         return Math.sqrt(x * x + y * y + z * z);
@@ -115,6 +128,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** The squared vector length.
      * @zh 向量长度的平方。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public double lengthSq() {
         return x * x + y * y + z * z;
@@ -123,6 +137,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** The unit vector of the same direction (zero vector stays zero).
      * @zh 同方向的单位向量（零向量保持为零）。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D normalize() {
         double len = length();
@@ -132,6 +147,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** The distance to another point.
      * @zh 到另一点的距离。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public double distanceTo(Pos3D other) {
         return sub(other).length();
@@ -140,6 +156,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** The squared distance to another point.
      * @zh 到另一点的距离平方。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public double distanceSq(Pos3D other) {
         return sub(other).lengthSq();
@@ -148,6 +165,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** The dot product.
      * @zh 点积。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public double dot(Pos3D other) {
         return x * other.x + y * other.y + z * other.z;
@@ -156,6 +174,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** The cross product.
      * @zh 叉积。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D cross(Pos3D other) {
         return new Pos3D(
@@ -167,6 +186,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Linear interpolation toward another point by {@code t} (0..1).
      * @zh 向另一点按 {@code t}（0..1）线性插值。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D lerp(Pos3D other, double t) {
         return new Pos3D(
@@ -178,6 +198,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Returns a copy with the X coordinate replaced.
      * @zh 返回替换 X 坐标后的副本。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D withX(double value) {
         return new Pos3D(value, y, z);
@@ -186,6 +207,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Returns a copy with the Y coordinate replaced.
      * @zh 返回替换 Y 坐标后的副本。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D withY(double value) {
         return new Pos3D(x, value, z);
@@ -194,6 +216,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Returns a copy with the Z coordinate replaced.
      * @zh 返回替换 Z 坐标后的副本。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos3D withZ(double value) {
         return new Pos3D(x, y, value);
@@ -202,6 +225,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** Floors the coordinates onto the block grid.
      * @zh 将坐标向下取整到方块网格。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public BlockPos floor() {
         return new BlockPos((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
@@ -210,6 +234,7 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
     /** JSON form so {@code JSON.stringify} renders the point directly.
      * @zh JSON 形式，使 {@code JSON.stringify} 直接输出坐标。 */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Map<String, Object> toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();

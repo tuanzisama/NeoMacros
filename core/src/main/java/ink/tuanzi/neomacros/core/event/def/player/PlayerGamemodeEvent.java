@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.player;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 /**
@@ -11,6 +13,8 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  * @zh-param current 当前模式
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "player:gamemode")
 public record PlayerGamemodeEvent(String previous, String current) {
 }

@@ -397,6 +397,17 @@ class PortEventWiringTest {
         }
 
         @Override
+        public ink.tuanzi.neomacros.port.ClientPort client() {
+            return new ink.tuanzi.neomacros.port.ClientPort() {
+                public int fps() { return 60; }
+
+                public String gameVersion() { return "26.3-stub"; }
+
+                public Object minecraftInstance() { return null; }
+            };
+        }
+
+        @Override
 
         public ink.tuanzi.neomacros.port.InputPort input() {
             // No-op: the key-press/wheel wiring registers sinks only.

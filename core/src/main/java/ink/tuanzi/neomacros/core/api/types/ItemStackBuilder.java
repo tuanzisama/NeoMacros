@@ -4,6 +4,7 @@ import ink.tuanzi.neomacros.core.api.SelfConstructing;
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
@@ -19,6 +20,8 @@ import java.util.Map;
  * @zh 本地 {@link ItemStack} 的构建器；脚本造物的唯一构造路径。产物是本地数据——进入世界只能靠特权写（创造物品栏）或仅作比较/展示——生存模式没有"凭空给物品"的路径（服务器权威）。
  */
 @ApiClass(name = "ItemStackBuilder", kind = ApiClassKind.DATA)
+@ApiSince("0.2.0")
+@ApiLoader("*")
 @ApiMC("*")
 public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
 
@@ -34,6 +37,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Creates the builder for one item id (namespace optional).
      * @zh 为某物品 id 创建构建器（命名空间可省略）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder(String itemId) {
         if (itemId == null || itemId.isBlank()) {
@@ -51,6 +55,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Sets the stack size.
      * @zh 设置物品数量。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder count(int size) {
         this.count = size;
@@ -60,6 +65,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Sets the current durability damage.
      * @zh 设置当前耐久损伤。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder damage(int value) {
         this.damage = value;
@@ -69,6 +75,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Sets the maximum durability.
      * @zh 设置最大耐久。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder maxDamage(int value) {
         this.maxDamage = value;
@@ -78,6 +85,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Sets a custom display name.
      * @zh 设置自定义显示名。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder name(String value) {
         this.name = value;
@@ -87,6 +95,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Appends lore lines (varargs form).
      * @zh 追加 Lore 行（变参形态）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder lore(String... lines) {
         for (String line : lines) {
@@ -98,6 +107,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Replaces lore lines from an array form.
      * @zh 以数组形态替换 Lore 行。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder loreLines(List<String> lines) {
         this.lore.clear();
@@ -110,6 +120,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Adds one enchantment (chainable, repeats allowed).
      * @zh 添加一条附魔（可链式重复）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder enchant(String enchantId, int level) {
         this.enchantments.add(new ItemStack.Enchantment(ItemStack.namespaced(enchantId), level));
@@ -119,6 +130,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Marks the stack unbreakable (default true when called without arguments).
      * @zh 标记为不可破坏（无参调用默认 true）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder unbreakable() {
         return unbreakable(true);
@@ -127,6 +139,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Marks the stack unbreakable on or off.
      * @zh 标记不可破坏的开或关。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder unbreakable(boolean on) {
         this.unbreakable = on;
@@ -137,6 +150,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
      * chained calls override.
      * @zh 以现有物品堆为底稿拷贝全部字段，随后链式调用逐项覆盖。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder copyFrom(ItemStack stack) {
         if (stack == null) {
@@ -161,6 +175,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     /** Validates and produces the immutable stack.
      * @zh 校验并产出不可变物品堆。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ItemStack build() {
         if (id == null) {

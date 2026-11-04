@@ -3,6 +3,8 @@ package ink.tuanzi.neomacros.core.api;
 import ink.tuanzi.neomacros.core.api.bindgen.LoadTracker;
 import ink.tuanzi.neomacros.core.module.LoadedModule;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 /**
@@ -15,6 +17,8 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  */
 @ApiModule(name = "storage", category = "核心")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class StorageApi {
 
     /**
@@ -23,6 +27,8 @@ public final class StorageApi {
      * @zh 读取一个值；不存在时返回 null。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public Object get(String key) {
         return storage().get(key);
     }
@@ -33,6 +39,8 @@ public final class StorageApi {
      * @zh 写入一个值；传 null 等同删除该键。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void put(String key, Object value) {
         storage().put(key, value);
     }
@@ -43,6 +51,8 @@ public final class StorageApi {
      * @zh 删除一个键。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void remove(String key) {
         storage().delete(key);
     }
@@ -53,6 +63,8 @@ public final class StorageApi {
      * @zh 判断键是否存在。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public boolean has(String key) {
         return storage().has(key);
     }

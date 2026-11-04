@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.world;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 /**
@@ -16,6 +18,8 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  * @zh-param progress 血条进度 0.0~1.0（仅 add/updateProgress 携带，其余为 null）
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "world:bossbar")
 public record WorldBossbarEvent(String uuid, String action, String name, Float progress) {
 }

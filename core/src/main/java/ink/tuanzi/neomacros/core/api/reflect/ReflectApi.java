@@ -1,5 +1,6 @@
 package ink.tuanzi.neomacros.core.api.reflect;
 
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
@@ -23,6 +24,7 @@ import java.util.List;
 @ApiModule(name = "reflect", category = "系统")
 @ApiPermission("java")
 @ApiSince("0.2.0")
+@ApiLoader("*")
 @ApiMC("*")
 public final class ReflectApi {
 
@@ -56,6 +58,7 @@ public final class ReflectApi {
      * @zh-param paramTypes 参数类型数组（可省略）
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Object method(Object target, String name, Object paramTypes) {
         Class<?> owner = ownerOf(target);
@@ -84,6 +87,7 @@ public final class ReflectApi {
      * @zh-param name 字段名
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Object field(Object target, String name) {
         Class<?> owner = ownerOf(target);
@@ -110,6 +114,7 @@ public final class ReflectApi {
      * @zh-param args 参数数组（可省略）
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Object invoke(Object method, Object target, Object args) throws Exception {
         if (!(method instanceof Method handle)) {
@@ -132,6 +137,7 @@ public final class ReflectApi {
      * @zh-param args 构造参数数组（可省略）
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Object newInstance(Object cls, Object args) throws Exception {
         Class<?> type = classOf(cls);
@@ -166,6 +172,7 @@ public final class ReflectApi {
      * @zh 任意 Java 值的全限定类名（非代理值同样可用）；undefined/null 返回 undefined。
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public String className(Object value) {
         return value == null ? null : value.getClass().getName();

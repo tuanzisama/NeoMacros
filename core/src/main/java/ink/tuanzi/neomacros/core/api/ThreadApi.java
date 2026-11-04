@@ -4,6 +4,8 @@ import ink.tuanzi.neomacros.core.api.bindgen.LoadTracker;
 import ink.tuanzi.neomacros.core.module.LoadedModule;
 import ink.tuanzi.neomacros.core.runtime.TimerHandle;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
@@ -20,6 +22,8 @@ import java.util.concurrent.Callable;
  */
 @ApiModule(name = "thread", category = "核心")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class ThreadApi {
 
     /**
@@ -28,6 +32,8 @@ public final class ThreadApi {
      * @zh 当前代码是否在游戏主线程上执行。
      */
     @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public boolean isMain() {
         return primitives().isMain();
     }
@@ -39,6 +45,8 @@ public final class ThreadApi {
      * @zh 毫秒级实时延时。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     public CompletableFuture<Void> sleep(double millis) {
         return primitives().sleep((long) millis);
@@ -50,6 +58,8 @@ public final class ThreadApi {
      * @zh 等待指定数量的客户端 tick。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     public CompletableFuture<Void> ticks(int count) {
         return primitives().ticks(count);
@@ -62,6 +72,8 @@ public final class ThreadApi {
      * @zh 等待当前 tick 结束。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     public CompletableFuture<Void> nextTick() {
         return primitives().nextTick();
@@ -74,6 +86,8 @@ public final class ThreadApi {
      * @zh 将函数投递到游戏主线程执行，Promise 以返回值落定。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<object>")
     public CompletableFuture<Object> runOnMain(Callable<Object> task) {
         return primitives().runOnMain(task);
@@ -86,6 +100,8 @@ public final class ThreadApi {
      * @zh 毫秒后在脚本事件循环上执行一次函数；返回句柄可取消。
      */
     @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public TimerHandle after(double millis, Runnable task) {
         return primitives().after((long) millis, task);
     }
@@ -97,6 +113,8 @@ public final class ThreadApi {
      * @zh 指定数量的客户端 tick 后在脚本事件循环上执行一次函数；返回句柄可取消。
      */
     @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public TimerHandle afterTick(int count, Runnable task) {
         return primitives().afterTicks(count, task);
     }
@@ -108,6 +126,8 @@ public final class ThreadApi {
      * @zh 每隔指定毫秒在脚本事件循环上执行函数，直到句柄取消。
      */
     @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public TimerHandle every(double millis, Runnable task) {
         return primitives().every((long) millis, task);
     }
@@ -119,6 +139,8 @@ public final class ThreadApi {
      * @zh 每隔指定数量的客户端 tick 在脚本事件循环上执行函数，直到句柄取消。
      */
     @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public TimerHandle everyTick(int count, Runnable task) {
         return primitives().everyTicks(count, task);
     }

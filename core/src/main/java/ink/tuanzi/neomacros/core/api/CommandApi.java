@@ -4,6 +4,8 @@ import ink.tuanzi.neomacros.core.api.java.JavaInterop;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
@@ -26,6 +28,8 @@ import java.util.function.Consumer;
  */
 @ApiModule(name = "command", category = "界面")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class CommandApi {
 
     private final CommandRegistry registry;
@@ -39,6 +43,8 @@ public final class CommandApi {
     /** The typed argument-slot factory ({@code command.arg}).
      * @zh 带类型的参数槽工厂（{@code command.arg}）。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public CommandArgFactory getArg() {
         return argFactory;
@@ -106,6 +112,8 @@ public final class CommandApi {
      * @zh-return 注销用的不透明句柄
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiPermission("command")
     public Object register(Map<String, Object> spec) {
         Map<String, Object> prepared = new LinkedHashMap<>(spec);
@@ -129,6 +137,8 @@ public final class CommandApi {
      * @zh 按句柄或命令名注销。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void unregister(Object handleOrName) {
         if (handleOrName instanceof String name) {
             registry.unregister(name);
@@ -143,6 +153,8 @@ public final class CommandApi {
      * @zh 以玩家身份执行客户端命令（走原版派发器，主线程执行）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<boolean>")
     @ApiPermission("command")
     public CompletableFuture<Boolean> execute(String commandLine) {
@@ -152,6 +164,8 @@ public final class CommandApi {
     /** Kind names the slot factory answers to (kept for tests and docs).
      * @zh 参数槽工厂应答的全部槽位类型名（供测试与文档保留）。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public static List<String> argKindNames() {
         return new ArrayList<>(CommandArg.KIND_NAMES);
     }

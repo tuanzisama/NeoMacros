@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.core.api.world;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.SnapshotViews;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
@@ -23,6 +24,8 @@ import java.util.Optional;
  */
 @ApiModule(name = "world", category = "世界")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class WorldApi {
 
     /**
@@ -31,6 +34,8 @@ public final class WorldApi {
      * @zh 当前世界时间（tick）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public long getTime() {
         return ScriptApiEnvironment.adapter().world().time();
@@ -42,6 +47,8 @@ public final class WorldApi {
      * @zh 当前维度标识，如 {@code minecraft:overworld}。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public String getDimension() {
         return ScriptApiEnvironment.adapter().world().dimension();
@@ -53,6 +60,8 @@ public final class WorldApi {
      * @zh 当前是否在下雨。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public boolean isRaining() {
         return ScriptApiEnvironment.adapter().world().isRaining();
@@ -69,6 +78,8 @@ public final class WorldApi {
      * @zh-return {@code {id, pos:{x,y,z}}} 或 null
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public ink.tuanzi.neomacros.core.api.types.Block blockAt(double x, double y, double z) {
         Optional<BlockData> block = ScriptApiEnvironment.adapter().world()
                 .blockAt(new Pos3d(x, y, z));
@@ -93,6 +104,8 @@ public final class WorldApi {
      * @zh-return {@code {block|entity, pos, distance}} 或 null
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public ink.tuanzi.neomacros.core.api.types.RayHit raycast(double fromX, double fromY,
             double fromZ, double toX, double toY, double toZ) {
         Pos3d from = new Pos3d(fromX, fromY, fromZ);
@@ -115,6 +128,8 @@ public final class WorldApi {
      * @zh 当前是否在打雷。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public boolean isThundering() {
         return ScriptApiEnvironment.adapter().world().isThundering();
@@ -126,6 +141,8 @@ public final class WorldApi {
      * @zh 当前天数。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public long getDay() {
         return ScriptApiEnvironment.adapter().world().day();
@@ -137,6 +154,8 @@ public final class WorldApi {
      * @zh 世界总龄（tick）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public long getAge() {
         return ScriptApiEnvironment.adapter().world().age();
@@ -148,6 +167,8 @@ public final class WorldApi {
      * @zh 难度标识，如 {@code normal}。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public String getDifficulty() {
         return ScriptApiEnvironment.adapter().world().difficulty();
@@ -159,6 +180,8 @@ public final class WorldApi {
      * @zh 查询坐标处群系标识。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public String biomeAt(double x, double y, double z) {
         return ScriptApiEnvironment.adapter().world().biomeAt(new Pos3d(x, y, z))
                 .orElse(null);
@@ -170,6 +193,8 @@ public final class WorldApi {
      * @zh 判断坐标所在区块是否已加载。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public boolean loaded(double x, double y, double z) {
         return ScriptApiEnvironment.adapter().world().loaded(new Pos3d(x, y, z));
     }
@@ -181,6 +206,7 @@ public final class WorldApi {
      * @zh-param chunk 区块坐标
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public boolean chunkLoaded(ink.tuanzi.neomacros.core.api.types.ChunkPos chunk) {
         return ScriptApiEnvironment.adapter().world().loaded(new Pos3d(

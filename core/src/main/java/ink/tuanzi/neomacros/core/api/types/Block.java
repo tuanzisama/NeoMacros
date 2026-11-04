@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.core.api.types;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
@@ -30,6 +31,8 @@ public final class Block implements ScriptHandle {
     /** The block position.
      * @zh 方块坐标。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public BlockPos getPos() {
         return pos;
@@ -38,6 +41,8 @@ public final class Block implements ScriptHandle {
     /** The current block state; undefined outside the loaded world.
      * @zh 当前方块状态；未加载世界内为 undefined。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public BlockState getState() {
         return snapshot().map(data -> new BlockState(data.id(), data.properties())).orElse(null);
@@ -50,6 +55,8 @@ public final class Block implements ScriptHandle {
      * @zh 穿透口：原始宿主方块状态对象（需 java 权限）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiPermission("java")
     public Object getRaw() {
         return ScriptApiEnvironment.adapter().world().rawByPos(
@@ -60,6 +67,7 @@ public final class Block implements ScriptHandle {
     /** The biome identifier at the block position.
      * @zh 方块位置的群系标识。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public String getBiome() {
@@ -71,6 +79,7 @@ public final class Block implements ScriptHandle {
     /** The chunk coordinate containing the block.
      * @zh 方块所在区块坐标。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public ChunkPos getChunk() {
@@ -86,6 +95,7 @@ public final class Block implements ScriptHandle {
      * @zh-param n 步数（可省略，默认 1）
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Block relative(String direction, Integer n) {
         BlockPos next = pos.offset(direction, n == null ? 1 : n);
@@ -95,6 +105,8 @@ public final class Block implements ScriptHandle {
     /** Whether the block is still loaded in the world.
      * @zh 方块是否仍在世界中加载。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public boolean isValid() {
         return snapshot().isPresent();
     }

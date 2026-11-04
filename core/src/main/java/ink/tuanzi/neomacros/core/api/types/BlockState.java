@@ -2,6 +2,7 @@ package ink.tuanzi.neomacros.core.api.types;
 
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
@@ -41,6 +42,8 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
     /** The namespaced block identifier, e.g. {@code minecraft:chest}.
      * @zh 带命名空间的方块标识符，如 {@code minecraft:chest}。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public String getId() {
         return id;
@@ -49,6 +52,8 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
     /** The vanilla state properties.
      * @zh 原版状态属性。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
     public Map<String, String> getProps() {
         return props;
@@ -57,6 +62,8 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
     /** Whether the state's block matches the identifier (namespace optional).
      * @zh 状态的方块是否匹配标识符（可省略命名空间）。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public boolean is(String idOrPredicate) {
         String probe = idOrPredicate.contains(":") ? idOrPredicate
                 : "minecraft:" + idOrPredicate;
@@ -71,6 +78,7 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
      * @zh-param props 属性表
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public boolean isProps(java.util.Map<String, String> props) {
         for (java.util.Map.Entry<String, String> entry : props.entrySet()) {
@@ -89,6 +97,7 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
     /** Whether the state is one of the air blocks.
      * @zh 状态是否为空气类方块。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public boolean getIsAir() {
         return AIR_IDS.contains(id);
@@ -97,6 +106,7 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
     /** Whether the state is a liquid (water or lava family).
      * @zh 状态是否为液体（水/熔岩族）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public boolean getLiquid() {
         return LIQUID_IDS.stream().anyMatch(id::startsWith);

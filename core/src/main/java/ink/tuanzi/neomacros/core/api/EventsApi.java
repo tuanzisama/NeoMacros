@@ -4,6 +4,8 @@ import ink.tuanzi.neomacros.core.api.bindgen.LoadTracker;
 import ink.tuanzi.neomacros.core.event.Payloads;
 import ink.tuanzi.neomacros.core.module.LoadedModule;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 import java.util.concurrent.CompletableFuture;
@@ -19,6 +21,8 @@ import java.util.function.Predicate;
  */
 @ApiModule(name = "events", category = "核心")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class EventsApi {
 
     /**
@@ -32,6 +36,8 @@ public final class EventsApi {
      * @zh-return 传回 {@link #off} 的不透明订阅句柄
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public Object on(String name, Consumer<Object> handler) {
         LoadedModule owner = LoadTracker.current();
         var subscription = owner != null
@@ -50,6 +56,8 @@ public final class EventsApi {
      * @zh 订阅一次触发后自动注销的事件。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public Object once(String name, Consumer<Object> handler) {
         LoadedModule owner = LoadTracker.current();
         var subscription = owner != null
@@ -69,6 +77,8 @@ public final class EventsApi {
      * @zh 注册脚本自定义事件；名称必须带命名空间，且不能占用内置域。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void register(String name) {
         ScriptApiEnvironment.catalog().registerCustom(name);
     }
@@ -82,6 +92,8 @@ public final class EventsApi {
      * @zh 触发一个自定义事件；载荷须为普通对象（或 undefined），走异步通道。名称须先注册；载荷键不得占用 BaseEvent 保留字（{@code type}、{@code timestamp}、{@code cancellable}）。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void emit(String name, Object payload) {
         if (ScriptApiEnvironment.catalog().descriptor(name).isEmpty()) {
             throw new IllegalArgumentException(
@@ -110,6 +122,8 @@ public final class EventsApi {
      * @zh 按句柄或事件名注销订阅。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void off(Object handleOrName) {
         if (handleOrName instanceof String name) {
             ScriptApiEnvironment.bus().off(name);
@@ -130,6 +144,8 @@ public final class EventsApi {
      * @zh-param handler 判定回调：返回 truthy 取消事件；须短小
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void onSync(String name, java.util.function.Predicate<Object> handler) {
         var subscription = ScriptApiEnvironment.bus().onSync(name,
                 (payload, cancel) -> {
@@ -153,6 +169,8 @@ public final class EventsApi {
      * @zh 等待事件的下一次触发，Promise 以载荷落定。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ink.tuanzi.neomacros.doc.api.ApiType("Promise<object>")
     public CompletableFuture<Object> waitFor(String name) {
         return ScriptApiEnvironment.bus().waitFor(name);
@@ -166,6 +184,8 @@ public final class EventsApi {
      * @zh 按过滤谓词等待事件；超时后 Promise 以异常落定。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ink.tuanzi.neomacros.doc.api.ApiType("Promise<object>")
     public CompletableFuture<Object> waitForUntil(String name, Predicate<Object> filter, long timeoutMillis) {
         return ScriptApiEnvironment.bus().waitFor(name, filter, timeoutMillis);

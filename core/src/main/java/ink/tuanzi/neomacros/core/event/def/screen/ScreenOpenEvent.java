@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.screen;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 /**
@@ -11,6 +13,8 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  * @zh-param kind 屏幕类型
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "screen:open")
 public record ScreenOpenEvent(String title, String kind) {
 }

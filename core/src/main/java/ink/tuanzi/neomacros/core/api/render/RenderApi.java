@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.api.render;
 
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.port.Draw3DPort;
 import ink.tuanzi.neomacros.port.model.Pos3d;
@@ -16,6 +18,8 @@ import java.util.List;
  */
 @ApiModule(name = "render", category = "界面")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class RenderApi {
 
     private final Draw3DPort draw3d;
@@ -36,6 +40,8 @@ public final class RenderApi {
      * @zh 在世界内绘制线框方块。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void drawBox(String layerId, Pos3d min, Pos3d max, int argbColor) {
         draw3d.drawBox(layerId, min, max, argbColor);
     }
@@ -46,6 +52,8 @@ public final class RenderApi {
      * @zh 在世界内绘制线段。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void drawLine(String layerId, Pos3d from, Pos3d to, int argbColor) {
         draw3d.drawLine(layerId, from, to, argbColor);
     }
@@ -56,6 +64,8 @@ public final class RenderApi {
      * @zh 清空一个图层上的全部形状。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void clearLayer(String layerId) {
         draw3d.clearLayer(layerId);
     }
@@ -66,6 +76,8 @@ public final class RenderApi {
      * @zh 列出当前持有形状的图层。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public List<String> layerIds() {
         return draw3d.layerIds().get();
     }

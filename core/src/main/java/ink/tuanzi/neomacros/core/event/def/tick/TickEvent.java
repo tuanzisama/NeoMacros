@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.tick;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 /**
@@ -11,6 +13,8 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  * @zh-param count 本次会话的累计 tick 计数
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "tick")
 public record TickEvent(long count) {
 }

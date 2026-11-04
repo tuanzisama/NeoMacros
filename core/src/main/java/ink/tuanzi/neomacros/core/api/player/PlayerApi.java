@@ -6,6 +6,7 @@ import ink.tuanzi.neomacros.core.api.entity.EntityApi;
 import ink.tuanzi.neomacros.core.api.types.ItemStack;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
@@ -33,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
  */
 @ApiModule(name = "player", category = "世界")
 @ApiSince("0.1.0")
+@ApiLoader("*")
 @ApiMC("*")
 public final class PlayerApi {
 
@@ -42,6 +44,7 @@ public final class PlayerApi {
      * @zh 本地玩家句柄；不在世界内时为 undefined。
      */
     @ApiSince("0.1.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public PlayerApi.LocalPlayer getSelf() {
@@ -55,6 +58,7 @@ public final class PlayerApi {
      * @zh 当前打开的容器屏幕句柄；无屏幕时为 undefined。
      */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
     public Inventory getOpened() {
@@ -92,6 +96,7 @@ public final class PlayerApi {
 
         /** Creates the handle for one player UUID. */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public Player(UUID uuid) {
             super(uuid);
@@ -105,6 +110,7 @@ public final class PlayerApi {
         /** The hunger value; only the local player carries it.
          * @zh 饥饿值；仅本地玩家有值。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Integer getHunger() {
@@ -114,6 +120,7 @@ public final class PlayerApi {
         /** The air (breath) value; only the local player carries it.
          * @zh 氧气值；仅本地玩家有值。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Integer getAir() {
@@ -123,6 +130,7 @@ public final class PlayerApi {
         /** The food saturation value; only the local player carries it.
          * @zh 饱和度；仅本地玩家有值。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Double getSaturation() {
@@ -136,6 +144,7 @@ public final class PlayerApi {
          * @zh 游戏模式标识（{@code survival/creative/adventure/spectator}）；仅本地玩家有值。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public String getGamemode() {
@@ -149,6 +158,7 @@ public final class PlayerApi {
          * @zh 经验 {@code {level, progress, total}}；仅本地玩家有值。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public Map<String, Object> getXp() {
@@ -168,6 +178,7 @@ public final class PlayerApi {
          * @zh 玩家自己的物品栏；仅本地玩家有值。
          */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public PlayerInventory getInventory() {
@@ -181,6 +192,7 @@ public final class PlayerApi {
          * @zh 返回时点快照；玩家未加载时返回 null。
          */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public EntitySnapshot snapshot() {
             return current().orElse(null);
@@ -189,6 +201,7 @@ public final class PlayerApi {
         /** JSON form; the local player renders through the player view.
          * @zh JSON 形式；本地玩家经玩家视图输出。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public Map<String, Object> toJSON() {
             Optional<PlayerSnapshot> self = local();
@@ -235,6 +248,7 @@ public final class PlayerApi {
         /** Attacks the entity behind the target handle.
          * @zh 攻击目标句柄背后的实体。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> attack(EntityApi.Entity target) {
@@ -249,6 +263,7 @@ public final class PlayerApi {
         /** Uses (right-clicks) the entity behind the target handle.
          * @zh 与目标句柄背后的实体交互（右键）。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> interactEntity(EntityApi.Entity target) {
@@ -263,6 +278,7 @@ public final class PlayerApi {
         /** Uses (right-clicks) the block behind the position handle.
          * @zh 与坐标句柄背后的方块交互（右键）。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> interactBlock(
@@ -275,6 +291,7 @@ public final class PlayerApi {
         /** Swings the main hand (offhand = the off hand).
          * @zh 挥动手（offhand = 副手）。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> swingHand(boolean offhand) {
@@ -284,6 +301,7 @@ public final class PlayerApi {
         /** Drops the held item stack ({@code all} = the whole stack).
          * @zh 丢弃手持物品（all = 整组）。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> dropHeld(boolean all) {
@@ -336,6 +354,7 @@ public final class PlayerApi {
         /** The inventory display title.
          * @zh 物品栏显示标题。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public String getTitle() {
@@ -345,6 +364,7 @@ public final class PlayerApi {
         /** The inventory kind ({@code player}, {@code chest}, {@code crafting}, ...).
          * @zh 物品栏种类（{@code player}、{@code chest}、{@code crafting} 等）。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public String getKind() {
@@ -354,6 +374,7 @@ public final class PlayerApi {
         /** The inventory slot count.
          * @zh 物品栏槽位总数。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public int getSize() {
@@ -363,6 +384,7 @@ public final class PlayerApi {
         /** Reads the stack at a slot, or undefined when out of range or empty.
          * @zh 读取指定槽位的物品；越界或空槽为 undefined。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public ItemStack slot(int index) {
             return inventoryPort().slot(index)
@@ -373,6 +395,7 @@ public final class PlayerApi {
         /** All non-empty stacks with their slot indices.
          * @zh 全部非空物品及其槽位号。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public List<Map<String, Object>> getItems() {
             return inventoryPort().allItems().get().stream()
@@ -387,6 +410,7 @@ public final class PlayerApi {
         /** Slot indices holding the given item id, in order.
          * @zh 持有指定物品 id 的槽位号列表（按序）。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public List<Integer> findAll(String itemId) {
             String wanted = ItemStack.namespaced(itemId);
@@ -402,6 +426,7 @@ public final class PlayerApi {
         /** First slot holding the given item id, or undefined.
          * @zh 第一个持有指定物品 id 的槽位；无则 undefined。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public Integer findId(String itemId) {
             List<Integer> hits = findAll(itemId);
@@ -411,6 +436,7 @@ public final class PlayerApi {
         /** Whether the inventory holds the given item id (namespace optional).
          * @zh 物品栏中是否存在指定 id 的物品（命名空间可省略）。 */
         @ApiSince("0.2.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public boolean contains(String itemId) {
             return !findAll(itemId).isEmpty();
@@ -419,6 +445,7 @@ public final class PlayerApi {
         /** Counts occurrences of one item id.
          * @zh 统计某物品 id 的数量。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public int countOf(String item) {
             return inventoryPort().countOf(item);
@@ -427,6 +454,7 @@ public final class PlayerApi {
         /** Clicks a slot (button 0 = left, 1 = right; shift = quick move).
          * @zh 点击槽位（button 0 = 左键，1 = 右键；shift = 快速移动）。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public CompletableFuture<Void> click(int slot, int button, boolean shift) {
             return inventoryPort().click(slot, button, shift);
@@ -435,6 +463,7 @@ public final class PlayerApi {
         /** Quick-moves a slot to the other inventory.
          * @zh 将槽位物品快速移动到另一侧物品栏。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public CompletableFuture<Void> quickMove(int slot) {
             return inventoryPort().quickMove(slot);
@@ -443,6 +472,7 @@ public final class PlayerApi {
         /** Drops the stack from a slot.
          * @zh 丢弃槽位中的物品（all = 全部）。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public CompletableFuture<Void> drop(int slot, boolean all) {
             return inventoryPort().drop(slot, all);
@@ -451,6 +481,7 @@ public final class PlayerApi {
         /** Swaps a container slot with a hotbar slot (0..8).
          * @zh 将容器槽位与快捷栏槽位交换（0..8）。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public CompletableFuture<Void> swapHotbar(int slot, int hotbarIndex) {
             return inventoryPort().swapHotbar(slot, hotbarIndex);
@@ -459,6 +490,7 @@ public final class PlayerApi {
         /** Closes the inventory screen.
          * @zh 关闭物品栏界面。 */
         @ApiSince("0.1.0")
+        @ApiLoader("*")
         @ApiMC("*")
         public CompletableFuture<Void> close() {
             return inventoryPort().close();

@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.event.def.player;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 
@@ -12,6 +14,8 @@ import ink.tuanzi.neomacros.port.model.EntitySnapshot;
  * @zh-param target 被交互实体的时点快照
  */
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 @ApiEvent(name = "player:interactEntity", cancellable = true)
 public record PlayerInteractEntityEvent(EntitySnapshot target) {
 }

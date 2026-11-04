@@ -4,6 +4,7 @@ import ink.tuanzi.neomacros.core.api.SelfConstructing;
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
@@ -16,6 +17,8 @@ import java.util.Map;
  * @zh 不可变二维点：旋转（yaw, pitch）与屏幕坐标。所有运算都返回新实例。
  */
 @ApiClass(name = "Pos2D", kind = ApiClassKind.DATA)
+@ApiSince("0.2.0")
+@ApiLoader("*")
 @ApiMC("*")
 public final class Pos2D implements ScriptHandle, SelfConstructing {
 
@@ -25,6 +28,7 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     /** Creates the point from two coordinates.
      * @zh 由两个坐标构造。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos2D(double x, double y) {
         this.x = x;
@@ -40,6 +44,7 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     /** The X coordinate.
      * @zh X 坐标。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public double getX() {
         return x;
@@ -48,6 +53,7 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     /** The Y coordinate.
      * @zh Y 坐标。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public double getY() {
         return y;
@@ -56,6 +62,7 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     /** Adds another point.
      * @zh 加上另一点。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos2D add(Pos2D other) {
         return new Pos2D(x + other.x, y + other.y);
@@ -64,6 +71,7 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     /** Subtracts another point.
      * @zh 减去另一点。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos2D sub(Pos2D other) {
         return new Pos2D(x - other.x, y - other.y);
@@ -72,6 +80,7 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     /** Multiplies component-wise by another point.
      * @zh 与另一点按分量相乘。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos2D mul(Pos2D other) {
         return new Pos2D(x * other.x, y * other.y);
@@ -80,6 +89,7 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     /** Scales by a factor.
      * @zh 按系数缩放。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Pos2D scale(double factor) {
         return new Pos2D(x * factor, y * factor);
@@ -88,6 +98,7 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     /** JSON form so {@code JSON.stringify} renders the point directly.
      * @zh JSON 形式，使 {@code JSON.stringify} 直接输出坐标。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Map<String, Object> toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();

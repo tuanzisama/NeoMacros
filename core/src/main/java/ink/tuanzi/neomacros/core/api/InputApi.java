@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.api;
 
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
@@ -20,6 +22,8 @@ import java.util.function.Consumer;
  */
 @ApiModule(name = "input", category = "输入")
 @ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class InputApi {
 
     private final InputBridge bridge;
@@ -59,6 +63,8 @@ public final class InputApi {
      * @zh-return 订阅句柄，cancel 解绑
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public Subscription registerKeybind(String keyName, Runnable sink) {
         Object handle = bridge.registerKeybind(keyName, count -> sink.run());
         return new Subscription(() -> bridge.unregister(handle));
@@ -71,6 +77,8 @@ public final class InputApi {
      * @zh-return 订阅句柄，cancel 注销
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public Subscription registerKeyPress(String keyName, Runnable sink) {
         Object handle = bridge.registerKeyPress(keyName, sink);
         return new Subscription(() -> bridge.unregister(handle));
@@ -83,6 +91,8 @@ public final class InputApi {
      * @zh 订阅鼠标滚轮事件；正值表示向上滚动。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     public CompletableFuture<Void> onScroll(java.util.function.DoubleConsumer sink) {
         bridge.onScroll(sink);
@@ -92,6 +102,8 @@ public final class InputApi {
     /** Removes a previously registered keybind or press listener.
      * @zh 注销先前注册的按键绑定或按下监听。 */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void unregister(Object handle) {
         if (handle instanceof Subscription subscription) {
             subscription.cancel();
@@ -106,6 +118,8 @@ public final class InputApi {
      * @zh 注入一个原始按键的按下沿。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void press(String keyName) {
         bridge.injectKey(keyName, true);
     }
@@ -116,6 +130,8 @@ public final class InputApi {
      * @zh 注入一个原始按键的松开沿。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void release(String keyName) {
         bridge.injectKey(keyName, false);
     }
@@ -127,6 +143,8 @@ public final class InputApi {
      * @zh 按住一个原始按键指定毫秒后松开；Promise 在松开后落定。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     @ApiType("Promise<void>")
     public CompletableFuture<Void> hold(String keyName, long millis) {
         bridge.injectKey(keyName, true);
@@ -148,6 +166,8 @@ public final class InputApi {
      * @zh 按键位绑定名（如 key.use）注入按下/松开状态。
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void set(String bindName, boolean down) {
         bridge.injectBind(bindName, down);
     }

@@ -4,6 +4,7 @@ import ink.tuanzi.neomacros.core.api.SelfConstructing;
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
@@ -17,6 +18,8 @@ import java.util.Map;
  * @zh 不可变区块坐标。刻意不与 {@link Pos3D} 发生继承关系：区块坐标与方块坐标分属两套坐标系，相互换算必须显式（{@code x = blockX >> 4}）。
  */
 @ApiClass(name = "ChunkPos", kind = ApiClassKind.DATA)
+@ApiSince("0.2.0")
+@ApiLoader("*")
 @ApiMC("*")
 public final class ChunkPos implements ScriptHandle, SelfConstructing {
 
@@ -26,6 +29,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     /** Creates the chunk coordinate from chunk-space X/Z.
      * @zh 由区块坐标系 X/Z 构造。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ChunkPos(int x, int z) {
         this.x = x;
@@ -35,6 +39,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     /** Creates the chunk coordinate containing one block position.
      * @zh 由方块坐标构造其所在区块坐标。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ChunkPos(BlockPos pos) {
         this(Math.floorDiv(pos.getIntX(), 16), Math.floorDiv(pos.getIntZ(), 16));
@@ -49,6 +54,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     /** The chunk X ({@code blockX >> 4}).
      * @zh 区块 X（{@code blockX >> 4}）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public int getX() {
         return x;
@@ -57,6 +63,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     /** The chunk Z.
      * @zh 区块 Z。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public int getZ() {
         return z;
@@ -65,6 +72,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     /** The west (-X) block-coordinate boundary, equal to {@code x << 4}.
      * @zh 区块西（-X）边界方块坐标，等于 {@code x << 4}。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public int getMinX() {
         return x << 4;
@@ -73,6 +81,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     /** The north (-Z) block-coordinate boundary, equal to {@code z << 4}.
      * @zh 区块北（-Z）边界方块坐标，等于 {@code z << 4}。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public int getMinZ() {
         return z << 4;
@@ -81,6 +90,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     /** The northwest corner block position on the world floor.
      * @zh 区块西北角的方块坐标（y=0，需要其他高度时用 withY 替换）。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public BlockPos minBlock() {
         return new BlockPos(getMinX(), 0, getMinZ());
@@ -89,6 +99,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     /** Whether the block position falls inside this chunk.
      * @zh 判断方块坐标是否落在本区块内。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public boolean contains(Pos3D pos) {
         return new ChunkPos(pos.floor()).equals(this);
@@ -97,6 +108,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     /** Translates by chunk-space offsets.
      * @zh 按区块坐标系平移。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public ChunkPos offset(int dx, int dz) {
         return new ChunkPos(x + dx, z + dz);
@@ -105,6 +117,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     /** JSON form so {@code JSON.stringify} renders the chunk directly.
      * @zh JSON 形式，使 {@code JSON.stringify} 直接输出区块坐标。 */
     @ApiSince("0.2.0")
+    @ApiLoader("*")
     @ApiMC("*")
     public Map<String, Object> toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();
