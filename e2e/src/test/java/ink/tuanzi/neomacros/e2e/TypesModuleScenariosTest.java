@@ -52,9 +52,9 @@ class TypesModuleScenariosTest {
                     "  const self = player.self;",
                     "  report('types-module',",
                     "    neo.types.Entity === Entity",
-                    "    && neo.types.Player === self.constructor",
-                    "    && self instanceof neo.types.Player",
-                    "    && typeof neo.types.Player === 'function',",
+                    "    && neo.types.LocalPlayer === self.constructor",
+                    "    && self instanceof neo.types.LocalPlayer",
+                    "    && typeof neo.types.LocalPlayer === 'function',",
                     "    JSON.stringify({ same: neo.types.Entity === Entity }));",
                     "});",
                     ""));

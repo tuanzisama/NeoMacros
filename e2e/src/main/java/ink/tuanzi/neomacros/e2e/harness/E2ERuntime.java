@@ -70,6 +70,12 @@ public final class E2ERuntime implements AutoCloseable {
                 ink.tuanzi.neomacros.core.api.java.JavaApi.class));
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
+        registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
+        registry.registerGuestType("Vec3", ink.tuanzi.neomacros.core.api.types.Vec3.class);
+        registry.registerGuestType("BlockPos", ink.tuanzi.neomacros.core.api.types.BlockPos.class);
+        registry.registerGuestType("Block", ink.tuanzi.neomacros.core.api.types.Block.class);
+        registry.registerGuestType("BlockState", ink.tuanzi.neomacros.core.api.types.BlockState.class);
+        registry.registerGuestType("RayHit", ink.tuanzi.neomacros.core.api.types.RayHit.class);
         registry.promoteRootMembers("clock", List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(storageDir);
@@ -105,6 +111,12 @@ public final class E2ERuntime implements AutoCloseable {
                 scriptsDir, m -> log("WARN " + m));
 
         PortEventWiring.wire(adapter, bus, modules, runtime.tickClock());
+
+        // The stub input's fire helpers dispatch onto the first context's
+        // loop so GraalJS never sees cross-thread context access.
+        modules.onLoad(module ->
+                adapter.inputPort().setLoopDispatcher(
+                        action -> module.context().loop().execute(action)));
 
         var harness = new E2ERuntime(adapter, runtime, registry, modules,
                 (TestBridge) registry.instance("__test"), catalog);

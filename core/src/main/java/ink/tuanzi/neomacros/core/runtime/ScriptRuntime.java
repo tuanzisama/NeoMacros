@@ -86,6 +86,11 @@ public final class ScriptRuntime implements AutoCloseable {
         return tickClock;
     }
 
+    /** The loaded contexts, keyed by id (harness access). */
+    public java.util.Collection<ScriptContext> contexts() {
+        return java.util.Collections.unmodifiableCollection(contexts.values());
+    }
+
     /** The game main thread bridge (enqueue + drain hook). */
     public MainThreadScheduler mainThread() {
         return mainThread;

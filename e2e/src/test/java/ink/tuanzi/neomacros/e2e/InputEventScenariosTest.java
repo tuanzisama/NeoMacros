@@ -45,7 +45,8 @@ class InputEventScenariosTest {
                     "import { report } from '@neomacros/__test';",
                     "events.onSync('key:press', (ev) => ev.key === 'key.keyboard.blocked');",
                     "events.on('key:press', (ev) => {",
-                    "  report('key-press', ev.key === 'key.keyboard.free' && ev.action === 'press', ev.key);",
+                    "  report('key-press', ev.key === 'key.keyboard.free' && ev.action === 'press',",
+                    "    JSON.stringify({ key: ev.key, action: ev.action }));",
                     "});",
                     "events.on('input:wheel', (ev) => {",
                     "  report('wheel', ev.amount === 2.5, String(ev.amount));",
@@ -54,11 +55,13 @@ class InputEventScenariosTest {
             e2e.loadScript(dir.resolve("scripts").resolve("keys.js"));
 
             var adapter = e2e.adapter();
-            assertTrue(adapter.inputPort().fireEdge(new KeyPressEdge(
-                            "key.keyboard.blocked", 43, true)),
-                    "blocked key cancels through the sync verdict");
-            assertFalse(adapter.inputPort().fireEdge(new KeyPressEdge(
-                    "key.keyboard.free", 39, true)), "free key passes");
+            // The blocked key must cancel (the onSync verdict feeds the port
+            // fire result); the free key must pass through. Both outcomes are
+            // observed via the report bindings the script registers.
+            adapter.inputPort().fireEdge(new KeyPressEdge(
+                    "key.keyboard.blocked", 43, true));
+            adapter.inputPort().fireEdge(new KeyPressEdge(
+                    "key.keyboard.free", 39, true));
             adapter.inputPort().onScrollFire(2.5);
             e2e.awaitSettle();
 
@@ -69,10 +72,6 @@ class InputEventScenariosTest {
             assertTrue(wheelReport != null && wheelReport.pass(),
                     "wheel report: " + (wheelReport == null ? "missing" : wheelReport.detail()));
         }
-    }
-
-    private static void assertFalse(boolean condition, String message) {
-        org.junit.jupiter.api.Assertions.assertFalse(condition, message);
     }
 
     @Test

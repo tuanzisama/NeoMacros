@@ -55,4 +55,26 @@ public interface PlayerPort {
      * cancellation rules as {@link #onAttackBlock}.
      */
     void onInteractEntity(Function<EntitySnapshot, Boolean> sink);
+
+    /**
+     * Attacks the entity identified by the snapshot's UUID. The future
+     * completes on the main thread once the game processed the attack.
+     */
+    java.util.concurrent.CompletableFuture<Void> attack(EntitySnapshot target);
+
+    /**
+     * Uses (right-clicks) the entity identified by the snapshot's UUID.
+     */
+    java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target);
+
+    /**
+     * Uses (right-clicks) the block identified by the interaction hit.
+     */
+    java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit);
+
+    /** Swings the main hand. */
+    java.util.concurrent.CompletableFuture<Void> swingHand();
+
+    /** Drops the held item stack (all = the whole stack). */
+    java.util.concurrent.CompletableFuture<Void> dropHeld(boolean all);
 }

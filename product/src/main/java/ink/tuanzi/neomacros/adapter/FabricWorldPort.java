@@ -17,6 +17,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -56,7 +58,8 @@ public final class FabricWorldPort implements WorldPort {
             if (state.isAir()) {
                 return Optional.empty();
             }
-            return Optional.of(new BlockData(blockId(state), toPos3d(blockPos)));
+            return Optional.of(new BlockData(blockId(state), toPos3d(blockPos),
+                    stateProperties(state)));
         });
     }
 
@@ -136,6 +139,14 @@ public final class FabricWorldPort implements WorldPort {
         return best;
     }
 
+
+    /** Flattens the vanilla state property values into a string map. */
+    private static Map<String, String> stateProperties(BlockState state) {
+        Map<String, String> out = new LinkedHashMap<>();
+        state.getProperties().forEach(property ->
+                out.put(property.getName(), String.valueOf(state.getValue(property))));
+        return out;
+    }
     /** The namespaced identifier of one block state. */
     private static String blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();

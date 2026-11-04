@@ -11,14 +11,17 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
@@ -36,6 +39,139 @@ public final class FabricPlayerPort implements PlayerPort {
     private final List<Function<EntitySnapshot, Boolean>> attackEntitySinks = new CopyOnWriteArrayList<>();
     private final List<Function<BlockInteraction, Boolean>> interactBlockSinks = new CopyOnWriteArrayList<>();
     private final List<Function<EntitySnapshot, Boolean>> interactEntitySinks = new CopyOnWriteArrayList<>();
+
+    // --- Script-driven actions (main-thread dispatched) ---
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> attack(EntitySnapshot target) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            var entity = findEntity(target.uuid());
+            if (player == null || entity == null) {
+                throw new IllegalStateException("target entity is not loaded: " + target.uuid());
+            }
+            //? if <26.1 {
+            /* Minecraft.getInstance().gameMode.attack(player, entity);
+            player.swing(InteractionHand.MAIN_HAND); */
+            //?}
+            //? if >=26.1 {
+            throw new UnsupportedOperationException(
+                    "attack action pending 26.x interaction API research");
+            //?}
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            var entity = findEntity(target.uuid());
+            if (player == null || entity == null) {
+                throw new IllegalStateException("target entity is not loaded: " + target.uuid());
+            }
+            //? if <26.1 {
+            /* Minecraft.getInstance().gameMode.interact(player, entity,
+                    InteractionHand.MAIN_HAND); */
+            //?}
+            //? if >=26.1 {
+            throw new UnsupportedOperationException(
+                    "useEntity action pending 26.x interaction API research");
+            //?}
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            var pos = new BlockPos((int) Math.floor(hit.pos().x()),
+                    (int) Math.floor(hit.pos().y()), (int) Math.floor(hit.pos().z()));
+            var hitResult = new net.minecraft.world.phys.BlockHitResult(
+                    net.minecraft.world.phys.Vec3.atCenterOf(pos),
+                    net.minecraft.core.Direction.UP, pos, false);
+            //? if <26.1 {
+            /* Minecraft.getInstance().gameMode.useItemOn(player,
+                    InteractionHand.MAIN_HAND, hitResult); */
+            //?}
+            //? if >=26.1 {
+            throw new UnsupportedOperationException(
+                    "useBlock action pending 26.x interaction API research");
+            //?}
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> swingHand() {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                return;
+            }
+            //? if <26.1 {
+            /* player.swing(InteractionHand.MAIN_HAND); */
+            //?}
+            //? if >=26.1 {
+            throw new UnsupportedOperationException(
+                    "swingHand action pending 26.x interaction API research");
+            //?}
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> dropHeld(boolean all) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                return;
+            }
+            //? if <26.1 {
+            /* var stack = player.getInventory().getItem(
+                    player.getInventory().getSelectedSlot());
+            if (!stack.isEmpty()) {
+                player.drop(stack.copyWithCount(all ? stack.getCount() : 1), true);
+                player.getInventory().setItem(
+                        player.getInventory().getSelectedSlot(),
+                        all ? net.minecraft.world.item.ItemStack.EMPTY
+                            : stack.copyWithCount(stack.getCount() - 1));
+            } */
+            //?}
+            //? if >=26.1 {
+            throw new UnsupportedOperationException(
+                    "dropHeld action pending 26.x interaction API research");
+            //?}
+        });
+    }
+
+    /** Finds one loaded entity by UUID. */
+    private net.minecraft.world.entity.Entity findEntity(java.util.UUID uuid) {
+        var level = Minecraft.getInstance().level;
+        if (level == null) {
+            return null;
+        }
+        for (var entity : level.entitiesForRendering()) {
+            if (entity.getUUID().equals(uuid)) {
+                return entity;
+            }
+        }
+        return null;
+    }
+
+    /** Runs one game action on the main thread; failures fail the future. */
+    private java.util.concurrent.CompletableFuture<Void> dispatch(Runnable action) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Minecraft.getInstance().execute(() -> {
+            try {
+                action.run();
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
 
     /** Creates the port and hooks the Fabric client interaction callbacks. */
     public FabricPlayerPort() {

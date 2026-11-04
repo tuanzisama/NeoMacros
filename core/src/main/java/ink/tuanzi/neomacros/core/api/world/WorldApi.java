@@ -65,10 +65,14 @@ public final class WorldApi {
      * @zh-return {@code {id, pos:{x,y,z}}} 或 null
      */
     @ApiSince("0.1.0")
-    public Map<String, Object> blockAt(double x, double y, double z) {
+    public ink.tuanzi.neomacros.core.api.types.Block blockAt(double x, double y, double z) {
         Optional<BlockData> block = ScriptApiEnvironment.adapter().world()
                 .blockAt(new Pos3d(x, y, z));
-        return block.map(WorldApi::blockView).orElse(null);
+        return block.map(data -> new ink.tuanzi.neomacros.core.api.types.Block(
+                new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                        (int) Math.floor(data.pos().x()),
+                        (int) Math.floor(data.pos().y()),
+                        (int) Math.floor(data.pos().z())))).orElse(null);
     }
 
     /**
@@ -85,45 +89,84 @@ public final class WorldApi {
      * @zh-return {@code {block|entity, pos, distance}} 或 null
      */
     @ApiSince("0.1.0")
-    public Map<String, Object> raycast(double fromX, double fromY, double fromZ,
-                                       double toX, double toY, double toZ) {
+    public ink.tuanzi.neomacros.core.api.types.RayHit raycast(double fromX, double fromY,
+            double fromZ, double toX, double toY, double toZ) {
         Pos3d from = new Pos3d(fromX, fromY, fromZ);
         Pos3d to = new Pos3d(toX, toY, toZ);
         Pos3d direction = new Pos3d(to.x() - from.x(), to.y() - from.y(), to.z() - from.z());
-        var options = new ink.tuanzi.neomacros.port.model.RayOptions(
-                Math.sqrt(Math.pow(to.x() - from.x(), 2) + Math.pow(to.y() - from.y(), 2) + Math.pow(to.z() - from.z(), 2)), true, true, false);
-        Optional<ink.tuanzi.neomacros.port.model.RayHit> hit = ScriptApiEnvironment
-                .adapter().world().raycast(from, direction, options);
-        return hit.map(WorldApi::rayView).orElse(null);
+        double reach = Math.sqrt(Math.pow(direction.x(), 2) + Math.pow(direction.y(), 2)
+                + Math.pow(direction.z(), 2));
+        var options = new ink.tuanzi.neomacros.port.model.RayOptions(reach, true, true, false);
+        return new ink.tuanzi.neomacros.core.api.types.RayHit(
+                new ink.tuanzi.neomacros.core.api.types.Vec3(fromX, fromY, fromZ),
+                new ink.tuanzi.neomacros.core.api.types.Vec3(
+                        direction.x(), direction.y(), direction.z()),
+                options);
     }
 
-    /** Renders one ray hit as the plain script object shape. */
-    private static Map<String, Object> rayView(ink.tuanzi.neomacros.port.model.RayHit hit) {
-        Map<String, Object> view = new LinkedHashMap<>();
-        if (hit.block() != null) {
-            Map<String, Object> block = new LinkedHashMap<>();
-            block.put("id", hit.block().id());
-            block.put("pos", SnapshotViews.pos(hit.block().pos()));
-            view.put("block", block);
-        }
-        if (hit.entity() != null) {
-            view.put("entity", SnapshotViews.entity(hit.entity()));
-        }
-        view.put("pos", SnapshotViews.pos(hit.pos()));
-        view.put("distance", hit.distance());
-        return view;
+
+    /**
+     * Whether thunder is currently falling.
+     *
+     * @zh 当前是否在打雷。
+     */
+    @ApiSince("0.1.0")
+    @ApiReadOnly
+    public boolean isThundering() {
+        return ScriptApiEnvironment.adapter().world().isThundering();
     }
 
-    /** Renders one block result as the plain script object shape. */
-    private static Map<String, Object> blockView(Object block) {
-        Map<String, Object> view = new LinkedHashMap<>();
-        if (block instanceof BlockData data) {
-            view.put("id", data.id());
-            view.put("pos", SnapshotViews.pos(data.pos()));
-        } else if (block instanceof BlockInteraction hit) {
-            view.put("id", hit.id());
-            view.put("pos", SnapshotViews.pos(hit.pos()));
-        }
-        return view;
+    /**
+     * The current day count.
+     *
+     * @zh 当前天数。
+     */
+    @ApiSince("0.1.0")
+    @ApiReadOnly
+    public long getDay() {
+        return ScriptApiEnvironment.adapter().world().day();
+    }
+
+    /**
+     * The total world age in ticks.
+     *
+     * @zh 世界总龄（tick）。
+     */
+    @ApiSince("0.1.0")
+    @ApiReadOnly
+    public long getAge() {
+        return ScriptApiEnvironment.adapter().world().age();
+    }
+
+    /**
+     * The difficulty identifier, e.g. {@code normal}.
+     *
+     * @zh 难度标识，如 {@code normal}。
+     */
+    @ApiSince("0.1.0")
+    @ApiReadOnly
+    public String getDifficulty() {
+        return ScriptApiEnvironment.adapter().world().difficulty();
+    }
+
+    /**
+     * The biome identifier at the position.
+     *
+     * @zh 查询坐标处群系标识。
+     */
+    @ApiSince("0.1.0")
+    public String biomeAt(double x, double y, double z) {
+        return ScriptApiEnvironment.adapter().world().biomeAt(new Pos3d(x, y, z))
+                .orElse(null);
+    }
+
+    /**
+     * Whether the chunk containing the position is loaded.
+     *
+     * @zh 判断坐标所在区块是否已加载。
+     */
+    @ApiSince("0.1.0")
+    public boolean loaded(double x, double y, double z) {
+        return ScriptApiEnvironment.adapter().world().loaded(new Pos3d(x, y, z));
     }
 }

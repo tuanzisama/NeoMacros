@@ -204,7 +204,14 @@ public final class GraalJsEngine implements ScriptEngine {
                     configurable: false
                 });
             };
-            globalThis.__neoDefineClass = function (name, parentName, properties, methods) {
+            globalThis.__neoBuildCell = null;
+            globalThis.__neoBuildCellInstall = function (impl) {
+                globalThis.__neoBuildCell = impl;
+            };
+            globalThis.__neoMakeCell = function (name, args) {
+                return __neoBuildCell(name, args);
+            };
+            globalThis.__neoDefineClass = function (name, parentName, properties, methods, selfConstructing) {
                 let table = globalThis.__neoClassTable;
                 if (table === undefined) {
                     table = {};
@@ -220,11 +227,14 @@ public final class GraalJsEngine implements ScriptEngine {
                 }
                 const parent = parentName ? table[parentName] : Object;
                 class C extends parent {
-                    constructor(cell) {
+                    constructor(...ctorArgs) {
                         super();
                         // configurable: a base constructor installs the cell
                         // first along the super() chain; the most-derived
                         // constructor re-defines it with the real value.
+                        var cell = selfConstructing
+                            ? __neoMakeCell(new.target.name, ctorArgs)
+                            : ctorArgs[0];
                         Object.defineProperty(this, '__cell', {
                             value: cell,
                             writable: false,
@@ -346,6 +356,8 @@ public final class GraalJsEngine implements ScriptEngine {
         private Value lastNamespace;
         private Value cachedUndefined;
         private final Map<String, Value> guestClasses = new ConcurrentHashMap<>();
+        private final Map<String, ink.tuanzi.neomacros.core.api.SelfConstructing> cellFactories =
+                new ConcurrentHashMap<>();
 
         private GraalJsSession(ScriptContext owner, Path moduleRoot) {
             this.owner = owner;
@@ -757,6 +769,16 @@ public final class GraalJsEngine implements ScriptEngine {
         private Object asNeutral(Value value) {
             if (value == null || value.isNull()) {
                 return null;
+            }
+            try {
+                if (value.hasMember("__neoCell")) {
+                    Value cellValue = value.getMember("__neoCell");
+                    if (cellValue != null && cellValue.isHostObject()) {
+                        return cellValue.asHostObject();
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                // probe misses fall through
             }
             try {
                 if (value.hasMember("__neoRaw")) {
@@ -1203,6 +1225,53 @@ public final class GraalJsEngine implements ScriptEngine {
             return context.asValue(proxy);
         }
 
+        /** Converts guest call arguments to the declared parameter types. */
+        private Object[] convertArguments(Value[] arguments, Class<?>[] parameterTypes) {
+            Object[] out = new Object[parameterTypes.length];
+            for (int i = 0; i < parameterTypes.length; i++) {
+                Value argument = i < arguments.length ? arguments[i] : null;
+                out[i] = argument == null || argument.isNull() ? null
+                        : convertArgument(argument, parameterTypes[i]);
+            }
+            return out;
+        }
+
+        /** Converts one guest value to the declared parameter type (cells via probe). */
+        private Object convertArgument(Value argument, Class<?> type) {
+            try {
+                if (argument.hasMember("__neoCell")) {
+                    Value cell = argument.getMember("__neoCell");
+                    if (cell != null && !cell.isNull()) {
+                        Object host = cell.isHostObject() ? cell.asHostObject() : null;
+                        if (type.isInstance(host)) {
+                            return host;
+                        }
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                // guest objects without the probe fall through to scalar mapping
+            }
+            if (type == String.class) {
+                return argument.asString();
+            }
+            if (type == double.class || type == Double.class) {
+                return argument.asDouble();
+            }
+            if (type == float.class || type == Float.class) {
+                return (float) argument.asDouble();
+            }
+            if (type == int.class || type == Integer.class) {
+                return argument.asInt();
+            }
+            if (type == long.class || type == Long.class) {
+                return argument.asLong();
+            }
+            if (type == boolean.class || type == Boolean.class) {
+                return argument.asBoolean();
+            }
+            return asNeutral(argument);
+        }
+
         /** Converts guest call arguments to their neutral Java form. */
         private Object[] interopArgs(Value[] arguments) {
             Object[] out = new Object[arguments.length];
@@ -1260,16 +1329,63 @@ public final class GraalJsEngine implements ScriptEngine {
                 guestClassFor(parent);
             }
             HandleShape shape = handleShape(type);
+            boolean selfConstructing =
+                    ink.tuanzi.neomacros.core.api.SelfConstructing.class.isAssignableFrom(type);
+            if (selfConstructing) {
+                try {
+                    var factory = (ink.tuanzi.neomacros.core.api.SelfConstructing)
+                            type.getDeclaredConstructor().newInstance();
+                    cellFactories.put(name, factory);
+                } catch (ReflectiveOperationException e) {
+                    throw new IllegalStateException(
+                            "self-constructing cell needs a no-arg constructor: " + name, e);
+                }
+                installCellBuilderOnce();
+            }
             Value constructor = glueMember("__neoDefineClass").execute(
                     name,
                     parent != null ? guestNameOf(parent) : null,
                     org.graalvm.polyglot.proxy.ProxyArray.fromList(
                             new ArrayList<Object>(shape.properties())),
                     org.graalvm.polyglot.proxy.ProxyArray.fromList(
-                            new ArrayList<Object>(shape.methods())));
+                            new ArrayList<Object>(shape.methods())),
+                    selfConstructing);
             guestClasses.put(name, constructor);
             return constructor;
         }
+
+        /** Installs the host-side cell builder (once per session). */
+        private void installCellBuilderOnce() {
+            if (cellBuilderInstalled) {
+                return;
+            }
+            cellBuilderInstalled = true;
+            glueMember("__neoBuildCellInstall").execute(executable(arguments -> {
+                String name = arguments.length > 0 ? arguments[0].asString() : "";
+                var factory = cellFactories.get(name);
+                if (factory == null) {
+                    throw new IllegalStateException("no self-constructing cell: " + name);
+                }
+                Object[] converted = new Object[arguments.length - 1];
+                for (int i = 1; i < arguments.length; i++) {
+                    Value argument = arguments[i];
+                    if (argument == null || argument.isNull()) {
+                        converted[i - 1] = null;
+                    } else if (argument.isNumber()) {
+                        converted[i - 1] = argument.as(Number.class);
+                    } else if (argument.isString()) {
+                        converted[i - 1] = argument.asString();
+                    } else if (argument.isBoolean()) {
+                        converted[i - 1] = argument.asBoolean();
+                    } else {
+                        converted[i - 1] = null;
+                    }
+                }
+                return handleProxy(factory.construct(converted));
+            }));
+        }
+
+        private boolean cellBuilderInstalled;
 
         /** The nearest {@code @ApiClass}-annotated ancestor class, or null. */
         private static Class<?> annotatedAncestor(Class<?> type) {
@@ -1301,18 +1417,24 @@ public final class GraalJsEngine implements ScriptEngine {
             return context.asValue(new org.graalvm.polyglot.proxy.ProxyObject() {
                 @Override
                 public Object getMember(String name) {
+                    if (name.equals("__neoCell")) {
+                        // Hidden probe: the raw cell for host-side conversion.
+                        return handle;
+                    }
                     java.lang.reflect.Executable member = shape.members().get(name);
                     if (member == null) {
                         return undefinedValue();
                     }
                     java.lang.reflect.Method method = (java.lang.reflect.Method) member;
-                    if (shape.properties().contains(name)) {
+                    if (shape.properties().contains(name) && method.getParameterCount() == 0) {
                         // Bean getter: read live on every property access.
                         return invokeHandleMember(handle, method, name);
                     }
-                    // Zero-arg action/method: cross as a callable so the guest
-                    // invokes it explicitly (matching the generated .d.ts).
-                    return executable(arguments -> invokeHandleMember(handle, method, name));
+                    // Action/method: cross as a callable so the guest invokes
+                    // it explicitly; arguments convert via declared types.
+                    Class<?>[] parameterTypes = method.getParameterTypes();
+                    return executable(arguments -> invokeHandleMember(handle, method, name,
+                            convertArguments(arguments, parameterTypes)));
                 }
 
                 @Override
@@ -1348,11 +1470,17 @@ public final class GraalJsEngine implements ScriptEngine {
             });
         }
 
-        /** Invokes one handle member and renders the result for the guest. */
+        /** Invokes one zero-arg handle member and renders the result for the guest. */
         private Value invokeHandleMember(Object handle, java.lang.reflect.Method method,
                                          String name) {
+            return invokeHandleMember(handle, method, name, new Object[0]);
+        }
+
+        /** Invokes one handle member with converted arguments. */
+        private Value invokeHandleMember(Object handle, java.lang.reflect.Method method,
+                                         String name, Object[] arguments) {
             try {
-                return asGuestValue(method.invoke(handle));
+                return asGuestValue(method.invoke(handle, arguments));
             } catch (java.lang.reflect.InvocationTargetException e) {
                 Throwable cause = e.getCause();
                 if (cause instanceof RuntimeException runtime) {
@@ -1392,7 +1520,7 @@ public final class GraalJsEngine implements ScriptEngine {
                         if (members.putIfAbsent(property, method) == null) {
                             properties.add(property);
                         }
-                    } else if (params == 0 && !name.equals("getClass")) {
+                    } else if (!name.equals("getClass")) {
                         if (members.putIfAbsent(name, method) == null) {
                             methods.add(name);
                         }

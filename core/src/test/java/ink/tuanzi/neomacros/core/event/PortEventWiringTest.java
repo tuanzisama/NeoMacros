@@ -528,6 +528,31 @@ class PortEventWiringTest {
     }
 
     private static final class StubPlayer implements PlayerPort {
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> attack(EntitySnapshot target) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> swingHand() {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> dropHeld(boolean all) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
         volatile PlayerSnapshot self;
         volatile List<ink.tuanzi.neomacros.port.model.EffectSnapshot> effects = List.of();
         final List<Function<BlockInteraction, Boolean>> attackBlocks = new CopyOnWriteArrayList<>();

@@ -55,8 +55,49 @@ public final class EntityApi {
      * @zh-return 实体快照数组
      */
     @ApiSince("0.1.0")
-    public List<EntitySnapshot> inRadius(double x, double y, double z, double range) {
-        return adapter().inRadius(new Pos3d(x, y, z), range, snapshot -> true);
+    public List<Entity> inRadius(double x, double y, double z, double range) {
+        return adapter().inRadius(new Pos3d(x, y, z), range, snapshot -> true).stream()
+                .map(snapshot -> new Entity(snapshot.uuid()))
+                .toList();
+    }
+
+    /**
+     * Returns handles of every loaded player in the world.
+     *
+     * @zh 返回世界中全部玩家的句柄。
+     * @zh-return 玩家句柄数组
+     */
+    @ApiSince("0.1.0")
+    public List<Entity> players() {
+        return adapter().inRadius(new Pos3d(0, 0, 0), Double.MAX_VALUE,
+                snapshot -> snapshot.type().equals("minecraft:player")).stream()
+                .map(snapshot -> new Entity(snapshot.uuid()))
+                .toList();
+    }
+
+    /**
+     * Returns the nearest entity matching the predicate, or undefined.
+     *
+     * @zh 返回距离中心最近且满足条件的实体句柄；无命中时为 undefined。
+     * @zh-param x 中心点坐标 X
+     * @zh-param y 中心点坐标 Y
+     * @zh-param z 中心点坐标 Z
+     * @zh-param range 半径（格）
+     * @zh-return 最近实体句柄或 undefined
+     */
+    @ApiSince("0.1.0")
+    public Entity nearest(double x, double y, double z, double range) {
+        double cx = x;
+        double cy = y;
+        double cz = z;
+        return adapter().inRadius(new Pos3d(cx, cy, cz), range, snapshot -> true).stream()
+                .min(java.util.Comparator.comparingDouble(s -> {
+                    var pos = s.pos();
+                    return Math.pow(pos.x() - cx, 2) + Math.pow(pos.y() - cy, 2)
+                            + Math.pow(pos.z() - cz, 2);
+                }))
+                .map(snapshot -> new Entity(snapshot.uuid()))
+                .orElse(null);
     }
 
     /** The entity port behind the facade (single adapter access point). */
@@ -76,7 +117,8 @@ public final class EntityApi {
 
         private final UUID uuid;
 
-        Entity(UUID uuid) {
+        /** Creates the handle for one entity UUID (public for cross-cell use). */
+        public Entity(UUID uuid) {
             this.uuid = uuid;
         }
 

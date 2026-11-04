@@ -141,6 +141,12 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                         ink.tuanzi.neomacros.adapter.FabricClassResolver::resolve));
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
+        registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
+        registry.registerGuestType("Vec3", ink.tuanzi.neomacros.core.api.types.Vec3.class);
+        registry.registerGuestType("BlockPos", ink.tuanzi.neomacros.core.api.types.BlockPos.class);
+        registry.registerGuestType("Block", ink.tuanzi.neomacros.core.api.types.Block.class);
+        registry.registerGuestType("BlockState", ink.tuanzi.neomacros.core.api.types.BlockState.class);
+        registry.registerGuestType("RayHit", ink.tuanzi.neomacros.core.api.types.RayHit.class);
         registry.registerInstance(new FsApi(new GameDirFsBridge(), ioExecutor));
         registry.registerInstance(new NetApi(ioExecutor));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.HudApi(

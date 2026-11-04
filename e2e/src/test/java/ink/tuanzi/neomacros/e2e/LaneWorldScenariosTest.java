@@ -63,10 +63,10 @@ class LaneWorldScenariosTest {
                     "  const found = entity.lookup(ev.player.uuid);",
                     "  report('lane-world', joined === 1",
                     "      && self !== undefined && self.name === 'tester' && self.health === 10.5",
-                    "      && block !== undefined && block.id === 'minecraft:stone'",
+                    "      && block !== undefined && block.state.id === 'minecraft:stone'",
                     "      && found !== undefined && found.type === 'minecraft:pig' && found.health === 5.5,",
                     "    JSON.stringify({ self: self === undefined ? null : self.name,",
-                    "      block: block === undefined ? null : block.id,",
+                    "      block: block === undefined ? null : block.state.id,",
                     "      found: found === undefined ? null : found.type }));",
                     "});",
                     ""));

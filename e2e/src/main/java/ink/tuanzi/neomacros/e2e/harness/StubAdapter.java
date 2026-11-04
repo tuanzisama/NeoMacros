@@ -54,16 +54,29 @@ public final class StubAdapter implements NeomacrosAdapter {
 
         private volatile java.util.function.Function<ink.tuanzi.neomacros.port.model.KeyPressEdge, Boolean>
                 keyPressSink;
+        private volatile java.util.function.Consumer<Runnable> loopDispatcher = Runnable::run;
         private final List<java.util.function.Consumer<Double>> scrollSinks = new java.util.concurrent.CopyOnWriteArrayList<>();
 
-        /** Fires one raw key edge through the registered event sink. */
-        public boolean fireEdge(ink.tuanzi.neomacros.port.model.KeyPressEdge edge) {
-            return keyPressSink != null && Boolean.TRUE.equals(keyPressSink.apply(edge));
+        /** Sets the loop dispatcher (the runtime supplies the context loop). */
+        public void setLoopDispatcher(java.util.function.Consumer<Runnable> dispatcher) {
+            this.loopDispatcher = dispatcher;
         }
 
-        /** Fires one wheel event through the registered sinks. */
+        /** Fires one raw key edge through the registered event sink on the loop. */
+        public boolean fireEdge(ink.tuanzi.neomacros.port.model.KeyPressEdge edge) {
+            var box = new Object() { boolean canceled = false; };
+            loopDispatcher.accept(() -> box.canceled = fireInline(edge));
+            return box.canceled;
+        }
+
+        /** Fires one wheel event through the registered sinks on the loop. */
         public void onScrollFire(double amount) {
-            scrollSinks.forEach(sink -> sink.accept(amount));
+            loopDispatcher.accept(() -> scrollSinks.forEach(s -> s.accept(amount)));
+        }
+
+        /** Inline fire (must already be on the loop). */
+        boolean fireInline(ink.tuanzi.neomacros.port.model.KeyPressEdge edge) {
+            return keyPressSink != null && Boolean.TRUE.equals(keyPressSink.apply(edge));
         }
 
         @Override
@@ -409,10 +422,47 @@ public final class StubAdapter implements NeomacrosAdapter {
         final List<Function<EntitySnapshot, Boolean>> attackEntitySinks = new CopyOnWriteArrayList<>();
         final List<Function<BlockInteraction, Boolean>> interactBlockSinks = new CopyOnWriteArrayList<>();
         final List<Function<EntitySnapshot, Boolean>> interactEntitySinks = new CopyOnWriteArrayList<>();
+        final List<String> actions = new java.util.concurrent.CopyOnWriteArrayList<>();
 
         /** Sets the local player snapshot (null = not in a world). */
         public void setSelf(PlayerSnapshot snapshot) {
             this.self = snapshot;
+        }
+
+        /** Records one script-driven action. */
+        private java.util.concurrent.CompletableFuture<Void> record(String what) {
+            actions.add(what);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        /** The recorded script-driven action log (test assertions). */
+        public List<String> actions() {
+            return actions;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> attack(EntitySnapshot target) {
+            return record("attack:" + target.uuid());
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target) {
+            return record("useEntity:" + target.uuid());
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit) {
+            return record("useBlock:" + hit.pos().x() + "," + hit.pos().y() + "," + hit.pos().z());
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> swingHand() {
+            return record("swing");
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> dropHeld(boolean all) {
+            return record("drop:" + all);
         }
 
         /** Sets the active status effect list served to the wiring. */
