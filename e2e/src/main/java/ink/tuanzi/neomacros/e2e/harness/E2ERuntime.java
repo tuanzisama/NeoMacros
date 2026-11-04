@@ -1,7 +1,7 @@
 package ink.tuanzi.neomacros.e2e.harness;
 
 import ink.tuanzi.neomacros.core.api.ChatApi;
-import ink.tuanzi.neomacros.core.api.ClockApi;
+import ink.tuanzi.neomacros.core.api.ThreadApi;
 import ink.tuanzi.neomacros.core.api.EventsApi;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.StorageApi;
@@ -65,20 +65,26 @@ public final class E2ERuntime implements AutoCloseable {
         var bus = new EventBus(catalog, Runnable::run);
         var registry = new BindingRegistry("26.3");
         var bridge = new TestBridge();
-        registry.registerAll(List.of(EventsApi.class, ClockApi.class, ChatApi.class,
+        registry.registerAll(List.of(EventsApi.class, ThreadApi.class, ChatApi.class,
                 StorageApi.class, TestBridge.class, WorldApi.class, EntityApi.class, PlayerApi.class,
-                ink.tuanzi.neomacros.core.api.java.JavaApi.class,
-                ink.tuanzi.neomacros.core.api.inventory.InventoryApi.class));
+                ink.tuanzi.neomacros.core.api.java.JavaApi.class));
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
-        registry.registerGuestType("Vec3", ink.tuanzi.neomacros.core.api.types.Vec3.class);
+        registry.registerGuestType("Pos2D", ink.tuanzi.neomacros.core.api.types.Pos2D.class);
+        registry.registerGuestType("Pos3D", ink.tuanzi.neomacros.core.api.types.Pos3D.class);
+        registry.registerGuestType("ChunkPos", ink.tuanzi.neomacros.core.api.types.ChunkPos.class);
         registry.registerGuestType("BlockPos", ink.tuanzi.neomacros.core.api.types.BlockPos.class);
         registry.registerGuestType("Block", ink.tuanzi.neomacros.core.api.types.Block.class);
         registry.registerGuestType("BlockState", ink.tuanzi.neomacros.core.api.types.BlockState.class);
         registry.registerGuestType("RayHit", ink.tuanzi.neomacros.core.api.types.RayHit.class);
-        registry.registerGuestType("Container", ink.tuanzi.neomacros.core.api.inventory.InventoryApi.Container.class);
-        registry.promoteRootMembers("clock", List.of("sleep", "ticks", "nextTick", "runOnMain"));
+        registry.registerGuestType("ItemStack", ink.tuanzi.neomacros.core.api.types.ItemStack.class);
+        registry.registerGuestType("ItemStackBuilder", ink.tuanzi.neomacros.core.api.types.ItemStackBuilder.class);
+        registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
+        registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
+        registry.registerGuestType("ItemEntity", EntityApi.ItemEntity.class);
+        registry.registerGuestType("LivingEntity", EntityApi.LivingEntity.class);
+        registry.promoteRootMembers("thread", List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(storageDir);
 

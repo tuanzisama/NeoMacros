@@ -8,7 +8,7 @@ import ink.tuanzi.neomacros.adapter.FabricCommandPort;
 import ink.tuanzi.neomacros.adapter.NeomacrosAdapterImpl;
 import ink.tuanzi.neomacros.core.NeoMacros;
 import ink.tuanzi.neomacros.core.api.ChatApi;
-import ink.tuanzi.neomacros.core.api.ClockApi;
+import ink.tuanzi.neomacros.core.api.ThreadApi;
 import ink.tuanzi.neomacros.core.api.CommandApi;
 import ink.tuanzi.neomacros.core.api.entity.EntityApi;
 import ink.tuanzi.neomacros.core.api.EventsApi;
@@ -134,21 +134,28 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             return thread;
         });
         registry.registerAll(java.util.List.of(
-                EventsApi.class, ClockApi.class, ChatApi.class, StorageApi.class,
+                EventsApi.class, ThreadApi.class, ChatApi.class, StorageApi.class,
                 WorldApi.class, EntityApi.class, PlayerApi.class));
         registry.registerInstance(
                 new ink.tuanzi.neomacros.core.api.java.JavaApi(
                         ink.tuanzi.neomacros.adapter.FabricClassResolver::resolve));
-        registry.registerInstance(new ink.tuanzi.neomacros.core.api.inventory.InventoryApi());
+        
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
-        registry.registerGuestType("Vec3", ink.tuanzi.neomacros.core.api.types.Vec3.class);
+        registry.registerGuestType("Pos2D", ink.tuanzi.neomacros.core.api.types.Pos2D.class);
+        registry.registerGuestType("Pos3D", ink.tuanzi.neomacros.core.api.types.Pos3D.class);
+        registry.registerGuestType("ChunkPos", ink.tuanzi.neomacros.core.api.types.ChunkPos.class);
         registry.registerGuestType("BlockPos", ink.tuanzi.neomacros.core.api.types.BlockPos.class);
         registry.registerGuestType("Block", ink.tuanzi.neomacros.core.api.types.Block.class);
         registry.registerGuestType("BlockState", ink.tuanzi.neomacros.core.api.types.BlockState.class);
         registry.registerGuestType("RayHit", ink.tuanzi.neomacros.core.api.types.RayHit.class);
-        registry.registerGuestType("Container", ink.tuanzi.neomacros.core.api.inventory.InventoryApi.Container.class);
+        registry.registerGuestType("ItemStack", ink.tuanzi.neomacros.core.api.types.ItemStack.class);
+        registry.registerGuestType("ItemStackBuilder", ink.tuanzi.neomacros.core.api.types.ItemStackBuilder.class);
+        registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
+        registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
+        registry.registerGuestType("ItemEntity", EntityApi.ItemEntity.class);
+        registry.registerGuestType("LivingEntity", EntityApi.LivingEntity.class);
         registry.registerInstance(new FsApi(new GameDirFsBridge(), ioExecutor));
         registry.registerInstance(new NetApi(ioExecutor));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.HudApi(
@@ -193,7 +200,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             }
         }, inputDelayer);
         registry.registerInstance(inputApi);
-        registry.promoteRootMembers("clock", java.util.List.of("sleep", "ticks", "nextTick", "runOnMain"));
+        registry.promoteRootMembers("thread", java.util.List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(configDir.resolve("storage"));
         // Script console: MC components render through this node's real API,

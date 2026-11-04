@@ -1508,6 +1508,16 @@ public final class GraalJsEngine implements ScriptEngine {
                     if (method.getDeclaringClass() == Object.class) {
                         continue;
                     }
+                    if (method.getAnnotation(ink.tuanzi.neomacros.doc.api.ApiInternal.class) != null) {
+                        // Internal surface: host-side helpers never cross to the
+                        // guest (the docs pipeline filters the same members).
+                        continue;
+                    }
+                    if (ink.tuanzi.neomacros.core.api.SelfConstructing.class
+                            == method.getDeclaringClass()) {
+                        // The factory hook runs host-side only.
+                        continue;
+                    }
                     String name = method.getName();
                     int params = method.getParameterCount();
                     boolean async = CompletableFuture.class

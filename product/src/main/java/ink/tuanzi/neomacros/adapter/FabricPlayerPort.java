@@ -187,6 +187,12 @@ public final class FabricPlayerPort implements PlayerPort {
     }
 
     @Override
+    public int expTotal() {
+        LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
+        return player != null ? player.totalExperience : 0;
+    }
+
+    @Override
     public Optional<PlayerSnapshot> self() {
         return MainThread.run(() -> {
             LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
@@ -200,7 +206,11 @@ public final class FabricPlayerPort implements PlayerPort {
                     new Rot2d(player.getYRot(), player.getXRot()),
                     player.getHealth(),
                     player.getFoodData().getFoodLevel(),
-                    player.getAirSupply()));
+                    player.getAirSupply(),
+                    player.getFoodData().getSaturationLevel(),
+                    player.isShiftKeyDown(),
+                    player.isSprinting(),
+                    player.isFallFlying()));
         });
     }
 

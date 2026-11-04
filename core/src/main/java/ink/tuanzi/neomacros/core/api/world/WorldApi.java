@@ -101,8 +101,8 @@ public final class WorldApi {
                 + Math.pow(direction.z(), 2));
         var options = new ink.tuanzi.neomacros.port.model.RayOptions(reach, true, true, false);
         return new ink.tuanzi.neomacros.core.api.types.RayHit(
-                new ink.tuanzi.neomacros.core.api.types.Vec3(fromX, fromY, fromZ),
-                new ink.tuanzi.neomacros.core.api.types.Vec3(
+                new ink.tuanzi.neomacros.core.api.types.Pos3D(fromX, fromY, fromZ),
+                new ink.tuanzi.neomacros.core.api.types.Pos3D(
                         direction.x(), direction.y(), direction.z()),
                 options);
     }

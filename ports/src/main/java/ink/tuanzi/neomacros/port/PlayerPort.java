@@ -71,6 +71,11 @@ public interface PlayerPort {
         return 0;
     }
 
+    /** Returns the total experience points collected. */
+    default int expTotal() {
+        return 0;
+    }
+
     /**
      * Attacks the entity identified by the snapshot's UUID. The future
      * completes on the main thread once the game processed the attack.

@@ -29,7 +29,7 @@ public final class FabricInventoryPort implements InventoryPort {
             if (player == null) {
                 return Optional.empty();
             }
-            return Optional.ofNullable(snapshot(player.getInventory().getSelectedItem()));
+            return Optional.ofNullable(stackDataOf(player.getInventory().getSelectedItem()));
         };
     }
 
@@ -39,7 +39,7 @@ public final class FabricInventoryPort implements InventoryPort {
         if (player == null || index < 0 || index >= player.getInventory().getContainerSize()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(snapshot(player.getInventory().getItem(index)));
+        return Optional.ofNullable(stackDataOf(player.getInventory().getItem(index)));
     }
 
     @Override
@@ -54,7 +54,7 @@ public final class FabricInventoryPort implements InventoryPort {
             for (int i = 0; i < inventory.getContainerSize(); i++) {
                 ItemStack stack = inventory.getItem(i);
                 if (!stack.isEmpty()) {
-                    out.add(new InventoryPort.IndexedStack(i, snapshot(stack)));
+                    out.add(new InventoryPort.IndexedStack(i, stackDataOf(stack)));
                 }
             }
             return out;
@@ -78,7 +78,7 @@ public final class FabricInventoryPort implements InventoryPort {
         return count;
     }
 
-    private static ItemStackData snapshot(ItemStack stack) {
+    static ItemStackData stackDataOf(ItemStack stack) {
         return new ItemStackData(idOf(stack), stack.getCount(),
                 stack.getItemName().getString());
     }

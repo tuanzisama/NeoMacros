@@ -1,7 +1,7 @@
 package ink.tuanzi.neomacros.engine;
 
 import ink.tuanzi.neomacros.core.api.ChatApi;
-import ink.tuanzi.neomacros.core.api.ClockApi;
+import ink.tuanzi.neomacros.core.api.ThreadApi;
 import ink.tuanzi.neomacros.core.api.EventsApi;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.StorageApi;
@@ -129,8 +129,8 @@ class ScriptLoadIntegrationTest {
         var adapter = adapterOf(chatLines);
         ScriptApiEnvironment.install(bus, adapter);
         registry = new BindingRegistry("26.3");
-        registry.registerAll(List.of(EventsApi.class, ClockApi.class, ChatApi.class, StorageApi.class));
-        registry.promoteRootMembers("clock", List.of("sleep", "ticks", "nextTick", "runOnMain"));
+        registry.registerAll(List.of(EventsApi.class, ThreadApi.class, ChatApi.class, StorageApi.class));
+        registry.promoteRootMembers("thread", List.of("sleep", "ticks", "nextTick", "runOnMain"));
         engine = new GraalJsEngine(new ModuleResolver() {
             @Override
             public Optional<String> virtualSource(String specifier) {

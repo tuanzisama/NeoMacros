@@ -16,7 +16,7 @@ import java.lang.annotation.Target;
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR})
 public @interface ApiSince {
 
     /** NeoMacros API version the element first appeared in, e.g. {@code 0.1.0}. */

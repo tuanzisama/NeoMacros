@@ -1,6 +1,6 @@
 import { events } from '@neomacros/core';
 import { chat } from '@neomacros/chat';
-import { Vec3, BlockPos } from '@neomacros/types';
+import { Pos3D, BlockPos } from '@neomacros/types';
 
 let fired = false;
 events.on('game:start', () => {
@@ -11,8 +11,8 @@ events.on('game:start', () => {
 async function main() {
   const results = {};
   try {
-  const v = new Vec3(1, 2, 3);
-  const w = new Vec3(4, 5, 6);
+  const v = new Pos3D(1, 2, 3);
+  const w = new Pos3D(4, 5, 6);
   const sum = v.add(w);
   const bp = new BlockPos(10, 64, 200);
   results['vec3'] = sum.x === 5 && sum.y === 7 && sum.z === 9;

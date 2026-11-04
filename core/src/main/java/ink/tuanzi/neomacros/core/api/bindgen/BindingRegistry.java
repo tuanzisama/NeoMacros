@@ -168,7 +168,7 @@ public final class BindingRegistry {
         String name = specifier.substring(prefix.length());
         if (name.equals("core")) {
             StringBuilder source = new StringBuilder();
-            for (String aggregated : List.of("events", "clock")) {
+            for (String aggregated : List.of("events", "thread")) {
                 ApiModel.ModuleModel model = modules.get(aggregated);
                 if (model == null) {
                     continue;

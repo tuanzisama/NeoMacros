@@ -7,7 +7,7 @@ import { world } from '@neomacros/world';
 import { entity } from '@neomacros/entity';
 import { player } from '@neomacros/player';
 import { chat } from '@neomacros/chat';
-import { Vec3 } from '@neomacros/types';
+import { Pos3D } from '@neomacros/types';
 
 let ticks = 0;
 let done = false;
@@ -49,8 +49,8 @@ function run() {
     // raycast returns a RayHit handle: .block or .entity + .pos + .distance
     const origin = self.pos;
     const look = self.lookVec;
-    const hit = world.raycast(origin.add(new Vec3(0, 1.6, 0)),
-        look.mul(4), { maxDist: 4, entities: true, blocks: true });
+    const hit = world.raycast(origin.add(new Pos3D(0, 1.6, 0)),
+        look.scale(4), { maxDist: 4, entities: true, blocks: true });
     chat.log(`[E2E] raycast: ${hit === undefined ? '(no hit fn)' : hit.hit ? 'HIT @ ' + hit.distance.toFixed(1) : 'miss fn returned'}`);
     results['raycast-hits'] = hit !== undefined && typeof hit.distance === 'number';
   } else {

@@ -2,16 +2,26 @@ package ink.tuanzi.neomacros.core.api.entity;
 
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.SnapshotViews;
+import ink.tuanzi.neomacros.core.api.types.BlockPos;
+import ink.tuanzi.neomacros.core.api.types.ChunkPos;
+import ink.tuanzi.neomacros.core.api.types.ItemStack;
+import ink.tuanzi.neomacros.core.api.types.Pos2D;
+import ink.tuanzi.neomacros.core.api.types.Pos3D;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
-import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
-import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
+import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.port.EntityPort;
+import ink.tuanzi.neomacros.port.model.AabbData;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
+import ink.tuanzi.neomacros.port.model.ItemStackData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,49 +29,52 @@ import java.util.UUID;
 
 /**
  * The {@code neo.entity} facade: entity queries over the loaded world.
- * Queries return plain snapshots; {@link #lookup} hands out a live handle
- * whose getters read current state in real time.
+ * Queries return live handles whose getters read current state in real time;
+ * a vanished entity reads back as {@code undefined} instead of raising.
  *
- * @zh {@code neo.entity} 门面：对已加载世界的实体查询。查询返回纯快照；{@code lookup} 发放活句柄，其属性实时回读当前状态。
+ * @zh {@code neo.entity} 门面：对已加载世界的实体查询。查询返回活句柄，属性实时回读当前状态；实体消失后属性回读为 undefined 而不报错。
  */
 @ApiModule(name = "entity", category = "世界")
 @ApiSince("0.1.0")
+@ApiMC("*")
 public final class EntityApi {
 
     /**
-     * Looks up a live entity handle by its UUID; returns {@code null} when
-     * absent or unloaded.
+     * Looks up a live entity handle by its UUID; undefined when absent or
+     * unloaded.
      *
-     * @zh 按 UUID 查询实体句柄；不存在或已卸载时返回 null。
+     * @zh 按 UUID 查询实体句柄；不存在或已卸载时为 undefined。
      * @zh-param uuid 实体的 UUID 字符串
-     * @zh-return 实体句柄，或 null
+     * @zh-return 实体句柄，或 undefined
      */
     @ApiSince("0.1.0")
-    public EntityApi.Entity lookup(String uuid) {
+    @ApiMC("*")
+    public Entity lookup(String uuid) {
         UUID id;
         try {
             id = UUID.fromString(uuid);
         } catch (IllegalArgumentException e) {
             return null;
         }
-        return adapter().byUuid(id).map(s -> new Entity(id)).orElse(null);
+        return wrap(id);
     }
 
     /**
-     * Returns snapshots of every entity within {@code range} blocks of the
+     * Returns handles of every entity within {@code range} blocks of the
      * center point.
      *
-     * @zh 查询中心点半径范围内的全部实体快照。
+     * @zh 查询中心点半径范围内的全部实体句柄。
      * @zh-param x 中心点坐标 X
      * @zh-param y 中心点坐标 Y
      * @zh-param z 中心点坐标 Z
      * @zh-param range 半径（格）
-     * @zh-return 实体快照数组
+     * @zh-return 实体句柄数组
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
     public List<Entity> inRadius(double x, double y, double z, double range) {
         return adapter().inRadius(new Pos3d(x, y, z), range, snapshot -> true).stream()
-                .map(snapshot -> new Entity(snapshot.uuid()))
+                .map(snapshot -> wrap(snapshot.uuid()))
                 .toList();
     }
 
@@ -72,17 +85,18 @@ public final class EntityApi {
      * @zh-return 玩家句柄数组
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
     public List<Entity> players() {
         return adapter().inRadius(new Pos3d(0, 0, 0), Double.MAX_VALUE,
                 snapshot -> snapshot.type().equals("minecraft:player")).stream()
-                .map(snapshot -> new Entity(snapshot.uuid()))
+                .map(snapshot -> wrap(snapshot.uuid()))
                 .toList();
     }
 
     /**
-     * Returns the nearest entity matching the predicate, or undefined.
+     * Returns the nearest entity, or undefined when none matches.
      *
-     * @zh 返回距离中心最近且满足条件的实体句柄；无命中时为 undefined。
+     * @zh 返回距离中心最近的实体句柄；无命中时为 undefined。
      * @zh-param x 中心点坐标 X
      * @zh-param y 中心点坐标 Y
      * @zh-param z 中心点坐标 Z
@@ -90,6 +104,7 @@ public final class EntityApi {
      * @zh-return 最近实体句柄或 undefined
      */
     @ApiSince("0.1.0")
+    @ApiMC("*")
     public Entity nearest(double x, double y, double z, double range) {
         double cx = x;
         double cy = y;
@@ -100,13 +115,35 @@ public final class EntityApi {
                     return Math.pow(pos.x() - cx, 2) + Math.pow(pos.y() - cy, 2)
                             + Math.pow(pos.z() - cz, 2);
                 }))
-                .map(snapshot -> new Entity(snapshot.uuid()))
+                .map(snapshot -> wrap(snapshot.uuid()))
                 .orElse(null);
     }
 
     /** The entity port behind the facade (single adapter access point). */
     private static EntityPort adapter() {
         return ScriptApiEnvironment.adapter().entity();
+    }
+
+    /**
+     * Wraps one entity UUID as the kind-specific handle: players become
+     * {@code Player}, dropped stacks {@code ItemEntity}, living entities
+     * {@code LivingEntity}, everything else the plain {@code Entity}.
+     */
+    static Entity wrap(UUID uuid) {
+        return adapter().byUuid(uuid)
+                .map(snapshot -> {
+                    if (snapshot.type().equals("minecraft:player")) {
+                        return (Entity) new ink.tuanzi.neomacros.core.api.player.PlayerApi.Player(uuid);
+                    }
+                    if (snapshot.type().equals("minecraft:item")) {
+                        return (Entity) new ItemEntity(uuid);
+                    }
+                    if (snapshot.living()) {
+                        return (Entity) new LivingEntity(uuid);
+                    }
+                    return (Entity) new Entity(uuid);
+                })
+                .orElse(null);
     }
 
     /**
@@ -117,13 +154,21 @@ public final class EntityApi {
      */
     @ApiClass(name = "Entity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.Entity")
-    public static final class Entity implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+    public static class Entity implements ink.tuanzi.neomacros.core.api.ScriptHandle {
 
-        private final UUID uuid;
+        /** The wrapped entity UUID (subclasses across facade packages read it). */
+        protected final UUID uuid;
 
-        /** Creates the handle for one entity UUID (public for cross-cell use). */
+        /** Creates the handle for one entity UUID (cross-cell factory use). */
+        @ApiSince("0.1.0")
+        @ApiMC("*")
         public Entity(UUID uuid) {
             this.uuid = uuid;
+        }
+
+        /** Creates the handle (engine factory instantiation). */
+        public Entity() {
+            this.uuid = null;
         }
 
         /**
@@ -132,9 +177,10 @@ public final class EntityApi {
          * @zh 实体 UUID 字符串。
          */
         @ApiSince("0.1.0")
+        @ApiMC("*")
         @ApiReadOnly
         public String getUuid() {
-            return uuid.toString();
+            return String.valueOf(uuid);
         }
 
         /**
@@ -144,6 +190,7 @@ public final class EntityApi {
          * @zh 实体类型标识（如 {@code minecraft:pig}）；实体消失后为 undefined。
          */
         @ApiSince("0.1.0")
+        @ApiMC("*")
         @ApiReadOnly
         public String getType() {
             return current().map(EntitySnapshot::type).orElse(null);
@@ -155,53 +202,304 @@ public final class EntityApi {
          * @zh 显示名称；实体消失后为 undefined。
          */
         @ApiSince("0.1.0")
+        @ApiMC("*")
         @ApiReadOnly
         public String getName() {
             return current().map(EntitySnapshot::name).orElse(null);
         }
 
         /**
-         * The X coordinate; undefined once the entity is gone.
+         * The world position; undefined once the entity is gone.
          *
-         * @zh X 坐标；实体消失后为 undefined。
+         * @zh 世界坐标位置；实体消失后为 undefined。
          */
-        @ApiSince("0.1.0")
+        @ApiSince("0.2.0")
+        @ApiMC("*")
         @ApiReadOnly
-        public Double getX() {
-            return pos(Pos3d::x);
+        public Pos3D getPos() {
+            return pos(EntitySnapshot::pos);
         }
 
         /**
-         * The Y coordinate; undefined once the entity is gone.
+         * The block-grid position (floored); undefined once the entity is
+         * gone.
          *
-         * @zh Y 坐标；实体消失后为 undefined。
+         * @zh 方块网格坐标（向下取整）；实体消失后为 undefined。
          */
-        @ApiSince("0.1.0")
+        @ApiSince("0.2.0")
+        @ApiMC("*")
         @ApiReadOnly
-        public Double getY() {
-            return pos(Pos3d::y);
+        public BlockPos getBlockPos() {
+            return current()
+                    .map(s -> s.pos())
+                    .map(p -> new BlockPos(Math.floor(p.x()), Math.floor(p.y()), Math.floor(p.z())))
+                    .orElse(null);
         }
 
         /**
-         * The Z coordinate; undefined once the entity is gone.
+         * The chunk coordinate containing this entity; undefined once the
+         * entity is gone.
          *
-         * @zh Z 坐标；实体消失后为 undefined。
+         * @zh 实体所在区块坐标；实体消失后为 undefined。
          */
-        @ApiSince("0.1.0")
+        @ApiSince("0.2.0")
+        @ApiMC("*")
         @ApiReadOnly
-        public Double getZ() {
-            return pos(Pos3d::z);
+        public ChunkPos getChunk() {
+            BlockPos block = getBlockPos();
+            return block == null ? null : new ChunkPos(block);
         }
 
         /**
-         * The health value; undefined once the entity is gone.
+         * The velocity vector; undefined once the entity is gone.
          *
-         * @zh 生命值；实体消失后为 undefined。
+         * @zh 速度向量；实体消失后为 undefined。
          */
-        @ApiSince("0.1.0")
+        @ApiSince("0.2.0")
+        @ApiMC("*")
         @ApiReadOnly
-        public Double getHealth() {
-            return current().<Double>map(EntitySnapshot::health).orElse(null);
+        public Pos3D getVelocity() {
+            return pos(EntitySnapshot::velocity);
+        }
+
+        /**
+         * The eye position; undefined once the entity is gone.
+         *
+         * @zh 眼睛位置；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Pos3D getEyePos() {
+            return current()
+                    .<Pos3D>map(s -> new Pos3D(s.pos().x(),
+                            s.pos().y() + s.eyeHeight(), s.pos().z()))
+                    .orElse(null);
+        }
+
+        /**
+         * The eye height; undefined once the entity is gone.
+         *
+         * @zh 眼睛高度；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getEyeHeight() {
+            return current().map(EntitySnapshot::eyeHeight)
+                    .<Double>map(Double::valueOf).orElse(null);
+        }
+
+        /**
+         * The view direction unit vector; undefined once the entity is gone.
+         *
+         * @zh 视线方向单位向量；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Pos3D getDirection() {
+            return pos(EntitySnapshot::direction);
+        }
+
+        /**
+         * The rotation as {@code Pos2D(yaw, pitch)} in degrees; undefined
+         * once the entity is gone.
+         *
+         * @zh 朝向 {@code Pos2D(yaw, pitch)}（角度）；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Pos2D getRotation() {
+            return current()
+                    .<Pos2D>map(s -> new Pos2D(s.rotation().yawDeg(), s.rotation().pitchDeg()))
+                    .orElse(null);
+        }
+
+        /**
+         * The yaw angle in degrees; undefined once the entity is gone.
+         *
+         * @zh 偏航角（角度）；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getYaw() {
+            return current().<Double>map(s -> (double) s.rotation().yawDeg()).orElse(null);
+        }
+
+        /**
+         * The pitch angle in degrees; undefined once the entity is gone.
+         *
+         * @zh 俯仰角（角度）；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getPitch() {
+            return current().<Double>map(s -> (double) s.rotation().pitchDeg()).orElse(null);
+        }
+
+        /**
+         * The axis-aligned bounding box as {@code {min, max}} points;
+         * undefined once the entity is gone.
+         *
+         * @zh 轴对齐包围盒 {@code {min, max}}；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Map<String, Object> getBoundingBox() {
+            return current()
+                    .<Map<String, Object>>map(s -> {
+                        AabbData box = s.boundingBox();
+                        if (box == null) {
+                            return null;
+                        }
+                        Map<String, Object> view = new LinkedHashMap<>();
+                        view.put("min", new Pos3D(box.min().x(), box.min().y(), box.min().z()));
+                        view.put("max", new Pos3D(box.max().x(), box.max().y(), box.max().z()));
+                        return view;
+                    })
+                    .orElse(null);
+        }
+
+        /** Whether the entity stands on the ground.
+         * @zh 实体是否站在地面上。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isOnGround() {
+            return current().map(EntitySnapshot::onGround).orElse(false);
+        }
+
+        /** Whether the entity is in water.
+         * @zh 实体是否在水中。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isInWater() {
+            return current().map(EntitySnapshot::inWater).orElse(false);
+        }
+
+        /** Whether the entity is in lava.
+         * @zh 实体是否在熔岩中。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isInLava() {
+            return current().map(EntitySnapshot::inLava).orElse(false);
+        }
+
+        /** Whether the entity is on fire.
+         * @zh 实体是否着火。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isOnFire() {
+            return current().map(EntitySnapshot::onFire).orElse(false);
+        }
+
+        /** Whether the entity is sneaking.
+         * @zh 实体是否在潜行。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isSneaking() {
+            return current().map(EntitySnapshot::sneaking).orElse(false);
+        }
+
+        /** Whether the entity is sprinting.
+         * @zh 实体是否在疾跑。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isSprinting() {
+            return current().map(EntitySnapshot::sprinting).orElse(false);
+        }
+
+        /** Whether the entity is swimming.
+         * @zh 实体是否在游泳。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isSwimming() {
+            return current().map(EntitySnapshot::swimming).orElse(false);
+        }
+
+        /** Whether the entity is gliding with an elytra.
+         * @zh 实体是否在鞘翅滑翔。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isGliding() {
+            return current().map(EntitySnapshot::gliding).orElse(false);
+        }
+
+        /**
+         * The entity poses riding on this one, as entity handles; empty when
+         * none.
+         *
+         * @zh 骑在本实体上的乘客句柄数组；无乘客时为空数组。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<Entity> getPassengers() {
+            return current()
+                    .map(s -> s.passengers().stream()
+                            .map(id -> (Entity) wrap(id))
+                            .filter(java.util.Objects::nonNull)
+                            .toList())
+                    .orElse(List.of());
+        }
+
+        /**
+         * The entity this one is riding, or undefined.
+         *
+         * @zh 本实体骑乘的载具句柄；无骑乘时为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Entity getVehicle() {
+            return current()
+                    .map(EntitySnapshot::vehicle)
+                    .flatMap(id -> Optional.ofNullable(wrap(id)))
+                    .orElse(null);
+        }
+
+        /**
+         * The entity pose name ({@code standing}, {@code crouching}, ...);
+         * undefined once the entity is gone.
+         *
+         * @zh 实体姿态名（{@code standing}、{@code crouching} 等）；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getPose() {
+            return current().map(EntitySnapshot::pose).orElse(null);
+        }
+
+        /**
+         * The discretized horizontal facing ({@code north/south/east/west});
+         * undefined once the entity is gone.
+         *
+         * @zh 离散水平朝向（{@code north/south/east/west}）；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getFacing() {
+            return current().map(EntitySnapshot::facing).orElse(null);
+        }
+
+        /**
+         * The dimension identifier the entity lives in; undefined once the
+         * entity is gone.
+         *
+         * @zh 实体所在维度标识；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getDimension() {
+            String dimension = current().map(EntitySnapshot::dimension).orElse(null);
+            return dimension == null || dimension.isEmpty() ? null : dimension;
         }
 
         /**
@@ -210,8 +508,45 @@ public final class EntityApi {
          * @zh 实体是否仍在世界中加载。
          */
         @ApiSince("0.1.0")
+        @ApiMC("*")
         public boolean isValid() {
             return current().isPresent();
+        }
+
+        /**
+         * Whether the entity is loaded and alive (living entities must hold
+         * positive health).
+         *
+         * @zh 实体是否加载且存活（生物需生命值大于零）。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isAlive() {
+            Optional<EntitySnapshot> snapshot = current();
+            return snapshot.isPresent()
+                    && (!snapshot.get().living() || snapshot.get().health() > 0);
+        }
+
+        /**
+         * The distance to another entity or point.
+         *
+         * @zh 到另一实体或坐标点的距离。
+         * @zh-param target 实体句柄或 {@code Pos3D}
+         * @zh-return 距离（格）
+         */
+        @ApiSince("0.1.0")
+        @ApiMC("*")
+        public double distanceTo(Object target) {
+            Pos3d from = current().map(EntitySnapshot::pos).orElse(null);
+            if (from == null) {
+                throw new IllegalStateException("handle no longer valid");
+            }
+            double[] to = coordsOf(target);
+            if (to == null) {
+                throw new IllegalArgumentException("target must be an Entity or Pos3D");
+            }
+            return Math.sqrt(Math.pow(to[0] - from.x(), 2) + Math.pow(to[1] - from.y(), 2)
+                    + Math.pow(to[2] - from.z(), 2));
         }
 
         /**
@@ -221,6 +556,7 @@ public final class EntityApi {
          * @zh 穿透口：原始宿主实体对象（需 java 权限）。
          */
         @ApiSince("0.1.0")
+        @ApiMC("*")
         @ApiPermission("java")
         public Object getRaw() {
             var raw = adapter().rawByUuid(uuid);
@@ -234,6 +570,7 @@ public final class EntityApi {
          * @zh 返回时点快照；实体消失时返回 null。
          */
         @ApiSince("0.1.0")
+        @ApiMC("*")
         public EntitySnapshot snapshot() {
             return current().orElse(null);
         }
@@ -245,6 +582,7 @@ public final class EntityApi {
          * @zh 等价 snapshot 的 JSON 形式；JSON.stringify 可直接序列化句柄。
          */
         @ApiSince("0.1.0")
+        @ApiMC("*")
         public Map<String, Object> toJSON() {
             return SnapshotViews.entity(current().orElse(null));
         }
@@ -257,13 +595,198 @@ public final class EntityApi {
         }
 
         /** The latest snapshot of the entity, or empty when gone. */
-        private Optional<EntitySnapshot> current() {
-            return adapter().byUuid(uuid);
+        protected Optional<EntitySnapshot> current() {
+            return uuid == null ? Optional.empty() : adapter().byUuid(uuid);
         }
 
-        /** Reads one position component, or null when the entity is gone. */
-        private Double pos(java.util.function.ToDoubleFunction<Pos3d> component) {
-            return current().map(s -> component.applyAsDouble(s.pos())).orElse(null);
+        /** Reads one mapped point component, or null when the entity is gone. */
+        private Pos3D pos(java.util.function.Function<EntitySnapshot, Pos3d> mapper) {
+            return current()
+                    .map(s -> point(mapper.apply(s)))
+                    .orElse(null);
+        }
+
+        /** Converts the neutral point into the script type. */
+        private static Pos3D point(Pos3d value) {
+            return new Pos3D(value.x(), value.y(), value.z());
+        }
+
+        /** Reads target coordinates from an entity handle or a point. */
+        private static double[] coordsOf(Object target) {
+            if (target instanceof Entity entity) {
+                return entity.current()
+                        .map(s -> new double[]{s.pos().x(), s.pos().y(), s.pos().z()})
+                        .orElse(null);
+            }
+            if (target instanceof Pos3D point) {
+                return new double[]{point.getX(), point.getY(), point.getZ()};
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Dropped item stack handle.
+     *
+     * @zh 掉落物句柄。
+     */
+    @ApiClass(name = "ItemEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.item.ItemEntity")
+    public static final class ItemEntity extends Entity {
+
+        /** Creates the handle for one entity UUID. */
+        public ItemEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Creates the handle (engine factory instantiation). */
+        public ItemEntity() {
+            super();
+        }
+
+        /**
+         * The dropped item stack; undefined once the entity is gone.
+         *
+         * @zh 掉落的物品堆；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public ItemStack getStack() {
+            return current()
+                    .map(EntitySnapshot::heldItem)
+                    .map(ItemStack::of)
+                    .orElse(null);
+        }
+    }
+
+    /**
+     * Living entity handle: adds the health and equipment read face on top
+     * of the entity base.
+     *
+     * @zh 生物句柄：在实体基类之上增加生命与装备读面。
+     */
+    @ApiClass(name = "LivingEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.LivingEntity")
+    public static class LivingEntity extends Entity {
+
+        /** Creates the handle for one entity UUID. */
+        public LivingEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Creates the handle (engine factory instantiation). */
+        public LivingEntity() {
+            super();
+        }
+
+        /**
+         * The health value; undefined once the entity is gone.
+         *
+         * @zh 生命值；实体消失后为 undefined。
+         */
+        @ApiSince("0.1.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getHealth() {
+            return current()
+                    .<Double>map(s -> s.living() ? s.health() : null)
+                    .orElse(null);
+        }
+
+        /**
+         * The maximum health value; undefined once the entity is gone.
+         *
+         * @zh 最大生命值；实体消失后为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getMaxHealth() {
+            return current()
+                    .<Double>map(s -> s.living() ? s.maxHealth() : null)
+                    .orElse(null);
+        }
+
+        /** Whether the entity is sleeping in a bed.
+         * @zh 实体是否睡在床上。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isSleeping() {
+            return current()
+                    .map(s -> s.pose() != null && s.pose().equals("sleeping"))
+                    .orElse(false);
+        }
+
+        /**
+         * The item in the main hand; undefined for an empty hand or a gone
+         * entity.
+         *
+         * @zh 主手物品；空手或实体消失时为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public ItemStack getHeldItem() {
+            return heldStack(EntitySnapshot::heldItem);
+        }
+
+        /**
+         * The item in the off hand; undefined for an empty hand or a gone
+         * entity.
+         *
+         * @zh 副手物品；空手或实体消失时为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiReadOnly
+        public ItemStack getOffhandItem() {
+            return heldStack(EntitySnapshot::offhandItem);
+        }
+
+        /**
+         * Whether either hand holds an item of the given id (namespace
+         * optional).
+         *
+         * @zh 主/副手任一是否持有指定 id 的物品（命名空间可省略）。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        public boolean isHolding(String itemId) {
+            String wanted = ItemStack.namespaced(itemId);
+            ItemStackData main = current().map(EntitySnapshot::heldItem).orElse(null);
+            ItemStackData off = current().map(EntitySnapshot::offhandItem).orElse(null);
+            return (main != null && main.id().equals(wanted))
+                    || (off != null && off.id().equals(wanted));
+        }
+
+        /** The main-hand stack data, or null for a gone entity. */
+        private static ItemStackData handOf(EntitySnapshot snapshot) {
+            return snapshot == null ? null : snapshot.heldItem();
+        }
+
+        /** The off-hand stack data, or null for a gone entity. */
+        private static ItemStackData offhandOf(EntitySnapshot snapshot) {
+            return snapshot == null ? null : snapshot.offhandItem();
+        }
+
+        /** Reads one hand stack, or null when absent. */
+        private ItemStack heldStack(
+                java.util.function.Function<EntitySnapshot, ItemStackData> hand) {
+            return current()
+                    .map(hand)
+                    .map(ItemStack::of)
+                    .orElse(null);
+        }
+    }
+
+    /** Normalizes a script item id (namespace default) for hand comparisons. */
+    private static final class ItemHoldingId {
+        private ItemHoldingId() {
+        }
+
+        static String of(String itemId) {
+            return itemId == null ? "" : ItemStack.namespaced(itemId);
         }
     }
 }

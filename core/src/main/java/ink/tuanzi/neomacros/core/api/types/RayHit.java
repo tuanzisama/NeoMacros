@@ -20,13 +20,13 @@ import java.util.Optional;
 @ApiClass(name = "RayHit", kind = ApiClassKind.HANDLE)
 public final class RayHit implements ScriptHandle {
 
-    private final Vec3 origin;
-    private final Vec3 direction;
+    private final Pos3D origin;
+    private final Pos3D direction;
     private final RayOptions options;
 
     /** Creates the handle (facade entry).
      * @zh 构造句柄（门面入口）。 */
-    public RayHit(Vec3 origin, Vec3 direction, RayOptions options) {
+    public RayHit(Pos3D origin, Pos3D direction, RayOptions options) {
         this.origin = origin;
         this.direction = direction;
         this.options = options;
@@ -60,10 +60,10 @@ public final class RayHit implements ScriptHandle {
      * @zh 精确命中位置。 */
     @ApiSince("0.1.0")
     @ApiReadOnly
-    public Vec3 getPos() {
+    public Pos3D getPos() {
         return snapshot()
-                .map(hit -> new Vec3(hit.pos().x(), hit.pos().y(), hit.pos().z()))
-                .orElse(origin.add(direction.normalize().mul(options.maxDist())));
+                .map(hit -> new Pos3D(hit.pos().x(), hit.pos().y(), hit.pos().z()))
+                .orElse(origin.add(direction.normalize().scale(options.maxDist())));
     }
 
     /** The distance from the origin to the hit (max distance on a miss).

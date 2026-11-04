@@ -1,6 +1,6 @@
 import { events } from '@neomacros/core';
 import { chat } from '@neomacros/chat';
-import { clock } from '@neomacros/clock';
+import { thread } from '@neomacros/thread';
 
 let fired = false;
 events.on('game:start', () => {
@@ -12,9 +12,9 @@ async function main() {
   const results = {};
   try {
   const start = Date.now();
-  await clock.sleep(30);
+  await thread.sleep(30);
   results['sleep'] = Date.now() - start >= 25;
-  const sub = clock.after(10, () => {});
+  const sub = thread.after(10, () => {});
   sub.cancel();
   results['cancel'] = typeof sub.cancel === 'function';
   } catch (e) {

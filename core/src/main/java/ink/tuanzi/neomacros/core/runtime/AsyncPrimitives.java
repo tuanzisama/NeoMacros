@@ -138,4 +138,52 @@ public final class AsyncPrimitives {
     public ContextEventLoop loop() {
         return loop;
     }
+
+    /** Whether the calling code is running on the game main thread. */
+    public boolean isMain() {
+        return mainThread.isMainThread();
+    }
+
+    /** Runs {@code action} on the loop once after {@code millis} of real time. */
+    public TimerHandle after(long millis, Runnable action) {
+        java.util.concurrent.ScheduledFuture<?> scheduled = pool.scheduler().schedule(
+                () -> loop.execute(action), millis, TimeUnit.MILLISECONDS);
+        return new TimerHandle(scheduled, null);
+    }
+
+    /** Runs {@code action} on the loop once after {@code ticks} client tick boundaries. */
+    public TimerHandle afterTicks(int ticks, Runnable action) {
+        Runnable cancel = tickClock.atTick(tickClock.currentTick() + Math.max(1, ticks),
+                () -> loop.execute(action));
+        return new TimerHandle(null, cancel);
+    }
+
+    /** Runs {@code action} on the loop every {@code millis} of real time until cancelled. */
+    public TimerHandle every(long millis, Runnable action) {
+        java.util.concurrent.ScheduledFuture<?> scheduled = pool.scheduler().scheduleAtFixedRate(
+                () -> loop.execute(action), millis, millis, TimeUnit.MILLISECONDS);
+        return new TimerHandle(scheduled, null);
+    }
+
+    /** Runs {@code action} on the loop every {@code ticks} client tick boundaries until cancelled. */
+    public TimerHandle everyTicks(int ticks, Runnable action) {
+        int step = Math.max(1, ticks);
+        java.util.concurrent.atomic.AtomicBoolean cancelled =
+                new java.util.concurrent.atomic.AtomicBoolean(false);
+        java.util.concurrent.atomic.AtomicReference<Runnable> canceller =
+                new java.util.concurrent.atomic.AtomicReference<>(() -> { });
+        Runnable[] chain = new Runnable[1];
+        chain[0] = () -> {
+            if (cancelled.get()) {
+                return;
+            }
+            loop.execute(action);
+            canceller.set(tickClock.atTick(tickClock.currentTick() + step, chain[0]));
+        };
+        canceller.set(tickClock.atTick(tickClock.currentTick() + step, chain[0]));
+        return new TimerHandle(null, () -> {
+            cancelled.set(true);
+            canceller.get().run();
+        });
+    }
 }
