@@ -21,7 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class KeyMappingHookMixin {
 
     @Inject(method = "set(Lcom/mojang/blaze3d/platform/InputConstants$Key;Z)V",
-            at = @At("HEAD"))
+            at = @At("HEAD"), cancellable = true)
     private static void neomacros$onSet(InputConstants.Key key, boolean down, CallbackInfo ci) {
         if (key.getType() != InputConstants.Type.KEYBOARD) {
             return;
@@ -29,7 +29,11 @@ public abstract class KeyMappingHookMixin {
         if (neomacros$screenOpen()) {
             return;
         }
-        KeyEdgeHub.fire(key.getName(), key.getValue(), down);
+        // The cancellable path fans out to both the key:press event (sync
+        // subscribers may cancel) and the keydown/keyup macro dispatch.
+        if (KeyEdgeHub.fireCancellable(key.getName(), key.getValue(), down)) {
+            ci.cancel();
+        }
     }
 
     /** The current screen accessor moved onto Gui in 26.2. */

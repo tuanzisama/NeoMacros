@@ -19,6 +19,7 @@ import java.util.function.UnaryOperator;
 public final class ScriptApiEnvironment {
 
     private static volatile EventBus bus;
+    private static volatile ink.tuanzi.neomacros.core.event.EventCatalog catalog;
     private static volatile NeomacrosAdapter adapter;
     private static volatile Path storageDir;
     private static final Map<String, ModuleStorage> STORAGES = new ConcurrentHashMap<>();
@@ -30,7 +31,16 @@ public final class ScriptApiEnvironment {
     /** Installs the runtime singletons; called once by the bootstrap. */
     public static void install(EventBus eventBus, NeomacrosAdapter gameAdapter) {
         bus = eventBus;
+        catalog = eventBus != null ? eventBus.catalog() : null;
         adapter = gameAdapter;
+    }
+
+    /** The event catalog behind the installed bus (custom registration). */
+    public static ink.tuanzi.neomacros.core.event.EventCatalog catalog() {
+        if (catalog == null) {
+            throw new IllegalStateException("script environment not installed");
+        }
+        return catalog;
     }
 
     /** Installs the per-script storage directory; called once by the bootstrap. */

@@ -400,9 +400,17 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             }
         });
         preRegisterScriptBindings();
-        // Raw keyboard source: drives keydown/keyup macro edges (the mixin
-        // only fires while no screen is open).
-        ink.tuanzi.neomacros.adapter.KeyEdgeHub.register(NeoMacrosFabric::dispatchRawKey);
+        // Raw keyboard source: the cancellable path fans the edge out to the
+        // key:press event (sync subscribers may cancel, which also swallows
+        // the vanilla update) and then to the keydown/keyup macro dispatch.
+        ink.tuanzi.neomacros.adapter.KeyEdgeHub.registerCancellable(raw -> {
+            boolean canceled = adapter.input().fireKeyPress(new ink.tuanzi.neomacros.port.model.KeyPressEdge(
+                    raw.keyName(), raw.keyCode(), raw.down()));
+            if (!canceled) {
+                dispatchRawKey(raw);
+            }
+            return canceled;
+        });
     }
 
     /**

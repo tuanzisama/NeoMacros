@@ -1,6 +1,9 @@
 package ink.tuanzi.neomacros.port;
 
+import ink.tuanzi.neomacros.port.model.KeyPressEdge;
+
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Input sources: keybind registration (surfaced in the vanilla controls
@@ -42,4 +45,36 @@ public interface InputPort {
 
     /** Registers a sink for mouse wheel scroll events (positive = up). */
     void onScroll(Consumer<Double> sink);
+
+    /**
+     * Injects one raw key state (down/up) as if the user pressed it.
+     * {@code keyName} uses the vanilla translation-key form.
+     */
+    default void injectKey(String keyName, boolean down) {
+        throw new UnsupportedOperationException("input injection");
+    }
+
+    /**
+     * Injects one keybind state (down/up) by bind name ({@code key.use} and
+     * friends), as if the user pressed the bound input.
+     */
+    default void injectBind(String bindName, boolean down) {
+        throw new UnsupportedOperationException("input injection");
+    }
+
+    /**
+     * Registers the cancellable key-press event dispatch sink (the event
+     * wiring). The sink returns true when a sync subscriber canceled the
+     * edge.
+     */
+    default void onKeyPress(java.util.function.Function<KeyPressEdge, Boolean> sink) {
+    }
+
+    /**
+     * Fires one raw keyboard edge into the event sink; returns the cancel
+     * verdict (true = a sync subscriber canceled the key).
+     */
+    default boolean fireKeyPress(KeyPressEdge edge) {
+        return false;
+    }
 }

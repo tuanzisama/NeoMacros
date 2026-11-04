@@ -59,6 +59,33 @@ public final class EventsApi {
     }
 
     /**
+     * Registers one custom event name owned by scripts. Names must be
+     * namespaced ({@code domain:rest}) and cannot shadow a built-in domain;
+     * custom events are non-cancellable and ride the async channel.
+     *
+     * @zh 注册脚本自定义事件；名称必须带命名空间，且不能占用内置域。
+     */
+    @ApiSince("0.1.0")
+    public void register(String name) {
+        ScriptApiEnvironment.catalog().registerCustom(name);
+    }
+
+    /**
+     * Emits one custom event; the payload is any plain value and delivery is
+     * async. The name must be registered first.
+     *
+     * @zh 触发一个自定义事件；载荷为任意普通值，走异步通道。名称须先注册。
+     */
+    @ApiSince("0.1.0")
+    public void emit(String name, Object payload) {
+        if (ScriptApiEnvironment.catalog().descriptor(name).isEmpty()) {
+            throw new IllegalArgumentException(
+                    "unknown event '" + name + "': register it with events.register first");
+        }
+        ScriptApiEnvironment.bus().publish(name, payload);
+    }
+
+    /**
      * Unsubscribes by the handle returned from {@link #on} / {@link #once},
      * or by event name when a string is given.
      *

@@ -17,6 +17,8 @@ import ink.tuanzi.neomacros.core.event.def.player.PlayerHealthEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerHungerEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerInteractBlockEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerInteractEntityEvent;
+import ink.tuanzi.neomacros.core.event.def.input.InputWheelEvent;
+import ink.tuanzi.neomacros.core.event.def.input.KeyPressEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerJoinEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerLeaveEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerRespawnEvent;
@@ -85,6 +87,13 @@ public final class PortEventWiring {
                 bus.publish("player:interactBlock", new PlayerInteractBlockEvent(block)).canceled());
         adapter.player().onInteractEntity(target ->
                 bus.publish("player:interactEntity", new PlayerInteractEntityEvent(target)).canceled());
+
+        adapter.input().onKeyPress(edge ->
+                bus.publish("key:press", new KeyPressEvent(
+                        edge.keyName(), edge.keyCode(),
+                        edge.down() ? "press" : "release", List.of())).canceled());
+        adapter.input().onScroll(amount ->
+                bus.publish("input:wheel", new InputWheelEvent(amount)));
     }
 
     /**

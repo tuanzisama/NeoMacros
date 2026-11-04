@@ -43,6 +43,7 @@ public final class FabricInputPort implements ink.tuanzi.neomacros.port.InputPor
 
     private final Map<String, Keybind> keybinds = new java.util.LinkedHashMap<>();
     private final List<DoubleConsumer> scrollSinks = new CopyOnWriteArrayList<>();
+    private volatile java.util.function.Function<ink.tuanzi.neomacros.port.model.KeyPressEdge, Boolean> keyPressSink;
     private final AtomicLong handleSequence = new AtomicLong();
 
     /** Creates the port and starts the tick poll for press edges. */
@@ -162,6 +163,16 @@ public final class FabricInputPort implements ink.tuanzi.neomacros.port.InputPor
     @Override
     public void onScroll(Consumer<Double> sink) {
         scrollSinks.add(sink::accept);
+    }
+
+    @Override
+    public void onKeyPress(java.util.function.Function<ink.tuanzi.neomacros.port.model.KeyPressEdge, Boolean> sink) {
+        keyPressSink = sink;
+    }
+
+    @Override
+    public boolean fireKeyPress(ink.tuanzi.neomacros.port.model.KeyPressEdge edge) {
+        return keyPressSink != null && Boolean.TRUE.equals(keyPressSink.apply(edge));
     }
 
     /** Injects one raw key state through the vanilla static key map. */

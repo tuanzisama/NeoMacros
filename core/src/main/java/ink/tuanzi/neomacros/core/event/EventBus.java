@@ -56,6 +56,11 @@ public final class EventBus {
         this.watchdog = watchdog;
     }
 
+    /** The catalog backing this bus (custom-event registration and checks). */
+    public EventCatalog catalog() {
+        return catalog;
+    }
+
     /** Subscribes asynchronously with the bus-wide executor. Wildcards allowed. */
     public Subscription on(String name, Consumer<Object> handler) {
         return subscribe(name, null, name.contains("*"), false, handler, null);

@@ -378,7 +378,34 @@ class PortEventWiringTest {
 
         @Override
         public ink.tuanzi.neomacros.port.InputPort input() {
-            throw new UnsupportedOperationException("input");
+            // No-op: the key-press/wheel wiring registers sinks only.
+            return new ink.tuanzi.neomacros.port.InputPort() {
+                @Override
+                public Object registerKeybind(String keyName, java.util.function.Consumer<Integer> sink) {
+                    return null;
+                }
+
+                @Override
+                public void registerKeyPress(String keyName, Runnable sink) {
+                }
+
+                @Override
+                public void unregister(Object handle) {
+                }
+
+                @Override
+                public void registerScriptBinding(String scriptName, String keyName,
+                        java.util.function.Consumer<Integer> sink) {
+                }
+
+                @Override
+                public void unregisterScriptBinding(String scriptName) {
+                }
+
+                @Override
+                public void onScroll(java.util.function.Consumer<Double> sink) {
+                }
+            };
         }
 
         @Override

@@ -42,6 +42,71 @@ public final class StubAdapter implements NeomacrosAdapter {
     private final StubWorld world = new StubWorld();
     private final StubEntity entity = new StubEntity();
     private final StubPlayer player = new StubPlayer();
+    private final StubInput input = new StubInput();
+
+    /** The test-facing input port: fires key edges and wheel events. */
+    public StubInput inputPort() {
+        return input;
+    }
+
+    /** Input port recording key-press sinks and firing wheel events. */
+    public static final class StubInput implements ink.tuanzi.neomacros.port.InputPort {
+
+        private volatile java.util.function.Function<ink.tuanzi.neomacros.port.model.KeyPressEdge, Boolean>
+                keyPressSink;
+        private final List<java.util.function.Consumer<Double>> scrollSinks = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+        /** Fires one raw key edge through the registered event sink. */
+        public boolean fireEdge(ink.tuanzi.neomacros.port.model.KeyPressEdge edge) {
+            return keyPressSink != null && Boolean.TRUE.equals(keyPressSink.apply(edge));
+        }
+
+        /** Fires one wheel event through the registered sinks. */
+        public void onScrollFire(double amount) {
+            scrollSinks.forEach(sink -> sink.accept(amount));
+        }
+
+        @Override
+        public Object registerKeybind(String keyName, java.util.function.Consumer<Integer> sink) {
+            throw new UnsupportedPortFeature("input");
+        }
+
+        @Override
+        public void registerKeyPress(String keyName, Runnable sink) {
+            throw new UnsupportedPortFeature("input");
+        }
+
+        @Override
+        public void unregister(Object handle) {
+            throw new UnsupportedPortFeature("input");
+        }
+
+        @Override
+        public void registerScriptBinding(String scriptName, String keyName,
+                java.util.function.Consumer<Integer> sink) {
+            throw new UnsupportedPortFeature("input");
+        }
+
+        @Override
+        public void unregisterScriptBinding(String scriptName) {
+            throw new UnsupportedPortFeature("input");
+        }
+
+        @Override
+        public void onScroll(java.util.function.Consumer<Double> sink) {
+            scrollSinks.add(sink);
+        }
+
+        @Override
+        public void onKeyPress(java.util.function.Function<ink.tuanzi.neomacros.port.model.KeyPressEdge, Boolean> sink) {
+            keyPressSink = sink;
+        }
+
+        @Override
+        public boolean fireKeyPress(ink.tuanzi.neomacros.port.model.KeyPressEdge edge) {
+            return keyPressSink != null && Boolean.TRUE.equals(keyPressSink.apply(edge));
+        }
+    }
 
     public StubLifecycle lifecyclePort() {
         return lifecycle;
@@ -85,7 +150,7 @@ public final class StubAdapter implements NeomacrosAdapter {
 
     @Override
     public ink.tuanzi.neomacros.port.InputPort input() {
-        throw new UnsupportedPortFeature("input");
+        return input;
     }
 
     @Override
