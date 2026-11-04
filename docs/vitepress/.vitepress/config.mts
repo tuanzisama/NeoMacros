@@ -12,7 +12,7 @@ const apiGroups: Array<{ label: Record<Locale, string>; modules: string[] }> = [
   { label: { en: 'Input', zh: '输入' }, modules: ['input'] },
 ]
 
-const guidePages: Array<[string, Record<Locale, string]>] = [
+const guidePages: Array<[string, Record<Locale, string>]> = [
   ['getting-started', { en: 'Getting Started', zh: '快速上手' }],
   ['first-script', { en: 'Your First Script', zh: '第一个脚本' }],
   ['events-and-async', { en: 'Events & Async', zh: '事件与异步' }],
