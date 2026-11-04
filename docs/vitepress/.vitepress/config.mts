@@ -20,7 +20,7 @@ const guidePages: Array<[string, Record<Locale, string>]> = [
   ['commands-and-debugging', { en: 'Commands & Debugging', zh: '命令与排错' }],
 ]
 
-const examplePages: Array<[string, Record<Locale, string]>] = [
+const examplePages: Array<[string, Record<Locale, string>]> = [
   ['index', { en: 'Overview', zh: '总览' }],
   ['auto-greet', { en: 'Auto Greet', zh: '进服欢迎' }],
   ['coords-hud', { en: 'Coords HUD', zh: '坐标 HUD' }],
