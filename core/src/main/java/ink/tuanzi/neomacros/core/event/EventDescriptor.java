@@ -15,12 +15,23 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 public record EventDescriptor(String name, String domain, boolean cancellable,
                               Class<?> payloadType, String since, boolean custom) {
 
+    /** Payload keys the BaseEvent prototype claims; payload records and
+     * custom emits must not use them. */
+    public static final java.util.Set<String> RESERVED_PAYLOAD_KEYS =
+            java.util.Set.of("type", "timestamp", "cancellable");
+
     /** Builds the descriptor of an annotated event payload record. */
     public static EventDescriptor from(Class<?> eventRecord, boolean custom) {
         ApiEvent event = eventRecord.getAnnotation(ApiEvent.class);
         if (event == null) {
             throw new IllegalArgumentException(
                     eventRecord.getName() + " is not annotated with @ApiEvent");
+        }
+        for (java.lang.reflect.RecordComponent component : eventRecord.getRecordComponents()) {
+            if (RESERVED_PAYLOAD_KEYS.contains(component.getName())) {
+                throw new IllegalArgumentException("payload field '" + component.getName()
+                        + "' of event '" + event.name() + "' is reserved by BaseEvent");
+            }
         }
         ApiSince since = eventRecord.getAnnotation(ApiSince.class);
         return new EventDescriptor(event.name(), domainOf(event.name()), event.cancellable(),

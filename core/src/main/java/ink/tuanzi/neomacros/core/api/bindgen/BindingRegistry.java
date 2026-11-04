@@ -21,6 +21,7 @@ public final class BindingRegistry {
     private final Map<PermissionView, Map<String, ModuleBinding>> bindingCache = new java.util.IdentityHashMap<>();
     private final Map<String, List<String>> promoted = new LinkedHashMap<>();
     private final Map<String, Class<?>> guestTypes = new LinkedHashMap<>();
+    private final Map<String, Boolean> eventTypes = new LinkedHashMap<>();
 
     /** JS reserved words that cannot appear as export names. */
     private static final java.util.Set<String> JS_RESERVED_WORDS = java.util.Set.of(
@@ -123,6 +124,19 @@ public final class BindingRegistry {
         bindingCache.clear();
     }
 
+    /**
+     * Registers one script-facing event class under the {@code types} module:
+     * {@code neo.types.<XxxEvent>} resolves to the guest event class.
+     */
+    public void registerEventType(String eventName, boolean cancellable) {
+        eventTypes.putIfAbsent(eventName, cancellable);
+    }
+
+    /** The registered event classes ({@code name -> cancellable}), in registration order. */
+    public Map<String, Boolean> eventTypes() {
+        return Map.copyOf(eventTypes);
+    }
+
     /** The registered script-facing classes ({@code neo.types.*}), in registration order. */
     public Map<String, Class<?>> guestTypes() {
         return Map.copyOf(guestTypes);
@@ -149,6 +163,11 @@ public final class BindingRegistry {
             Map<String, ModuleBinding.BindingMember> members = new LinkedHashMap<>();
             for (Map.Entry<String, Class<?>> type : guestTypes.entrySet()) {
                 members.put(type.getKey(), new ModuleBinding.GuestTypeMember(type.getValue()));
+            }
+            members.put("BaseEvent", new ModuleBinding.EventTypeMember("BaseEvent", false));
+            for (Map.Entry<String, Boolean> type : eventTypes.entrySet()) {
+                members.put(eventNameToClassName(type.getKey()),
+                        new ModuleBinding.EventTypeMember(type.getKey(), type.getValue()));
             }
             tree.put("types", ModuleBinding.ofMembers("types", members));
         }
@@ -197,6 +216,12 @@ public final class BindingRegistry {
                 source.append("export const ").append(typeName).append(" = m.")
                         .append(typeName).append(";\n");
             }
+            source.append("export const BaseEvent = m.BaseEvent;\n");
+            for (String eventName : eventTypes.keySet()) {
+                String className = eventNameToClassName(eventName);
+                source.append("export const ").append(className).append(" = m.")
+                        .append(className).append(";\n");
+            }
             return Optional.of(source.toString());
         }
         ApiModel.ModuleModel model = modules.get(name);
@@ -235,6 +260,25 @@ public final class BindingRegistry {
             }
         }
         return Optional.of(source.toString());
+    }
+
+    /** The script-facing class name of one event ({@code chat:receive} ->
+     * {@code ChatReceiveEvent}); the engine glue derives the same name. */
+    public static String eventNameToClassName(String eventName) {
+        StringBuilder out = new StringBuilder();
+        boolean upperNext = true;
+        for (char ch : eventName.toCharArray()) {
+            if (ch == ':' || ch == '_' || ch == '-') {
+                upperNext = true;
+            } else if (upperNext) {
+                out.append(Character.toUpperCase(ch));
+                upperNext = false;
+            } else {
+                out.append(ch);
+            }
+        }
+        out.append("Event");
+        return out.toString();
     }
 
     /** The registered facade instance for one module name (harness access). */

@@ -10,12 +10,10 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  * default.
  *
  * @zh 方块更新时触发（高流量事件）。
- * @zh-param x 方块 X 坐标
- * @zh-param y 方块 Y 坐标
- * @zh-param z 方块 Z 坐标
- * @zh-param blockId 新方块标识（如 minecraft:stone）
+ * @zh-param pos 方块网格坐标（{@code BlockPos} 实例）
+ * @zh-param id 新方块标识（如 minecraft:stone）
  */
 @ApiSince("0.1.0")
 @ApiEvent(name = "world:blockUpdate")
-public record WorldBlockUpdateEvent(int x, int y, int z, String blockId) {
+public record WorldBlockUpdateEvent(ink.tuanzi.neomacros.core.api.types.BlockPos pos, String id) {
 }

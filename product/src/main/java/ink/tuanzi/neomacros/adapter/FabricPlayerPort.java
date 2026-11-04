@@ -252,11 +252,12 @@ public final class FabricPlayerPort implements PlayerPort {
     }
 
     /** Builds the neutral block hit for one world position. */
-    private static BlockInteraction blockHit(net.minecraft.world.level.Level world, BlockPos pos) {
+    private static BlockInteraction blockHit(net.minecraft.world.level.Level world, BlockPos pos,
+            String face) {
         BlockState state = world.getBlockState(pos);
         return new BlockInteraction(
                 BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString(),
-                new Pos3d(pos.getX(), pos.getY(), pos.getZ()));
+                new Pos3d(pos.getX(), pos.getY(), pos.getZ()), face);
     }
 
     /** Runs every sink of one interaction; true when any sink fails it. */

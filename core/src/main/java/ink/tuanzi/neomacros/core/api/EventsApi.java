@@ -74,16 +74,31 @@ public final class EventsApi {
     }
 
     /**
-     * Emits one custom event; the payload is any plain value and delivery is
-     * async. The name must be registered first.
+     * Emits one custom event; the payload is a plain object (or undefined)
+     * and delivery is async. The name must be registered first; payload keys
+     * must not use the BaseEvent reserved words
+     * ({@code type}, {@code timestamp}, {@code cancellable}).
      *
-     * @zh 触发一个自定义事件；载荷为任意普通值，走异步通道。名称须先注册。
+     * @zh 触发一个自定义事件；载荷须为普通对象（或 undefined），走异步通道。名称须先注册；载荷键不得占用 BaseEvent 保留字（{@code type}、{@code timestamp}、{@code cancellable}）。
      */
     @ApiSince("0.1.0")
     public void emit(String name, Object payload) {
         if (ScriptApiEnvironment.catalog().descriptor(name).isEmpty()) {
             throw new IllegalArgumentException(
                     "unknown event '" + name + "': register it with events.register first");
+        }
+        if (payload != null && !(payload instanceof java.util.Map)) {
+            throw new IllegalArgumentException(
+                    "custom event payload must be a plain object or undefined: " + name);
+        }
+        if (payload instanceof java.util.Map<?, ?> map) {
+            for (Object key : map.keySet()) {
+                if (ink.tuanzi.neomacros.core.event.EventDescriptor.RESERVED_PAYLOAD_KEYS
+                        .contains(String.valueOf(key))) {
+                    throw new IllegalArgumentException("payload key '" + key
+                            + "' is reserved by BaseEvent (event " + name + ")");
+                }
+            }
         }
         ScriptApiEnvironment.bus().publish(name, payload);
     }
@@ -118,7 +133,9 @@ public final class EventsApi {
     public void onSync(String name, java.util.function.Predicate<Object> handler) {
         var subscription = ScriptApiEnvironment.bus().onSync(name,
                 (payload, cancel) -> {
-                    Object verdict = ScriptApiEnvironment.guestView(Payloads.snapshot(payload));
+                    Object source = payload instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope
+                            ? envelope.payload() : payload;
+                    Object verdict = ScriptApiEnvironment.guestView(Payloads.snapshot(source));
                     if (Boolean.TRUE.equals(handler.test(verdict))) {
                         cancel.cancel();
                     }

@@ -79,6 +79,68 @@ public final class GraalJsEngine implements ScriptEngine {
                 }
                 return out;
             };
+            globalThis.__neoBaseEvent = class BaseEvent {
+                get type() { return this.__neoType; }
+                get timestamp() { return this.__neoTimestamp; }
+                get cancellable() { return this.__neoCancellable === true; }
+                toJSON() {
+                    const out = {};
+                    for (const key of Object.keys(this)) {
+                        out[key] = this[key];
+                    }
+                    return out;
+                }
+                toString() {
+                    return '[' + this.constructor.name + ' type=' + this.type + ']';
+                }
+            };
+            globalThis.__neoEventClasses = {};
+            globalThis.__neoEventClassName = function (name) {
+                const camel = name.replace(/[:_-]+(.)/g, function (m, ch) {
+                    return ch.toUpperCase();
+                });
+                return camel.charAt(0).toUpperCase() + camel.slice(1) + 'Event';
+            };
+            globalThis.__neoEventClass = function (name, cancellable) {
+                const table = globalThis.__neoEventClasses;
+                if (table[name] !== undefined) {
+                    return table[name];
+                }
+                const cls = class extends globalThis.__neoBaseEvent {
+                };
+                Object.defineProperty(cls, 'name', {
+                    value: __neoEventClassName(name),
+                    writable: false
+                });
+                table[name] = cls;
+                return cls;
+            };
+            // Attaches the event class prototype to one payload snapshot and
+            // freezes it: the fields stay own enumerable properties (JSON,
+            // destructuring, property access unchanged), the prototype adds
+            // the type/timestamp/cancellable introspection face.
+            globalThis.__neoWrapEvent = function (name, cancellable, source) {
+                if (source === undefined || source === null
+                        || typeof source !== 'object') {
+                    return source;
+                }
+                const obj = {};
+                const keys = Object.keys(source);
+                for (const key of keys) {
+                    obj[key] = source[key];
+                }
+                const hidden = { writable: false, enumerable: false, configurable: false };
+                Object.defineProperty(obj, '__neoType', { value: name, ...hidden });
+                Object.defineProperty(obj, '__neoTimestamp', {
+                    value: (new Date()).getTime(), ...hidden
+                });
+                Object.defineProperty(obj, '__neoCancellable', {
+                    value: cancellable === true, ...hidden
+                });
+                Object.setPrototypeOf(obj, __neoEventClass(name, cancellable).prototype);
+                Object.freeze(obj);
+                return obj;
+            };
             globalThis.__neoInstall = function (tree) {
                 const deepFreeze = function (value) {
                     Object.freeze(value);
@@ -837,43 +899,10 @@ public final class GraalJsEngine implements ScriptEngine {
             return value.as(Object.class);
         }
 
-        /** Recursively copies polyglot map/list views into plain Java collections. */
+        /** Recursively copies host values into neutral plain data (shared
+         * with the core event pipeline so both boundaries agree). */
         private static Object snapshotValue(Object value) {
-            if (value instanceof java.util.UUID uuid) {
-                // Neutral surface: identifiers cross as strings, not host objects.
-                return uuid.toString();
-            }
-            if (value != null && value.getClass().isRecord()) {
-                // Event payload records: expose components as a neutral map so
-                // the guest can read ev.message.text style paths.
-                Map<String, Object> copy = new java.util.LinkedHashMap<>();
-                for (java.lang.reflect.RecordComponent component :
-                        value.getClass().getRecordComponents()) {
-                    try {
-                        component.getAccessor().setAccessible(true);
-                        copy.put(component.getName(),
-                                snapshotValue(component.getAccessor().invoke(value)));
-                    } catch (ReflectiveOperationException ignored) {
-                        copy.put(component.getName(), null);
-                    }
-                }
-                return copy;
-            }
-            if (value instanceof Map<?, ?> map) {
-                Map<String, Object> copy = new java.util.LinkedHashMap<>();
-                for (Map.Entry<?, ?> entry : map.entrySet()) {
-                    copy.put(String.valueOf(entry.getKey()), snapshotValue(entry.getValue()));
-                }
-                return copy;
-            }
-            if (value instanceof List<?> list) {
-                List<Object> copy = new java.util.ArrayList<>(list.size());
-                for (Object element : list) {
-                    copy.add(snapshotValue(element));
-                }
-                return copy;
-            }
-            return value;
+            return ink.tuanzi.neomacros.core.event.Payloads.snapshot(value);
         }
 
         @Override
@@ -1008,6 +1037,15 @@ public final class GraalJsEngine implements ScriptEngine {
                     if (member instanceof ModuleBinding.GuestTypeMember typeMember) {
                         return guestClassFor(typeMember.cellClass());
                     }
+                    if (member instanceof ModuleBinding.EventTypeMember eventType) {
+                        // Guest event classes live in the glue; "BaseEvent" is
+                        // the shared base class itself.
+                        if (eventType.eventName().equals("BaseEvent")) {
+                            return glueMember("__neoBaseEvent");
+                        }
+                        return glueMember("__neoEventClass")
+                                .execute(eventType.eventName(), eventType.cancellable());
+                    }
                     if (member instanceof ModuleBinding.PropertyMember property) {
                         try {
                             return asGuestValue(property.get());
@@ -1085,7 +1123,26 @@ public final class GraalJsEngine implements ScriptEngine {
          * snapshotted (polyglot views must not escape) and wrapped as proxies
          * so the guest can read them under HostAccess.NONE.
          */
+        /** Unwraps event envelopes so handlers receive the event-class
+         * prototype face; everything else crosses as before. */
+        private Value guestValueOrEvent(Object value) {
+            if (value instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope) {
+                return eventValue(envelope);
+            }
+            return asGuestValue(value);
+        }
+
+        /** Renders one event payload with its BaseEvent prototype attached. */
+        private Value eventValue(ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope) {
+            Value source = asGuestValue(envelope.payload());
+            return glueMember("__neoWrapEvent")
+                    .execute(envelope.eventName(), envelope.cancellable(), source);
+        }
+
         private Value asGuestValue(Object result) {
+            if (result instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope) {
+                return eventValue(envelope);
+            }
             Object plain = snapshotValue(result);
             if (plain == null) {
                 // ES surface rule: an absent value reads as undefined, never
@@ -1615,7 +1672,7 @@ public final class GraalJsEngine implements ScriptEngine {
                     (proxy, method, args) -> {
                         Value[] callArgs = new Value[args == null ? 0 : args.length];
                         for (int i = 0; i < callArgs.length; i++) {
-                            callArgs[i] = asGuestValue(args[i]);
+                            callArgs[i] = guestValueOrEvent(args[i]);
                         }
                         Value result = onLoop(() -> function.execute(callArgs));
                         if (method.getReturnType() == void.class) {

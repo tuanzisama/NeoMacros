@@ -1,14 +1,24 @@
 package ink.tuanzi.neomacros.core.event;
 
+import ink.tuanzi.neomacros.core.api.types.ItemStack;
+import ink.tuanzi.neomacros.core.api.types.Pos2D;
+import ink.tuanzi.neomacros.core.api.types.Pos3D;
+import ink.tuanzi.neomacros.port.model.AabbData;
+import ink.tuanzi.neomacros.port.model.EnchantmentData;
+import ink.tuanzi.neomacros.port.model.ItemStackData;
+import ink.tuanzi.neomacros.port.model.Pos3d;
+import ink.tuanzi.neomacros.port.model.Rot2d;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Deep snapshot of event payloads into plain Java data (records become maps,
- * polyglot views flatten, scalars pass through). Snapshots are safe to hand
- * to guest code under any host-access policy and immune to later mutation.
+ * Deep snapshot of event payloads into neutral Java data (records become
+ * maps, neutral models become their script types, scalars pass through).
+ * Snapshots are safe to hand to guest code under any host-access policy and
+ * immune to later mutation.
  */
 public final class Payloads {
 
@@ -23,6 +33,29 @@ public final class Payloads {
         }
         if (value == null) {
             return null;
+        }
+        if (value instanceof Pos3d point) {
+            // Script types keep their class identity across the boundary
+            // (the guest receives real Pos3D instances, JSON-safe via toJSON).
+            return new Pos3D(point.x(), point.y(), point.z());
+        }
+        if (value instanceof Rot2d rotation) {
+            return new Pos2D(rotation.yawDeg(), rotation.pitchDeg());
+        }
+        if (value instanceof ItemStackData stack) {
+            return ItemStack.of(stack);
+        }
+        if (value instanceof AabbData box) {
+            Map<String, Object> view = new LinkedHashMap<>();
+            view.put("min", snapshot(box.min()));
+            view.put("max", snapshot(box.max()));
+            return view;
+        }
+        if (value instanceof EnchantmentData enchantment) {
+            Map<String, Object> view = new LinkedHashMap<>();
+            view.put("id", enchantment.id());
+            view.put("level", enchantment.level());
+            return view;
         }
         if (value.getClass().isRecord()) {
             Map<String, Object> copy = new LinkedHashMap<>();

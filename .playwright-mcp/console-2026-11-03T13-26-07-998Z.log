@@ -1,0 +1,121 @@
+[   67347ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://127.0.0.1:9454/api/v1/events?ticket=47a99680ed61f70f6bfc58be50ab4c76:0
+[   68065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   68351ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[   70065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   70353ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[   72064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   74065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   74357ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[   76064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   78064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   80063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   82062ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   82360ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[   84065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   86064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   88065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   90060ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   90364ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[   92064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   94063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   96064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   98063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[   98367ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  100060ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  102063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  104063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  106061ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  106372ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  108063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  110063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  112064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  114063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  114376ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  116063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  118064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  120061ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  122065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  122380ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  124064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  126063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  128065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  130065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  130385ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  132064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  134063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  136063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  138061ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  138388ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  140062ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  142063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  144063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  146064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  146393ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  148063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  150065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  152064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  154065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  154399ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  156064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  158063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  160060ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  162064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  162402ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  164061ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  166064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  168064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  170064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  170404ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  172063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  174064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  176062ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  178064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  178408ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  180060ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  182064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  184065ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  186063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  186413ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  188064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  190063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  191731ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:5173/src/api/sse.ts?t=1793712559656:0
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/editor/EditorArea.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/shell/ActivityBar.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/editor/MonacoPane.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/shell/StatusBar.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/settings/AboutView.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/editor/ConflictDialog.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/settings/SettingsView.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/devtools/ScriptConsoleTab.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/editor/DeleteConfirm.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/shell/TitleBar.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/devtools/ConsoleTab.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/connect/ConnectView.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/explorer/MacroSideBar.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/editor/NewMacroWizard.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/App.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191731ms] [ERROR] [vite] Failed to reload /src/components/explorer/MacroConfigDialog.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:1022
+[  191828ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/meta:0
+[  191830ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/meta:0
+[  192063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  193873ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/meta:0
+[  194063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  194418ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  196064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  197916ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/meta:0
+[  198063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  199785ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/meta:0
+[  199787ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/meta:0
+[  200062ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  201868ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/meta:0
+[  202064ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  202422ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  204063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  205907ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/meta:0
+[  206062ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  208061ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  210061ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  210424ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  212060ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:9454/api/v1/logs?after=6:0
+[  213978ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[  213978ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:9454/api/v1/state:0

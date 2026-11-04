@@ -159,15 +159,19 @@ public final class EventBus {
     public PublishResult publish(String name, Object payload) {
         CancelFlag cancelFlag = new CancelFlag();
         int notified = 0;
+        // Every dispatched payload pairs with its concrete name so the engine
+        // boundary can attach the event class prototype (BaseEvent chain).
+        EventPayloadEnvelope envelope = new EventPayloadEnvelope(name,
+                catalog.isCancellable(name), payload);
 
         if (catalog.isCancellable(name)) {
             for (Subscription sub : snapshot(exactSubscriptions.get(name))) {
                 if (sub.isActive() && sub.isSync()) {
                     notified++;
                     if (watchdog != null) {
-                        watchdog.guard(sub, name, () -> sub.syncCallback().invoke(payload, cancelFlag));
+                        watchdog.guard(sub, name, () -> sub.syncCallback().invoke(envelope, cancelFlag));
                     } else {
-                        sub.syncCallback().invoke(payload, cancelFlag);
+                        sub.syncCallback().invoke(envelope, cancelFlag);
                     }
                 }
             }
@@ -191,6 +195,8 @@ public final class EventBus {
     }
 
     private int dispatchAsync(List<Subscription> candidates, String name, Object payload) {
+        EventPayloadEnvelope envelope = new EventPayloadEnvelope(name,
+                catalog.isCancellable(name), payload);
         int notified = 0;
         for (Subscription sub : candidates) {
             if (!sub.isActive() || sub.isSync() || !matches(sub.pattern(), name)) {
@@ -201,7 +207,7 @@ public final class EventBus {
             Consumer<Object> handler = sub.handler();
             executor.execute(() -> {
                 if (sub.isActive()) {
-                    handler.accept(payload);
+                    handler.accept(envelope);
                 }
             });
         }

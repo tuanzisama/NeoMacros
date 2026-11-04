@@ -1,0 +1,15 @@
+[     166ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:9454/api/v1/state:0
+[     166ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:9454/api/v1/events/ticket:0
+[     420ms] [WARNING] [Vue warn]: Unhandled error during execution of mounted hook 
+  at <MonacoPane> 
+  at <EditorArea key=3 > 
+  at <App> @ http://localhost:5173/node_modules/.vite/deps/vue.js?v=003e7edb:1822
+[     424ms] TypeError: Cannot read properties of null (reading 'parentNode')
+    at getShadowRoot (http://localhost:5173/node_modules/.pnpm/monaco-editor@0.57.0/node_modules/monaco-editor/esm/vs/base/browser/dom.js?v=003e7edb:552:20)
+    at isInShadowDOM (http://localhost:5173/node_modules/.pnpm/monaco-editor@0.57.0/node_modules/monaco-editor/esm/vs/base/browser/dom.js?v=003e7edb:549:14)
+    at StandaloneThemeService.registerEditorContainer (http://localhost:5173/node_modules/.pnpm/monaco-editor@0.57.0/node_modules/monaco-editor/esm/vs/editor/standalone/browser/standaloneThemeService.js?v=003e7edb:223:13)
+    at new StandaloneEditor (http://localhost:5173/node_modules/.pnpm/monaco-editor@0.57.0/node_modules/monaco-editor/esm/vs/editor/standalone/browser/standaloneCodeEditor.js?v=003e7edb:185:51)
+    at InstantiationService._createInstance (http://localhost:5173/node_modules/.pnpm/monaco-editor@0.57.0/node_modules/monaco-editor/esm/vs/platform/instantiation/common/instantiationService.js?v=003e7edb:131:24)
+    at InstantiationService.createInstance (http://localhost:5173/node_modules/.pnpm/monaco-editor@0.57.0/node_modules/monaco-editor/esm/vs/platform/instantiation/common/instantiationService.js?v=003e7edb:102:27)
+    at Object.create (http://localhost:5173/node_modules/.pnpm/monaco-editor@0.57.0/node_modules/monaco-editor/esm/vs/editor/standalone/browser/standaloneEditor.js?v=003e7edb:45:33)
+    at http://localhost:5173/src/components/editor/MonacoPane.vue?t=1793712559921:23:35

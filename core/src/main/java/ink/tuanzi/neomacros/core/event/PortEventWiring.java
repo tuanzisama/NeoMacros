@@ -6,6 +6,9 @@ import ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldJoinEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldLeaveEvent;
+import ink.tuanzi.neomacros.core.event.def.movement.PlayerGlidingEvent;
+import ink.tuanzi.neomacros.core.event.def.movement.PlayerSneakEvent;
+import ink.tuanzi.neomacros.core.event.def.movement.PlayerSprintEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerAirEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerAttackBlockEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerAttackEntityEvent;
@@ -51,6 +54,15 @@ import java.util.List;
  */
 public final class PortEventWiring {
 
+    /** Builds the script block handle for one neutral interaction hit. */
+    private static ink.tuanzi.neomacros.core.api.types.Block blockHandle(
+            ink.tuanzi.neomacros.port.model.BlockInteraction hit) {
+        return new ink.tuanzi.neomacros.core.api.types.Block(
+                new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                        Math.floor(hit.pos().x()), Math.floor(hit.pos().y()),
+                        Math.floor(hit.pos().z())));
+    }
+
     private PortEventWiring() {
     }
 
@@ -85,12 +97,14 @@ public final class PortEventWiring {
         adapter.chat().onChatReceive(message ->
                 bus.publish("chat:receive", new ChatReceiveEvent(message)));
 
-        adapter.player().onAttackBlock(block ->
-                bus.publish("player:attackBlock", new PlayerAttackBlockEvent(block)).canceled());
+        adapter.player().onAttackBlock(hit ->
+                bus.publish("player:attackBlock", new PlayerAttackBlockEvent(
+                        blockHandle(hit), hit.face())).canceled());
         adapter.player().onAttackEntity(target ->
                 bus.publish("player:attackEntity", new PlayerAttackEntityEvent(target)).canceled());
-        adapter.player().onInteractBlock(block ->
-                bus.publish("player:interactBlock", new PlayerInteractBlockEvent(block)).canceled());
+        adapter.player().onInteractBlock(hit ->
+                bus.publish("player:interactBlock", new PlayerInteractBlockEvent(
+                        blockHandle(hit), hit.face())).canceled());
         adapter.player().onInteractEntity(target ->
                 bus.publish("player:interactEntity", new PlayerInteractEntityEvent(target)).canceled());
 
@@ -318,6 +332,15 @@ public final class PortEventWiring {
             }
             if (now.air() != last.air()) {
                 bus.publish("player:air", new PlayerAirEvent(now.air()));
+            }
+            if (now.sneaking() != last.sneaking()) {
+                bus.publish("player:sneak", new PlayerSneakEvent(now.sneaking()));
+            }
+            if (now.sprinting() != last.sprinting()) {
+                bus.publish("player:sprint", new PlayerSprintEvent(now.sprinting()));
+            }
+            if (now.gliding() != last.gliding()) {
+                bus.publish("player:gliding", new PlayerGlidingEvent(now.gliding()));
             }
         }
 

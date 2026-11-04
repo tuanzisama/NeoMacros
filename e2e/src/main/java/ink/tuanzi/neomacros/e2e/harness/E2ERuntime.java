@@ -71,6 +71,12 @@ public final class E2ERuntime implements AutoCloseable {
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
+        // Script-facing event classes (BaseEvent chain) for instanceof dispatch.
+        registry.registerEventType("BaseEvent", false);
+        for (var descriptor : catalog.all()) {
+            registry.registerEventType(descriptor.name(), descriptor.cancellable());
+        }
+
         registry.registerGuestType("Pos2D", ink.tuanzi.neomacros.core.api.types.Pos2D.class);
         registry.registerGuestType("Pos3D", ink.tuanzi.neomacros.core.api.types.Pos3D.class);
         registry.registerGuestType("ChunkPos", ink.tuanzi.neomacros.core.api.types.ChunkPos.class);

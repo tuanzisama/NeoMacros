@@ -143,6 +143,12 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
+        // Script-facing event classes (BaseEvent chain) for instanceof dispatch.
+        registry.registerEventType("BaseEvent", false);
+        for (var descriptor : catalog.all()) {
+            registry.registerEventType(descriptor.name(), descriptor.cancellable());
+        }
+
         registry.registerGuestType("Pos2D", ink.tuanzi.neomacros.core.api.types.Pos2D.class);
         registry.registerGuestType("Pos3D", ink.tuanzi.neomacros.core.api.types.Pos3D.class);
         registry.registerGuestType("ChunkPos", ink.tuanzi.neomacros.core.api.types.ChunkPos.class);
@@ -388,18 +394,23 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         });
         ink.tuanzi.neomacros.adapter.SoundEventHub.register(data ->
                 bus.publish("world:sound", new ink.tuanzi.neomacros.core.event.def.world.WorldSoundEvent(
-                        data.soundId(), data.x(), data.y(), data.z(),
+                        data.soundId(),
+                        new ink.tuanzi.neomacros.core.api.types.Pos3D(data.x(), data.y(), data.z()),
                         data.volume(), data.pitch())));
         ink.tuanzi.neomacros.adapter.WorldEventHub.onBlockUpdate(data ->
                 bus.publish("world:blockUpdate",
                         new ink.tuanzi.neomacros.core.event.def.world.WorldBlockUpdateEvent(
-                                data.x(), data.y(), data.z(), data.blockId())));
+                                new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                                        data.x(), data.y(), data.z()),
+                                data.blockId())));
         ink.tuanzi.neomacros.adapter.ChunkEventHub.onLoad((chunkX, chunkZ) ->
                 bus.publish("world:chunkLoad",
-                        new ink.tuanzi.neomacros.core.event.def.world.WorldChunkLoadEvent(chunkX, chunkZ)));
+                        new ink.tuanzi.neomacros.core.event.def.world.WorldChunkLoadEvent(
+                                new ink.tuanzi.neomacros.core.api.types.ChunkPos(chunkX, chunkZ))));
         ink.tuanzi.neomacros.adapter.ChunkEventHub.onUnload((chunkX, chunkZ) ->
                 bus.publish("world:chunkUnload",
-                        new ink.tuanzi.neomacros.core.event.def.world.WorldChunkUnloadEvent(chunkX, chunkZ)));
+                        new ink.tuanzi.neomacros.core.event.def.world.WorldChunkUnloadEvent(
+                                new ink.tuanzi.neomacros.core.api.types.ChunkPos(chunkX, chunkZ))));
         ink.tuanzi.neomacros.adapter.BossbarHub.register(data ->
                 bus.publish("world:bossbar",
                         new ink.tuanzi.neomacros.core.event.def.world.WorldBossbarEvent(

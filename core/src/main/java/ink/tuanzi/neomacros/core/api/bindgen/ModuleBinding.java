@@ -15,7 +15,7 @@ public final class ModuleBinding {
 
     /** One member of a module binding. */
     public sealed interface BindingMember permits FunctionMember, PropertyMember,
-            ConstantMember, DeniedMember, GuestTypeMember {
+            ConstantMember, DeniedMember, GuestTypeMember, EventTypeMember {
     }
 
     /**
@@ -33,6 +33,32 @@ public final class ModuleBinding {
         /** The annotated cell class backing the guest class. */
         public Class<?> cellClass() {
             return cellClass;
+        }
+    }
+
+    /**
+     * Script-facing event class member: the engine resolves it to the guest
+     * ES event class ({@code XxxEvent extends BaseEvent}) built from the
+     * event name; scripts use it for {@code instanceof} dispatch.
+     */
+    public static final class EventTypeMember implements BindingMember {
+
+        private final String eventName;
+        private final boolean cancellable;
+
+        public EventTypeMember(String eventName, boolean cancellable) {
+            this.eventName = eventName;
+            this.cancellable = cancellable;
+        }
+
+        /** The event name backing the guest class ("BaseEvent" yields the base). */
+        public String eventName() {
+            return eventName;
+        }
+
+        /** Whether the event supports cancellation (introspection face). */
+        public boolean cancellable() {
+            return cancellable;
         }
     }
 
