@@ -964,6 +964,9 @@ public final class GraalJsEngine implements ScriptEngine {
                     if (member == null) {
                         throw new IllegalStateException("unknown binding member: " + name);
                     }
+                    if (member instanceof ModuleBinding.GuestTypeMember typeMember) {
+                        return guestClassFor(typeMember.cellClass());
+                    }
                     if (member instanceof ModuleBinding.PropertyMember property) {
                         try {
                             return asGuestValue(property.get());

@@ -136,6 +136,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerAll(java.util.List.of(
                 EventsApi.class, ClockApi.class, ChatApi.class, StorageApi.class,
                 WorldApi.class, EntityApi.class, PlayerApi.class));
+        registry.registerGuestType("Entity", EntityApi.Entity.class);
+        registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerInstance(new FsApi(new GameDirFsBridge(), ioExecutor));
         registry.registerInstance(new NetApi(ioExecutor));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.HudApi(

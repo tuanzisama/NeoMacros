@@ -15,7 +15,25 @@ public final class ModuleBinding {
 
     /** One member of a module binding. */
     public sealed interface BindingMember permits FunctionMember, PropertyMember,
-            ConstantMember, DeniedMember {
+            ConstantMember, DeniedMember, GuestTypeMember {
+    }
+
+    /**
+     * Script-facing class constructor member: the engine resolves it to the
+     * real guest ES class generated from the cell type's {@code @ApiClass}
+     * declaration (constructed on first access, shared per session).
+     */
+    public static final class GuestTypeMember implements BindingMember {
+        private final Class<?> cellClass;
+
+        public GuestTypeMember(Class<?> cellClass) {
+            this.cellClass = cellClass;
+        }
+
+        /** The annotated cell class backing the guest class. */
+        public Class<?> cellClass() {
+            return cellClass;
+        }
     }
 
     /**
