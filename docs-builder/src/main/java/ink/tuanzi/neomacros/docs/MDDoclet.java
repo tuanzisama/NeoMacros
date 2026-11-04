@@ -98,17 +98,35 @@ public class MDDoclet implements Doclet {
                         .add(clazz.name());
             }
         }
+        // Build the set of all documented type names for link rendering.
+        Set<String> knownTypes = new java.util.TreeSet<>();
+        for (ApiModel.ModuleModel module : model.modules()) {
+            for (ApiModel.ClassModel clazz : module.classes()) {
+                knownTypes.add(clazz.name());
+            }
+            for (ApiModel.TypeModel type : module.referencedTypes()) {
+                knownTypes.add(type.name());
+            }
+        }
+        for (ApiModel.ClassModel clazz : model.standaloneClasses()) {
+            knownTypes.add(clazz.name());
+        }
         try {
             Files.createDirectories(apiDir);
             for (ApiModel.ModuleModel module : model.modules()) {
-                write(apiDir.resolve(module.name() + ".md"), renderModule(module, false, extendedBy));
-                write(apiDir.resolve(module.name() + ".zh.md"), renderModule(module, true, extendedBy));
+                write(apiDir.resolve(module.name() + ".md"),
+                        renderModule(module, false, extendedBy, knownTypes));
+                write(apiDir.resolve(module.name() + ".zh.md"),
+                        renderModule(module, true, extendedBy, knownTypes));
             }
             if (!model.standaloneClasses().isEmpty()) {
-                write(apiDir.resolve("types.md"), renderTypesPage(model.standaloneClasses(), extendedBy, false));
-                write(apiDir.resolve("types.zh.md"), renderTypesPage(model.standaloneClasses(), extendedBy, true));
+                write(apiDir.resolve("types.md"),
+                        renderTypesPage(model.standaloneClasses(), extendedBy, knownTypes, false));
+                write(apiDir.resolve("types.zh.md"),
+                        renderTypesPage(model.standaloneClasses(), extendedBy, knownTypes, true));
             }
-            write(apiDir.resolve(DocletSupport.WARNINGS_FILE), String.join("\n", model.warnings()) + "\n");
+            write(apiDir.resolve(DocletSupport.WARNINGS_FILE),
+                    String.join("\n", model.warnings()) + "\n");
         } catch (IOException e) {
             report("failed to write generated documentation: " + e.getMessage());
             return false;
@@ -119,17 +137,13 @@ public class MDDoclet implements Doclet {
 
     /** Renders the standalone types page (Vec3, BlockPos, etc.). */
     private static String renderTypesPage(List<ApiModel.ClassModel> classes,
-            Map<String, List<String>> extendedBy, boolean zh) {
+            Map<String, List<String>> extendedBy, Set<String> knownTypes, boolean zh) {
         StringBuilder sb = new StringBuilder();
         sb.append(zh ? "# \u7c7b\u578b\u5b9a\u4e49\n\n" : "# Type Definitions\n\n");
         sb.append(zh
             ? "\u4ee5\u4e0b\u7c7b\u578b\u7531\u5f15\u64ce\u751f\u6210 guest \u7aef\u771f\u5b9e ES \u7c7b\uff0c\u53ef\u901a\u8fc7 `@neomacros/types` \u5bfc\u5165\u5e76\u4f7f\u7528 `instanceof` \u5224\u65ad\u3002\n\n"
             : "These types are generated as real guest ES classes by the engine. "
             + "Import them from `@neomacros/types` and use `instanceof` for type checks.\n\n");
-        java.util.Set<String> allNames = new java.util.HashSet<>();
-        for (ApiModel.ClassModel clazz : classes) {
-            allNames.add(clazz.name());
-        }
         for (ApiModel.ClassModel clazz : classes) {
             sb.append("## ").append(clazz.name()).append("\n\n");
             List<String> meta = new java.util.ArrayList<>();
@@ -150,15 +164,16 @@ public class MDDoclet implements Doclet {
             }
             sb.append(String.join(" \u00b7 ", meta)).append("\n\n");
             sb.append(text(clazz.doc(), clazz.zhDoc(), zh)).append("\n\n");
-            renderProperties(sb, clazz.properties(), zh);
-            renderMethods(sb, clazz.methods(), zh);
+            renderProperties(sb, clazz.properties(), zh, knownTypes);
+            renderMethods(sb, clazz.methods(), zh, knownTypes);
         }
         return sb.toString();
     }
 
     /** Renders one module page; {@code zh} selects the translation-fallback view. */
     private static String renderModule(ApiModel.ModuleModel module, boolean zh,
-                                       Map<String, List<String>> extendedBy) {
+                                       Map<String, List<String>> extendedBy,
+                                       Set<String> knownTypes) {
         StringBuilder sb = new StringBuilder();
         sb.append("# ").append(module.name()).append("\n\n");
         sb.append(text(module.doc(), module.zhDoc(), zh)).append("\n\n");
@@ -179,14 +194,15 @@ public class MDDoclet implements Doclet {
 
         renderClassTree(sb, module.classes(), extendedBy, zh);
 
-        renderProperties(sb, module.properties(), zh);
-        renderMethods(sb, module.methods(), zh);
+        renderProperties(sb, module.properties(), zh, knownTypes);
+        renderMethods(sb, module.methods(), zh, knownTypes);
+        renderReferencedTypes(sb, module.referencedTypes(), zh);
         for (ApiModel.ClassModel clazz : module.classes()) {
             sb.append("## Class ").append(clazz.name()).append("\n\n");
             sb.append(String.join(" · ", classMeta(clazz, extendedBy, zh))).append("\n\n");
             sb.append(text(clazz.doc(), clazz.zhDoc(), zh)).append("\n\n");
-            renderProperties(sb, clazz.properties(), zh);
-            renderMethods(sb, clazz.methods(), zh);
+            renderProperties(sb, clazz.properties(), zh, knownTypes);
+            renderMethods(sb, clazz.methods(), zh, knownTypes);
         }
         return sb.toString();
     }
@@ -258,7 +274,8 @@ public class MDDoclet implements Doclet {
         }
     }
 
-    private static void renderProperties(StringBuilder sb, List<ApiModel.PropertyModel> properties, boolean zh) {
+    private static void renderProperties(StringBuilder sb, List<ApiModel.PropertyModel> properties,
+            boolean zh, Set<String> knownTypes) {
         if (properties.isEmpty()) {
             return;
         }
@@ -266,7 +283,7 @@ public class MDDoclet implements Doclet {
         sb.append("| Property | Type | Description |\n");
         sb.append("| --- | --- | --- |\n");
         for (ApiModel.PropertyModel property : properties) {
-            sb.append("| `").append(property.name()).append("` | `").append(property.type()).append("` | ");
+            sb.append("| `").append(property.name()).append("` | ").append(linkType(property.type(), knownTypes)).append(" | ");
             sb.append(text(property.doc(), property.zhDoc(), zh));
             if (property.readOnly()) {
                 sb.append(" (read-only)");
@@ -279,7 +296,8 @@ public class MDDoclet implements Doclet {
         sb.append("\n");
     }
 
-    private static void renderMethods(StringBuilder sb, List<ApiModel.MethodModel> methods, boolean zh) {
+    private static void renderMethods(StringBuilder sb, List<ApiModel.MethodModel> methods,
+            boolean zh, Set<String> knownTypes) {
         if (methods.isEmpty()) {
             return;
         }
@@ -292,15 +310,16 @@ public class MDDoclet implements Doclet {
             if (!method.parameters().isEmpty()) {
                 sb.append("**Parameters**\n\n");
                 for (ApiModel.ParameterModel parameter : method.parameters()) {
-                    sb.append("- `").append(parameter.name()).append("` (`").append(parameter.type())
-                            .append("`): ").append(method.paramDocs().getOrDefault(parameter.name(),
+                    sb.append("- `").append(parameter.name()).append("` ").append(
+                            linkType(parameter.type(), knownTypes)
+                    ).append(": ").append(method.paramDocs().getOrDefault(parameter.name(),
                             method.zhParamDocs().getOrDefault(parameter.name(), ""))).append("\n");
                 }
                 sb.append("\n");
             }
             String returns = text(method.returnDoc(), method.zhReturnDoc(), zh);
             if (!returns.isEmpty() || !method.returnType().equals("void")) {
-                sb.append("**Returns** `").append(method.returnType()).append("`");
+                sb.append("**Returns** ").append(linkType(method.returnType(), knownTypes));
                 if (!returns.isEmpty()) {
                     sb.append(" — ").append(returns);
                 }
@@ -338,6 +357,62 @@ public class MDDoclet implements Doclet {
             sb.append(parameter.name()).append(": ").append(parameter.type());
         }
         return sb.toString();
+    }
+
+    /**
+     * Wraps known type names in wiki-style links to their definition anchor
+     * on the types page. Unknown types stay as plain backtick code.
+     */
+    private static String linkType(String type, Set<String> knownTypes) {
+        if (type == null || type.isEmpty() || knownTypes.isEmpty()) {
+            return "`" + type + "`";
+        }
+        var matcher = java.util.regex.Pattern.compile("[A-Z][A-Za-z0-9]+").matcher(type);
+        var out = new StringBuilder();
+        int last = 0;
+        while (matcher.find()) {
+            String word = matcher.group();
+            String before = type.substring(last, matcher.start());
+            if (!before.isEmpty()) {
+                out.append("`").append(before).append("`");
+            }
+            if (knownTypes.contains(word)) {
+                out.append("[").append(word).append("](types.html#")
+                        .append(word.toLowerCase(Locale.ROOT)).append(")");
+            } else {
+                out.append("`").append(word).append("`");
+            }
+            last = matcher.end();
+        }
+        String remaining = type.substring(last);
+        if (!remaining.isEmpty()) {
+            out.append("`").append(remaining).append("`");
+        }
+        return out.toString();
+    }
+
+    /**
+     * Renders referenced port-model record types (Pos3d, EntitySnapshot, ...)
+     * as field definition tables after the Methods section.
+     */
+    private static void renderReferencedTypes(StringBuilder sb,
+            List<ApiModel.TypeModel> referencedTypes, boolean zh) {
+        if (referencedTypes.isEmpty()) {
+            return;
+        }
+        sb.append("## Referenced Types\n\n");
+        sb.append(zh
+            ? "\u4ee5\u4e0b\u7c7b\u578b\u5728\u65b9\u6cd5\u7b7e\u540d\u4e2d\u88ab\u5f15\u7528\u3002\n\n"
+            : "The following types appear in method signatures on this page.\n\n");
+        for (ApiModel.TypeModel type : referencedTypes) {
+            sb.append("### ").append(type.name()).append("\n\n");
+            sb.append("| Field | Type |\n");
+            sb.append("| --- | --- |\n");
+            for (ApiModel.ParameterModel field : type.fields()) {
+                sb.append("| `").append(field.name()).append("` | `").append(field.type()).append("` |\n");
+            }
+            sb.append("\n");
+        }
     }
 
     /** Picks the translation for the current view, falling back to English. */

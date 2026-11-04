@@ -9,6 +9,7 @@ import java.util.function.Function;
  * Proxy over one host object: public fields read and write as values,
  * methods dispatch as callables bound to the instance.
  */
+@ink.tuanzi.neomacros.doc.api.ApiClass(name = "JavaObject", kind = ink.tuanzi.neomacros.doc.api.ApiClassKind.HANDLE)
 public final class JavaObject implements JavaInterop {
 
     private final Object raw;

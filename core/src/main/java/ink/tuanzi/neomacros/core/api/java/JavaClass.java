@@ -9,6 +9,7 @@ import java.util.function.Function;
  * Proxy over one host class: static fields read as values, static methods
  * dispatch as callables, and the {@code new} member constructs instances.
  */
+@ink.tuanzi.neomacros.doc.api.ApiClass(name = "JavaClass", kind = ink.tuanzi.neomacros.doc.api.ApiClassKind.HANDLE)
 public final class JavaClass implements JavaInterop {
 
     private final Class<?> target;
