@@ -5,6 +5,8 @@ import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
+import ink.tuanzi.neomacros.core.util.JsonLite;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
@@ -12,7 +14,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
@@ -119,6 +123,139 @@ public final class FsApi {
     @ApiPermission("fs")
     public CompletableFuture<Boolean> exists(String path) {
         return supply(() -> Files.exists(bridge.resolve(path)));
+    }
+
+    /**
+     * Reads a JSON file into neutral values (objects, arrays, strings,
+     * numbers, booleans).
+     *
+     * @zh 读取 JSON 文件为中性值（对象/数组/字符串/数字/布尔）。
+     */
+    @ApiSince("0.1.0")
+    @ApiType("Promise<any>")
+    @ApiPermission("fs")
+    public CompletableFuture<Object> readJSON(String path) {
+        return supply(() -> JsonLite.parse(
+                Files.readString(bridge.resolve(path), StandardCharsets.UTF_8)));
+    }
+
+    /**
+     * Writes neutral values into a JSON file (creating parent directories).
+     *
+     * @zh 把中性值写入 JSON 文件（自动创建父目录）。
+     */
+    @ApiSince("0.1.0")
+    @ApiType("Promise<void>")
+    @ApiPermission("fs")
+    public CompletableFuture<Void> writeJSON(String path, Object value) {
+        return run(() -> {
+            Path target = bridge.resolve(path);
+            Files.createDirectories(target.getParent());
+            Files.writeString(target, JsonLite.write(value), StandardCharsets.UTF_8);
+        });
+    }
+
+    /**
+     * Reads one file as raw bytes (each element 0-255; the engine renders
+     * the result as a Uint8Array).
+     *
+     * @zh 按字节读取文件（元素 0-255，引擎侧渲染为 Uint8Array）。
+     */
+    @ApiSince("0.1.0")
+    @ApiType("Promise<Uint8Array>")
+    @ApiPermission("fs")
+    public CompletableFuture<byte[]> readBytes(String path) {
+        return supply(() -> Files.readAllBytes(bridge.resolve(path)));
+    }
+
+    /**
+     * Writes raw bytes to a file (creating parent directories). The data
+     * argument is an array-like of byte values.
+     *
+     * @zh 按字节写入文件（自动创建父目录），data 为字节值数组。
+     */
+    @ApiSince("0.1.0")
+    @ApiType("Promise<void>")
+    @ApiPermission("fs")
+    public CompletableFuture<Void> writeBytes(String path, Object data) {
+        return run(() -> {
+            Path target = bridge.resolve(path);
+            Files.createDirectories(target.getParent());
+            Files.write(target, toBytes(data));
+        });
+    }
+
+    /**
+     * Returns file metadata: {@code size}, {@code mtimeMs}, {@code isDir},
+     * {@code isFile}.
+     *
+     * @zh 返回文件元信息：size/mtimeMs/isDir/isFile。
+     */
+    @ApiSince("0.1.0")
+    @ApiType("Promise<object>")
+    @ApiPermission("fs")
+    public CompletableFuture<Map<String, Object>> stat(String path) {
+        return supply(() -> {
+            Path target = bridge.resolve(path);
+            var attributes = Files.readAttributes(target, java.nio.file.attribute.BasicFileAttributes.class);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("size", attributes.size());
+            out.put("mtimeMs", attributes.lastModifiedTime().toMillis());
+            out.put("isDir", attributes.isDirectory());
+            out.put("isFile", attributes.isRegularFile());
+            return out;
+        });
+    }
+
+    /**
+     * Moves a file or directory; fails when the target already exists.
+     *
+     * @zh 移动文件或目录；目标已存在时失败。
+     */
+    @ApiSince("0.1.0")
+    @ApiType("Promise<void>")
+    @ApiPermission("fs")
+    public CompletableFuture<Void> move(String from, String to) {
+        return run(() -> {
+            Path target = bridge.resolve(to);
+            Files.createDirectories(target.getParent());
+            Files.move(bridge.resolve(from), target);
+        });
+    }
+
+    /**
+     * Copies a file; fails when the target already exists.
+     *
+     * @zh 复制文件；目标已存在时失败。
+     */
+    @ApiSince("0.1.0")
+    @ApiType("Promise<void>")
+    @ApiPermission("fs")
+    public CompletableFuture<Void> copy(String from, String to) {
+        return run(() -> {
+            Path target = bridge.resolve(to);
+            Files.createDirectories(target.getParent());
+            Files.copy(bridge.resolve(from), target);
+        });
+    }
+
+    /** Coerces an array-like payload into raw bytes. */
+    private static byte[] toBytes(Object data) {
+        if (data instanceof List<?> numbers) {
+            byte[] out = new byte[numbers.size()];
+            for (int i = 0; i < out.length; i++) {
+                Object entry = numbers.get(i);
+                if (!(entry instanceof Number number)) {
+                    throw new IllegalArgumentException("byte data must be numbers");
+                }
+                out[i] = number.byteValue();
+            }
+            return out;
+        }
+        if (data instanceof String text) {
+            return text.getBytes(StandardCharsets.ISO_8859_1);
+        }
+        throw new IllegalArgumentException("byte data must be an array of numbers");
     }
 
     private <T> CompletableFuture<T> supply(IoCall<T> call) {

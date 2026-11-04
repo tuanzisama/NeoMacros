@@ -72,6 +72,13 @@ public final class GraalJsEngine implements ScriptEngine {
             globalThis.__neoNewError = function (message) {
                 return new Error(message);
             };
+            globalThis.__neoBytes = function (list) {
+                const out = new Uint8Array(list.length);
+                for (let i = 0; i < list.length; i++) {
+                    out[i] = list[i];
+                }
+                return out;
+            };
             globalThis.__neoInstall = function (tree) {
                 const deepFreeze = function (value) {
                     Object.freeze(value);
@@ -1066,6 +1073,14 @@ public final class GraalJsEngine implements ScriptEngine {
             if (plain instanceof ink.tuanzi.neomacros.core.api.java.JavaInterop interop) {
                 return interopProxy(interop);
             }
+            if (plain instanceof byte[] bytes) {
+                List<Object> numbers = new ArrayList<>(bytes.length);
+                for (byte entry : bytes) {
+                    numbers.add((int) entry);
+                }
+                return glueMember("__neoBytes")
+                        .execute(org.graalvm.polyglot.proxy.ProxyArray.fromList(numbers));
+            }
             if (plain instanceof ink.tuanzi.neomacros.core.api.ScriptHandle handle) {
                 return guestHandle(handle);
             }
@@ -1367,7 +1382,9 @@ public final class GraalJsEngine implements ScriptEngine {
                     }
                     String name = method.getName();
                     int params = method.getParameterCount();
-                    if (params == 0 && (name.startsWith("get") || name.startsWith("is"))
+                    boolean async = CompletableFuture.class
+                            .isAssignableFrom(method.getReturnType());
+                    if (params == 0 && !async && (name.startsWith("get") || name.startsWith("is"))
                             && !name.equals("getClass")) {
                         String property = name.startsWith("is")
                                 ? decapitalize(name.substring(2))
