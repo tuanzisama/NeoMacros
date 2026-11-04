@@ -48,10 +48,11 @@ public final class GraalJsEngine implements ScriptEngine {
 
     /**
      * Engine glue evaluated once per session on the loop thread: the async
-     * binding wrapper, guest Error construction for rejections, and the
-     * deeply-frozen {@code neo} global installation. The binding tree itself
-     * is built from Java through the polyglot Value API (host maps are not
-     * enumerable from guest code when host access is disabled).
+     * binding wrapper, guest Error construction for rejections, the
+     * deeply-frozen {@code neo} global installation, and the script-facing
+     * class tree builder. The binding tree itself is built from Java through
+     * the polyglot Value API (host maps are not enumerable from guest code
+     * when host access is disabled).
      */
     private static final String GLUE = """
             globalThis.__neoMakeAsync = function (hostFn) {
@@ -87,6 +88,62 @@ public final class GraalJsEngine implements ScriptEngine {
                     configurable: false
                 });
                 return tree;
+            };
+            globalThis.__neoDefineClass = function (name, parentName, properties, methods) {
+                let table = globalThis.__neoClassTable;
+                if (table === undefined) {
+                    table = {};
+                    Object.defineProperty(globalThis, '__neoClassTable', {
+                        value: table,
+                        writable: false,
+                        enumerable: false,
+                        configurable: false
+                    });
+                }
+                if (table[name] !== undefined) {
+                    return table[name];
+                }
+                const parent = parentName ? table[parentName] : Object;
+                class C extends parent {
+                    constructor(cell) {
+                        super();
+                        // configurable: a base constructor installs the cell
+                        // first along the super() chain; the most-derived
+                        // constructor re-defines it with the real value.
+                        Object.defineProperty(this, '__cell', {
+                            value: cell,
+                            writable: false,
+                            enumerable: false,
+                            configurable: true
+                        });
+                    }
+                }
+                const readCell = function (self) {
+                    const cell = self.__cell;
+                    if (cell === undefined || cell === null) {
+                        throw new Error('handle is no longer valid');
+                    }
+                    return cell;
+                };
+                for (const property of properties) {
+                    Object.defineProperty(C.prototype, property, {
+                        get() {
+                            return readCell(this)[property];
+                        },
+                        configurable: true
+                    });
+                }
+                for (const method of methods) {
+                    C.prototype[method] = function (...args) {
+                        return readCell(this)[method](...args);
+                    };
+                }
+                Object.defineProperty(C.prototype, Symbol.toStringTag, {
+                    value: name,
+                    configurable: true
+                });
+                table[name] = C;
+                return C;
             };
             """;
 
@@ -170,6 +227,7 @@ public final class GraalJsEngine implements ScriptEngine {
         private Value glue;
         private Value lastNamespace;
         private Value cachedUndefined;
+        private final Map<String, Value> guestClasses = new ConcurrentHashMap<>();
 
         private GraalJsSession(ScriptContext owner, Path moduleRoot) {
             this.owner = owner;
@@ -591,7 +649,7 @@ public final class GraalJsEngine implements ScriptEngine {
                 return undefinedValue();
             }
             if (plain instanceof ink.tuanzi.neomacros.core.api.ScriptHandle handle) {
-                return handleProxy(handle);
+                return guestHandle(handle);
             }
             if (plain instanceof java.util.Map<?, ?> map) {
                 // Plain Java maps are not member-readable under HostAccess.NONE;
@@ -638,6 +696,66 @@ public final class GraalJsEngine implements ScriptEngine {
         }
 
         /**
+         * Renders a live facade handle for the guest. Annotated handles
+         * ({@code @ApiClass}) become instances of a real guest ES class
+         * (built once per session): {@code instanceof} and user subclassing
+         * work natively, getters read the backing member proxy live on every
+         * access, and {@link Symbol#toStringTag} renders the script-visible
+         * type name. Un-annotated handles keep the flat member-proxy
+         * rendering (raw host objects are unreadable under the closed
+         * host-access policy, so the proxy is the only readable surface).
+         */
+        private Value guestHandle(Object handle) {
+            Class<?> type = handle.getClass();
+            if (type.getAnnotation(ink.tuanzi.neomacros.doc.api.ApiClass.class) == null) {
+                return handleProxy(handle);
+            }
+            Value constructor = guestClassFor(type);
+            return constructor.newInstance(handleProxy(handle));
+        }
+
+        /** Defines (once, parents first) and returns the guest class for one cell type. */
+        private Value guestClassFor(Class<?> type) {
+            String name = guestNameOf(type);
+            Value existing = guestClasses.get(name);
+            if (existing != null) {
+                return existing;
+            }
+            Class<?> parent = annotatedAncestor(type);
+            if (parent != null) {
+                guestClassFor(parent);
+            }
+            HandleShape shape = handleShape(type);
+            Value constructor = glueMember("__neoDefineClass").execute(
+                    name,
+                    parent != null ? guestNameOf(parent) : null,
+                    org.graalvm.polyglot.proxy.ProxyArray.fromList(
+                            new ArrayList<Object>(shape.properties())),
+                    org.graalvm.polyglot.proxy.ProxyArray.fromList(
+                            new ArrayList<Object>(shape.methods())));
+            guestClasses.put(name, constructor);
+            return constructor;
+        }
+
+        /** The nearest {@code @ApiClass}-annotated ancestor class, or null. */
+        private static Class<?> annotatedAncestor(Class<?> type) {
+            Class<?> sup = type.getSuperclass();
+            while (sup != null && sup != Object.class) {
+                if (sup.getAnnotation(ink.tuanzi.neomacros.doc.api.ApiClass.class) != null) {
+                    return sup;
+                }
+                sup = sup.getSuperclass();
+            }
+            return null;
+        }
+
+        /** The script-visible type name of one cell class. */
+        private static String guestNameOf(Class<?> type) {
+            var annotation = type.getAnnotation(ink.tuanzi.neomacros.doc.api.ApiClass.class);
+            return annotation != null ? annotation.name() : type.getSimpleName();
+        }
+
+        /**
          * Renders a live facade handle as a guest-readable member proxy: bean
          * getters read as properties on every access (real-time per the
          * handle contract), zero-argument public methods cross as functions,
@@ -645,41 +763,32 @@ public final class GraalJsEngine implements ScriptEngine {
          * host-access policy, so the proxy is the only readable surface.
          */
         private Value handleProxy(Object handle) {
-            var members = handleMembers(handle.getClass());
+            HandleShape shape = handleShape(handle.getClass());
             return context.asValue(new org.graalvm.polyglot.proxy.ProxyObject() {
                 @Override
                 public Object getMember(String name) {
-                    java.lang.reflect.Executable member = members.get(name);
+                    java.lang.reflect.Executable member = shape.members().get(name);
                     if (member == null) {
                         return undefinedValue();
                     }
-                    try {
-                        Object result;
-                        if (member instanceof java.lang.reflect.Method method) {
-                            result = method.invoke(handle);
-                        } else {
-                            result = null;
-                        }
-                        return asGuestValue(result);
-                    } catch (java.lang.reflect.InvocationTargetException e) {
-                        Throwable cause = e.getCause();
-                        if (cause instanceof RuntimeException runtime) {
-                            throw runtime;
-                        }
-                        throw new IllegalStateException("handle member failed: " + name, cause);
-                    } catch (IllegalAccessException e) {
-                        throw new IllegalStateException("handle member not accessible: " + name, e);
+                    java.lang.reflect.Method method = (java.lang.reflect.Method) member;
+                    if (shape.properties().contains(name)) {
+                        // Bean getter: read live on every property access.
+                        return invokeHandleMember(handle, method, name);
                     }
+                    // Zero-arg action/method: cross as a callable so the guest
+                    // invokes it explicitly (matching the generated .d.ts).
+                    return executable(arguments -> invokeHandleMember(handle, method, name));
                 }
 
                 @Override
                 public boolean hasMember(String name) {
-                    return members.containsKey(name);
+                    return shape.members().containsKey(name);
                 }
 
                 @Override
                 public Object getMemberKeys() {
-                    String[] keys = members.keySet().toArray(new String[0]);
+                    String[] keys = shape.members().keySet().toArray(new String[0]);
                     return new org.graalvm.polyglot.proxy.ProxyArray() {
                         @Override
                         public long getSize() {
@@ -705,13 +814,34 @@ public final class GraalJsEngine implements ScriptEngine {
             });
         }
 
-        /** Bean getters (properties) and zero-arg public methods of one handle class, by script member name. */
-        private static final Map<Class<?>, Map<String, java.lang.reflect.Executable>> HANDLE_MEMBERS =
-                new ConcurrentHashMap<>();
+        /** Invokes one handle member and renders the result for the guest. */
+        private Value invokeHandleMember(Object handle, java.lang.reflect.Method method,
+                                         String name) {
+            try {
+                return asGuestValue(method.invoke(handle));
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof RuntimeException runtime) {
+                    throw runtime;
+                }
+                throw new IllegalStateException("handle member failed: " + name, cause);
+            } catch (IllegalAccessException e) {
+                throw new IllegalStateException("handle member not accessible: " + name, e);
+            }
+        }
 
-        private static Map<String, java.lang.reflect.Executable> handleMembers(Class<?> type) {
-            return HANDLE_MEMBERS.computeIfAbsent(type, cls -> {
+        /** Declared script surface of one handle class: member lookup plus the property/method split. */
+        private record HandleShape(Map<String, java.lang.reflect.Executable> members,
+                                   List<String> properties, List<String> methods) {
+        }
+
+        private static final Map<Class<?>, HandleShape> HANDLE_SHAPES = new ConcurrentHashMap<>();
+
+        private static HandleShape handleShape(Class<?> type) {
+            return HANDLE_SHAPES.computeIfAbsent(type, cls -> {
                 Map<String, java.lang.reflect.Executable> members = new LinkedHashMap<>();
+                List<String> properties = new ArrayList<>();
+                List<String> methods = new ArrayList<>();
                 for (java.lang.reflect.Method method : cls.getMethods()) {
                     if (method.getDeclaringClass() == Object.class) {
                         continue;
@@ -723,12 +853,17 @@ public final class GraalJsEngine implements ScriptEngine {
                         String property = name.startsWith("is")
                                 ? decapitalize(name.substring(2))
                                 : decapitalize(name.substring(3));
-                        members.putIfAbsent(property, method);
+                        if (members.putIfAbsent(property, method) == null) {
+                            properties.add(property);
+                        }
                     } else if (params == 0 && !name.equals("getClass")) {
-                        members.putIfAbsent(name, method);
+                        if (members.putIfAbsent(name, method) == null) {
+                            methods.add(name);
+                        }
                     }
                 }
-                return Map.copyOf(members);
+                return new HandleShape(Map.copyOf(members),
+                        List.copyOf(properties), List.copyOf(methods));
             });
         }
 

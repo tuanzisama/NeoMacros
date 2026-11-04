@@ -29,8 +29,8 @@ public final class PlayerApi {
      */
     @ApiSince("0.1.0")
     @ApiReadOnly
-    public PlayerApi.PlayerHandle getSelf() {
-        return current().map(s -> new PlayerApi.PlayerHandle(s.uuid())).orElse(null);
+    public PlayerApi.Player getSelf() {
+        return current().map(s -> new PlayerApi.Player(s.uuid())).orElse(null);
     }
 
     /** The player port behind the facade (single adapter access point). */
@@ -49,13 +49,13 @@ public final class PlayerApi {
      *
      * @zh 本地玩家句柄：属性实时回读；不在世界内时属性回读为 undefined。
      */
-    @ApiClass(name = "PlayerHandle", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "Player", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.client.player.LocalPlayer")
-    public static final class PlayerHandle implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+    public static final class Player implements ink.tuanzi.neomacros.core.api.ScriptHandle {
 
         private final UUID uuid;
 
-        PlayerHandle(UUID uuid) {
+        Player(UUID uuid) {
             this.uuid = uuid;
         }
 
@@ -182,7 +182,7 @@ public final class PlayerApi {
         /** Human-readable form. */
         @Override
         public String toString() {
-            return "PlayerHandle(uuid=" + uuid + ")";
+            return "Player(uuid=" + uuid + ")";
         }
 
         /** Reads one position component, or null when not in a world. */
