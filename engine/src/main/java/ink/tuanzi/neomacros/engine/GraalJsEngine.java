@@ -196,6 +196,7 @@ public final class GraalJsEngine implements ScriptEngine {
                     enumerable: true,
                     configurable: false
                 });
+            };
             globalThis.__neoDefineClass = function (name, parentName, properties, methods) {
                 let table = globalThis.__neoClassTable;
                 if (table === undefined) {
