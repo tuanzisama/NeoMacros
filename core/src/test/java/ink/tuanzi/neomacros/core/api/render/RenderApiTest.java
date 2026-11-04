@@ -50,8 +50,8 @@ class RenderApiTest {
         RecordingDraw3D backing = new RecordingDraw3D();
         RenderApi api = new RenderApi(backing);
 
-        api.drawBox("mark", new Pos3d(0, 64, 0), new Pos3d(1, 65, 1), 0xFF00FF00);
-        api.drawLine("path", new Pos3d(0, 64, 0), new Pos3d(5, 64, 5), 0xFFFFFFFF);
+        api.drawBox("mark", new ink.tuanzi.neomacros.core.api.types.Pos3D(0, 64, 0), new ink.tuanzi.neomacros.core.api.types.Pos3D(1, 65, 1), 0xFF00FF00);
+        api.drawLine("path", new ink.tuanzi.neomacros.core.api.types.Pos3D(0, 64, 0), new ink.tuanzi.neomacros.core.api.types.Pos3D(5, 64, 5), 0xFFFFFFFF);
 
         assertEquals(2, backing.shapes.size());
         assertEquals("box", backing.shapes.get(0).kind());

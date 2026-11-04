@@ -15,7 +15,7 @@
 | 门面 | 用途 |
 |---|---|
 | [`events`](/zh/api/events) | on / once / waitFor，onSync 可取消订阅 |
-| [`clock`](/zh/api/clock) | sleep、ticks、nextTick、runOnMain（根级 `clock.*` 同义） |
+| [`thread`](/zh/api/thread) | sleep、ticks、nextTick、runOnMain（根级 `clock.*` 同义） |
 | [`storage`](/zh/api/storage) | 按脚本隔离的键值持久化 |
 
 ### 界面
@@ -34,7 +34,7 @@
 | [`world`](/zh/api/world) | 时间、维度、天气、方块查询 |
 | [`player`](/zh/api/player) | 本地玩家快照与状态效果 |
 | [`entity`](/zh/api/entity) | 按 UUID / 半径查询实体 |
-| [`inventory`](/zh/api/inventory) | 容器访问与物品移动 |
+| [`inventory`](/zh/api/player) | 容器访问与物品移动 |
 
 ### 系统
 

@@ -33,7 +33,6 @@ const apiClasses: string[] = [
   'LivingEntity',
   'Inventory',
   'PlayerInventory',
-  'BaseEvent',
 ]
 
 // Subscribable events (the ProductionEventSet roster) grouped by domain;

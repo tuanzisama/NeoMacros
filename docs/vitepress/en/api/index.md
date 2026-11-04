@@ -16,7 +16,7 @@ grab a complete script from the [Examples](/en/examples/) section.
 | Facade | Purpose |
 |---|---|
 | [`events`](/en/api/events) | subscribe / once / waitFor, synchronous cancellable handlers |
-| [`clock`](/en/api/clock) | sleep, ticks, nextTick, runOnMain (root-level `clock.*` too) |
+| [`thread`](/en/api/thread) | sleep, ticks, nextTick, runOnMain (root-level `clock.*` too) |
 | [`storage`](/en/api/storage) | per-script key-value persistence |
 
 ### UI
@@ -35,7 +35,7 @@ grab a complete script from the [Examples](/en/examples/) section.
 | [`world`](/en/api/world) | time, dimension, weather, block queries |
 | [`player`](/en/api/player) | local player snapshot and status effects |
 | [`entity`](/en/api/entity) | entity lookup by UUID / radius |
-| [`inventory`](/en/api/inventory) | container access and item movement |
+| [`inventory`](/en/api/player) | container access and item movement |
 
 ### System
 

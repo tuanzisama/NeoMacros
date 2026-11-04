@@ -3,7 +3,7 @@
 NeoMacros scripts are event-driven: the game fires events, your handlers
 react, and everything else is `async`/`await` on the script's own event
 loop. This page covers the full subscription toolkit from the
-[`events`](/en/api/events) and [`clock`](/en/api/clock) facades.
+[`events`](/en/api/events) and [`thread`](/en/api/thread) facades.
 
 ## Subscribing: `events.on`
 
@@ -89,9 +89,9 @@ events.onSync("player:attackBlock", (payload) => {
 Sync callbacks must stay short: they block the dispatch thread while they
 run. No `await`, no long loops — decide and return.
 
-## Timing with `clock`
+## Timing with `thread`
 
-Every `clock` function is promise-returning and bound to the calling
+Every `thread` function is promise-returning and bound to the calling
 script's event loop:
 
 | Call | Resolves |

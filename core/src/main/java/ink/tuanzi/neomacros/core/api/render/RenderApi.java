@@ -42,8 +42,11 @@ public final class RenderApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void drawBox(String layerId, Pos3d min, Pos3d max, int argbColor) {
-        draw3d.drawBox(layerId, min, max, argbColor);
+    public void drawBox(String layerId, ink.tuanzi.neomacros.core.api.types.Pos3D min,
+            ink.tuanzi.neomacros.core.api.types.Pos3D max, int argbColor) {
+        draw3d.drawBox(layerId,
+                new Pos3d(min.getX(), min.getY(), min.getZ()),
+                new Pos3d(max.getX(), max.getY(), max.getZ()), argbColor);
     }
 
     /**
@@ -54,8 +57,11 @@ public final class RenderApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void drawLine(String layerId, Pos3d from, Pos3d to, int argbColor) {
-        draw3d.drawLine(layerId, from, to, argbColor);
+        public void drawLine(String layerId, ink.tuanzi.neomacros.core.api.types.Pos3D from,
+            ink.tuanzi.neomacros.core.api.types.Pos3D to, int argbColor) {
+        draw3d.drawLine(layerId,
+                new Pos3d(from.getX(), from.getY(), from.getZ()),
+                new Pos3d(to.getX(), to.getY(), to.getZ()), argbColor);
     }
 
     /**

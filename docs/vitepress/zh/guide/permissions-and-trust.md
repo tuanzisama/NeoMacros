@@ -60,7 +60,7 @@ permissions: ["fs"]            # 基础面之外的能力
 
 ## 无需信任的操作
 
-- [`events`](/zh/api/events)、[`clock`](/zh/api/clock)、[`chat`](/zh/api/chat)
+- [`events`](/zh/api/events)、[`thread`](/zh/api/thread)、[`chat`](/zh/api/chat)
 - 通过 [`world`](/zh/api/world)、[`player`](/zh/api/player)、
   [`entity`](/zh/api/entity) 读取世界与玩家状态
 - [`hud`](/zh/api/hud) 与 [`render`](/zh/api/render) 的 HUD 与世界叠加层

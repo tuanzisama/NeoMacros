@@ -69,7 +69,7 @@ affected.
 
 ## What does not need trust
 
-- [`events`](/en/api/events), [`clock`](/en/api/clock), [`chat`](/en/api/chat)
+- [`events`](/en/api/events), [`thread`](/en/api/thread), [`chat`](/en/api/chat)
 - Reading world and player state via [`world`](/en/api/world),
   [`player`](/en/api/player), [`entity`](/en/api/entity)
 - HUD and world overlays via [`hud`](/en/api/hud) and

@@ -2,7 +2,7 @@
 
 NeoMacros 脚本是事件驱动的：游戏发出事件，你的处理器响应，其余一切都
 是脚本自身事件循环上的 `async`/`await`。本页覆盖
-[`events`](/zh/api/events) 与 [`clock`](/zh/api/clock) 两个门面的完整订
+[`events`](/zh/api/events) 与 [`thread`](/zh/api/thread) 两个门面的完整订
 阅工具箱。
 
 ## 订阅：`events.on`
@@ -82,9 +82,9 @@ events.onSync("player:attackBlock", (payload) => {
 同步回调必须短小：运行期间会阻塞派发线程。不要 `await`、不要长循环——
 判断完立刻返回。
 
-## 用 `clock` 计时
+## 用 `thread` 计时
 
-`clock` 的每个函数都返回 Promise，并绑定到调用脚本的事件循环：
+`thread` 的每个函数都返回 Promise，并绑定到调用脚本的事件循环：
 
 | 调用 | 何时 resolve |
 |---|---|
