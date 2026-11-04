@@ -28,6 +28,9 @@ public interface NeomacrosAdapter {
     /** Returns the input port (keybinds, raw keys, scroll). */
     InputPort input();
 
+    /** Returns the client context port (fps, version, raw instance). */
+    ClientPort client();
+
     /** Returns the inventory query port. */
     InventoryPort inventory();
 

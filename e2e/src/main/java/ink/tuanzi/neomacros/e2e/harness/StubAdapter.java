@@ -162,6 +162,29 @@ public final class StubAdapter implements NeomacrosAdapter {
     }
 
     @Override
+    private final ink.tuanzi.neomacros.port.ClientPort clientPort =
+            new ink.tuanzi.neomacros.port.ClientPort() {
+                @Override
+                public int fps() {
+                    return 60;
+                }
+
+                @Override
+                public String gameVersion() {
+                    return "26.3-stub";
+                }
+
+                @Override
+                public Object minecraftInstance() {
+                    return null;
+                }
+            };
+
+    @Override
+    public ink.tuanzi.neomacros.port.ClientPort client() {
+        return clientPort;
+    }
+
     public ink.tuanzi.neomacros.port.InputPort input() {
         return input;
     }

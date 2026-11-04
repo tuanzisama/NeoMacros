@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.core.api.types;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
@@ -39,7 +40,7 @@ public final class Block implements ScriptHandle {
     @ApiSince("0.1.0")
     @ApiReadOnly
     public BlockState getState() {
-        return snapshot().map(data -> new BlockState(data.id())).orElse(null);
+        return snapshot().map(data -> new BlockState(data.id(), data.properties())).orElse(null);
     }
 
     /**
@@ -54,6 +55,41 @@ public final class Block implements ScriptHandle {
         return ScriptApiEnvironment.adapter().world().rawByPos(
                 new ink.tuanzi.neomacros.port.model.Pos3d(
                         pos.getX(), pos.getY(), pos.getZ())).orElse(null);
+    }
+
+    /** The biome identifier at the block position.
+     * @zh 方块位置的群系标识。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiReadOnly
+    public String getBiome() {
+        return ScriptApiEnvironment.adapter().world().biomeAt(
+                new ink.tuanzi.neomacros.port.model.Pos3d(
+                        pos.getX(), pos.getY(), pos.getZ())).orElse(null);
+    }
+
+    /** The chunk coordinate containing the block.
+     * @zh 方块所在区块坐标。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiReadOnly
+    public ChunkPos getChunk() {
+        return new ChunkPos(pos);
+    }
+
+    /**
+     * The block {@code n} steps in one cardinal direction, or undefined
+     * outside the loaded world.
+     *
+     * @zh 沿基本方向偏移 n 格的方块；未加载世界内为 undefined。
+     * @zh-param direction 方向名（up/down/north/south/east/west）
+     * @zh-param n 步数（可省略，默认 1）
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    public Block relative(String direction, Integer n) {
+        BlockPos next = pos.offset(direction, n == null ? 1 : n);
+        return snapshot(next).isPresent() ? new Block(next) : null;
     }
 
     /** Whether the block is still loaded in the world.
@@ -74,7 +110,12 @@ public final class Block implements ScriptHandle {
 
     /** The latest block data, or empty when unloaded. */
     private Optional<ink.tuanzi.neomacros.port.model.BlockData> snapshot() {
+        return snapshot(pos);
+    }
+
+    /** The block data at one position, or empty when unloaded. */
+    private Optional<ink.tuanzi.neomacros.port.model.BlockData> snapshot(BlockPos at) {
         return ScriptApiEnvironment.adapter().world().blockAt(
-                new ink.tuanzi.neomacros.port.model.Pos3d(pos.getX(), pos.getY(), pos.getZ()));
+                new ink.tuanzi.neomacros.port.model.Pos3d(at.getX(), at.getY(), at.getZ()));
     }
 }

@@ -23,6 +23,7 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
     private final FabricLifecyclePort lifecycle = new FabricLifecyclePort();
     private final FabricChatPort chat = new FabricChatPort();
     private final FabricInputPort input = new FabricInputPort();
+    private final FabricClientPort clientPort = new FabricClientPort();
     private final FabricInventoryPort inventory = new FabricInventoryPort();
     private final FabricRenderPort render = new FabricRenderPort();
     private final FabricDraw3DPort draw3d = new FabricDraw3DPort();
@@ -39,6 +40,12 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
     @Override
     public ChatPort chat() {
         return chat;
+    }
+
+    @Override
+    @Override
+    public ClientPort client() {
+        return clientPort;
     }
 
     @Override

@@ -54,9 +54,58 @@ public final class JavaApi {
      * @zh-return 类代理
      */
     @ApiSince("0.1.0")
-    public JavaClass type(String name) throws ClassNotFoundException {
+    /**
+     * Loads one class as a {@code JavaClass} proxy. The name goes through
+     * the mapping-layer translation; a primitive name ({@code int},
+     * {@code boolean}, ...) resolves to its class directly. With two names,
+     * the first miss automatically tries the alternate.
+     *
+     * @zh 加载类为 {@code JavaClass} 代理。类名经映射层翻译；基本类型名（{@code int}、{@code boolean} 等）直接解析。给两个名字时，首名未命中自动尝试次名。
+     * @zh-param className Mojmap 类名或基本类型名
+     * @zh-param alternate 备用类名（可省略）
+     */
+    public JavaClass type(String className, String alternate) throws ClassNotFoundException {
+        Class<?> primitive = primitiveClass(className);
+        if (primitive != null) {
+            return new JavaClass(primitive);
+        }
+        if (alternate != null && !alternate.isBlank()) {
+            try {
+                return byName(className);
+            } catch (ClassNotFoundException firstMiss) {
+                Class<?> altPrimitive = primitiveClass(alternate);
+                if (altPrimitive != null) {
+                    return new JavaClass(altPrimitive);
+                }
+                return byName(alternate);
+            }
+        }
+        return byName(className);
+    }
+
+    /** Loads one class through the mapping resolver. */
+    private JavaClass byName(String name) throws ClassNotFoundException {
         return new JavaClass(Class.forName(resolver.resolve(name), true,
                 JavaApi.class.getClassLoader()));
+    }
+
+    /** The primitive class behind a primitive name, or null. */
+    private static Class<?> primitiveClass(String name) {
+        if (name == null) {
+            return null;
+        }
+        return switch (name) {
+            case "int" -> int.class;
+            case "long" -> long.class;
+            case "short" -> short.class;
+            case "byte" -> byte.class;
+            case "char" -> char.class;
+            case "float" -> float.class;
+            case "double" -> double.class;
+            case "boolean" -> boolean.class;
+            case "void" -> void.class;
+            default -> null;
+        };
     }
 
     /**

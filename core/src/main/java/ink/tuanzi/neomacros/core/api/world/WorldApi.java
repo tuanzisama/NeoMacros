@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.core.api.world;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.SnapshotViews;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.port.model.BlockData;
@@ -171,5 +172,18 @@ public final class WorldApi {
     @ApiSince("0.1.0")
     public boolean loaded(double x, double y, double z) {
         return ScriptApiEnvironment.adapter().world().loaded(new Pos3d(x, y, z));
+    }
+
+    /**
+     * Whether the chunk is loaded.
+     *
+     * @zh 判断区块是否已加载。
+     * @zh-param chunk 区块坐标
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    public boolean chunkLoaded(ink.tuanzi.neomacros.core.api.types.ChunkPos chunk) {
+        return ScriptApiEnvironment.adapter().world().loaded(new Pos3d(
+                chunk.getMinX() + 0.5, 64, chunk.getMinZ() + 0.5));
     }
 }

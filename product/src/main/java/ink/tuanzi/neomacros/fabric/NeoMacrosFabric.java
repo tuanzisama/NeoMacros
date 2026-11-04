@@ -135,7 +135,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         });
         registry.registerAll(java.util.List.of(
                 EventsApi.class, ThreadApi.class, ChatApi.class, StorageApi.class,
-                WorldApi.class, EntityApi.class, PlayerApi.class));
+                WorldApi.class, EntityApi.class, PlayerApi.class,
+                ink.tuanzi.neomacros.core.api.client.ClientApi.class));
+        registry.registerInstance(new ink.tuanzi.neomacros.core.api.reflect.ReflectApi(
+                ink.tuanzi.neomacros.adapter.FabricClassResolver::resolve));
         registry.registerInstance(
                 new ink.tuanzi.neomacros.core.api.java.JavaApi(
                         ink.tuanzi.neomacros.adapter.FabricClassResolver::resolve));
