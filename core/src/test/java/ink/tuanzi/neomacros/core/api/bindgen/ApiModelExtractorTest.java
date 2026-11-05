@@ -73,8 +73,8 @@ class ApiModelExtractorTest {
     void typeOverrideConductionBelongsToTheDocPipeline() {
         // @ApiType drives documentation and TypeScript definitions; the runtime
         // model intentionally does not carry it (bindings map async returns by
-        // the CompletableFuture shape). The docs-builder model (T-024) asserts
-        // the override itself.
+        // the CompletableFuture shape). The docs pipeline's model asserts the
+        // override itself.
         ApiModel.ModuleModel module = ApiModelExtractor
                 .extract(List.of(BindgenFixture.class)).modules().get(0);
         ApiModel.MethodModel fetch = module.methods().stream()

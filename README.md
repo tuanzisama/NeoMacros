@@ -15,17 +15,19 @@ Multiple Minecraft versions are built from one codebase with [Stonecutter](https
 | [ports](ports/) | Version-independent port interfaces and the adapter SPI |
 | [product](product/) | Fabric adapter and mod entrypoint; one Stonecutter node per MC version |
 | [doc-api](doc-api/) | Annotations marking the public script API surface |
-| [docs-builder](docs-builder/) | Standalone build generating API docs and TypeScript definitions |
-| [docs](docs/) | VitePress documentation site (English / Chinese) |
 | [e2e](e2e/) | Headless end-to-end harness, runs scripts without the game |
 | [script-tests](script-tests/) | In-game E2E case suite, shared with the e2e fixtures |
+
+The documentation site and its generator live in the separate
+[NeoMacros-Doc](https://github.com/tuanzisama/NeoMacros-Doc)
+repository; API-source pushes here trigger its regeneration through the
+`docs-dispatch` workflow.
 
 ## Build
 
 ```bash
-./gradlew build                  # all product nodes
-./gradlew :product:build         # active node only
-./gradlew -p docs-builder check  # API docs pipeline (see its README)
+./gradlew build           # all product nodes
+./gradlew :product:build  # active node only
 ```
 
 ## License

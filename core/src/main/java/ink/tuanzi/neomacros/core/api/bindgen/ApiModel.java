@@ -5,9 +5,9 @@ import java.util.List;
 /**
  * Runtime model of the script-facing API surface, extracted from doc-api
  * annotations by reflection at binding build time. The documentation
- * pipeline's model (docs-builder) covers the same surface from source; the
- * two consumers agree on the annotation meanings, so bindings and generated
- * docs cannot drift apart.
+ * pipeline's model (NeoMacros-Doc repository) covers the same surface from
+ * source; the two consumers agree on the annotation meanings, so bindings
+ * and generated docs cannot drift apart.
  *
  * @param modules modules sorted by name (members sorted per list)
  */

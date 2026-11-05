@@ -15,17 +15,18 @@
 | [ports](ports/) | 版本无关的端口接口与适配器 SPI |
 | [product](product/) | Fabric 适配器与模组入口；每个 MC 版本一个 Stonecutter 节点 |
 | [doc-api](doc-api/) | 标记脚本公开 API 面的注解集 |
-| [docs-builder](docs-builder/) | 独立构建，生成 API 文档与 TypeScript 定义 |
-| [docs](docs/) | VitePress 文档站（英文 / 中文） |
 | [e2e](e2e/) | 无头端到端测试，不启动游戏即可运行脚本 |
 | [script-tests](script-tests/) | 游戏内 E2E 用例集，与 e2e fixtures 共用同一份文件 |
+
+文档站及其生成器在独立的
+[NeoMacros-Doc](https://github.com/tuanzisama/NeoMacros-Doc)
+仓库里；本仓库的 API 源码推送经 `docs-dispatch` 工作流触发其再生成。
 
 ## 构建
 
 ```bash
-./gradlew build                  # 所有 product 节点
-./gradlew :product:build         # 仅当前活跃节点
-./gradlew -p docs-builder check  # API 文档管线（见其 README）
+./gradlew build           # 所有 product 节点
+./gradlew :product:build  # 仅当前活跃节点
 ```
 
 ## 许可

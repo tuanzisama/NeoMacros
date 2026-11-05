@@ -84,30 +84,3 @@ jobs:
           if not found:
               print("::error::unit job failed without test reports under */build/test-results")
           EOF
-
-  documentation:
-    name: docs-builder snapshot regression
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      # The Gradle daemon runs on the last version (25), which the root
-      # build's configuration phase needs (fabric-loom requires JVM 25);
-      # docs-builder resolves its Java 17 toolchain from the first.
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: |
-            17
-            25
-
-      - uses: gradle/actions/setup-gradle@v5
-
-      # The standalone docs-builder resolves the annotation jar by
-      # coordinates, so publish it first. check runs the fixture snapshot
-      # regression (and the tsc type check when -PtscPath is provided).
-      - name: Publish doc-api annotations to the local repository
-        run: ./gradlew :doc-api:publishToMavenLocal --console=plain
-
-      - name: Run docs-builder check
-        run: ./gradlew -p docs-builder check --console=plain
