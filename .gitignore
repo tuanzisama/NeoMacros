@@ -28,3 +28,8 @@ plan/
 
 # Eclipse/JDT in-place compiler output
 bin/
+
+# Generated TypeScript definitions for the docs site (nitro reads
+# docs/site/.gitignore into its asset ignore list, so the pattern lives
+# here instead).
+docs/site/public/neomacros.d.ts

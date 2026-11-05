@@ -1,7 +1,7 @@
 name: docs
 
 # Generates the API documentation from the current sources (docs-builder),
-# assembles the VitePress site around it, and publishes to GitHub Pages.
+# assembles the Docus site around it, and publishes to GitHub Pages.
 # Requires Pages to be configured with "GitHub Actions" as its source in
 # the repository settings.
 on:
@@ -69,19 +69,25 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: docs/vitepress/package-lock.json
+          cache-dependency-path: docs/site/package-lock.json
 
       - name: Install dependencies
-        working-directory: docs/vitepress
+        working-directory: docs/site
         run: npm ci
 
+      # Static generation for GitHub Pages; output lands in .output/public.
       - name: Build site
-        working-directory: docs/vitepress
-        run: npm run build
+        working-directory: docs/site
+        run: npm run generate
+
+      # Repairs canonical/og:url/markdown links that miss the /NeoMacros/
+      # base path (see the script header).
+      - name: Fix base-path URLs
+        run: bash scripts/ci/fix-docs-base-urls.sh
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/vitepress/.vitepress/dist
+          path: docs/site/.output/public
 
   deploy:
     name: deploy to github pages
