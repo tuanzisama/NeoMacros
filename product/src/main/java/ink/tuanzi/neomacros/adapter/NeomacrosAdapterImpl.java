@@ -43,7 +43,6 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
     }
 
     @Override
-    @Override
     public ClientPort client() {
         return clientPort;
     }
