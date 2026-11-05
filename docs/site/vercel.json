@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci",
+  "buildCommand": "npm run generate",
+  "outputDirectory": ".output/public",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "header", "key": "accept-language", "value": ".*zh.*" }],
+      "destination": "/zh-cn/",
+      "permanent": false
+    },
+    { "source": "/", "destination": "/en/", "permanent": false }
+  ]
+}

@@ -2,26 +2,16 @@ export default defineNuxtConfig({
   extends: ['docus'],
   modules: ['@nuxtjs/i18n'],
 
-  // GitHub Pages serves the site under /NeoMacros/; every route and asset
-  // URL is prefixed with this. Must stay in sync with the repository name.
-  app: {
-    baseURL: '/NeoMacros/',
-  },
-
+  // Root-domain hosting (Vercel): no base path, so the build stack's
+  // canonical/sitemap/og URLs are all correct natively.
   site: {
     name: 'NeoMacros',
-    // Origin only: the sitemap and og:image URLs stack app.baseURL on top
-    // of this, so a path here would double it. The canonical/og:url tags
-    // that need the full path are rewritten after generation by
-    // scripts/ci/fix-docs-base-urls.sh.
-    url: 'https://tuanzisama.github.io',
+    url: 'https://neomacros-docs.vercel.app',
   },
 
   i18n: {
     defaultLocale: 'en',
-    // Full deployed URL: hreflang tags resolve from here. nuxt-site-config
-    // warns about the path portion; that is expected for subpath hosting.
-    baseUrl: 'https://tuanzisama.github.io/NeoMacros',
+    baseUrl: 'https://neomacros-docs.vercel.app',
     locales: [
       { code: 'en', name: 'English' },
       // Docus matches UI message packs by lowercase {code}.json and only
@@ -31,16 +21,18 @@ export default defineNuxtConfig({
     ],
   },
 
-  // A generated robots.txt is incompatible with the /NeoMacros/ base URL.
   robots: {
     robotsTxt: false,
   },
 
   nitro: {
-    // GitHub Pages resolves /path only when path/index.html exists; the
+    // Static hosts resolve /path only when path/index.html exists; the
     // Docus layer writes flat .html files by default.
     prerender: {
       autoSubfolderIndex: true,
+      // The definitions download is a prerendered server route (a *.d.ts
+      // cannot be shipped from public/, see server/routes/).
+      routes: ['/neomacros.d.ts'],
     },
   },
 })

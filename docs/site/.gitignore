@@ -4,14 +4,3 @@ node_modules
 .data
 .env
 dist
-
-# Generated API pages are synced in by scripts/ci/sync-generated-docs.sh;
-# only the hand-written overview is tracked.
-content/en/api/*
-!content/en/api/index.md
-content/zh-cn/api/*
-!content/zh-cn/api/index.md
-
-# public/neomacros.d.ts is generated too, but it is ignored from the
-# repository root: a pattern in THIS file would leak into nitro's asset
-# ignore list and drop the file from the generated site's public output.

@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
-    "generate": "nuxt generate",
+    "generate": "node build.mjs && node postbuild.mjs",
+    "_comment": "build.mjs wraps nuxt generate because its teardown can segfault after the output is complete; postbuild.mjs validates the output instead of trusting the exit code.",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },

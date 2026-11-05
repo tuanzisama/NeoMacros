@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Copies generated API documentation into the Docus site content tree:
 # English pages to content/en/api/, Chinese pages to content/zh-cn/api/,
-# and the TypeScript definitions to public/ so the site serves them for
-# download.
+# and the TypeScript definitions to server/assets/ (a prerendered server
+# route serves them for download; a *.d.ts cannot ship from public/).
 #
 # Hand-written per-module example snippets (docs/site/api-examples/
 # <locale>/<module>.md) are appended under an "## Examples" heading; pages
@@ -32,24 +32,26 @@ if [[ ! -d "$gen_md/api" || ! -f "$gen_ts/types/neomacros.d.ts" ]]; then
   exit 1
 fi
 
-mkdir -p "$site/content/en/api" "$site/content/zh-cn/api" "$site/public"
+mkdir -p "$site/content/en/api" "$site/content/zh-cn/api" "$site/server/assets"
 
 # The API trees are fully generated (only the hand-written index.md is
 # tracked), so stale pages from removed generators are wiped first.
 find "$site/content/en/api" -mindepth 1 -maxdepth 1 ! -name 'index.md' -exec rm -rf {} +
 find "$site/content/zh-cn/api" -mindepth 1 -maxdepth 1 ! -name 'index.md' -exec rm -rf {} +
 
-# Sidebar section titles for the generated subtree; the per-domain folder
-# names under events/ serve as their own group titles.
+# Sidebar titles for the generated Classes/Events subtrees. The api/ and
+# examples/ folders must NOT get a .navigation.yml: Nuxt Content inserts
+# those files as collection rows, and their path would collide with the
+# folder's index.md (two rows, one path) — the overview page would then
+# nondeterministically render as an empty navigation stub.
 write_navigation() {
-  local loc="$1" api_title classes_title events_title
+  local loc="$1" classes_title events_title
   if [[ "$loc" == zh-cn ]]; then
-    api_title='API 参考' classes_title='类' events_title='事件'
+    classes_title='类' events_title='事件'
   else
-    api_title='API Reference' classes_title='Classes' events_title='Events'
+    classes_title='Classes' events_title='Events'
   fi
   mkdir -p "$site/content/$loc/api/20.classes" "$site/content/$loc/api/30.events"
-  printf 'title: %s\n' "$api_title"     > "$site/content/$loc/api/.navigation.yml"
   printf 'title: %s\n' "$classes_title" > "$site/content/$loc/api/20.classes/.navigation.yml"
   printf 'title: %s\n' "$events_title"  > "$site/content/$loc/api/30.events/.navigation.yml"
 }
@@ -142,6 +144,6 @@ if [[ -f "$supplement" ]]; then
   cat "$supplement" >> "$gen_ts/types/neomacros.d.ts"
 fi
 
-cp "$gen_ts/types/neomacros.d.ts" "$site/public/neomacros.d.ts"
+cp "$gen_ts/types/neomacros.d.ts" "$site/server/assets/neomacros.d.ts"
 
 echo "synced $(find "$site/content/en/api" -name '*.md' ! -name 'index.md' | wc -l) module page(s) into the site"

@@ -1,9 +1,10 @@
 name: docs
 
-# Generates the API documentation from the current sources (docs-builder),
-# assembles the Docus site around it, and publishes to GitHub Pages.
-# Requires Pages to be configured with "GitHub Actions" as its source in
-# the repository settings.
+# Validates the docs pipeline on every push: regenerates the API pages from
+# the current sources (docs-builder), syncs them into the Docus site tree,
+# builds the static site, and fails when the committed content has drifted
+# from what the pipeline produces. The generated trees are committed, and
+# Vercel deploys the site from git through its own integration.
 on:
   push:
     branches: [main]
@@ -17,19 +18,12 @@ on:
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
-# Only one Pages deployment at a time; never cancel a deploy mid-flight.
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
   build:
-    name: build site
+    name: validate docs site
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -56,7 +50,7 @@ jobs:
         run: bash scripts/ci/sync-generated-docs.sh
 
       # Generation warnings (missing translations, missing @ApiSince) stay
-      # inspectable without failing the deploy.
+      # inspectable without failing the build.
       - name: Upload generation warnings
         if: always()
         uses: actions/upload-artifact@v4
@@ -75,27 +69,22 @@ jobs:
         working-directory: docs/site
         run: npm ci
 
-      # Static generation for GitHub Pages; output lands in .output/public.
       - name: Build site
         working-directory: docs/site
         run: npm run generate
 
-      # Repairs canonical/og:url/markdown links that miss the /NeoMacros/
-      # base path (see the script header).
-      - name: Fix base-path URLs
-        run: bash scripts/ci/fix-docs-base-urls.sh
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/site/.output/public
-
-  deploy:
-    name: deploy to github pages
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      # The generated API trees and the TypeScript definitions are
+      # committed (Vercel builds the site from git without Java), so any
+      # pipeline output that differs from the checked-in state means the
+      # committed docs are stale.
+      - name: Check committed docs are up to date
+        run: |
+          drift="$(git status --porcelain -- docs/site/content docs/site/server/assets)"
+          if [ -n "$drift" ]; then
+            echo "$drift"
+            echo "::error::Generated docs are stale. Run these locally and commit the result:"
+            echo "::error::  ./gradlew :doc-api:publishToMavenLocal"
+            echo "::error::  ./gradlew -p docs-builder generateApiDocs"
+            echo "::error::  bash scripts/ci/sync-generated-docs.sh"
+            exit 1
+          fi
