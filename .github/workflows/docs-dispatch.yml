@@ -1,11 +1,11 @@
 name: docs-dispatch
 
-# The documentation lives in the separate NeoMacros-Doc repository (site
+# The documentation lives in the separate NeoMacros-Docs repository (site
 # + generator). When an API-source push lands here, notify that
 # repository so it regenerates the API pages from the updated sources.
 #
 # Requires a fine-grained PAT with Contents: read/write on
-# tuanzisama/NeoMacros-Doc stored as the DOCS_DISPATCH_TOKEN secret; the
+# tuanzisama/NeoMacros-Docs stored as the DOCS_DISPATCH_TOKEN secret; the
 # step is skipped when the secret is absent (regeneration then happens
 # through the docs repository's own workflow_dispatch).
 on:
@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   dispatch:
-    name: notify NeoMacros-Doc
+    name: notify NeoMacros-Docs
     runs-on: ubuntu-latest
     steps:
       - name: Trigger docs regeneration
@@ -34,5 +34,5 @@ jobs:
           curl -sf -X POST \
             -H "Authorization: Bearer $DOCS_DISPATCH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/tuanzisama/NeoMacros-Doc/dispatches \
+            https://api.github.com/repos/tuanzisama/NeoMacros-Docs/dispatches \
             -d '{"event_type":"api-docs"}'
