@@ -26,6 +26,10 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // Pin the static preset: on Vercel's build machine Nitro would
+    // auto-switch to its vercel-static preset and write the output to
+    // .vercel/output/static instead of .output/public.
+    preset: 'static',
     // Static hosts resolve /path only when path/index.html exists; the
     // Docus layer writes flat .html files by default.
     prerender: {
