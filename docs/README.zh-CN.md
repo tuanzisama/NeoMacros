@@ -21,6 +21,14 @@ generate` → `.output/public`）并把 `/` 按访问者语言重定向。部署
 URL（`nuxt.config.ts` 里的 `site.url` 与 `i18n.baseUrl`）必须与 Vercel
 项目域名一致。
 
+API 文档自动再生：`docs` 工作流在 API 相关推送上自动重跑管线并提交刷新
+后的内容树，Vercel 随之部署。请在项目 **Ignored Build Step**（设置 →
+Git）里填入下面的命令，让纯 Java 推送不产生带旧文档的部署：
+
+```
+bash -c 'git diff --name-only HEAD^ HEAD -- docs/site | grep -q . && exit 1 || exit 0'
+```
+
 ## 目录结构
 
 | 路径 | 内容 |

@@ -23,6 +23,15 @@ and redirects `/` to the visitor's language. The URLs of the deployed
 site (in `nuxt.config.ts`: `site.url` and `i18n.baseUrl`) must match the
 Vercel project domain.
 
+API documentation regenerates automatically: the `docs` workflow reruns
+the pipeline on API-related pushes and commits the refreshed trees, and
+Vercel deploys the update. Set the project's **Ignored Build Step**
+(Settings → Git) so API-only pushes do not deploy stale pages once:
+
+```
+bash -c 'git diff --name-only HEAD^ HEAD -- docs/site | grep -q . && exit 1 || exit 0'
+```
+
 ## Layout
 
 | Path | Content |
