@@ -14,5 +14,5 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiMC("*")
 @ApiLoader("*")
 @ApiEvent(name = "world:join")
-public record WorldJoinEvent() {
+public record WorldJoinEvent(String address) {
 }

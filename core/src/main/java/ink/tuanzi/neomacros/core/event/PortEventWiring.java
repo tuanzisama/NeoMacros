@@ -87,7 +87,9 @@ public final class PortEventWiring {
         });
         adapter.lifecycle().onWorldJoin(() -> {
             modules.loadPhase(ScriptMeta.Lifecycle.WORLD);
-            bus.publish("world:join", new WorldJoinEvent());
+            bus.publish("world:join", new WorldJoinEvent(
+                    ScriptApiEnvironment.adapter().client().serverInfo()
+                            .map(info -> info.address()).orElse(null)));
         });
         adapter.lifecycle().onWorldLeave(() -> {
             tracker.emitLeave();
