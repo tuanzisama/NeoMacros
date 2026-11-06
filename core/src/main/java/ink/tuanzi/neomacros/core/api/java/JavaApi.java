@@ -36,7 +36,14 @@ public final class JavaApi {
         String resolve(String name) throws ClassNotFoundException;
     }
 
+    /** Maps one raw host object onto its registered wrapper handle, or null. */
+    @FunctionalInterface
+    public interface RawWrapper {
+        Object wrapRaw(Object raw);
+    }
+
     private final ClassResolver resolver;
+    private final RawWrapper wrapper;
 
     /** Creates the facade with identity name resolution (tests, unobf nodes). */
     public JavaApi() {
@@ -45,7 +52,32 @@ public final class JavaApi {
 
     /** Creates the facade with a mapping-layer name resolver. */
     public JavaApi(ClassResolver resolver) {
+        this(resolver, null);
+    }
+
+    /** Creates the facade with a name resolver and a raw-to-handle wrapper. */
+    public JavaApi(ClassResolver resolver, RawWrapper wrapper) {
         this.resolver = resolver;
+        this.wrapper = wrapper;
+    }
+
+    /**
+     * Wraps one raw host object into its registered handle (entity handles,
+     * block state data); unregistered types return {@code null}. The inverse
+     * of the handles' {@code raw} escape hatch.
+     *
+     * @zh 把原始宿主对象包装为已注册的句柄（实体句柄、方块状态数据等）；未注册类型返回 null。与各句柄的 {@code raw} 穿透口互逆。
+     * @zh-param raw 宿主原始对象
+     * @zh-return 包装句柄或 null
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Object wrap(Object raw) {
+        if (raw == null || wrapper == null) {
+            return null;
+        }
+        return wrapper.wrapRaw(raw);
     }
 
     /**

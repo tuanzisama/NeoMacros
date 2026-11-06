@@ -142,7 +142,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 ink.tuanzi.neomacros.adapter.FabricClassResolver::resolve));
         registry.registerInstance(
                 new ink.tuanzi.neomacros.core.api.java.JavaApi(
-                        ink.tuanzi.neomacros.adapter.FabricClassResolver::resolve));
+                        ink.tuanzi.neomacros.adapter.FabricClassResolver::resolve,
+                        NeoMacrosFabric::wrapRaw));
         
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
@@ -644,6 +645,34 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     }
 
     /** The running Minecraft version (node trimming key for ApiMC ranges). */
+    /** Maps one raw host object onto its registered script handle, or null. */
+    private static Object wrapRaw(Object raw) {
+        if (raw instanceof net.minecraft.client.player.LocalPlayer local) {
+            return new PlayerApi.LocalPlayer(local.getUUID());
+        }
+        if (raw instanceof net.minecraft.world.entity.player.Player remote) {
+            return new PlayerApi.Player(remote.getUUID());
+        }
+        if (raw instanceof net.minecraft.world.entity.item.ItemEntity item) {
+            return new EntityApi.ItemEntity(item.getUUID());
+        }
+        if (raw instanceof net.minecraft.world.entity.LivingEntity living) {
+            return new EntityApi.LivingEntity(living.getUUID());
+        }
+        if (raw instanceof net.minecraft.world.entity.Entity entity) {
+            return new EntityApi.Entity(entity.getUUID());
+        }
+        if (raw instanceof net.minecraft.world.level.block.state.BlockState state) {
+            java.util.Map<String, String> props = new java.util.LinkedHashMap<>();
+            state.getProperties().forEach(property ->
+                    props.put(property.getName(), String.valueOf(state.getValue(property))));
+            return new ink.tuanzi.neomacros.core.api.types.BlockState(
+                    net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                            .getKey(state.getBlock()).toString(), props);
+        }
+        return null;
+    }
+
     private static String mcVersion() {
         return FabricLoader.getInstance().getModContainer("minecraft")
                 .map(c -> c.getMetadata().getVersion().getFriendlyString())

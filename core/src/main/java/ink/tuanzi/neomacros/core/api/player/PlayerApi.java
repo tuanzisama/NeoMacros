@@ -262,7 +262,7 @@ public final class PlayerApi {
             wraps = "net.minecraft.client.player.LocalPlayer")
     public static final class LocalPlayer extends Player {
 
-        LocalPlayer(UUID uuid) {
+        public LocalPlayer(UUID uuid) {
             super(uuid);
         }
 
