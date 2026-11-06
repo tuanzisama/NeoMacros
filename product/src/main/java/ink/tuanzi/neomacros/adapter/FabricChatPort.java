@@ -91,6 +91,80 @@ public final class FabricChatPort implements ChatPort {
     }
 
     @Override
+    public void renderRichText(java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> segments,
+            boolean actionBar) {
+        runOnMain(() -> {
+            net.minecraft.network.chat.MutableComponent out =
+                    net.minecraft.network.chat.Component.literal("");
+            for (ink.tuanzi.neomacros.port.model.TextSegmentData segment : segments) {
+                net.minecraft.network.chat.MutableComponent part =
+                        net.minecraft.network.chat.Component.literal(segment.text());
+                net.minecraft.network.chat.Style style = net.minecraft.network.chat.Style.EMPTY;
+                if (segment.color() != null) {
+                    style = withColor(style, segment.color());
+                }
+                if (Boolean.TRUE.equals(segment.bold())) {
+                    style = style.withBold(true);
+                }
+                if (Boolean.TRUE.equals(segment.italic())) {
+                    style = style.withItalic(true);
+                }
+                if (Boolean.TRUE.equals(segment.underlined())) {
+                    style = style.withUnderlined(true);
+                }
+                if (Boolean.TRUE.equals(segment.strikethrough())) {
+                    style = style.withStrikethrough(true);
+                }
+                if (Boolean.TRUE.equals(segment.obfuscated())) {
+                    style = style.withObfuscated(true);
+                }
+                if (segment.hoverText() != null) {
+                    // 26.x made HoverEvent an interface; ShowText is the record impl
+                    style = style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
+                            net.minecraft.network.chat.Component.literal(segment.hoverText())));
+                }
+                if (segment.clickCommand() != null) {
+                    style = style.withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(
+                            segment.clickCommand()));
+                }
+                if (segment.clickUrl() != null) {
+                    style = style.withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(
+                            java.net.URI.create(segment.clickUrl())));
+                }
+                out.append(part.withStyle(style));
+            }
+            if (actionBar) {
+                Minecraft.getInstance().gui.hud.setOverlayMessage(out, false);
+            } else {
+                //? if <1.21.11 {
+                /*
+                Minecraft.getInstance().gui.hud.getChat().addMessage(out);
+                */
+                //?}
+                //? if >=1.21.11 {
+                Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(out);
+                //?}
+            }
+        });
+    }
+
+    /** Resolves a named formatting color or a #rrggbb hex color. */
+    private static net.minecraft.network.chat.Style withColor(
+            net.minecraft.network.chat.Style style, String color) {
+        // Named colors: ChatFormatting is an enum on every node; the lookup
+        // accessor renames across versions, so try both spellings.
+        try {
+            var byName = net.minecraft.ChatFormatting.valueOf(color.toUpperCase(java.util.Locale.ROOT));
+            return style.withColor(byName);
+        } catch (IllegalArgumentException ignored) {
+            // not a named formatting color
+        }
+        // Hex form: #rrggbb
+        var parsed = net.minecraft.network.chat.TextColor.parseColor(color).result().orElse(null);
+        return parsed != null ? style.withColor(parsed) : style;
+    }
+
+    @Override
     public void onChatReceive(Consumer<ChatComponent> sink) {
         ChatReceiveHub.register(sink);
     }

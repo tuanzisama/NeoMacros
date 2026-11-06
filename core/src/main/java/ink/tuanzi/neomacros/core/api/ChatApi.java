@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.core.api;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 /**
@@ -51,6 +52,65 @@ public final class ChatApi {
     @ApiLoader("*")
     public void actionbar(String message) {
         ScriptApiEnvironment.adapter().chat().actionbar(message);
+    }
+
+    /**
+     * Starts a styled text builder from one literal segment, optionally
+     * styled ({@code {color, bold, italic, underlined, strikethrough,
+     * obfuscated, hoverText, clickCommand, clickUrl}}).
+     *
+     * @zh 从一个字面分段开始富文本构建器；可选样式（{@code {color, bold, italic, underlined, strikethrough, obfuscated, hoverText, clickCommand, clickUrl}}）。
+     * @zh-param text 字面内容
+     * @zh-param style 初始样式（可省略）
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public ink.tuanzi.neomacros.core.api.types.TextBuilder text(String text,
+            java.util.Map<String, Object> style) {
+        return new ink.tuanzi.neomacros.core.api.types.TextBuilder(
+                text == null ? "" : text, style);
+    }
+
+    /**
+     * The plain concatenation of a styled text value.
+     *
+     * @zh 富文本的纯文本拼接。
+     * @zh-param text 富文本
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getPlain(ink.tuanzi.neomacros.core.api.types.Text text) {
+        return text.getPlain();
+    }
+
+    /**
+     * Logs one styled text locally with full color/decoration/hover/click
+     * rendering.
+     *
+     * @zh 以完整颜色/装饰/悬停/点击渲染在本地聊天栏打印富文本。
+     * @zh-param text 富文本
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public void logText(ink.tuanzi.neomacros.core.api.types.Text text) {
+        ScriptApiEnvironment.adapter().chat().renderRichText(text.getSegments(), false);
+    }
+
+    /**
+     * Renders one styled text on the action bar.
+     *
+     * @zh 在动作条上渲染富文本。
+     * @zh-param text 富文本
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public void actionbarText(ink.tuanzi.neomacros.core.api.types.Text text) {
+        ScriptApiEnvironment.adapter().chat().renderRichText(text.getSegments(), true);
     }
 
     /**

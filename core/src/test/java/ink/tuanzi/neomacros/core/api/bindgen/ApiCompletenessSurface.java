@@ -23,6 +23,8 @@ import ink.tuanzi.neomacros.core.api.types.BlockPos;
 import ink.tuanzi.neomacros.core.api.types.BlockState;
 import ink.tuanzi.neomacros.core.api.types.ChunkPos;
 import ink.tuanzi.neomacros.core.api.types.Chunk;
+import ink.tuanzi.neomacros.core.api.types.Text;
+import ink.tuanzi.neomacros.core.api.types.TextBuilder;
 import ink.tuanzi.neomacros.core.api.types.ItemStack;
 import ink.tuanzi.neomacros.core.api.types.ItemStackBuilder;
 import ink.tuanzi.neomacros.core.api.types.Pos2D;
@@ -81,6 +83,7 @@ final class ApiCompletenessSurface {
             PlayerApi.SmithingInventory.class, PlayerApi.CartographyInventory.class,
             PlayerApi.BeaconInventory.class, PlayerApi.BrewingStandInventory.class,
             PlayerApi.VillagerInventory.class,
+            Text.class, TextBuilder.class,
             TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */

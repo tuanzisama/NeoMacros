@@ -38,6 +38,15 @@ public interface ChatPort {
     default void toast(String title, String message) {
     }
 
+    /**
+     * Renders one styled rich text locally (chat HUD when
+     * {@code actionBar} is false, the action bar when true). Sending rich
+     * text to the server rides {@link #say(String)} with the plain form.
+     */
+    default void renderRichText(java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> segments,
+            boolean actionBar) {
+    }
+
     /** Returns the rendered pixel width of the text in the chat font. */
     default int textWidth(String text) {
         return 0;
