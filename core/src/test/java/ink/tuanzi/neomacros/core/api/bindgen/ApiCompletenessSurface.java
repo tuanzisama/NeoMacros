@@ -7,6 +7,7 @@ import ink.tuanzi.neomacros.core.api.FsApi;
 import ink.tuanzi.neomacros.core.api.HudApi;
 import ink.tuanzi.neomacros.core.api.InputApi;
 import ink.tuanzi.neomacros.core.api.NetApi;
+import ink.tuanzi.neomacros.core.api.PerformanceApi;
 import ink.tuanzi.neomacros.core.api.StorageApi;
 import ink.tuanzi.neomacros.core.api.ThreadApi;
 import ink.tuanzi.neomacros.core.api.client.ClientApi;
@@ -43,6 +44,7 @@ final class ApiCompletenessSurface {
     /** Facade classes ({@code @ApiModule}). */
     static final List<Class<?>> FACADES = List.of(
             EventsApi.class, ThreadApi.class, ChatApi.class, StorageApi.class,
+            PerformanceApi.class,
             WorldApi.class, EntityApi.class, PlayerApi.class, ClientApi.class,
             JavaApi.class, ReflectApi.class, FsApi.class, NetApi.class,
             InputApi.class, CommandApi.class, HudApi.class, RenderApi.class);

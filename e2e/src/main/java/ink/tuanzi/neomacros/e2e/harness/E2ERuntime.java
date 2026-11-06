@@ -66,7 +66,8 @@ public final class E2ERuntime implements AutoCloseable {
         var registry = new BindingRegistry("26.3");
         var bridge = new TestBridge();
         registry.registerAll(List.of(EventsApi.class, ThreadApi.class, ChatApi.class,
-                StorageApi.class, TestBridge.class, WorldApi.class, EntityApi.class, PlayerApi.class,
+                StorageApi.class, ink.tuanzi.neomacros.core.api.PerformanceApi.class,
+                TestBridge.class, WorldApi.class, EntityApi.class, PlayerApi.class,
                 ink.tuanzi.neomacros.core.api.java.JavaApi.class,
                 ink.tuanzi.neomacros.core.api.client.ClientApi.class));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.reflect.ReflectApi());

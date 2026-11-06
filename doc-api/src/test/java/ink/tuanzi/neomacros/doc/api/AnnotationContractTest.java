@@ -27,7 +27,7 @@ class AnnotationContractTest {
     private static final List<Class<?>> ALL_ANNOTATIONS = List.of(
             ApiModule.class, ApiEvent.class, ApiClass.class, ApiReadOnly.class,
             ApiType.class, ApiSince.class, ApiMC.class, ApiPermission.class,
-            ApiExperimental.class, ApiInternal.class);
+            ApiExperimental.class, ApiInternal.class, ApiOptional.class);
 
     @Test
     void everyAnnotationHasRuntimeRetention() {
@@ -75,6 +75,12 @@ class AnnotationContractTest {
     void typeTargetsMethodsParametersAndFields() {
         assertArrayEquals(new ElementType[]{ElementType.METHOD, ElementType.PARAMETER, ElementType.FIELD},
                 targetsOf(ApiType.class));
+    }
+
+    @Test
+    void optionalTargetsParametersOnly() {
+        assertArrayEquals(new ElementType[]{ElementType.PARAMETER},
+                targetsOf(ApiOptional.class));
     }
 
     @Test

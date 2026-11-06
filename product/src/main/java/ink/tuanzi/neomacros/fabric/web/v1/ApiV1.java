@@ -23,6 +23,7 @@ import ink.tuanzi.neomacros.fabric.web.http.ApiContext;
 import ink.tuanzi.neomacros.fabric.web.http.ApiError;
 import ink.tuanzi.neomacros.fabric.web.json.Jsons;
 import ink.tuanzi.neomacros.fabric.web.log.LogRing;
+import ink.tuanzi.neomacros.fabric.web.net.NetRing;
 import ink.tuanzi.neomacros.fabric.web.pair.PairingRequests;
 import ink.tuanzi.neomacros.fabric.web.pair.PairingService;
 import ink.tuanzi.neomacros.fabric.web.sse.SseHub;
@@ -57,6 +58,7 @@ public final class ApiV1 {
     private final SseHub sse;
     private final LogRing logs;
     private final ConsoleRing console;
+    private final NetRing net;
 
     /**
      * Creates the controller. The origin predicate is the CORS allowlist
@@ -66,7 +68,8 @@ public final class ApiV1 {
     public ApiV1(PanelBackend backend, GameRunner game, PairingService pairing,
                  PairingRequests pairingRequests, Predicate<String> originAllowed,
                  Consumer<PairingRequests.Request> pairRequestListener,
-                 DeviceRegistry devices, SseHub sse, LogRing logs, ConsoleRing console) {
+                 DeviceRegistry devices, SseHub sse, LogRing logs, ConsoleRing console,
+                 NetRing net) {
         this.backend = backend;
         this.game = game;
         this.pairing = pairing;
@@ -77,6 +80,7 @@ public final class ApiV1 {
         this.sse = sse;
         this.logs = logs;
         this.console = console;
+        this.net = net;
     }
 
     @NmGet("/api/v1/meta")
@@ -478,6 +482,86 @@ public final class ApiV1 {
                     + " 0 replays from the start") Long after) {
         long cursor = after == null ? 0 : after;
         return new ConsoleResponse(console.after(cursor), console.lastSeq());
+    }
+
+    @NmGet("/api/v1/network")
+    @NmApi(tag = "network", summary = "Replay the recorded neo.net request ring")
+    public NetworkResponse network(
+            @NmParam("after") @NmDesc("Return entries with a seq greater than this;"
+                    + " 0 replays from the start") Long after) {
+        long cursor = after == null ? 0 : after;
+        return new NetworkResponse(net.after(cursor), net.lastSeq());
+    }
+
+    @NmGet("/api/v1/network/{seq}/body")
+    @NmApi(tag = "network", summary = "Fetch one retained request or response body"
+            + " (side defaults to \"response\"; served with the entry's content"
+            + " type and an attachment disposition)")
+    @NmError(status = 404, code = "not_found", desc = "Unknown network entry seq")
+    @NmError(status = 410, code = "body_evicted",
+            desc = "The body was oversize when recorded or already evicted"
+                    + " from the shared retention budget")
+    public void networkBody(
+            @NmParam("seq") @NmDesc("The network entry seq") Long seq,
+            @NmParam("side") @NmDesc("\"request\" or \"response\" (default)") String side,
+            ApiContext context) throws IOException {
+        NetworkEntry entry = seq == null ? null : net.entry(seq);
+        if (entry == null) {
+            throw ApiError.notFound("unknown network entry seq");
+        }
+        boolean requestSide = "request".equals(side);
+        byte[] payload;
+        String contentType;
+        String filename;
+        if (requestSide) {
+            String body = net.requestBody(seq);
+            if (body == null) {
+                throw new ApiError(410, "body_evicted",
+                        "the request body was oversize when recorded or already evicted");
+            }
+            payload = body.getBytes(StandardCharsets.UTF_8);
+            contentType = headerOr(entry.requestHeaders(), "content-type",
+                    "text/plain; charset=utf-8");
+            filename = bodyFilename(entry, seq, "request");
+        } else {
+            byte[] body = net.responseBody(seq);
+            if (body == null) {
+                throw new ApiError(410, "body_evicted",
+                        "the response body was oversize when recorded or already evicted");
+            }
+            payload = body;
+            contentType = headerOr(entry.responseHeaders(), "content-type",
+                    "application/octet-stream");
+            filename = bodyFilename(entry, seq, "response");
+        }
+        HttpExchange exchange = context.exchange();
+        exchange.getResponseHeaders().set("Content-Type", contentType);
+        exchange.getResponseHeaders().set("Content-Disposition",
+                "attachment; filename=\"" + filename + "\"");
+        ApiContext.respond(exchange, 200, contentType, payload);
+        context.markHandled();
+    }
+
+    /** One header from an entry's recorded map, lower-cased, or the fallback. */
+    private static String headerOr(Map<String, String> headers, String name,
+            String fallback) {
+        if (headers == null) {
+            return fallback;
+        }
+        String value = headers.get(name);
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    /** The URL path's last segment (query stripped), or a stable fallback. */
+    private static String bodyFilename(NetworkEntry entry, long seq, String side) {
+        String url = entry.url();
+        String path = url != null ? url.split("\\?", 2)[0] : "";
+        int slash = path.lastIndexOf('/');
+        String name = slash >= 0 ? path.substring(slash + 1) : path;
+        if (name.isBlank()) {
+            name = side + "-" + seq;
+        }
+        return name;
     }
 
     /** The pseudo macro name of the shared devtools session. */

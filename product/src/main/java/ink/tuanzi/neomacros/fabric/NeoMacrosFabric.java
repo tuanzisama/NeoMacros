@@ -15,6 +15,7 @@ import ink.tuanzi.neomacros.core.api.EventsApi;
 import ink.tuanzi.neomacros.core.api.FsApi;
 import ink.tuanzi.neomacros.core.api.InputApi;
 import ink.tuanzi.neomacros.core.api.NetApi;
+import ink.tuanzi.neomacros.core.api.PerformanceApi;
 import ink.tuanzi.neomacros.core.api.player.PlayerApi;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.StorageApi;
@@ -126,7 +127,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         catalog.registerAll(ProductionEventSet.records());
         var pool = new ScriptThreadPool(Runtime.getRuntime().availableProcessors());
         var bus = new EventBus(catalog, pool.workers());
-        var registry = new BindingRegistry(mcVersion(), loaderVersion());
+        var registry = new BindingRegistry(mcVersion());
 
         var ioExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
             Thread thread = new Thread(r, "neomacros-io");
@@ -135,6 +136,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         });
         registry.registerAll(java.util.List.of(
                 EventsApi.class, ThreadApi.class, ChatApi.class, StorageApi.class,
+                PerformanceApi.class,
                 WorldApi.class, EntityApi.class, PlayerApi.class,
                 ink.tuanzi.neomacros.core.api.client.ClientApi.class));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.reflect.ReflectApi(
@@ -293,7 +295,12 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                     .orElse(true);
         });
         modules.onLoad(NeoMacrosFabric::registerScriptBinding);
-        modules.onUnload(module -> adapter.input().unregisterScriptBinding(module.meta().name()));
+        modules.onLoad(module ->
+                PerformanceApi.touch(module.meta().name()));
+        modules.onUnload(module ->
+                adapter.input().unregisterScriptBinding(module.meta().name()));
+        modules.onUnload(module ->
+                PerformanceApi.drop(module.meta().name()));
 
         // Web panel subsystem: state backend over the module manager, device
         // registry beside options.json, and the service mapping core.web. The
@@ -628,12 +635,6 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         return FabricLoader.getInstance().getModContainer("minecraft")
                 .map(c -> c.getMetadata().getVersion().getFriendlyString())
                 .orElse("26.3");
-    }
-
-    private static String loaderVersion() {
-        return FabricLoader.getInstance().getModContainer("fabricloader")
-                .map(c -> c.getMetadata().getVersion().getFriendlyString())
-                .orElse("*");
     }
 
     // ---- command helpers -------------------------------------------------

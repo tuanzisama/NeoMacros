@@ -177,11 +177,14 @@ public final class FabricPlayerPort implements PlayerPort {
     /** Creates the port and hooks the Fabric client interaction callbacks. */
     public FabricPlayerPort() {
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) ->
-                verdict(shouldFail(attackBlockSinks, blockHit(world, pos))));
+                verdict(shouldFail(attackBlockSinks,
+                        blockHit(world, pos, direction.getName()))));
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) ->
                 verdict(shouldFail(attackEntitySinks, FabricEntityPort.snapshotOf(entity))));
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) ->
-                verdict(shouldFail(interactBlockSinks, blockHit(world, hitResult.getBlockPos()))));
+                verdict(shouldFail(interactBlockSinks,
+                        blockHit(world, hitResult.getBlockPos(),
+                                hitResult.getDirection().getName()))));
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) ->
                 verdict(shouldFail(interactEntitySinks, FabricEntityPort.snapshotOf(entity))));
     }
