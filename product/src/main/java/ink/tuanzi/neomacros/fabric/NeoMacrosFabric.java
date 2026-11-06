@@ -181,6 +181,15 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("PrimedTnt", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.PrimedTnt.class);
         registry.registerGuestType("Bat", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Bat.class);
         registry.registerGuestType("MushroomCow", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.MushroomCow.class);
+        registry.registerGuestType("AbstractHorse", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.AbstractHorse.class);
+        registry.registerGuestType("AbstractChestedHorse", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.AbstractChestedHorse.class);
+        registry.registerGuestType("Donkey", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Donkey.class);
+        registry.registerGuestType("Enderman", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Enderman.class);
+        registry.registerGuestType("Horse", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Horse.class);
+        registry.registerGuestType("IronGolem", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.IronGolem.class);
+        registry.registerGuestType("Llama", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Llama.class);
+        registry.registerGuestType("Phantom", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Phantom.class);
+        registry.registerGuestType("Spider", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Spider.class);
         registry.registerGuestType("Chunk", ink.tuanzi.neomacros.core.api.types.Chunk.class);
         registry.registerGuestType("FurnaceInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.FurnaceInventory.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);

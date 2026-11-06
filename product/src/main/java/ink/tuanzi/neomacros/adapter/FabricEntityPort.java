@@ -210,6 +210,33 @@ public final class FabricEntityPort implements EntityPort {
         if (entity instanceof MushroomCow mooshroom) {
             state.put("variant", namespaced(mooshroom.getVariant()));
         }
+        if (entity instanceof net.minecraft.world.entity.monster.Enderman enderman) {
+            var carried = enderman.getCarriedBlock();
+            state.put("carriedBlock", carried != null
+                    ? BuiltInRegistries.BLOCK.getKey(carried.getBlock()).toString() : null);
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.Phantom phantom) {
+            state.put("size", phantom.getPhantomSize());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.spider.Spider spider) {
+            state.put("climbing", spider.isClimbing());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.equine.AbstractHorse horse) {
+            state.put("tamed", horse.isTamed());
+            state.put("eating", horse.isEating());
+            state.put("bred", horse.isBred());
+            state.put("inventorySize", horse.getInventorySize());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.equine.Horse horse2) {
+            state.put("variant", namespaced(horse2.getVariant()));
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.equine.Llama llama) {
+            state.put("strength", llama.getStrength());
+            state.put("llamaVariant", namespaced(llama.getVariant()));
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.golem.IronGolem golem) {
+            state.put("playerCreated", golem.isPlayerCreated());
+        }
     }
 
     /** Namespaces a serializable enum constant, e.g. {@code minecraft:white}. */

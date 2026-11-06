@@ -15,6 +15,13 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
         replace("world.entity.animal.cow.MushroomCow", "world.entity.animal.MushroomCow")
         replace("world.entity.monster.zombie.Zombie", "world.entity.monster.Zombie")
         replace("world.entity.npc.villager.Villager", "world.entity.npc.Villager")
+        replace("world.entity.animal.equine.Horse", "world.entity.animal.horse.Horse")
+        replace("world.entity.animal.equine.AbstractHorse", "world.entity.animal.horse.AbstractHorse")
+        replace("world.entity.animal.equine.AbstractChestedHorse", "world.entity.animal.horse.AbstractChestedHorse")
+        replace("world.entity.animal.equine.Donkey", "world.entity.animal.horse.Donkey")
+        replace("world.entity.animal.equine.Llama", "world.entity.animal.horse.Llama")
+        replace("world.entity.animal.golem.IronGolem", "world.entity.animal.IronGolem")
+        replace("world.entity.monster.spider.Spider", "world.entity.monster.Spider")
     }
     // Pre-1.21.11 nodes.
     replacements.string(current.parsed < "1.21.11") {
@@ -50,6 +57,7 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
     // dropping onto the interaction mode.
     replacements.string(current.parsed < "26.3") {
         replace("InputConstants.Type.KEYBOARD", "InputConstants.Type.KEYSYM")
+        replace("world.entity.monster.Enderman", "world.entity.monster.EnderMan")
         replace(
             "Minecraft.getInstance().gameMode.dropItem(player, all);",
             "player.drop(all);",

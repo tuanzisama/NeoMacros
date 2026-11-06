@@ -54,6 +54,13 @@ public final class SpeciesEntities {
             put(map, "minecraft:villager", Villager::new);
             put(map, "minecraft:wolf", Wolf::new);
             put(map, "minecraft:zombie", Zombie::new);
+            put(map, "minecraft:donkey", Donkey::new);
+            put(map, "minecraft:enderman", Enderman::new);
+            put(map, "minecraft:horse", Horse::new);
+            put(map, "minecraft:iron_golem", IronGolem::new);
+            put(map, "minecraft:llama", Llama::new);
+            put(map, "minecraft:phantom", Phantom::new);
+            put(map, "minecraft:spider", Spider::new);
             return map;
         }
 
@@ -493,6 +500,257 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public String getVariant() {
             return speciesString("variant");
+        }
+    }
+
+    /**
+     * An enderman: the block it currently carries as an id string, or
+     * undefined.
+     *
+     * @zh 末影人：当前搬起的方块 id 字符串；未搬起为 undefined。
+     */
+    @ApiClass(name = "Enderman", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.Enderman")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Enderman extends Mob {
+
+        /** Creates the handle for one enderman UUID. */
+        public Enderman(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The carried block id, or undefined when carrying nothing.
+         * @zh 所搬方块 id；未搬起为 undefined。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getCarriedBlock() {
+            return speciesString("carriedBlock");
+        }
+    }
+
+    /** A phantom: its size tier.
+     * @zh 幻翼：体型档位。 */
+    @ApiClass(name = "Phantom", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.Phantom")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Phantom extends Mob {
+
+        /** Creates the handle for one phantom UUID. */
+        public Phantom(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The phantom size tier (0 by default).
+         * @zh 幻翼体型档位（默认 0）。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getSize() {
+            return speciesInt("size");
+        }
+    }
+
+    /** A spider: wall-climbing state.
+     * @zh 蜘蛛：爬墙状态。 */
+    @ApiClass(name = "Spider", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.spider.Spider")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Spider extends Mob {
+
+        /** Creates the handle for one spider UUID. */
+        public Spider(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the spider is currently climbing a wall.
+         * @zh 蜘蛛是否正在爬墙。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isClimbing() {
+            return speciesBool("climbing");
+        }
+    }
+
+    /** The horse base: taming, eating and breeding states plus the saddle
+     * inventory size.
+     * @zh 马基类：驯服/进食/繁殖状态与鞍上背包容量。 */
+    @ApiClass(name = "AbstractHorse", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.equine.AbstractHorse")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class AbstractHorse extends Animal {
+
+        /** Creates the handle for one horse UUID. */
+        public AbstractHorse(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the horse is tamed.
+         * @zh 该马是否已被驯服。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isTamed() {
+            return speciesBool("tamed");
+        }
+
+        /** Whether the horse is currently eating.
+         * @zh 该马是否正在进食。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isEating() {
+            return speciesBool("eating");
+        }
+
+        /** Whether the horse has bred after taming.
+         * @zh 驯服后是否已繁殖过。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isBred() {
+            return speciesBool("bred");
+        }
+
+        /** The saddle inventory slot count.
+         * @zh 鞍上背包槽位数。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getInventorySize() {
+            return speciesInt("inventorySize");
+        }
+    }
+
+    /** A horse: coat variant.
+     * @zh 马：毛色变体。 */
+    @ApiClass(name = "Horse", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.equine.Horse")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Horse extends AbstractHorse {
+
+        /** Creates the handle for one horse UUID. */
+        public Horse(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The coat variant identifier.
+         * @zh 毛色变体标识。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getVariant() {
+            return speciesString("variant");
+        }
+    }
+
+    /** The chested-horse base (donkeys, mules, llamas); the chest state
+     * accessor is not public and rides the follow-up batch.
+     * @zh 驮箱马基类（驴、骡、羊驼）；原版未公开箱子状态访问器，随后随批。 */
+    @ApiClass(name = "AbstractChestedHorse", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.equine.AbstractChestedHorse")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class AbstractChestedHorse extends AbstractHorse {
+
+        /** Creates the handle for one chested horse UUID. */
+        public AbstractChestedHorse(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** A donkey.
+     * @zh 驴。 */
+    @ApiClass(name = "Donkey", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.equine.Donkey")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Donkey extends AbstractChestedHorse {
+
+        /** Creates the handle for one donkey UUID. */
+        public Donkey(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** A llama: strength tier and variant.
+     * @zh 羊驼：力量档位与变体。 */
+    @ApiClass(name = "Llama", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.equine.Llama")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Llama extends AbstractChestedHorse {
+
+        /** Creates the handle for one llama UUID. */
+        public Llama(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The strength tier (1-5).
+         * @zh 力量档位（1-5）。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getStrength() {
+            return speciesInt("strength");
+        }
+
+        /** The variant identifier.
+         * @zh 变体标识。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getVariant() {
+            return speciesString("llamaVariant");
+        }
+    }
+
+    /** An iron golem: whether a player built it.
+     * @zh 铁傀儡：是否为玩家建造。 */
+    @ApiClass(name = "IronGolem", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.golem.IronGolem")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class IronGolem extends Animal {
+
+        /** Creates the handle for one iron golem UUID. */
+        public IronGolem(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the golem was created by a player.
+         * @zh 该傀儡是否由玩家建造。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isPlayerCreated() {
+            return speciesBool("playerCreated");
         }
     }
 }
