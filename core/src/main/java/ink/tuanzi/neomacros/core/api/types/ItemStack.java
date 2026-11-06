@@ -35,9 +35,11 @@ public final class ItemStack implements ScriptHandle {
     private final List<String> lore;
     private final List<Enchantment> enchantments;
     private final boolean unbreakable;
+    private final Map<String, Object> extras;
 
     ItemStack(String id, int count, String name, int damage, int maxDamage,
-            List<String> lore, List<Enchantment> enchantments, boolean unbreakable) {
+            List<String> lore, List<Enchantment> enchantments, boolean unbreakable,
+            Map<String, Object> extras) {
         this.id = namespaced(id);
         this.count = count;
         this.name = name;
@@ -46,6 +48,7 @@ public final class ItemStack implements ScriptHandle {
         this.lore = List.copyOf(lore);
         this.enchantments = List.copyOf(enchantments);
         this.unbreakable = unbreakable;
+        this.extras = Map.copyOf(extras == null ? Map.of() : extras);
     }
 
     /** Builds the script stack from one neutral port snapshot.
@@ -56,7 +59,13 @@ public final class ItemStack implements ScriptHandle {
             enchants.add(new Enchantment(namespaced(entry.id()), entry.level()));
         }
         return new ItemStack(data.id(), data.count(), data.name(), data.damage(),
-                data.maxDamage(), data.lore(), enchants, false);
+                data.maxDamage(), data.lore(), enchants, false, data.extras());
+    }
+
+    /** Reads one neutral item fact from the port snapshot.
+     * @zh 读取端口快照中的一项中性物品事实。 */
+    private Object fact(String key) {
+        return extras.get(key);
     }
 
     /** The neutral port snapshot of this stack.
@@ -98,6 +107,68 @@ public final class ItemStack implements ScriptHandle {
     @ApiReadOnly
     public int getCount() {
         return count;
+    }
+
+    /** The maximum stack size for this item.
+     * @zh 该物品的最大堆叠数。 */
+    @ApiSince("0.2.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public int getMaxStackSize() {
+        Object value = fact("maxStackSize");
+        return value instanceof Integer i ? i : 1;
+    }
+
+    /** Whether the item takes durability damage at all.
+     * @zh 该物品是否会损耗耐久。 */
+    @ApiSince("0.2.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public boolean isDamageable() {
+        return Boolean.TRUE.equals(fact("damageable"));
+    }
+
+    /** Whether the item can receive enchantments in an enchanting table.
+     * @zh 该物品是否可被附魔台附魔。 */
+    @ApiSince("0.2.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public boolean isEnchantable() {
+        return Boolean.TRUE.equals(fact("enchantable"));
+    }
+
+    /** Whether the item currently carries enchantments.
+     * @zh 该物品当前是否带附魔。 */
+    @ApiSince("0.2.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public boolean isEnchanted() {
+        return Boolean.TRUE.equals(fact("enchanted"));
+    }
+
+    /** Whether the item is food.
+     * @zh 该物品是否为食物。 */
+    @ApiSince("0.2.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public boolean isEdible() {
+        return Boolean.TRUE.equals(fact("edible"));
+    }
+
+    /** The anvil repair cost added by prior anvil work (0 when untouched).
+     * @zh 铁砧累积的修复费用（未动过为 0）。 */
+    @ApiSince("0.2.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public int getRepairCost() {
+        Object value = fact("repairCost");
+        return value instanceof Integer i ? i : 0;
     }
 
     /** The display name (styled text flattened).
