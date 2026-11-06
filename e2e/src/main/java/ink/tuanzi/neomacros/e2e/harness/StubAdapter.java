@@ -15,6 +15,7 @@ import ink.tuanzi.neomacros.port.WorldPort;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
+import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.ChatComponent;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
@@ -404,6 +405,8 @@ public final class StubAdapter implements NeomacrosAdapter {
         TabListData tabList;
         ScoreboardData scoreboard;
         TpsData tps;
+        ChunkData chunk;
+        final java.util.List<Pos3d> foundBlocks = new ArrayList<>();
         final List<BossBarSnapshot> bossBars = new ArrayList<>();
         final List<String> playedSounds = new ArrayList<>();
         final List<String> spawnedParticles = new ArrayList<>();

@@ -353,6 +353,82 @@ public final class WorldApi {
                 new Pos3d(offsetX, offsetY, offsetZ), speed);
     }
 
+    /**
+     * The loaded chunk containing the coordinates as a {@code Chunk}
+     * handle, or {@code null} when unloaded.
+     *
+     * @zh 坐标所在已加载区块的 {@code Chunk} 句柄；未加载时为 null。
+     * @zh-param x 世界坐标 X
+     * @zh-param y 世界坐标 Y（决定所在子区块高度，通常取 64）
+     * @zh-param z 世界坐标 Z
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public ink.tuanzi.neomacros.core.api.types.Chunk chunkAt(double x, double y, double z) {
+        return ScriptApiEnvironment.adapter().world().chunkAt(new Pos3d(x, y, z))
+                .map(data -> new ink.tuanzi.neomacros.core.api.types.Chunk(
+                        data.chunkX(), data.chunkZ()))
+                .orElse(null);
+    }
+
+    /**
+     * Scans the cube around the center for blocks matching one of the given
+     * block ids and returns their positions as {@code Block} handles. The
+     * scan range is capped at 32 blocks and the result at 512 entries to
+     * keep the main thread responsive; unknown ids are ignored.
+     *
+     * @zh 在中心周围立方体范围内扫描匹配方块 id 的方块，返回 {@code Block} 句柄数组。扫描半径上限 32、结果上限 512 以保持主线程响应；未知 id 忽略。
+     * @zh-param options 扫描选项：{@code {types: string|string[], center: {x,y,z}, range?: number, limit?: number}}
+     * @zh-return {@code Block[]} 数组
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public java.util.List<ink.tuanzi.neomacros.core.api.types.Block> findBlocks(
+            java.util.Map<String, Object> options) {
+        if (options == null) {
+            throw new IllegalArgumentException("findBlocks options are required");
+        }
+        java.util.List<String> types = new java.util.ArrayList<>();
+        Object rawTypes = options.get("types");
+        if (rawTypes instanceof java.util.List<?> list) {
+            for (Object entry : list) {
+                if (entry != null) {
+                    types.add(String.valueOf(entry));
+                }
+            }
+        } else if (rawTypes != null) {
+            types.add(String.valueOf(rawTypes));
+        }
+        if (types.isEmpty()) {
+            throw new IllegalArgumentException("findBlocks needs at least one block type");
+        }
+        Object rawCenter = options.get("center");
+        if (!(rawCenter instanceof java.util.Map<?, ?> center)) {
+            throw new IllegalArgumentException("findBlocks needs a center {x, y, z}");
+        }
+        double cx = asDouble(center.get("x"), 0);
+        double cy = asDouble(center.get("y"), 0);
+        double cz = asDouble(center.get("z"), 0);
+        int range = (int) asDouble(options.get("range"), 16);
+        int limit = (int) asDouble(options.get("limit"), 128);
+        return ScriptApiEnvironment.adapter().world()
+                .findBlocks(types, new Pos3d(cx, cy, cz), range, limit)
+                .stream()
+                .map(pos -> new ink.tuanzi.neomacros.core.api.types.Block(
+                        new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                                (int) Math.floor(pos.x()),
+                                (int) Math.floor(pos.y()),
+                                (int) Math.floor(pos.z()))))
+                .toList();
+    }
+
+    /** Coerces one option number with a default for absent values. */
+    private static double asDouble(Object value, double fallback) {
+        return value instanceof Number number ? number.doubleValue() : fallback;
+    }
+
     /** Renders the tick rate estimate as the script-facing shape. */
     private static java.util.Map<String, Object> tpsView(TpsData tps) {
         java.util.Map<String, Object> view = new LinkedHashMap<>();

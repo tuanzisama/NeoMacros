@@ -22,6 +22,7 @@ import ink.tuanzi.neomacros.core.api.types.Block;
 import ink.tuanzi.neomacros.core.api.types.BlockPos;
 import ink.tuanzi.neomacros.core.api.types.BlockState;
 import ink.tuanzi.neomacros.core.api.types.ChunkPos;
+import ink.tuanzi.neomacros.core.api.types.Chunk;
 import ink.tuanzi.neomacros.core.api.types.ItemStack;
 import ink.tuanzi.neomacros.core.api.types.ItemStackBuilder;
 import ink.tuanzi.neomacros.core.api.types.Pos2D;
@@ -65,6 +66,7 @@ final class ApiCompletenessSurface {
             SpeciesEntities.Sheep.class, SpeciesEntities.Wolf.class, SpeciesEntities.Cat.class,
             SpeciesEntities.Villager.class, SpeciesEntities.Creeper.class, SpeciesEntities.Zombie.class,
             SpeciesEntities.PrimedTnt.class, SpeciesEntities.Bat.class, SpeciesEntities.MushroomCow.class,
+            Chunk.class,
             TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */

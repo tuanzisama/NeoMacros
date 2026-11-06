@@ -4,6 +4,7 @@ import ink.tuanzi.neomacros.port.WorldPort;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
+import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.RayHit;
 import ink.tuanzi.neomacros.port.model.RayOptions;
@@ -331,5 +332,78 @@ public final class FabricWorldPort implements WorldPort {
         return raw.indexOf(':') >= 0
                 ? Identifier.tryParse(raw)
                 : Identifier.withDefaultNamespace(raw);
+    }
+
+    @Override
+    public java.util.Optional<ChunkData> chunkAt(Pos3d pos) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return java.util.Optional.empty();
+            }
+            var chunk = level.getChunkAt(BlockPos.containing(pos.x(), pos.y(), pos.z()));
+            Map<String, int[]> heightmaps = new java.util.LinkedHashMap<>();
+            for (var entry : chunk.getHeightmaps()) {
+                String type = entry.getKey().name().toLowerCase(java.util.Locale.ROOT);
+                net.minecraft.world.level.levelgen.Heightmap heightmap = entry.getValue();
+                int[] heights = new int[256];
+                for (int x = 0; x < 16; x++) {
+                    for (int z = 0; z < 16; z++) {
+                        heights[x + z * 16] = heightmap.getFirstAvailable(x, z);
+                    }
+                }
+                heightmaps.put(type, heights);
+            }
+            java.util.List<Pos3d> blockEntities = new ArrayList<>();
+            for (BlockPos blockPos : chunk.getBlockEntitiesPos()) {
+                blockEntities.add(toPos3d(blockPos));
+            }
+            return java.util.Optional.of(new ChunkData(chunk.getPos().x(), chunk.getPos().z(),
+                    level.getMinY(), level.getMaxY(), chunk.getInhabitedTime(),
+                    heightmaps, blockEntities));
+        });
+    }
+
+    @Override
+    public java.util.List<Pos3d> findBlocks(java.util.List<String> blockIds,
+            Pos3d center, int range, int limit) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return java.util.List.of();
+            }
+            java.util.List<net.minecraft.world.level.block.Block> targets = new ArrayList<>();
+            for (String raw : blockIds) {
+                String id = raw.indexOf(':') >= 0 ? raw : "minecraft:" + raw;
+                var block = BuiltInRegistries.BLOCK.getValue(
+                        net.minecraft.resources.Identifier.tryParse(id));
+                if (block != null) {
+                    targets.add(block);
+                }
+            }
+            if (targets.isEmpty()) {
+                return java.util.List.of();
+            }
+            int clampedRange = Math.max(0, Math.min(32, range));
+            int clampedLimit = Math.max(1, Math.min(512, limit));
+            java.util.List<Pos3d> out = new ArrayList<>();
+            int baseX = (int) Math.floor(center.x());
+            int baseY = (int) Math.floor(center.y());
+            int baseZ = (int) Math.floor(center.z());
+            for (int dx = -clampedRange; dx <= clampedRange; dx++) {
+                for (int dy = -clampedRange; dy <= clampedRange; dy++) {
+                    for (int dz = -clampedRange; dz <= clampedRange; dz++) {
+                        BlockPos pos = new BlockPos(baseX + dx, baseY + dy, baseZ + dz);
+                        if (targets.contains(level.getBlockState(pos).getBlock())) {
+                            out.add(toPos3d(pos));
+                            if (out.size() >= clampedLimit) {
+                                return out;
+                            }
+                        }
+                    }
+                }
+            }
+            return out;
+        });
     }
 }

@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.port;
 
 import ink.tuanzi.neomacros.port.model.BlockData;
+import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.RayHit;
@@ -121,5 +122,24 @@ public interface WorldPort {
     /** Spawns particles locally around the position. */
     default void spawnParticle(String particleId, Pos3d pos, int count, Pos3d offset,
             double speed) {
+    }
+
+    /**
+     * Returns the loaded chunk containing the position, or empty when the
+     * chunk is not loaded.
+     */
+    default java.util.Optional<ChunkData> chunkAt(Pos3d pos) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Scans up to {@code limit} blocks whose id matches one of
+     * {@code blockIds} (full namespaced ids) inside the cube around the
+     * center; adapters cap the scanned volume to keep the main thread
+     * responsive.
+     */
+    default java.util.List<Pos3d> findBlocks(java.util.List<String> blockIds,
+            Pos3d center, int range, int limit) {
+        return java.util.List.of();
     }
 }

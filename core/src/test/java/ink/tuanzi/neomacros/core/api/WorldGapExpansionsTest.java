@@ -14,6 +14,7 @@ import ink.tuanzi.neomacros.port.WorldPort;
 import ink.tuanzi.neomacros.core.api.world.WorldApi;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
+import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.ScoreboardData;
 import ink.tuanzi.neomacros.port.model.TabListData;
@@ -28,6 +29,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * The world gap expansions: level name, moon phase, tab list, boss bars,
@@ -137,6 +139,55 @@ class WorldGapExpansionsTest {
     }
 
     @Test
+    void chunkAtRendersHandleMembers() {
+        world.chunk = new ChunkData(-3, 7, -64, 319, 4321,
+                Map.of("world_surface", new int[256]), List.of());
+        var handle = api.chunkAt(-45, 64, 118);
+        assertEquals(-3, handle.getChunkX());
+        assertEquals(7, handle.getChunkZ());
+        assertEquals(-64, handle.getMinY());
+        assertEquals(319, handle.getMaxY());
+        assertEquals(4321L, handle.getInhabitedTime());
+        assertEquals(0, handle.heightAt(-45, 118));
+        assertNull(handle.heightAt(5, 5), "height outside the chunk is absent");
+        assertTrue(handle.contains(-48, 64, 112));
+        assertFalse(handle.contains(-32, 64, 112));
+        assertTrue(handle.getBlockEntities().isEmpty());
+    }
+
+    @Test
+    void chunkAtIsNullWhenUnloaded() {
+        world.chunk = null;
+        assertNull(api.chunkAt(0, 64, 0));
+    }
+
+    @Test
+    void findBlocksDelegatesAndWrapsPositions() {
+        world.foundBlocks.add(new Pos3d(1, 64, 1));
+        world.foundBlocks.add(new Pos3d(2, 64, 2));
+        var blocks = api.findBlocks(Map.of("types", "minecraft:diamond_ore",
+                "center", Map.of("x", 0, "y", 64, "z", 0)));
+        assertEquals(2, blocks.size());
+        assertEquals(1.0, blocks.get(0).getPos().getX());
+    }
+
+    @Test
+    void findBlocksRejectsMissingTypesOrCenter() {
+        try {
+            api.findBlocks(Map.of("center", Map.of("x", 0, "y", 0, "z", 0)));
+            throw new AssertionError("expected rejection");
+        } catch (IllegalArgumentException expected) {
+            // missing types as designed
+        }
+        try {
+            api.findBlocks(Map.of("types", "minecraft:stone"));
+            throw new AssertionError("expected rejection");
+        } catch (IllegalArgumentException expected) {
+            // missing center as designed
+        }
+    }
+
+    @Test
     void playSoundAndParticlesDelegateToPort() {
         api.playSound("minecraft:entity.pig.ambient", 1, 2, 3, 0.5, 1.5);
         assertEquals("minecraft:entity.pig.ambient", world.lastSound);
@@ -154,7 +205,9 @@ class WorldGapExpansionsTest {
         TabListData tabList;
         ScoreboardData scoreboard;
         TpsData tps;
+        ChunkData chunk;
         final List<BossBarSnapshot> bossBars = new java.util.ArrayList<>();
+        final List<Pos3d> foundBlocks = new java.util.ArrayList<>();
         String lastSound;
         double lastVolume;
         double lastPitch;
@@ -216,6 +269,17 @@ class WorldGapExpansionsTest {
         @Override
         public java.util.Optional<TpsData> tps() {
             return java.util.Optional.ofNullable(tps);
+        }
+
+        @Override
+        public java.util.Optional<ChunkData> chunkAt(Pos3d pos) {
+            return java.util.Optional.ofNullable(chunk);
+        }
+
+        @Override
+        public java.util.List<Pos3d> findBlocks(java.util.List<String> blockIds,
+                Pos3d center, int range, int limit) {
+            return java.util.List.copyOf(foundBlocks);
         }
 
         @Override
