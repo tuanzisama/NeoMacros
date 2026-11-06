@@ -190,6 +190,12 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("Llama", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Llama.class);
         registry.registerGuestType("Phantom", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Phantom.class);
         registry.registerGuestType("Spider", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Spider.class);
+        registry.registerGuestType("Chicken", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Chicken.class);
+        registry.registerGuestType("Ghast", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Ghast.class);
+        registry.registerGuestType("Ocelot", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Ocelot.class);
+        registry.registerGuestType("Rabbit", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Rabbit.class);
+        registry.registerGuestType("Strider", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Strider.class);
+        registry.registerGuestType("WitherBoss", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.WitherBoss.class);
         registry.registerGuestType("Chunk", ink.tuanzi.neomacros.core.api.types.Chunk.class);
         registry.registerGuestType("FurnaceInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.FurnaceInventory.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);

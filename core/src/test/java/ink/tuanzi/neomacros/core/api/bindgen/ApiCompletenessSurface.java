@@ -70,6 +70,9 @@ final class ApiCompletenessSurface {
             SpeciesEntities.Donkey.class, SpeciesEntities.Enderman.class, SpeciesEntities.Horse.class,
             SpeciesEntities.IronGolem.class, SpeciesEntities.Llama.class, SpeciesEntities.Phantom.class,
             SpeciesEntities.Spider.class,
+            SpeciesEntities.Chicken.class, SpeciesEntities.Ghast.class,
+            SpeciesEntities.Ocelot.class, SpeciesEntities.Rabbit.class,
+            SpeciesEntities.Strider.class, SpeciesEntities.WitherBoss.class,
             Chunk.class,
             PlayerApi.FurnaceInventory.class,
             TimerHandle.class);

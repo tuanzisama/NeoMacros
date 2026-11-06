@@ -237,6 +237,15 @@ public final class FabricEntityPort implements EntityPort {
         if (entity instanceof net.minecraft.world.entity.animal.golem.IronGolem golem) {
             state.put("playerCreated", golem.isPlayerCreated());
         }
+        if (entity instanceof net.minecraft.world.entity.monster.Ghast ghast) {
+            state.put("charging", ghast.isCharging());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.rabbit.Rabbit rabbit) {
+            state.put("variant", namespaced(rabbit.getVariant()));
+        }
+        if (entity instanceof net.minecraft.world.entity.boss.wither.WitherBoss wither) {
+            state.put("invulnerableTicks", wither.getInvulnerableTicks());
+        }
     }
 
     /** Namespaces a serializable enum constant, e.g. {@code minecraft:white}. */

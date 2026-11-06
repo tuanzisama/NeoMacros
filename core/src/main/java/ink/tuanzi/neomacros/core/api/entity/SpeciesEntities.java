@@ -61,6 +61,12 @@ public final class SpeciesEntities {
             put(map, "minecraft:llama", Llama::new);
             put(map, "minecraft:phantom", Phantom::new);
             put(map, "minecraft:spider", Spider::new);
+            put(map, "minecraft:chicken", Chicken::new);
+            put(map, "minecraft:ghast", Ghast::new);
+            put(map, "minecraft:ocelot", Ocelot::new);
+            put(map, "minecraft:rabbit", Rabbit::new);
+            put(map, "minecraft:strider", Strider::new);
+            put(map, "minecraft:wither", WitherBoss::new);
             return map;
         }
 
@@ -751,6 +757,129 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public Boolean isPlayerCreated() {
             return speciesBool("playerCreated");
+        }
+    }
+
+    /** A chicken.
+     * @zh 鸡。 */
+    @ApiClass(name = "Chicken", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.chicken.Chicken")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Chicken extends Animal {
+
+        /** Creates the handle for one chicken UUID. */
+        public Chicken(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** A ghast: fire charging state.
+     * @zh 恶魂：喷火蓄力状态。 */
+    @ApiClass(name = "Ghast", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.Ghast")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Ghast extends Mob {
+
+        /** Creates the handle for one ghast UUID. */
+        public Ghast(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the ghast is charging a fireball.
+         * @zh 恶魂是否正在蓄力火球。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isCharging() {
+            return speciesBool("charging");
+        }
+    }
+
+    /** An ocelot: trusting state.
+     * @zh 豹猫：信任状态。 */
+    @ApiClass(name = "Ocelot", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.feline.Ocelot")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Ocelot extends Animal {
+
+        /** Creates the handle for one ocelot UUID. */
+        public Ocelot(UUID uuid) {
+            super(uuid);
+        }
+
+    }
+
+    /** A rabbit: its variant id.
+     * @zh 兔子：变体标识。 */
+    @ApiClass(name = "Rabbit", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.rabbit.Rabbit")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Rabbit extends Animal {
+
+        /** Creates the handle for one rabbit UUID. */
+        public Rabbit(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The variant identifier (e.g. minecraft:brown, minecraft:killer_bunny).
+         * @zh 变体标识（如 minecraft:brown、minecraft:killer_bunny）。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getVariant() {
+            return speciesString("variant");
+        }
+    }
+
+    /** A strider: saddle and shivering state.
+     * @zh 炽足兽：鞍与颤抖状态。 */
+    @ApiClass(name = "Strider", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.strider.Strider")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Strider extends Mob {
+
+        /** Creates the handle for one strider UUID. */
+        public Strider(UUID uuid) {
+            super(uuid);
+        }
+
+    }
+
+    /** A wither boss: invulnerable armor phase state.
+     * @zh 凋灵：无敌护甲阶段状态。 */
+    @ApiClass(name = "WitherBoss", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.boss.wither.WitherBoss")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class WitherBoss extends Mob {
+
+        /** Creates the handle for one wither UUID. */
+        public WitherBoss(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The remaining invulnerability armor ticks (0 after the entry
+         * phase).
+         * @zh 剩余无敌护甲 tick（入场阶段结束后为 0）。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getInvulnerableTicks() {
+            return speciesInt("invulnerableTicks");
         }
     }
 }
