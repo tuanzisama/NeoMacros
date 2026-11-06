@@ -31,8 +31,11 @@ jobs:
           DOCS_DISPATCH_TOKEN: ${{ secrets.DOCS_DISPATCH_TOKEN }}
         if: env.DOCS_DISPATCH_TOKEN != ''
         run: |
-          curl -sf -X POST \
+          status=$(curl -sS -o /tmp/dispatch-response.txt -w '%{http_code}' -X POST \
             -H "Authorization: Bearer $DOCS_DISPATCH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/tuanzisama/NeoMacros-Docs/dispatches \
-            -d '{"event_type":"api-docs"}'
+            -d '{"event_type":"api-docs"}') || true
+          echo "dispatch HTTP $status"
+          cat /tmp/dispatch-response.txt
+          [ "$status" = "204" ] || exit 1
