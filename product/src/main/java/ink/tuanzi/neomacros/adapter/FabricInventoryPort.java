@@ -124,6 +124,48 @@ public final class FabricInventoryPort implements InventoryPort {
                 state.put("litProgress", furnace.getLitProgress());
                 return state;
             }
+            if (menu instanceof net.minecraft.world.inventory.EnchantmentMenu enchanting) {
+                java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+                state.put("costs", enchanting.costs.clone());
+                state.put("goldCount", enchanting.getGoldCount());
+                return state;
+            }
+            if (menu instanceof net.minecraft.world.inventory.StonecutterMenu stonecutter) {
+                java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+                state.put("selectedRecipeIndex", stonecutter.getSelectedRecipeIndex());
+                state.put("recipeCount", stonecutter.getNumberOfVisibleRecipes());
+                state.put("hasInput", stonecutter.hasInputItem());
+                return state;
+            }
+            if (menu instanceof net.minecraft.world.inventory.LoomMenu loom) {
+                java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+                state.put("selectedPatternIndex", loom.getSelectedBannerPatternIndex());
+                state.put("patternCount", loom.getSelectablePatterns().size());
+                return state;
+            }
+            if (menu instanceof net.minecraft.world.inventory.BeaconMenu beacon) {
+                java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+                state.put("levels", beacon.getLevels());
+                state.put("primaryEffect", beacon.getPrimaryEffect() != null
+                        ? beacon.getPrimaryEffect().getRegisteredName() : null);
+                state.put("secondaryEffect", beacon.getSecondaryEffect() != null
+                        ? beacon.getSecondaryEffect().getRegisteredName() : null);
+                state.put("hasPayment", beacon.hasPayment());
+                return state;
+            }
+            if (menu instanceof net.minecraft.world.inventory.BrewingStandMenu brewing) {
+                java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+                state.put("fuel", brewing.getFuel());
+                state.put("brewingTicks", brewing.getBrewingTicks());
+                return state;
+            }
+            if (menu instanceof net.minecraft.world.inventory.MerchantMenu merchant) {
+                java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+                state.put("traderLevel", merchant.getTraderLevel());
+                state.put("traderXp", merchant.getTraderXp());
+                state.put("futureTraderXp", merchant.getFutureTraderXp());
+                return state;
+            }
             return java.util.Map.of();
         });
     }
