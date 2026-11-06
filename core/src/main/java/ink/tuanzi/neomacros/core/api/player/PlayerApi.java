@@ -269,6 +269,33 @@ public final class PlayerApi {
         }
 
         /**
+         * The player abilities snapshot: {@code {invulnerable, flying,
+         * mayFly, instabuild, mayBuild, flySpeed, walkingSpeed}}, or
+         * {@code null} when unloaded.
+         *
+         * @zh 玩家能力快照 {@code {invulnerable, flying, mayFly, instabuild, mayBuild, flySpeed, walkingSpeed}}；未加载为 null。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public java.util.Map<String, Object> getAbilities() {
+            java.util.Map<String, Object> source = ScriptApiEnvironment.adapter().entity().livingExtras(uuid);
+            if (source.isEmpty()) {
+                return null;
+            }
+            java.util.Map<String, Object> view = new java.util.LinkedHashMap<>();
+            for (String key : java.util.List.of("invulnerable", "flying", "mayFly",
+                    "instabuild", "mayBuild", "flySpeed", "walkingSpeed")) {
+                Object value = source.get(key);
+                if (value != null) {
+                    view.put(key, value);
+                }
+            }
+            return view;
+        }
+
+        /**
          * The client-side statistics as {@code statTypeId:valueId -> value}
          * entries; only non-zero values appear. {@code null} without a world.
          *
