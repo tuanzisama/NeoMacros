@@ -278,6 +278,16 @@ public final class FabricEntityPort implements EntityPort {
                 if (living instanceof net.minecraft.world.entity.monster.Enemy enemyCheck) {
                     state.put("hostile", true);
                 }
+                if (living instanceof net.minecraft.world.entity.player.Player player2) {
+                    var abilities = player2.getAbilities();
+                    state.put("invulnerable", abilities.invulnerable);
+                    state.put("flying", abilities.flying);
+                    state.put("mayFly", abilities.mayfly);
+                    state.put("instabuild", abilities.instabuild);
+                    state.put("mayBuild", abilities.mayBuild);
+                    state.put("flySpeed", (double) abilities.getFlyingSpeed());
+                    state.put("walkingSpeed", (double) abilities.getWalkingSpeed());
+                }
                 return state;
             }
             return Map.of();
