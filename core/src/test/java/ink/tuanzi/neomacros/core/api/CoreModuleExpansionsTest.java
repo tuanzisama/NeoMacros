@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.api;
 
 import com.sun.net.httpserver.HttpServer;
+import ink.tuanzi.neomacros.core.net.NetTrace;
+import ink.tuanzi.neomacros.core.net.NetTraceEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,6 +11,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +60,15 @@ class CoreModuleExpansionsTest {
         });
         server.createContext("/bad", exchange -> {
             byte[] body = "not-json{".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.createContext("/big", exchange -> {
+            // one byte over the retention cap: preview stays, full body does not
+            byte[] body = new byte[1024 * 1024 + 1];
+            java.util.Arrays.fill(body, (byte) 'x');
+            exchange.getResponseHeaders().add("Content-Type", "text/plain");
             exchange.sendResponseHeaders(200, body.length);
             exchange.getResponseBody().write(body);
             exchange.close();
@@ -120,6 +132,79 @@ class CoreModuleExpansionsTest {
         var failed = new Object() { Throwable error; };
         ((CompletableFuture<?>) bad.json()).whenComplete((value, error) -> failed.error = error);
         assertTrue(failed.error != null, "non-JSON body rejects the json reader");
+    }
+
+    @Test
+    void netRequestsAreRecordedThroughNetTrace() throws Exception {
+        var api = new NetApi(java.util.concurrent.Executors.newSingleThreadExecutor());
+        String base = "http://127.0.0.1:" + server.getAddress().getPort();
+        var records = new Object() { List<NetTraceEvent> events = new ArrayList<>(); };
+        java.util.function.Consumer<NetTraceEvent> dispatcher = records.events::add;
+        NetTrace.installDispatcher(dispatcher);
+        try {
+            join(api.get(base + "/json"));
+            join(api.post(base + "/text", "payload"));
+            join(api.get(base + "/big"));
+            try {
+                join(api.get("http://127.0.0.1:1/dead"));
+            } catch (java.util.concurrent.ExecutionException expected) {
+                // the dead port must fail to connect; the record is what we assert
+            }
+        } finally {
+            NetTrace.removeDispatcher(dispatcher);
+        }
+
+        // Records settle on the core pipeline thread, slightly after the
+        // fetch futures resolve; give the fan-out a moment to drain.
+        long deadline = System.currentTimeMillis() + 10000;
+        while (records.events.size() < 4 && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10);
+        }
+        assertEquals(4, records.events.size());
+
+        NetTraceEvent ok = records.events.get(0);
+        assertEquals("GET", ok.method());
+        assertEquals(base + "/json", ok.url());
+        assertEquals(200, ok.status());
+        assertEquals(17L, ok.size());
+        assertEquals("{\"ok\":true,\"n\":7}", ok.responseBodyPreview());
+        assertFalse(ok.responseBinary());
+        assertEquals("yes", ok.responseHeaders().get("x-test"));
+        assertTrue(ok.durationMs() != null && ok.durationMs() >= 0);
+        assertTrue(ok.waitMs() != null && ok.waitMs() >= 0,
+                "success rows carry the wait phase: " + ok.waitMs());
+        assertTrue(ok.downloadMs() != null && ok.downloadMs() >= 0,
+                "success rows carry the download phase: " + ok.downloadMs());
+        assertTrue(ok.error() == null, "success rows carry no error");
+        // small response bodies are retained in full
+        assertTrue(ok.responseBody() != null && ok.responseBody().length == 17,
+                "small response bodies ride along in full");
+        assertTrue(ok.initiator() == null, "engine-external calls carry no macro owner");
+        assertTrue(ok.initiatorFile() == null, "engine-external calls carry no entry path");
+
+        NetTraceEvent post = records.events.get(1);
+        assertEquals("POST", post.method());
+        assertEquals("payload", post.requestBodyPreview());
+        assertEquals("payload", post.requestBody(), "small request bodies ride along");
+        assertTrue(post.waitMs() != null && post.downloadMs() != null);
+
+        NetTraceEvent big = records.events.get(2);
+        assertEquals(1024 * 1024 + 1L, big.size());
+        assertTrue(big.responseBody() == null,
+                "oversize bodies are not retained alongside the record");
+        assertTrue(big.responseBodyPreview() != null
+                        && big.responseBodyPreview().length() == 4096,
+                "oversize textual bodies still carry the capped preview");
+        assertTrue(big.responseBodyTruncated());
+
+        NetTraceEvent dead = records.events.get(3);
+        assertTrue(dead.status() == null, "failed rows carry no status");
+        assertTrue(dead.size() == null, "failed rows carry no size");
+        assertTrue(dead.waitMs() == null && dead.downloadMs() == null,
+                "failures before headers carry no phase timings");
+        assertTrue(dead.durationMs() != null);
+        assertTrue(dead.error() != null && dead.error().contains("ConnectException"),
+                "the failure reason surfaces as the error field: " + dead.error());
     }
 
     @Test

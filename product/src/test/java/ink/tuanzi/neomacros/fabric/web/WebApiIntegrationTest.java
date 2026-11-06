@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import ink.tuanzi.neomacros.core.console.ScriptConsole;
 import ink.tuanzi.neomacros.core.console.ScriptConsoleEvent;
+import ink.tuanzi.neomacros.core.net.NetTrace;
+import ink.tuanzi.neomacros.core.net.NetTraceEvent;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry;
 import ink.tuanzi.neomacros.fabric.web.http.ApiError;
 import ink.tuanzi.neomacros.fabric.web.json.Jsons;
@@ -704,6 +706,99 @@ class WebApiIntegrationTest {
         assertEquals(400, signed("POST", "/api/v1/console/eval",
                 Jsons.stringify(Map.of("target", "devtools", "expression", "  "))
                         .getBytes(StandardCharsets.UTF_8)).statusCode());
+    }
+
+    // ---- network replay -------------------------------------------------------
+
+    @Test
+    void networkReplaysSettledRequestsIncrementally() throws Exception {
+        start(DIRECT);
+        long baseline = service.net().lastSeq();
+
+        NetTrace.dispatch(new NetTraceEvent(1234L, "GET", "https://example.com/api",
+                null, null, Map.of("authorization", "Bearer t"), null, null, false,
+                200, Map.of("content-type", "application/json"), "{\"ok\":true}",
+                "{\"ok\":true}".getBytes(StandardCharsets.UTF_8), false, false,
+                11L, 42L, 30L, 12L, null));
+        NetTrace.dispatch(new NetTraceEvent(1235L, "GET", "https://example.com/dead",
+                "event/auto-welcome", "index.js", Map.of(), null, null, false,
+                null, null, null, null, false, false, null, 7L, null, null,
+                "java.net.ConnectException: connection refused"));
+
+        // Dispatch runs on the core pipeline thread; wait for both to land.
+        long deadline = System.currentTimeMillis() + 5000;
+        while (service.net().lastSeq() < baseline + 2
+                && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10);
+        }
+
+        HttpResponse<String> full = signed("GET", "/api/v1/network?after=" + baseline,
+                new byte[0]);
+        assertEquals(200, full.statusCode());
+        JsonObject body = JsonParser.parseString(full.body()).getAsJsonObject();
+        var entries = body.getAsJsonArray("entries");
+        assertEquals(2, entries.size());
+        assertEquals(baseline + 2, body.get("lastSeq").getAsLong());
+
+        JsonObject ok = entries.get(0).getAsJsonObject();
+        assertEquals("GET", ok.get("method").getAsString());
+        assertEquals(200, ok.get("status").getAsInt());
+        assertEquals(11L, ok.get("size").getAsLong());
+        assertEquals(42L, ok.get("durationMs").getAsLong());
+        assertEquals(30L, ok.get("waitMs").getAsLong());
+        assertEquals(12L, ok.get("downloadMs").getAsLong());
+        assertEquals("{\"ok\":true}", ok.get("responseBodyPreview").getAsString());
+        assertEquals(true, ok.get("hasResponseBody").getAsBoolean());
+        assertTrue(ok.get("error").isJsonNull());
+
+        JsonObject failed = entries.get(1).getAsJsonObject();
+        assertTrue(failed.get("status").isJsonNull());
+        assertEquals("event/auto-welcome", failed.get("initiator").getAsString());
+        assertEquals("index.js", failed.get("initiatorFile").getAsString());
+        assertEquals("java.net.ConnectException: connection refused",
+                failed.get("error").getAsString());
+
+        // Incremental replay: the cursor only sees newer entries.
+        HttpResponse<String> tail = signed("GET", "/api/v1/network?after=" + (baseline + 1),
+                new byte[0]);
+        assertEquals(1, JsonParser.parseString(tail.body()).getAsJsonObject()
+                .getAsJsonArray("entries").size());
+    }
+
+    @Test
+    void networkBodyEndpointServesRetainedContent() throws Exception {
+        start(DIRECT);
+        long baseline = service.net().lastSeq();
+
+        NetTrace.dispatch(new NetTraceEvent(1236L, "POST", "https://example.com/echo",
+                null, null, Map.of("content-type", "text/plain"), "ping", "ping-body", false,
+                200, Map.of("content-type", "text/plain"), "pong",
+                "pong-body".getBytes(StandardCharsets.UTF_8), false, false,
+                9L, 15L, 10L, 5L, null));
+        long deadline = System.currentTimeMillis() + 5000;
+        while (service.net().lastSeq() < baseline + 1
+                && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10);
+        }
+        long seq = baseline + 1;
+
+        // response side (default): raw bytes with the recorded disposition
+        HttpResponse<String> response = signed("GET", "/api/v1/network/" + seq + "/body",
+                new byte[0]);
+        assertEquals(200, response.statusCode());
+        assertEquals("pong-body", response.body());
+        assertEquals("attachment; filename=\"echo\"",
+                response.headers().firstValue("Content-Disposition").orElse(""));
+
+        // request side via the side parameter
+        HttpResponse<String> requestSide = signed("GET",
+                "/api/v1/network/" + seq + "/body?side=request", new byte[0]);
+        assertEquals(200, requestSide.statusCode());
+        assertEquals("ping-body", requestSide.body());
+
+        // unknown seq is a plain 404, not an eviction
+        assertEquals(404, signed("GET", "/api/v1/network/9999/body",
+                new byte[0]).statusCode());
     }
 
     // ---- tasks ---------------------------------------------------------------

@@ -2,6 +2,8 @@ package ink.tuanzi.neomacros.fabric.web;
 
 import ink.tuanzi.neomacros.core.console.ScriptConsole;
 import ink.tuanzi.neomacros.core.console.ScriptConsoleEvent;
+import ink.tuanzi.neomacros.core.net.NetTrace;
+import ink.tuanzi.neomacros.core.net.NetTraceEvent;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRecord;
 import ink.tuanzi.neomacros.fabric.web.auth.DeviceRegistry;
 import ink.tuanzi.neomacros.fabric.web.auth.Nm1Verifier;
@@ -14,6 +16,7 @@ import ink.tuanzi.neomacros.fabric.web.http.WebServer;
 import ink.tuanzi.neomacros.fabric.web.json.Jsons;
 import ink.tuanzi.neomacros.fabric.web.log.LogRing;
 import ink.tuanzi.neomacros.fabric.web.log.LogTap;
+import ink.tuanzi.neomacros.fabric.web.net.NetRing;
 import ink.tuanzi.neomacros.fabric.web.openapi.DocsRoutes;
 import ink.tuanzi.neomacros.fabric.web.openapi.OpenApiGenerator;
 import ink.tuanzi.neomacros.fabric.web.pair.PairingRequests;
@@ -65,6 +68,8 @@ public final class WebService {
     private LogTap logTap;
     private ConsoleRing console;
     private Consumer<ScriptConsoleEvent> consoleDispatcher;
+    private NetRing net;
+    private Consumer<NetTraceEvent> netDispatcher;
     private SseHub sse;
     private WebServer server;
 
@@ -116,6 +121,7 @@ public final class WebService {
         String scope = listenScope.get();
         LogRing ring = new LogRing(1000);
         ConsoleRing consoleRing = new ConsoleRing(1000);
+        NetRing netRing = new NetRing(500);
         SseHub hub = new SseHub(System::currentTimeMillis);
         Nm1Verifier verifier = new Nm1Verifier(devices,
                 new NonceStore(2 * Nm1Verifier.WINDOW_MILLIS), System::currentTimeMillis);
@@ -126,7 +132,7 @@ public final class WebService {
         CorsPolicy cors = new CorsPolicy(origins);
         ApiV1 controller = new ApiV1(backend, game, pairing, pairingRequests,
                 cors::allowsOrigin, pairRequestListener, devices, hub, ring,
-                consoleRing);
+                consoleRing, netRing);
         // The contract document is built over the live route set (the docs
         // endpoint included), then rebuilt with the bound port once known.
         var document = new java.util.concurrent.atomic.AtomicReference<
@@ -144,6 +150,7 @@ public final class WebService {
                 meta.modVersion(), meta.gameVersion(), bound).generate());
         this.logs = ring;
         this.console = consoleRing;
+        this.net = netRing;
         this.sse = hub;
         this.server = http;
         events.attach(hub);
@@ -158,6 +165,11 @@ public final class WebService {
         this.consoleDispatcher = consoleRing::append;
         ScriptConsole.installDispatcher(this.consoleDispatcher);
         consoleRing.addListener(entry -> events.broadcast("console", Jsons.stringify(entry)));
+        // Network feed: settled neo.net requests land in the ring (replay) and
+        // the SSE network event (live tail). The dispatcher is removed on stop.
+        this.netDispatcher = netRing::append;
+        NetTrace.installDispatcher(this.netDispatcher);
+        netRing.addListener(entry -> events.broadcast("network", Jsons.stringify(entry)));
         ring.append(System.currentTimeMillis(), "INFO", "neomacros.web", "web panel listening on "
                 + scope + " port " + bound);
         LOG.info("web panel listening on {} port {} (apifox import: "
@@ -190,10 +202,15 @@ public final class WebService {
             ScriptConsole.removeDispatcher(consoleDispatcher);
             consoleDispatcher = null;
         }
+        if (netDispatcher != null) {
+            NetTrace.removeDispatcher(netDispatcher);
+            netDispatcher = null;
+        }
         server = null;
         sse = null;
         logs = null;
         console = null;
+        net = null;
         LOG.info("web panel stopped");
     }
 
@@ -300,6 +317,11 @@ public final class WebService {
     /** The script console ring (the SSE console feed for tests). */
     ConsoleRing console() {
         return console;
+    }
+
+    /** The network ring (the SSE network feed for tests). */
+    NetRing net() {
+        return net;
     }
 
     /** The SSE hub (tests broadcast panels events through it). */
