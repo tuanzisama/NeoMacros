@@ -42,6 +42,9 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
         replace("world.entity.monster.illager.Pillager", "world.entity.monster.Pillager")
         replace("world.entity.monster.illager.Evoker", "world.entity.monster.Evoker")
         replace("world.entity.npc.wanderingtrader.WanderingTrader", "world.entity.npc.WanderingTrader")
+        // The command tag accessor renamed after 1.21.6; the 26.x era keeps
+        // the entityTags() spelling everywhere else.
+        replace("living.entityTags()", "living.getTags()")
     }
     // Pre-1.21.11 nodes.
     replacements.string(current.parsed < "1.21.11") {
@@ -86,8 +89,7 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
     // Before 26.2 the chat surface, the overlay message, the title overlay,
     // and the toast manager lived on Gui directly; 26.2 moved them under the
     // hud sub-panel. The toast manager accessor itself renamed too.
-    replacements.string(current.parsed < "26.2") {
-        replace("gui.hud.getChat()", "gui.getChat()")
+    replacements.string(current.parsed < "26.2") {        replace("gui.hud.getChat()", "gui.getChat()")
         replace("gui.hud.setOverlayMessage", "gui.setOverlayMessage")
         replace("gui.hud.setTitle(", "gui.setTitle(")
         replace("gui.hud.setSubtitle(", "gui.setSubtitle(")

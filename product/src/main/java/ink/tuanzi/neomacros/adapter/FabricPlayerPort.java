@@ -145,6 +145,104 @@ public final class FabricPlayerPort implements PlayerPort {
         });
     }
 
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setFlying(boolean value) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            player.getAbilities().flying = value;
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setFlySpeed(float value) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            player.getAbilities().setFlyingSpeed(value);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setWalkingSpeed(float value) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            player.getAbilities().setWalkingSpeed(value);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> look(float yaw, float pitch) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            player.setYRot(yaw);
+            player.setXRot(pitch);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> lookAt(EntitySnapshot target) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            var entity = findEntity(target.uuid());
+            if (player == null || entity == null) {
+                throw new IllegalStateException("target entity is not loaded: " + target.uuid());
+            }
+            player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES,
+                    entity.getEyePosition());
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> teleport(double x, double y, double z) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            player.setPos(x, y, z);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setVelocity(double x, double y, double z) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            player.setDeltaMovement(x, y, z);
+        });
+    }
+
+    @Override
+    public float itemCooldownPercent(String itemId) {
+        Float percent = MainThread.run(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                return 0f;
+            }
+            var id = net.minecraft.resources.Identifier.parse(itemId);
+            var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(id);
+            if (item.isEmpty()) {
+                return 0f;
+            }
+            return player.getCooldowns().getCooldownPercent(
+                    new net.minecraft.world.item.ItemStack(item.get()), 0f);
+        });
+        return percent != null ? percent : 0f;
+    }
+
     /** Finds one loaded entity by UUID. */
     private net.minecraft.world.entity.Entity findEntity(java.util.UUID uuid) {
         var level = Minecraft.getInstance().level;

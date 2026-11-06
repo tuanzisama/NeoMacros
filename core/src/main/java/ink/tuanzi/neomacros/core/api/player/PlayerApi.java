@@ -271,9 +271,150 @@ public final class PlayerApi {
     }
 
     /**
-     * The action surface of the local player: attack, interact, swing, and
-     * drop dispatch through the game on the main thread and resolve once
-     * processed.
+     * The local player abilities handle: the creative-mode flags and speed
+     * multipliers, readable live and writable client-side. Multiplayer
+     * servers keep authority over flying, so writes may be corrected.
+     *
+     * @zh 本地玩家能力句柄：创造模式旗标与速度倍率，实时可读、客户端可写。联机服务器保有飞行决定权，写入可能被纠正。
+     */
+    @ApiClass(name = "Abilities", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.player.Abilities")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class Abilities {
+
+        private final java.util.UUID uuid;
+
+        /** Creates the handle for the local player. */
+        public Abilities(java.util.UUID uuid) {
+            this.uuid = uuid;
+        }
+
+        private java.util.Map<String, Object> state() {
+            return ScriptApiEnvironment.adapter().entity().livingExtras(uuid);
+        }
+
+        /** Whether the player is immune to damage.
+         * @zh 玩家是否免受伤害。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isInvulnerable() {
+            Object value = state().get("invulnerable");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /** Whether the player is currently flying.
+         * @zh 玩家当前是否飞行中。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isFlying() {
+            Object value = state().get("flying");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /** Whether the player may toggle flight at all.
+         * @zh 玩家是否允许切换飞行。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean mayFly() {
+            Object value = state().get("mayFly");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /** Whether the player has instant block breaking.
+         * @zh 玩家是否瞬间破坏方块。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isInstabuild() {
+            Object value = state().get("instabuild");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /** Whether the player may build and break blocks.
+         * @zh 玩家是否可建造与破坏。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean mayBuild() {
+            Object value = state().get("mayBuild");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /** The fly speed multiplier.
+         * @zh 飞行速度倍率。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getFlySpeed() {
+            Object value = state().get("flySpeed");
+            return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /** The walking speed multiplier.
+         * @zh 行走速度倍率。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getWalkingSpeed() {
+            Object value = state().get("walkingSpeed");
+            return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /**
+         * Toggles flight (client-side write; servers may revoke it).
+         *
+         * @zh 切换飞行（客户端写；服务器可能收回）。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setFlying(boolean value) {
+            return adapter().setFlying(value);
+        }
+
+        /**
+         * Sets the fly speed multiplier (client-side write).
+         *
+         * @zh 设置飞行速度倍率（客户端写）。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setFlySpeed(float value) {
+            return adapter().setFlySpeed(value);
+        }
+
+        /**
+         * Sets the walking speed multiplier (client-side write).
+         *
+         * @zh 设置行走速度倍率（客户端写）。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setWalkingSpeed(float value) {
+            return adapter().setWalkingSpeed(value);
+        }
+    }
+
+    /**
+     * Local player action face: attack/interact/swing/drop dispatch through
+     * the game on the main thread and resolve once processed.
      *
      * @zh 本地玩家动作面：attack/interact/swing/drop 经游戏主线程派发，处理完成后落定。
      */
@@ -286,30 +427,17 @@ public final class PlayerApi {
         }
 
         /**
-         * The player abilities snapshot: {@code {invulnerable, flying,
-         * mayFly, instabuild, mayBuild, flySpeed, walkingSpeed}}, or
-         * {@code null} when unloaded.
+         * The live abilities handle: flags and speed multipliers, readable
+         * and writable client-side.
          *
-         * @zh 玩家能力快照 {@code {invulnerable, flying, mayFly, instabuild, mayBuild, flySpeed, walkingSpeed}}；未加载为 null。
+         * @zh 实时能力句柄：旗标与速度倍率，可读且客户端可写。
          */
         @ApiSince("0.2.0")
         @ApiMC("*")
         @ApiLoader("*")
         @ApiReadOnly
-        public java.util.Map<String, Object> getAbilities() {
-            java.util.Map<String, Object> source = ScriptApiEnvironment.adapter().entity().livingExtras(uuid);
-            if (source.isEmpty()) {
-                return null;
-            }
-            java.util.Map<String, Object> view = new java.util.LinkedHashMap<>();
-            for (String key : java.util.List.of("invulnerable", "flying", "mayFly",
-                    "instabuild", "mayBuild", "flySpeed", "walkingSpeed")) {
-                Object value = source.get(key);
-                if (value != null) {
-                    view.put(key, value);
-                }
-            }
-            return view;
+        public Abilities getAbilities() {
+            return new Abilities(uuid);
         }
 
         /**
@@ -355,6 +483,79 @@ public final class PlayerApi {
         @ApiReadOnly
         public boolean isBreakingBlock() {
             return adapter().isBreakingBlock();
+        }
+
+        /**
+         * Turns the camera to the yaw (horizontal) and pitch (vertical)
+         * angles in degrees.
+         *
+         * @zh 将视角转向指定 yaw（水平）与 pitch（垂直）角度（度）。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> look(float yaw, float pitch) {
+            return adapter().look(yaw, pitch);
+        }
+
+        /**
+         * Turns the camera to look at the entity behind the target handle.
+         *
+         * @zh 将视角转向目标句柄背后的实体。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> lookAt(EntityApi.Entity target) {
+            EntitySnapshot targetData = target == null ? null : target.snapshot();
+            if (targetData == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalStateException("target entity is not loaded"));
+            }
+            return adapter().lookAt(targetData);
+        }
+
+        /**
+         * Moves the local player to the position (client-side write;
+         * multiplayer servers correct the position back).
+         *
+         * @zh 将本地玩家移动到该位置（客户端写；联机服务器会把位置纠正回去）。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> teleport(double x, double y, double z) {
+            return adapter().teleport(x, y, z);
+        }
+
+        /**
+         * Sets the movement velocity vector (client-side write).
+         *
+         * @zh 设置移动速度向量（客户端写）。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setVelocity(double x, double y, double z) {
+            return adapter().setVelocity(x, y, z);
+        }
+
+        /**
+         * The item cooldown progress for the item id, {@code 0} when not on
+         * cooldown (or the item is unknown).
+         *
+         * @zh 物品 id 的冷却进度；无冷却（或物品未知）时为 0。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public float itemCooldown(String itemId) {
+            return adapter().itemCooldownPercent(itemId);
         }
 
         /** Attacks the entity behind the target handle.

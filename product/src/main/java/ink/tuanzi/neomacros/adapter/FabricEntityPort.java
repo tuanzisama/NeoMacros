@@ -420,6 +420,20 @@ public final class FabricEntityPort implements EntityPort {
                     state.put("flySpeed", (double) abilities.getFlyingSpeed());
                     state.put("walkingSpeed", (double) abilities.getWalkingSpeed());
                 }
+                state.put("air", living.getAirSupply());
+                state.put("maxAir", living.getMaxAirSupply());
+                state.put("useItemRemainingTicks", living.getUseItemRemainingTicks());
+                state.put("tags", new java.util.ArrayList<>(living.entityTags()));
+                java.util.List<Object> effects = new java.util.ArrayList<>();
+                for (net.minecraft.world.effect.MobEffectInstance effect : living.getActiveEffects()) {
+                    java.util.Map<String, Object> entry = new java.util.LinkedHashMap<>();
+                    entry.put("id", effect.getEffect().getRegisteredName());
+                    entry.put("duration", effect.getDuration());
+                    entry.put("amplifier", effect.getAmplifier());
+                    entry.put("infinite", effect.isInfiniteDuration());
+                    effects.add(entry);
+                }
+                state.put("effects", effects);
                 return state;
             }
             return Map.of();

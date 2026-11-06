@@ -103,6 +103,7 @@ final class ApiCompletenessSurface {
             PlayerApi.BeaconInventory.class, PlayerApi.BrewingStandInventory.class,
             PlayerApi.VillagerInventory.class,
             PlayerApi.TradeOffer.class, PlayerApi.HorseInventory.class,
+            PlayerApi.Abilities.class,
             Text.class, TextBuilder.class,
             TimerHandle.class);
 
