@@ -128,4 +128,57 @@ public interface PlayerPort {
     default boolean isBreakingBlock() {
         return false;
     }
+
+    // --- Local-only write face: every action below writes client-side
+    // state on the game main thread. Multiplayer servers keep authority
+    // over flying and position, so writes may be corrected shortly after.
+
+    /**
+     * Sets whether the local player is flying (client-side toggle backed by
+     * the abilities state). Servers may revoke this outside creative mode.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setFlying(boolean value) {
+        throw new UnsupportedOperationException("setFlying requires the fabric adapter");
+    }
+
+    /** Sets the fly speed multiplier (client-side abilities state). */
+    default java.util.concurrent.CompletableFuture<Void> setFlySpeed(float value) {
+        throw new UnsupportedOperationException("setFlySpeed requires the fabric adapter");
+    }
+
+    /** Sets the walking speed multiplier (client-side abilities state). */
+    default java.util.concurrent.CompletableFuture<Void> setWalkingSpeed(float value) {
+        throw new UnsupportedOperationException("setWalkingSpeed requires the fabric adapter");
+    }
+
+    /** Turns the camera to the yaw (horizontal) and pitch (vertical) angles. */
+    default java.util.concurrent.CompletableFuture<Void> look(float yaw, float pitch) {
+        throw new UnsupportedOperationException("look requires the fabric adapter");
+    }
+
+    /** Turns the camera to look at the entity behind the snapshot's UUID. */
+    default java.util.concurrent.CompletableFuture<Void> lookAt(EntitySnapshot target) {
+        throw new UnsupportedOperationException("lookAt requires the fabric adapter");
+    }
+
+    /**
+     * Moves the local player to the given position (client-side write;
+     * multiplayer servers correct the position back).
+     */
+    default java.util.concurrent.CompletableFuture<Void> teleport(double x, double y, double z) {
+        throw new UnsupportedOperationException("teleport requires the fabric adapter");
+    }
+
+    /** Sets the local player's movement velocity vector. */
+    default java.util.concurrent.CompletableFuture<Void> setVelocity(double x, double y, double z) {
+        throw new UnsupportedOperationException("setVelocity requires the fabric adapter");
+    }
+
+    /**
+     * Returns the item cooldown progress for the item id, 0.0 when not on
+     * cooldown (and 0 when the item is unknown).
+     */
+    default float itemCooldownPercent(String itemId) {
+        return 0;
+    }
 }

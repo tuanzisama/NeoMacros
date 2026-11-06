@@ -808,6 +808,108 @@ public final class EntityApi {
             return value instanceof Boolean b ? b : null;
         }
 
+        /**
+         * The active status effects as {@code {id, duration, amplifier,
+         * infinite}} entries; empty once the entity is gone.
+         *
+         * @zh 生效中的状态效果 {@code {id, duration, amplifier, infinite}}；实体消失后为空。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public java.util.List<Map<String, Object>> getEffects() {
+            Object value = livingExtras().get("effects");
+            if (!(value instanceof java.util.List<?> list)) {
+                return java.util.List.of();
+            }
+            java.util.List<Map<String, Object>> effects = new java.util.ArrayList<>();
+            for (Object entry : list) {
+                if (entry instanceof Map<?, ?> map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> typed = (Map<String, Object>) map;
+                    effects.add(typed);
+                }
+            }
+            return effects;
+        }
+
+        /** Whether a status effect with the given id is active.
+         * @zh 指定 id 的状态效果是否生效中。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasEffect(String id) {
+            if (id == null) {
+                return null;
+            }
+            String wanted = id.startsWith("minecraft:") ? id : "minecraft:" + id;
+            Object value = livingExtras().get("effects");
+            if (!(value instanceof java.util.List<?> list)) {
+                return null;
+            }
+            for (Object entry : list) {
+                if (entry instanceof Map<?, ?> map && wanted.equals(map.get("id"))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** The remaining air ticks; 300 max in vanilla water.
+         * @zh 剩余空气刻；原版水中小上限 300。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getAir() {
+            Object value = livingExtras().get("air");
+            return value instanceof Integer i ? i : null;
+        }
+
+        /** The maximum air ticks (300 in vanilla).
+         * @zh 最大空气刻（原版 300）。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getMaxAir() {
+            Object value = livingExtras().get("maxAir");
+            return value instanceof Integer i ? i : null;
+        }
+
+        /** The remaining use ticks while eating, drinking, or blocking.
+         * @zh 进食/饮水/格挡时的剩余使用刻。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getUseItemRemainingTicks() {
+            Object value = livingExtras().get("useItemRemainingTicks");
+            return value instanceof Integer i ? i : null;
+        }
+
+        /** The command tags attached to the entity.
+         * @zh 实体携带的命令标签。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public java.util.List<String> getTags() {
+            Object value = livingExtras().get("tags");
+            if (!(value instanceof java.util.List<?> list)) {
+                return java.util.List.of();
+            }
+            java.util.List<String> tags = new java.util.ArrayList<>();
+            for (Object entry : list) {
+                if (entry instanceof String tag) {
+                    tags.add(tag);
+                }
+            }
+            return tags;
+        }
+
         /** Creates the handle for one entity UUID. */
         public LivingEntity(UUID uuid) {
             super(uuid);
