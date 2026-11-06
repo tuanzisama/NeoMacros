@@ -150,15 +150,16 @@ class CoreModuleExpansionsTest {
             } catch (java.util.concurrent.ExecutionException expected) {
                 // the dead port must fail to connect; the record is what we assert
             }
+
+            // Records settle on the core pipeline thread, slightly after the
+            // fetch futures resolve; drain while the dispatcher is still
+            // installed so the last record cannot be dropped by removal.
+            long deadline = System.currentTimeMillis() + 10000;
+            while (records.events.size() < 4 && System.currentTimeMillis() < deadline) {
+                Thread.sleep(10);
+            }
         } finally {
             NetTrace.removeDispatcher(dispatcher);
-        }
-
-        // Records settle on the core pipeline thread, slightly after the
-        // fetch futures resolve; give the fan-out a moment to drain.
-        long deadline = System.currentTimeMillis() + 10000;
-        while (records.events.size() < 4 && System.currentTimeMillis() < deadline) {
-            Thread.sleep(10);
         }
         assertEquals(4, records.events.size());
 
