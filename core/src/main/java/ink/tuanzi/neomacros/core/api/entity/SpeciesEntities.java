@@ -61,6 +61,24 @@ public final class SpeciesEntities {
             put(map, "minecraft:llama", Llama::new);
             put(map, "minecraft:phantom", Phantom::new);
             put(map, "minecraft:spider", Spider::new);
+            put(map, "minecraft:zombified_piglin", ZombifiedPiglin::new);
+            put(map, "minecraft:zombie_villager", ZombieVillager::new);
+            put(map, "minecraft:drowned", Drowned::new);
+            put(map, "minecraft:warden", Warden::new);
+            put(map, "minecraft:dolphin", Dolphin::new);
+            put(map, "minecraft:witch", Witch::new);
+            put(map, "minecraft:vex", Vex::new);
+            put(map, "minecraft:turtle", Turtle::new);
+            put(map, "minecraft:snow_golem", SnowGolem::new);
+            put(map, "minecraft:shulker", Shulker::new);
+            put(map, "minecraft:polar_bear", PolarBear::new);
+            put(map, "minecraft:parrot", Parrot::new);
+            put(map, "minecraft:panda", Panda::new);
+            put(map, "minecraft:goat", Goat::new);
+            put(map, "minecraft:frog", Frog::new);
+            put(map, "minecraft:fox", Fox::new);
+            put(map, "minecraft:bee", Bee::new);
+            put(map, "minecraft:axolotl", Axolotl::new);
             put(map, "minecraft:chicken", Chicken::new);
             put(map, "minecraft:ghast", Ghast::new);
             put(map, "minecraft:ocelot", Ocelot::new);
@@ -880,6 +898,526 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public Integer getInvulnerableTicks() {
             return speciesInt("invulnerableTicks");
+        }
+    }
+
+    /** An axolotl: variant, playing-dead state, and bucket origin.
+     * @zh 六角恐龙：变体、装死状态与桶装来源。 */
+    @ApiClass(name = "Axolotl", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.axolotl.Axolotl")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Axolotl extends Animal {
+
+        /** Creates the handle for one axolotl UUID. */
+        public Axolotl(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The variant identifier.
+         * @zh 变体标识。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getVariant() {
+            return speciesString("variant");
+        }
+
+        /** Whether the axolotl is playing dead.
+         * @zh 六角恐龙是否正在装死。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isPlayingDead() {
+            return speciesBool("playingDead");
+        }
+
+        /** Whether the axolotl came from a bucket.
+         * @zh 六角恐龙是否来自桶装。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isFromBucket() {
+            return speciesBool("fromBucket");
+        }
+    }
+
+    /** A bee: nectar and sting state.
+     * @zh 蜜蜂：花粉与蜇刺状态。 */
+    @ApiClass(name = "Bee", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.bee.Bee")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Bee extends Animal {
+
+        /** Creates the handle for one bee UUID. */
+        public Bee(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the bee is carrying nectar.
+         * @zh 蜜蜂是否携带花粉。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasNectar() {
+            return speciesBool("nectar");
+        }
+
+        /** Whether the bee has stung a player.
+         * @zh 蜜蜂是否已蜇过玩家。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasStung() {
+            return speciesBool("stung");
+        }
+    }
+
+    /** A fox: sitting state.
+     * @zh 狐狸：坐下状态。 */
+    @ApiClass(name = "Fox", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.fox.Fox")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Fox extends Animal {
+
+        /** Creates the handle for one fox UUID. */
+        public Fox(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the fox is sitting.
+         * @zh 狐狸是否正在坐下。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isSitting() {
+            return speciesBool("sitting");
+        }
+    }
+
+    /** A frog: variant.
+     * @zh 青蛙：变体。 */
+    @ApiClass(name = "Frog", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.frog.Frog")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Frog extends Animal {
+
+        /** Creates the handle for one frog UUID. */
+        public Frog(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The variant identifier.
+         * @zh 变体标识。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getVariant() {
+            return speciesString("variant");
+        }
+    }
+
+    /** A goat: horn state and screaming variant.
+     * @zh 山羊：角状态与尖叫变体。 */
+    @ApiClass(name = "Goat", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.goat.Goat")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Goat extends Animal {
+
+        /** Creates the handle for one goat UUID. */
+        public Goat(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the left horn is present.
+         * @zh 是否有左角。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasLeftHorn() {
+            return speciesBool("leftHorn");
+        }
+
+        /** Whether the right horn is present.
+         * @zh 是否有右角。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasRightHorn() {
+            return speciesBool("rightHorn");
+        }
+
+        /** Whether this is a screaming goat.
+         * @zh 是否为尖叫山羊。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isScreamingGoat() {
+            return speciesBool("screaming");
+        }
+    }
+
+    /** A panda: gene pair and behavior states.
+     * @zh 熊猫：基因对与行为状态。 */
+    @ApiClass(name = "Panda", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.panda.Panda")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Panda extends Animal {
+
+        /** Creates the handle for one panda UUID. */
+        public Panda(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The main gene identifier.
+         * @zh 主基因标识。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getMainGene() {
+            return speciesString("mainGene");
+        }
+
+        /** The hidden gene identifier.
+         * @zh 隐性基因标识。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getHiddenGene() {
+            return speciesString("hiddenGene");
+        }
+
+        /** Whether the panda is sneezing.
+         * @zh 熊猫是否正在打喷嚏。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isSneezing() {
+            return speciesBool("sneezing");
+        }
+
+        /** Whether the panda is lying on its back.
+         * @zh 熊猫是否正四脚朝天。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isOnBack() {
+            return speciesBool("onBack");
+        }
+
+        /** Whether the panda is eating.
+         * @zh 熊猫是否正在进食。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isEating() {
+            return speciesBool("eating");
+        }
+
+        /** Whether the panda is the lazy variant.
+         * @zh 熊猫是否为懒性变体。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isLazy() {
+            return speciesBool("lazy");
+        }
+    }
+
+    /** A parrot: variant.
+     * @zh 鹦鹉：变体。 */
+    @ApiClass(name = "Parrot", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.parrot.Parrot")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Parrot extends Animal {
+
+        /** Creates the handle for one parrot UUID. */
+        public Parrot(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The variant identifier.
+         * @zh 变体标识。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getVariant() {
+            return speciesString("variant");
+        }
+    }
+
+    /** A polar bear: standing state.
+     * @zh 北极熊：站立状态。 */
+    @ApiClass(name = "PolarBear", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.polarbear.PolarBear")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class PolarBear extends Animal {
+
+        /** Creates the handle for one polar bear UUID. */
+        public PolarBear(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the polar bear is standing on its hind legs.
+         * @zh 北极熊是否以后腿站立。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isStanding() {
+            return speciesBool("standing");
+        }
+    }
+
+    /** A shulker: shell color.
+     * @zh 潜影贝：壳颜色。 */
+    @ApiClass(name = "Shulker", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.Shulker")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Shulker extends Mob {
+
+        /** Creates the handle for one shulker UUID. */
+        public Shulker(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The shell color identifier, or undefined for the default shell.
+         * @zh 壳颜色标识；默认壳为 undefined。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getColor() {
+            return speciesString("color");
+        }
+    }
+
+    /** A snow golem: pumpkin hat state.
+     * @zh 雪傀儡：南瓜头状态。 */
+    @ApiClass(name = "SnowGolem", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.golem.SnowGolem")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class SnowGolem extends Mob {
+
+        /** Creates the handle for one snow golem UUID. */
+        public SnowGolem(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the pumpkin hat is still on.
+         * @zh 是否仍戴着南瓜头。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasPumpkin() {
+            return speciesBool("pumpkin");
+        }
+    }
+
+    /** A turtle: egg-laying state.
+     * @zh 海龟：产卵状态。 */
+    @ApiClass(name = "Turtle", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.turtle.Turtle")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Turtle extends Animal {
+
+        /** Creates the handle for one turtle UUID. */
+        public Turtle(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the turtle is carrying eggs.
+         * @zh 海龟是否携带卵。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasEgg() {
+            return speciesBool("hasEgg");
+        }
+    }
+
+    /** A vex: charging attack state.
+     * @zh 恼鬼：冲锋攻击状态。 */
+    @ApiClass(name = "Vex", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.Vex")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Vex extends Mob {
+
+        /** Creates the handle for one vex UUID. */
+        public Vex(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the vex is charging its attack.
+         * @zh 恼鬼是否正在蓄力攻击。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isCharging() {
+            return speciesBool("charging");
+        }
+    }
+
+    /** A witch: potion-drinking state.
+     * @zh 女巫：喝药状态。 */
+    @ApiClass(name = "Witch", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.Witch")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Witch extends Mob {
+
+        /** Creates the handle for one witch UUID. */
+        public Witch(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the witch is drinking a potion.
+         * @zh 女巫是否正在喝药。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isDrinkingPotion() {
+            return speciesBool("drinkingPotion");
+        }
+    }
+
+    /** A dolphin: moisture level.
+     * @zh 海豚：湿润度。 */
+    @ApiClass(name = "Dolphin", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.dolphin.Dolphin")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Dolphin extends Mob {
+
+        /** Creates the handle for one dolphin UUID. */
+        public Dolphin(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The moisture level (max 2400; dries out on land).
+         * @zh 湿润度（上限 2400；离水后下降）。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getMoistness() {
+            return speciesInt("moistness");
+        }
+    }
+
+    /** A warden: anger level.
+     * @zh 监守者：愤怒等级。 */
+    @ApiClass(name = "Warden", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.warden.Warden")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Warden extends Mob {
+
+        /** Creates the handle for one warden UUID. */
+        public Warden(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The anger level identifier (calmed, agitated, angry or furious).
+         * @zh 愤怒等级标识（calmed/agitated/angry/furious）。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getAngerLevel() {
+            return speciesString("angerLevel");
+        }
+    }
+
+    /** A drowned.
+     * @zh 溺尸。 */
+    @ApiClass(name = "Drowned", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.zombie.Drowned")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class Drowned extends Zombie {
+
+        /** Creates the handle for one drowned UUID. */
+        public Drowned(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** A zombie villager: profession state rides the trade batch.
+     * @zh 僵尸村民：职业状态随交易批落地。 */
+    @ApiClass(name = "ZombieVillager", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.zombie.ZombieVillager")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class ZombieVillager extends Zombie {
+
+        /** Creates the handle for one zombie villager UUID. */
+        public ZombieVillager(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** A zombified piglin.
+     * @zh 僵尸猪灵。 */
+    @ApiClass(name = "ZombifiedPiglin", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.zombie.ZombifiedPiglin")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class ZombifiedPiglin extends Zombie {
+
+        /** Creates the handle for one zombified piglin UUID. */
+        public ZombifiedPiglin(UUID uuid) {
+            super(uuid);
         }
     }
 }

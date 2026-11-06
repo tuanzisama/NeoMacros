@@ -23,6 +23,15 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
         replace("world.entity.animal.golem.IronGolem", "world.entity.animal.IronGolem")
         replace("world.entity.monster.spider.Spider", "world.entity.monster.Spider")
         replace("world.entity.animal.rabbit.Rabbit", "world.entity.animal.Rabbit")
+        replace("world.entity.animal.fox.Fox", "world.entity.animal.Fox")
+        replace("world.entity.animal.panda.Panda", "world.entity.animal.Panda")
+        replace("world.entity.animal.parrot.Parrot", "world.entity.animal.Parrot")
+        replace("world.entity.animal.polarbear.PolarBear", "world.entity.animal.PolarBear")
+        replace("world.entity.animal.golem.SnowGolem", "world.entity.animal.SnowGolem")
+        replace("world.entity.animal.turtle.Turtle", "world.entity.animal.Turtle")
+        replace("world.entity.animal.dolphin.Dolphin", "world.entity.animal.Dolphin")
+
+        replace("world.entity.animal.bee.Bee", "world.entity.animal.Bee")
     }
     // Pre-1.21.11 nodes.
     replacements.string(current.parsed < "1.21.11") {
