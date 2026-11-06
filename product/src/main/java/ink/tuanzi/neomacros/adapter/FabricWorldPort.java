@@ -3,21 +3,29 @@ package ink.tuanzi.neomacros.adapter;
 import ink.tuanzi.neomacros.port.WorldPort;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
+import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.RayHit;
 import ink.tuanzi.neomacros.port.model.RayOptions;
-import ink.tuanzi.neomacros.port.model.BlockData;
+import ink.tuanzi.neomacros.port.model.ScoreboardData;
+import ink.tuanzi.neomacros.port.model.TabListData;
+import ink.tuanzi.neomacros.port.model.TpsData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -168,5 +176,160 @@ public final class FabricWorldPort implements WorldPort {
                     (int) Math.floor(pos.y()), (int) Math.floor(pos.z()));
             return java.util.Optional.of(level.getBlockState(blockPos));
         });
+    }
+
+    @Override
+    public String levelName() {
+        return MainThread.run(() -> {
+            ServerData serverData = Minecraft.getInstance().getCurrentServer();
+            if (serverData != null) {
+                return serverData.name != null && !serverData.name.isBlank()
+                        ? serverData.name : serverData.ip;
+            }
+            var integrated = Minecraft.getInstance().getSingleplayerServer();
+            if (integrated != null) {
+                String levelId = ink.tuanzi.neomacros.adapter.mixin.ServerStorageAccessor
+                        .levelId(integrated);
+                return levelId != null ? levelId : "";
+            }
+            return "";
+        });
+    }
+
+    @Override
+    public int moonPhase() {
+        ClientLevel level = MainThread.run(() -> Minecraft.getInstance().level);
+        if (level == null) {
+            return 0;
+        }
+        //? if <26.1 {
+        /* return (int) ((level.getDayTime() / 24000L % 8L + 8L) % 8L); */
+        //?}
+        //? if >=26.1 {
+        return level.environmentAttributes().getDimensionValue(
+                net.minecraft.world.attribute.EnvironmentAttributes.MOON_PHASE).index();
+        //?}
+    }
+
+    @Override
+    public Optional<TabListData> tabList() {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            var connection = Minecraft.getInstance().getConnection();
+            if (level == null || connection == null) {
+                return Optional.empty();
+            }
+            List<TabListData.TabListEntry> entries = new ArrayList<>();
+            for (var info : connection.getListedOnlinePlayers()) {
+                var profile = info.getProfile();
+                Component tabName = info.getTabListDisplayName();
+                entries.add(new TabListData.TabListEntry(
+                        profile.id().toString(),
+                        profile.name(),
+                        info.getLatency(),
+                        info.getGameMode().getName(),
+                        tabName != null ? tabName.getString() : null));
+            }
+            return Optional.of(new TabListData(ink.tuanzi.neomacros.adapter.TabListTracker.header(),
+                    ink.tuanzi.neomacros.adapter.TabListTracker.footer(), entries));
+        });
+    }
+
+    @Override
+    public List<BossBarSnapshot> bossBars() {
+        return MainThread.run(ink.tuanzi.neomacros.adapter.BossbarHub::snapshot);
+    }
+
+    @Override
+    public Optional<ScoreboardData> scoreboards() {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return Optional.empty();
+            }
+            var scoreboard = level.getScoreboard();
+            List<ScoreboardData.ObjectiveData> objectives = new ArrayList<>();
+            List<ScoreboardData.ScoreEntryData> scores = new ArrayList<>();
+            for (var objective : scoreboard.getObjectives()) {
+                String name = objective.getName();
+                objectives.add(new ScoreboardData.ObjectiveData(name,
+                        objective.getDisplayName().getString(),
+                        objective.getCriteria().getName(),
+                        objective.getRenderType().getSerializedName()));
+                for (var entry : scoreboard.listPlayerScores(objective)) {
+                    scores.add(new ScoreboardData.ScoreEntryData(name,
+                            entry.owner(), entry.value()));
+                }
+            }
+            return Optional.of(new ScoreboardData(objectives, scores));
+        });
+    }
+
+    @Override
+    public Optional<TpsData> tps() {
+        return Optional.ofNullable(ink.tuanzi.neomacros.adapter.TpsTracker.snapshot());
+    }
+
+    @Override
+    public void playSound(String soundId, Pos3d pos, double volume, double pitch) {
+        Identifier id = resolveIdentifier(soundId);
+        if (id == null) {
+            throw new IllegalArgumentException("invalid sound id: " + soundId);
+        }
+        var event = BuiltInRegistries.SOUND_EVENT.getValue(id);
+        if (event == null) {
+            throw new IllegalArgumentException("unknown sound: " + soundId);
+        }
+        MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (pos != null && level != null) {
+                level.playLocalSound(pos.x(), pos.y(), pos.z(), event,
+                        net.minecraft.sounds.SoundSource.NEUTRAL,
+                        (float) volume, (float) pitch, false);
+            } else {
+                Minecraft.getInstance().getSoundManager().play(
+                        net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                                event, (float) pitch, (float) volume));
+            }
+            return null;
+        });
+    }
+
+    @Override
+    public void spawnParticle(String particleId, Pos3d pos, int count, Pos3d offset,
+            double speed) {
+        Identifier id = resolveIdentifier(particleId);
+        if (id == null) {
+            throw new IllegalArgumentException("invalid particle id: " + particleId);
+        }
+        var type = BuiltInRegistries.PARTICLE_TYPE.getValue(id);
+        if (!(type instanceof net.minecraft.core.particles.SimpleParticleType simple)) {
+            throw new IllegalArgumentException(
+                    "particle requires data options: " + particleId);
+        }
+        MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return null;
+            }
+            for (int i = 0; i < Math.max(1, count); i++) {
+                double dx = (Math.random() * 2 - 1) * offset.x();
+                double dy = (Math.random() * 2 - 1) * offset.y();
+                double dz = (Math.random() * 2 - 1) * offset.z();
+                level.addParticle(simple, pos.x() + dx, pos.y() + dy, pos.z() + dz,
+                        speed, speed, speed);
+            }
+            return null;
+        });
+    }
+
+    /** Parses a script identifier, defaulting the namespace to minecraft. */
+    private static Identifier resolveIdentifier(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return raw.indexOf(':') >= 0
+                ? Identifier.tryParse(raw)
+                : Identifier.withDefaultNamespace(raw);
     }
 }

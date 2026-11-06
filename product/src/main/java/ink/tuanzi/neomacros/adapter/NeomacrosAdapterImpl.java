@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.adapter;
 
 import ink.tuanzi.neomacros.port.ChatPort;
+import ink.tuanzi.neomacros.port.ClientPort;
 import ink.tuanzi.neomacros.port.Draw3DPort;
 import ink.tuanzi.neomacros.port.InputPort;
 import ink.tuanzi.neomacros.port.InventoryPort;

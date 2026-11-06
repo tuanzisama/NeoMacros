@@ -29,25 +29,26 @@ public abstract class BossUpdateMixin {
                         boolean darkenedScreen, boolean worldScreenEffects,
                         boolean createWorldFog) {
                     BossbarHub.fire(new BossbarHub.BossbarData(
-                            id.toString(), "add", name.getString(), progress));
+                            id.toString(), "add", name.getString(), progress,
+                            color.getSerializedName()));
                 }
 
                 @Override
                 public void remove(UUID id) {
                     BossbarHub.fire(new BossbarHub.BossbarData(
-                            id.toString(), "remove", null, null));
+                            id.toString(), "remove", null, null, null));
                 }
 
                 @Override
                 public void updateProgress(UUID id, float progress) {
                     BossbarHub.fire(new BossbarHub.BossbarData(
-                            id.toString(), "updateProgress", null, progress));
+                            id.toString(), "updateProgress", null, progress, null));
                 }
 
                 @Override
                 public void updateName(UUID id, Component name) {
                     BossbarHub.fire(new BossbarHub.BossbarData(
-                            id.toString(), "updateName", name.getString(), null));
+                            id.toString(), "updateName", name.getString(), null, null));
                 }
 
                 @Override
@@ -55,14 +56,15 @@ public abstract class BossUpdateMixin {
                         net.minecraft.world.BossEvent.BossBarColor color,
                         net.minecraft.world.BossEvent.BossBarOverlay overlay) {
                     BossbarHub.fire(new BossbarHub.BossbarData(
-                            id.toString(), "updateStyle", null, null));
+                            id.toString(), "updateStyle", null, null,
+                            color.getSerializedName()));
                 }
 
                 @Override
                 public void updateProperties(UUID id, boolean darkenedScreen,
                         boolean worldScreenEffects, boolean createWorldFog) {
                     BossbarHub.fire(new BossbarHub.BossbarData(
-                            id.toString(), "updateProperties", null, null));
+                            id.toString(), "updateProperties", null, null, null));
                 }
             });
         } catch (Exception ignored) {

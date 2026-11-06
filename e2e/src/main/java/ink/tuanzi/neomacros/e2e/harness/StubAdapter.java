@@ -14,10 +14,14 @@ import ink.tuanzi.neomacros.port.PlayerPort;
 import ink.tuanzi.neomacros.port.WorldPort;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
+import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
 import ink.tuanzi.neomacros.port.model.ChatComponent;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
 import ink.tuanzi.neomacros.port.model.Pos3d;
+import ink.tuanzi.neomacros.port.model.ScoreboardData;
+import ink.tuanzi.neomacros.port.model.TabListData;
+import ink.tuanzi.neomacros.port.model.TpsData;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -395,6 +399,14 @@ public final class StubAdapter implements NeomacrosAdapter {
         boolean raining;
         BlockData blockAt;
         BlockInteraction raycastHit;
+        String levelName = "";
+        int moonPhase;
+        TabListData tabList;
+        ScoreboardData scoreboard;
+        TpsData tps;
+        final List<BossBarSnapshot> bossBars = new ArrayList<>();
+        final List<String> playedSounds = new ArrayList<>();
+        final List<String> spawnedParticles = new ArrayList<>();
 
         /** Sets the canned block returned for any blockAt query. */
         public void setBlock(BlockData block) {
@@ -432,6 +444,47 @@ public final class StubAdapter implements NeomacrosAdapter {
             return Optional.ofNullable(raycastHit).map(hit ->
                     new ink.tuanzi.neomacros.port.model.RayHit(
                             new BlockData(hit.id(), hit.pos()), null, hit.pos(), 0));
+        }
+
+        @Override
+        public String levelName() {
+            return levelName;
+        }
+
+        @Override
+        public int moonPhase() {
+            return moonPhase;
+        }
+
+        @Override
+        public Optional<TabListData> tabList() {
+            return Optional.ofNullable(tabList);
+        }
+
+        @Override
+        public List<BossBarSnapshot> bossBars() {
+            return List.copyOf(bossBars);
+        }
+
+        @Override
+        public Optional<ScoreboardData> scoreboards() {
+            return Optional.ofNullable(scoreboard);
+        }
+
+        @Override
+        public Optional<TpsData> tps() {
+            return Optional.ofNullable(tps);
+        }
+
+        @Override
+        public void playSound(String soundId, Pos3d pos, double volume, double pitch) {
+            playedSounds.add(soundId);
+        }
+
+        @Override
+        public void spawnParticle(String particleId, Pos3d pos, int count, Pos3d offset,
+                double speed) {
+            spawnedParticles.add(particleId);
         }
     }
 

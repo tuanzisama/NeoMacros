@@ -50,12 +50,11 @@ public final class FabricPlayerPort implements PlayerPort {
             if (player == null || entity == null) {
                 throw new IllegalStateException("target entity is not loaded: " + target.uuid());
             }
-            //? if <26.1 {
-            /* Minecraft.getInstance().gameMode.attack(player, entity);
-            player.swing(InteractionHand.MAIN_HAND); */
-            //?}
-            //? if >=26.1 {
             Minecraft.getInstance().gameMode.attack(player, entity);
+            //? if <26.3 {
+            /* player.swing(InteractionHand.MAIN_HAND); */
+            //?}
+            //? if >=26.3 {
             player.swing(net.minecraft.world.InteractionHand.MAIN_HAND,
                     net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
             //?}
@@ -112,10 +111,10 @@ public final class FabricPlayerPort implements PlayerPort {
             if (player == null) {
                 return;
             }
-            //? if <26.1 {
+            //? if <26.3 {
             /* player.swing(InteractionHand.MAIN_HAND); */
             //?}
-            //? if >=26.1 {
+            //? if >=26.3 {
             player.swing(net.minecraft.world.InteractionHand.MAIN_HAND,
                     net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
             //?}
@@ -177,11 +176,14 @@ public final class FabricPlayerPort implements PlayerPort {
     /** Creates the port and hooks the Fabric client interaction callbacks. */
     public FabricPlayerPort() {
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) ->
-                verdict(shouldFail(attackBlockSinks, blockHit(world, pos))));
+                verdict(shouldFail(attackBlockSinks,
+                        blockHit(world, pos, direction.getName()))));
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) ->
                 verdict(shouldFail(attackEntitySinks, FabricEntityPort.snapshotOf(entity))));
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) ->
-                verdict(shouldFail(interactBlockSinks, blockHit(world, hitResult.getBlockPos()))));
+                verdict(shouldFail(interactBlockSinks,
+                        blockHit(world, hitResult.getBlockPos(),
+                                hitResult.getDirection().getName()))));
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) ->
                 verdict(shouldFail(interactEntitySinks, FabricEntityPort.snapshotOf(entity))));
     }

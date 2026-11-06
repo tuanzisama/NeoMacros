@@ -58,6 +58,8 @@ public final class FabricLifecyclePort implements LifecyclePort {
             for (Runnable sink : worldLeaveSinks) {
                 runSafely("world-leave", sink);
             }
+            TabListTracker.clear();
+            BossbarHub.clear();
         });
     }
 

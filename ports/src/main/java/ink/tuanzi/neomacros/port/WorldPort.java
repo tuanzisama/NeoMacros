@@ -1,9 +1,13 @@
 package ink.tuanzi.neomacros.port;
 
 import ink.tuanzi.neomacros.port.model.BlockData;
+import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.RayHit;
 import ink.tuanzi.neomacros.port.model.RayOptions;
+import ink.tuanzi.neomacros.port.model.ScoreboardData;
+import ink.tuanzi.neomacros.port.model.TabListData;
+import ink.tuanzi.neomacros.port.model.TpsData;
 
 import java.util.Optional;
 
@@ -71,5 +75,51 @@ public interface WorldPort {
      */
     default java.util.Optional<Object> rawByPos(Pos3d pos) {
         return java.util.Optional.empty();
+    }
+
+    /** Returns the loaded save or server name, empty string without a world. */
+    default String levelName() {
+        return "";
+    }
+
+    /** Returns the current moon phase index (0 = full moon, 4 = new moon). */
+    default int moonPhase() {
+        return 0;
+    }
+
+    /** Returns the client tab list snapshot, or empty without a world. */
+    default java.util.Optional<TabListData> tabList() {
+        return java.util.Optional.empty();
+    }
+
+    /** Returns the boss bars currently displayed, empty list when none. */
+    default java.util.List<BossBarSnapshot> bossBars() {
+        return java.util.List.of();
+    }
+
+    /** Returns the client scoreboard snapshot, or empty without a world. */
+    default java.util.Optional<ScoreboardData> scoreboards() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the remote tick rate estimate sampled from time sync packets,
+     * or empty before the first sample.
+     */
+    default java.util.Optional<TpsData> tps() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Plays a sound locally: world-positioned when the world is loaded with a
+     * position, otherwise through the UI sound channel. Position may be null
+     * for the UI channel.
+     */
+    default void playSound(String soundId, Pos3d pos, double volume, double pitch) {
+    }
+
+    /** Spawns particles locally around the position. */
+    default void spawnParticle(String particleId, Pos3d pos, int count, Pos3d offset,
+            double speed) {
     }
 }

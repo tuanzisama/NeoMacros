@@ -96,14 +96,15 @@ public final class FabricEntityPort implements EntityPort {
                 new Rot2d(entity.getYRot(), entity.getXRot()),
                 entity.getEyeHeight(),
                 entity.onGround(), entity.isShiftKeyDown(), entity.isSprinting(),
-                entity.isSwimming(), entity.isFallFlying(),
+                entity.isSwimming(), livingEntity != null && livingEntity.isFallFlying(),
                 entity.isInWater(), entity.isInLava(), entity.isOnFire(),
                 entity.getPose() != null
                         ? entity.getPose().name().toLowerCase(java.util.Locale.ROOT) : "standing",
                 facingOf(entity),
                 entity.level() != null ? entity.level().dimension().toString() : "",
-                new AabbData(new Pos3d(bb.getMinX(), bb.getMinY(), bb.getMinZ()),
-                        new Pos3d(bb.getMaxX(), bb.getMaxY(), bb.getMaxZ())),
+                // 26.x official names: AABB exposes public final fields
+                new AabbData(new Pos3d(bb.minX, bb.minY, bb.minZ),
+                        new Pos3d(bb.maxX, bb.maxY, bb.maxZ)),
                 List.copyOf(passengers),
                 vehicle != null ? vehicle.getUUID() : null,
                 held, offhand, living);

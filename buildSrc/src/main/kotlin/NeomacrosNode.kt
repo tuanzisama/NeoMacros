@@ -27,13 +27,21 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
         // Level/ResourceKey accessor renames.
         replace("getDefaultClockTime()", "getDayTime()")
         replace("dimension().identifier()", "dimension().location()")
+        // GameProfile keeps bean-style accessors on the old authlib line.
+        replace("profile.id()", "profile.getId()")
+        replace("profile.name()", "profile.getName()")
         // Minecraft renamed ResourceLocation to Identifier in 1.21.11; this
         // blanket rename must stay last within the block.
         replace("Identifier", "ResourceLocation")
     }
-    // 26.3 renamed the keyboard input type constant.
+    // 26.3 renamed the keyboard input type constant and moved held-item
+    // dropping onto the interaction mode.
     replacements.string(current.parsed < "26.3") {
         replace("InputConstants.Type.KEYBOARD", "InputConstants.Type.KEYSYM")
+        replace(
+            "Minecraft.getInstance().gameMode.dropItem(player, all);",
+            "player.drop(all);",
+        )
     }
     // Before 26.2 the chat surface and the overlay message lived on Gui
     // directly; 26.2 moved both under the hud sub-panel.

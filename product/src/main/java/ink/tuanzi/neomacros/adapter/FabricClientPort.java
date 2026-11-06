@@ -16,7 +16,8 @@ public final class FabricClientPort implements ClientPort {
 
     @Override
     public String gameVersion() {
-        return MainThread.run(() -> SharedConstants.getCurrentVersion().getName());
+        // 26.x official names: WorldVersion accessors are record-style
+        return MainThread.run(() -> SharedConstants.getCurrentVersion().name());
     }
 
     @Override
