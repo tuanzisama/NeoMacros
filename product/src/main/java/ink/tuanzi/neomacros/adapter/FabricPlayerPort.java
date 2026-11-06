@@ -282,4 +282,62 @@ public final class FabricPlayerPort implements PlayerPort {
     public java.util.Optional<Object> rawSelf() {
         return java.util.Optional.ofNullable(Minecraft.getInstance().player);
     }
+
+    @Override
+    public java.util.Map<String, Integer> statistics() {
+        return MainThread.run(() -> {
+            LocalPlayer player = Minecraft.getInstance().player;
+            if (player == null) {
+                return java.util.Map.of();
+            }
+            var counter = player.getStats();
+            java.util.Map<String, Integer> out = new java.util.LinkedHashMap<>();
+            for (net.minecraft.stats.StatType<?> type : BuiltInRegistries.STAT_TYPE) {
+                collectStats(counter, type, out);
+            }
+            return out;
+        });
+    }
+
+    /** Collects the non-zero values of one stat type into the map. */
+    @SuppressWarnings("unchecked")
+    private static void collectStats(net.minecraft.stats.StatsCounter counter,
+            net.minecraft.stats.StatType<?> type, java.util.Map<String, Integer> out) {
+        var registry = (net.minecraft.core.Registry<Object>) type.getRegistry();
+        String typeId = BuiltInRegistries.STAT_TYPE.getKey(type).toString();
+        for (Object value : registry) {
+            int count = counter.getValue(
+                    (net.minecraft.stats.StatType<Object>) type, value);
+            if (count != 0) {
+                out.put(typeId + ":" + registry.getKey(value), count);
+            }
+        }
+    }
+
+    @Override
+    public double blockInteractionRange() {
+        Double range = MainThread.run(() -> {
+            LocalPlayer player = Minecraft.getInstance().player;
+            return player != null ? player.blockInteractionRange() : 0;
+        });
+        return range != null ? range : 0;
+    }
+
+    @Override
+    public double entityInteractionRange() {
+        Double range = MainThread.run(() -> {
+            LocalPlayer player = Minecraft.getInstance().player;
+            return player != null ? player.entityInteractionRange() : 0;
+        });
+        return range != null ? range : 0;
+    }
+
+    @Override
+    public boolean isBreakingBlock() {
+        Boolean breaking = MainThread.run(() -> {
+            var gameMode = Minecraft.getInstance().gameMode;
+            return gameMode != null && gameMode.isDestroying();
+        });
+        return Boolean.TRUE.equals(breaking);
+    }
 }

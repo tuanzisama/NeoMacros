@@ -161,6 +161,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("RayHit", ink.tuanzi.neomacros.core.api.types.RayHit.class);
         registry.registerGuestType("ItemStack", ink.tuanzi.neomacros.core.api.types.ItemStack.class);
         registry.registerGuestType("ItemStackBuilder", ink.tuanzi.neomacros.core.api.types.ItemStackBuilder.class);
+        registry.registerGuestType("Image", ink.tuanzi.neomacros.core.api.types.Image.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
         registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
         registry.registerGuestType("ItemEntity", EntityApi.ItemEntity.class);
@@ -206,6 +207,21 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             @Override
             public void injectBind(String bindName, boolean down) {
                 adapter.input().injectBind(bindName, down);
+            }
+
+            @Override
+            public boolean bindDown(String bindName) {
+                return adapter.input().bindDown(bindName);
+            }
+
+            @Override
+            public java.util.List<ink.tuanzi.neomacros.port.model.KeybindData> keybinds() {
+                return adapter.input().keybinds();
+            }
+
+            @Override
+            public void setBind(String bindName, String keyName) {
+                adapter.input().setBind(bindName, keyName);
             }
         }, inputDelayer);
         registry.registerInstance(inputApi);

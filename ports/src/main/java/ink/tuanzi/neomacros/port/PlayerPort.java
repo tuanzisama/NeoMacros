@@ -105,4 +105,27 @@ public interface PlayerPort {
     default java.util.Optional<Object> rawSelf() {
         return java.util.Optional.empty();
     }
+
+    /**
+     * Returns the client-side statistics as {@code statTypeId:valueId ->
+     * value} entries; only non-zero values appear. Empty without a world.
+     */
+    default java.util.Map<String, Integer> statistics() {
+        return java.util.Map.of();
+    }
+
+    /** Returns the block interaction range in blocks. */
+    default double blockInteractionRange() {
+        return 0;
+    }
+
+    /** Returns the entity interaction range in blocks. */
+    default double entityInteractionRange() {
+        return 0;
+    }
+
+    /** Returns whether the local player is currently breaking a block. */
+    default boolean isBreakingBlock() {
+        return false;
+    }
 }

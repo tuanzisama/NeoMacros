@@ -229,9 +229,41 @@ public final class FabricClientPort implements ClientPort {
         return Optional.of(resolved.toString());
     }
 
+    @Override
+    public java.util.concurrent.CompletableFuture<ink.tuanzi.neomacros.port.model.ImageData> screenshot() {
+        java.util.concurrent.CompletableFuture<ink.tuanzi.neomacros.port.model.ImageData> future =
+                new java.util.concurrent.CompletableFuture<>();
+        MainThread.run(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            net.minecraft.client.Screenshot.takeScreenshot(
+                    mc.gameRenderer.mainRenderTarget(), image -> {
+                java.nio.file.Path temp = null;
+                try {
+                    temp = java.nio.file.Files.createTempFile("neomacros-shot", ".png");
+                    image.writeToFile(temp);
+                    byte[] bytes = java.nio.file.Files.readAllBytes(temp);
+                    future.complete(new ink.tuanzi.neomacros.port.model.ImageData(
+                            image.getWidth(), image.getHeight(), bytes));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                } finally {
+                    image.close();
+                    if (temp != null) {
+                        try {
+                            java.nio.file.Files.deleteIfExists(temp);
+                        } catch (java.io.IOException ignored) {
+                            // temp cleanup is best-effort
+                        }
+                    }
+                }
+            });
+            return null;
+        });
+        return future;
+    }
+
     /** Resolves a registry kind name onto the built-in registry. */
-    private static net.minecraft.core.Registry<?> registryOf(String kind) {
-        return switch (kind == null ? "" : kind) {
+    private static net.minecraft.core.Registry<?> registryOf(String kind) {        return switch (kind == null ? "" : kind) {
             case "block" -> BuiltInRegistries.BLOCK;
             case "item" -> BuiltInRegistries.ITEM;
             case "entity_type" -> BuiltInRegistries.ENTITY_TYPE;

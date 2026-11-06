@@ -49,6 +49,22 @@ class InputApiExpansionTest {
         public void injectBind(String bindName, boolean down) {
             calls.add("bind:" + bindName + "=" + down);
         }
+
+        @Override
+        public boolean bindDown(String bindName) {
+            return false;
+        }
+
+        @Override
+        public java.util.List<ink.tuanzi.neomacros.port.model.KeybindData> keybinds() {
+            return java.util.List.of(
+                    new ink.tuanzi.neomacros.port.model.KeybindData("key.forward", "W"));
+        }
+
+        @Override
+        public void setBind(String bindName, String keyName) {
+            calls.add("rebind:" + bindName + "=" + keyName);
+        }
     }
 
     @Test

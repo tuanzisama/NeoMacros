@@ -95,6 +95,42 @@ public final class FabricChatPort implements ChatPort {
         ChatReceiveHub.register(sink);
     }
 
+    @Override
+    public void title(String title, String subtitle, Integer fadeIn, Integer stay,
+            Integer fadeOut) {
+        runOnMain(() -> {
+            Minecraft.getInstance().gui.hud.clearTitles();
+            if (title != null) {
+                Minecraft.getInstance().gui.hud.setTitle(Component.literal(title));
+            }
+            if (subtitle != null) {
+                Minecraft.getInstance().gui.hud.setSubtitle(Component.literal(subtitle));
+            }
+            if (fadeIn != null && stay != null && fadeOut != null) {
+                Minecraft.getInstance().gui.hud.setTimes(fadeIn, stay, fadeOut);
+            }
+        });
+    }
+
+    @Override
+    public void toast(String title, String message) {
+        runOnMain(() -> {
+            Component heading = Component.literal(title == null ? "" : title);
+            Component body = Component.literal(message == null ? "" : message);
+            var toast = new net.minecraft.client.gui.components.toasts.SystemToast(
+                    net.minecraft.client.gui.components.toasts.SystemToast.SystemToastId
+                            .PERIODIC_NOTIFICATION, heading, body);
+            Minecraft.getInstance().gui.toastManager().addToast(toast);
+        });
+    }
+
+    @Override
+    public int textWidth(String text) {
+        Integer width = MainThread.run(() ->
+                Minecraft.getInstance().font.width(text));
+        return width != null ? width : 0;
+    }
+
     /**
      * Marshals one GUI touch onto the game main thread and waits for it, so
      * the caller observes completion ordering. Called from context loop

@@ -27,6 +27,23 @@ public interface ChatPort {
     void onChatReceive(Consumer<ChatComponent> sink);
 
     /**
+     * Shows a title/subtitle overlay; nullable arguments skip that line and
+     * non-null durations override the vanilla fade timings in ticks.
+     */
+    default void title(String title, String subtitle, Integer fadeIn, Integer stay,
+            Integer fadeOut) {
+    }
+
+    /** Shows a system toast notification in the screen corner. */
+    default void toast(String title, String message) {
+    }
+
+    /** Returns the rendered pixel width of the text in the chat font. */
+    default int textWidth(String text) {
+        return 0;
+    }
+
+    /**
      * Prints a local chat line whose click runs a client command (trust
      * prompts and error links). Implementations without clickable-chat
      * support degrade to {@link #log(String)}.

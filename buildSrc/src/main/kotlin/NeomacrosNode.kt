@@ -43,10 +43,19 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
             "player.drop(all);",
         )
     }
-    // Before 26.2 the chat surface and the overlay message lived on Gui
-    // directly; 26.2 moved both under the hud sub-panel.
+    // Before 26.2 the chat surface, the overlay message, the title overlay,
+    // and the toast manager lived on Gui directly; 26.2 moved them under the
+    // hud sub-panel. The toast manager accessor itself renamed too.
     replacements.string(current.parsed < "26.2") {
         replace("gui.hud.getChat()", "gui.getChat()")
         replace("gui.hud.setOverlayMessage", "gui.setOverlayMessage")
+        replace("gui.hud.setTitle(", "gui.setTitle(")
+        replace("gui.hud.setSubtitle(", "gui.setSubtitle(")
+        replace("gui.hud.setTimes(", "gui.setTimes(")
+        replace("gui.hud.clearTitles()", "gui.clearTitles()")
+        replace("gui.hud.resetTitleTimes()", "gui.resetTitleTimes()")
+        replace("gui.toastManager()", "getToastManager()")
+        // The main framebuffer accessor moved onto the game renderer.
+        replace("gameRenderer.mainRenderTarget()", "getMainRenderTarget()")
     }
 }

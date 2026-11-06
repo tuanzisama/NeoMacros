@@ -52,4 +52,50 @@ public final class ChatApi {
     public void actionbar(String message) {
         ScriptApiEnvironment.adapter().chat().actionbar(message);
     }
+
+    /**
+     * Shows a title (and optional subtitle) overlay; null lines are skipped
+     * and non-null durations override the vanilla fade timings in ticks.
+     *
+     * @zh 显示标题（与可选副标题）覆盖层；null 行跳过，非 null 时长（tick）覆盖原版渐变时间。
+     * @zh-param title 主标题（可省）
+     * @zh-param subtitle 副标题（可省）
+     * @zh-param fadeIn 淡入 tick（可省）
+     * @zh-param stay 停留 tick（可省）
+     * @zh-param fadeOut 淡出 tick（可省）
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public void title(String title, String subtitle, Integer fadeIn, Integer stay,
+            Integer fadeOut) {
+        ScriptApiEnvironment.adapter().chat().title(title, subtitle, fadeIn, stay, fadeOut);
+    }
+
+    /**
+     * Shows a system toast notification in the screen corner.
+     *
+     * @zh 在屏幕角落显示系统 toast 通知。
+     * @zh-param title 标题
+     * @zh-param message 正文
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public void toast(String title, String message) {
+        ScriptApiEnvironment.adapter().chat().toast(title, message);
+    }
+
+    /**
+     * The rendered pixel width of the text in the chat font.
+     *
+     * @zh 文本在聊天字体下的渲染像素宽度。
+     * @zh-param text 文本
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public int getWidth(String text) {
+        return ScriptApiEnvironment.adapter().chat().textWidth(text);
+    }
 }

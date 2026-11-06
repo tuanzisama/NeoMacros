@@ -343,6 +343,21 @@ public final class ClientApi {
         return adapter().registryLookup(kind, id).orElse(null);
     }
 
+    /**
+     * Captures the game framebuffer as an {@code Image}; the promise resolves
+     * after the next frame read.
+     *
+     * @zh 抓取游戏画面为 {@code Image}；Promise 在下一帧读取后落定。
+     */
+    @ApiSince("0.2.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public java.util.concurrent.CompletableFuture<ink.tuanzi.neomacros.core.api.types.Image> grabScreenshot() {
+        return adapter().screenshot().thenApply(data ->
+                new ink.tuanzi.neomacros.core.api.types.Image(
+                        data.width(), data.height(), data.bytes()));
+    }
+
     /** Renders one mod as the script-facing shape. */
     private static Map<String, Object> modView(ModData mod) {
         Map<String, Object> view = new LinkedHashMap<>();

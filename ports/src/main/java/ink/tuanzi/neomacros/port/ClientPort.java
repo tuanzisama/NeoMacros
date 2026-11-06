@@ -112,6 +112,15 @@ public interface ClientPort {
     }
 
     /**
+     * Captures the main framebuffer as PNG-encoded image data, resolving on
+     * the render thread after the next frame read.
+     */
+    default CompletableFuture<ink.tuanzi.neomacros.port.model.ImageData> screenshot() {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot screenshot"));
+    }
+
+    /**
      * Returns the identifiers of one registry kind, e.g. {@code block} or
      * {@code item}; unknown kinds throw.
      */

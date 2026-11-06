@@ -54,7 +54,8 @@ final class ApiCompletenessSurface {
             PlayerApi.Inventory.class, PlayerApi.PlayerInventory.class,
             Pos2D.class, Pos3D.class, BlockPos.class, ChunkPos.class,
             Block.class, BlockState.class, RayHit.class,
-            ItemStack.class, ItemStackBuilder.class, TimerHandle.class);
+            ItemStack.class, ItemStackBuilder.class,
+            ink.tuanzi.neomacros.core.api.types.Image.class, TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */
     static final List<Class<?>> EVENTS =

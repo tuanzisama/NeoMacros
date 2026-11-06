@@ -266,6 +266,51 @@ public final class PlayerApi {
             super(uuid);
         }
 
+        /**
+         * The client-side statistics as {@code statTypeId:valueId -> value}
+         * entries; only non-zero values appear. {@code null} without a world.
+         *
+         * @zh 客户端统计 {@code 类型id:条目id -> 数值}；仅含非零值；无世界时为 null。
+         */
+        @ApiSince("0.2.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Map<String, Integer> getStatistics() {
+            Map<String, Integer> stats = adapter().statistics();
+            return stats.isEmpty() ? null : stats;
+        }
+
+        /** The block interaction range in blocks.
+         * @zh 方块交互距离（格）。 */
+        @ApiSince("0.2.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public double getBlockInteractionRange() {
+            return adapter().blockInteractionRange();
+        }
+
+        /** The entity interaction range in blocks.
+         * @zh 实体交互距离（格）。 */
+        @ApiSince("0.2.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public double getEntityInteractionRange() {
+            return adapter().entityInteractionRange();
+        }
+
+        /** Whether the local player is currently breaking a block.
+         * @zh 本地玩家是否正在挖掘方块。 */
+        @ApiSince("0.2.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public boolean isBreakingBlock() {
+            return adapter().isBreakingBlock();
+        }
+
         /** Attacks the entity behind the target handle.
          * @zh 攻击目标句柄背后的实体。 */
         @ApiSince("0.1.0")

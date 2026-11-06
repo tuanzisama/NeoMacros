@@ -77,4 +77,19 @@ public interface InputPort {
     default boolean fireKeyPress(KeyPressEdge edge) {
         return false;
     }
+
+    /** Returns whether the vanilla keybind is currently held down. */
+    default boolean bindDown(String bindName) {
+        return false;
+    }
+
+    /** Returns the vanilla keybind rows in registration order. */
+    default java.util.List<ink.tuanzi.neomacros.port.model.KeybindData> keybinds() {
+        return java.util.List.of();
+    }
+
+    /** Rebinds one vanilla keybind to the key description ({@code key.keyboard.w}). */
+    default void setBind(String bindName, String keyName) {
+        throw new UnsupportedOperationException("bind reassignment");
+    }
 }

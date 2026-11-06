@@ -193,4 +193,53 @@ public final class FabricInputPort implements ink.tuanzi.neomacros.port.InputPor
             }
         }
     }
+
+    @Override
+    public boolean bindDown(String bindName) {
+        KeyMapping mapping = vanillaBind(bindName);
+        return mapping != null && mapping.isDown();
+    }
+
+    @Override
+    public List<ink.tuanzi.neomacros.port.model.KeybindData> keybinds() {
+        List<ink.tuanzi.neomacros.port.model.KeybindData> rows = new java.util.ArrayList<>();
+        var options = net.minecraft.client.Minecraft.getInstance().options;
+        if (options == null) {
+            return rows;
+        }
+        for (KeyMapping mapping : options.keyMappings) {
+            rows.add(new ink.tuanzi.neomacros.port.model.KeybindData(
+                    mapping.getName(),
+                    mapping.getTranslatedKeyMessage().getString()));
+        }
+        return rows;
+    }
+
+    @Override
+    public void setBind(String bindName, String keyName) {
+        KeyMapping mapping = vanillaBind(bindName);
+        if (mapping == null) {
+            throw new IllegalArgumentException("unknown keybind: " + bindName);
+        }
+        var key = InputConstants.getKey(keyName);
+        if (key == null || key == InputConstants.UNKNOWN) {
+            throw new IllegalArgumentException("invalid key: " + keyName);
+        }
+        mapping.setKey(key);
+        KeyMapping.resetMapping();
+    }
+
+    /** Finds one vanilla keybind by name, or null. */
+    private static KeyMapping vanillaBind(String bindName) {
+        var options = net.minecraft.client.Minecraft.getInstance().options;
+        if (options == null) {
+            return null;
+        }
+        for (KeyMapping mapping : options.keyMappings) {
+            if (mapping.getName().equals(bindName)) {
+                return mapping;
+            }
+        }
+        return null;
+    }
 }
