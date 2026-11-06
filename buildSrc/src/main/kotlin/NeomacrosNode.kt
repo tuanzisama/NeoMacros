@@ -32,6 +32,16 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
         replace("world.entity.animal.dolphin.Dolphin", "world.entity.animal.Dolphin")
 
         replace("world.entity.animal.bee.Bee", "world.entity.animal.Bee")
+        replace("world.entity.animal.cow.Cow", "world.entity.animal.Cow")
+        replace("world.entity.animal.fish.AbstractSchoolingFish", "world.entity.animal.AbstractSchoolingFish")
+        replace("world.entity.animal.fish.AbstractFish", "world.entity.animal.AbstractFish")
+        replace("world.entity.animal.fish.Salmon", "world.entity.animal.Salmon")
+        replace("world.entity.animal.fish.Pufferfish", "world.entity.animal.Pufferfish")
+        replace("world.entity.animal.fish.TropicalFish", "world.entity.animal.TropicalFish")
+        replace("world.entity.animal.fish.Cod", "world.entity.animal.Cod")
+        replace("world.entity.monster.illager.Pillager", "world.entity.monster.Pillager")
+        replace("world.entity.monster.illager.Evoker", "world.entity.monster.Evoker")
+        replace("world.entity.npc.wanderingtrader.WanderingTrader", "world.entity.npc.WanderingTrader")
     }
     // Pre-1.21.11 nodes.
     replacements.string(current.parsed < "1.21.11") {
