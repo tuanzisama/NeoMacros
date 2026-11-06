@@ -48,6 +48,23 @@ public interface InventoryPort {
         return Optional.empty();
     }
 
+    /**
+     * Reads one slot of the currently open container menu (menu slot order,
+     * not the player inventory order), or empty without an open menu.
+     */
+    default Optional<ItemStackData> menuSlot(int index) {
+        return Optional.empty();
+    }
+
+    /**
+     * Returns the live container state (e.g. furnace {@code isLit},
+     * {@code burnProgress}, {@code litProgress}) keyed by member name; an
+     * empty map for menus without state.
+     */
+    default java.util.Map<String, Object> containerState() {
+        return java.util.Map.of();
+    }
+
     /** Left/right-clicks a container slot (shift = quick move). */
     default java.util.concurrent.CompletableFuture<Void> click(
             int slot, int button, boolean shift) {

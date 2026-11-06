@@ -63,7 +63,9 @@ public final class PlayerApi {
     @ApiReadOnly
     public Inventory getOpened() {
         return inventoryPort().openedContainer()
-                .map(info -> new Inventory(info.title(), info.kind(), info.size()))
+                .map(info -> "furnace".equals(info.kind())
+                        ? (Inventory) new FurnaceInventory(info.title(), info.kind(), info.size())
+                        : new Inventory(info.title(), info.kind(), info.size()))
                 .orElse(null);
     }
 
@@ -395,6 +397,119 @@ public final class PlayerApi {
 
         PlayerInventory() {
             super("Inventory", "player", 0);
+        }
+    }
+
+    /**
+     * A furnace-family container screen: input/fuel/output slots plus the
+     * live burn state read from the open menu.
+     *
+     * @zh 熔炉族容器界面：输入/燃料/输出槽位与打开菜单的实时燃烧状态。
+     */
+    @ApiClass(name = "FurnaceInventory", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.inventory.AbstractFurnaceMenu")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class FurnaceInventory extends Inventory {
+
+        FurnaceInventory(String title, String kind, int size) {
+            super(title, kind, size);
+        }
+
+        /** Reads one menu slot as an item handle, or undefined. */
+        private ItemStack menuStack(int index) {
+            return inventoryPort().menuSlot(index).map(ItemStack::of).orElse(null);
+        }
+
+        /**
+         * The smelting input stack, or {@code undefined}.
+         *
+         * @zh 冶炼输入物品；为空时 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getInput() {
+            return menuStack(0);
+        }
+
+        /**
+         * The fuel stack, or {@code undefined}.
+         *
+         * @zh 燃料物品；为空时 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getFuel() {
+            return menuStack(1);
+        }
+
+        /**
+         * The smelted output stack, or {@code undefined}.
+         *
+         * @zh 冶炼产出物品；为空时 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getOutput() {
+            return menuStack(2);
+        }
+
+        /**
+         * Whether the furnace is currently burning.
+         *
+         * @zh 熔炉当前是否在燃烧。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isLit() {
+            return boolState("isLit");
+        }
+
+        /**
+         * The fuel burn progress (0-1), or {@code undefined}.
+         *
+         * @zh 燃料燃烧进度（0-1）；无则为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getBurnProgress() {
+            return floatState("burnProgress");
+        }
+
+        /**
+         * The smelting arrow progress (0-1), or {@code undefined}.
+         *
+         * @zh 冶炼箭头进度（0-1）；无则为 undefined。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getLitProgress() {
+            return floatState("litProgress");
+        }
+
+        /** Reads one boolean from the container state channel. */
+        private Boolean boolState(String key) {
+            Object value = inventoryPort().containerState().get(key);
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /** Reads one float from the container state channel. */
+        private Double floatState(String key) {
+            Object value = inventoryPort().containerState().get(key);
+            return value instanceof Number n ? n.doubleValue() : null;
         }
     }
 

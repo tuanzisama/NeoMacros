@@ -67,6 +67,7 @@ final class ApiCompletenessSurface {
             SpeciesEntities.Villager.class, SpeciesEntities.Creeper.class, SpeciesEntities.Zombie.class,
             SpeciesEntities.PrimedTnt.class, SpeciesEntities.Bat.class, SpeciesEntities.MushroomCow.class,
             Chunk.class,
+            PlayerApi.FurnaceInventory.class,
             TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */

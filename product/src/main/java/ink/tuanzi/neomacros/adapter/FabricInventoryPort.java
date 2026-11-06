@@ -87,4 +87,44 @@ public final class FabricInventoryPort implements InventoryPort {
         return net.minecraft.core.registries.BuiltInRegistries.ITEM
                 .getKey(stack.getItem()).toString();
     }
+
+    @Override
+    public java.util.Optional<ContainerInfo> openedContainer() {
+        return MainThread.run(() -> {
+            var menu = player() != null ? player().containerMenu : null;
+            if (menu == null) {
+                return java.util.Optional.empty();
+            }
+            String kind = menu.getClass().getSimpleName()
+                    .replace("Menu", "").toLowerCase(java.util.Locale.ROOT);
+            return java.util.Optional.of(new ContainerInfo(kind, kind,
+                    menu.getItems().size()));
+        });
+    }
+
+    @Override
+    public java.util.Optional<ItemStackData> menuSlot(int index) {
+        return MainThread.run(() -> {
+            var menu = player() != null ? player().containerMenu : null;
+            if (menu == null || index < 0 || index >= menu.getItems().size()) {
+                return java.util.Optional.empty();
+            }
+            return java.util.Optional.ofNullable(stackDataOf(menu.getItems().get(index)));
+        });
+    }
+
+    @Override
+    public java.util.Map<String, Object> containerState() {
+        return MainThread.run(() -> {
+            var menu = player() != null ? player().containerMenu : null;
+            if (menu instanceof net.minecraft.world.inventory.AbstractFurnaceMenu furnace) {
+                java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+                state.put("isLit", furnace.isLit());
+                state.put("burnProgress", furnace.getBurnProgress());
+                state.put("litProgress", furnace.getLitProgress());
+                return state;
+            }
+            return java.util.Map.of();
+        });
+    }
 }
