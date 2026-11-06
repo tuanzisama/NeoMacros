@@ -79,8 +79,17 @@ public final class FabricInventoryPort implements InventoryPort {
     }
 
     static ItemStackData stackDataOf(ItemStack stack) {
+        java.util.Map<String, Object> extras = new java.util.LinkedHashMap<>();
+        extras.put("maxStackSize", stack.getItem().getDefaultMaxStackSize());
+        extras.put("damageable", stack.isDamageableItem());
+        extras.put("enchantable", stack.isEnchantable());
+        extras.put("enchanted", stack.isEnchanted());
+        extras.put("edible", stack.get(net.minecraft.core.component.DataComponents.FOOD) != null);
+        Integer repairCost = stack.get(net.minecraft.core.component.DataComponents.REPAIR_COST);
+        extras.put("repairCost", repairCost != null ? repairCost : 0);
         return new ItemStackData(idOf(stack), stack.getCount(),
-                stack.getItemName().getString());
+                stack.getItemName().getString(), 0, 0, java.util.List.of(),
+                java.util.List.of(), extras);
     }
 
     private static String idOf(ItemStack stack) {

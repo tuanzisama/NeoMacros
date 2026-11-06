@@ -182,7 +182,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
             throw new IllegalStateException("item id is required");
         }
         return new ItemStack(id, count, name == null ? "" : name, damage, maxDamage,
-                lore, enchantments, unbreakable);
+                lore, enchantments, unbreakable, java.util.Map.of());
     }
 
     @Override

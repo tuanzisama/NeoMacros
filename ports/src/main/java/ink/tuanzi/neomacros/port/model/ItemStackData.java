@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.port.model;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -17,18 +18,27 @@ import java.util.Objects;
  * @param maxDamage     maximum durability (0 for undamageable items)
  * @param lore          lore lines (flattened text, in order)
  * @param enchantments enchantments in stored order
+ * @param extras        neutral item facts keyed by member name (max stack
+ *                      size, predicate flags, component values)
  */
 public record ItemStackData(String id, int count, String name, int damage, int maxDamage,
-        List<String> lore, List<EnchantmentData> enchantments) {
+        List<String> lore, List<EnchantmentData> enchantments, Map<String, Object> extras) {
 
     public ItemStackData {
         Objects.requireNonNull(id, "id cannot be null");
         lore = List.copyOf(lore == null ? List.of() : lore);
         enchantments = List.copyOf(enchantments == null ? List.of() : enchantments);
+        extras = Map.copyOf(extras == null ? Map.of() : extras);
+    }
+
+    /** Convenience constructor for stacks without item facts. */
+    public ItemStackData(String id, int count, String name, int damage, int maxDamage,
+            List<String> lore, List<EnchantmentData> enchantments) {
+        this(id, count, name, damage, maxDamage, lore, enchantments, Map.of());
     }
 
     /** Convenience constructor for id/count/name stacks (no damage data). */
     public ItemStackData(String id, int count, String name) {
-        this(id, count, name, 0, 0, List.of(), List.of());
+        this(id, count, name, 0, 0, List.of(), List.of(), Map.of());
     }
 }
