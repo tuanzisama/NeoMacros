@@ -190,6 +190,13 @@ public final class EntityApi {
          *
          * @zh 句柄背后的物种专属实时状态，按脚本成员名键控；普通实体为空映射。物种子类经此通道读取成员。
          */
+        /** The living-entity extras channel (absorption/armor/noGravity/...). */
+        protected java.util.Map<String, Object> livingExtras() {
+            return uuid != null
+                    ? adapter().livingExtras(uuid)
+                    : java.util.Map.of();
+        }
+
         protected java.util.Map<String, Object> speciesState() {
             return uuid != null
                     ? adapter().speciesState(uuid)
@@ -745,7 +752,61 @@ public final class EntityApi {
      */
     @ApiClass(name = "LivingEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.LivingEntity")
-    public static class LivingEntity extends Entity {
+        public static class LivingEntity extends Entity {
+
+    /** The absorption hearts from golden apples and effects.
+         * @zh 吸收心血量（金苹果/效果赋予）。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getAbsorption() {
+            Object value = livingExtras().get("absorption");
+            return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /** The armor points from worn gear (0-20 scale).
+         * @zh 已穿戴护甲值（0-20 刻度）。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getArmorValue() {
+            Object value = livingExtras().get("armorValue");
+            return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /** Whether gravity is disabled for the entity.
+         * @zh 实体是否无重力。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isNoGravity() {
+            Object value = livingExtras().get("noGravity");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /** Whether the entity is currently glowing (outline).
+         * @zh 实体当前是否发光（描边）。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isGlowing() {
+            Object value = livingExtras().get("glowing");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /** Whether the entity is hostile (implements the Enemy marker). */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isHostile() {
+            Object value = livingExtras().get("hostile");
+            return value instanceof Boolean b ? b : null;
+        }
 
         /** Creates the handle for one entity UUID. */
         public LivingEntity(UUID uuid) {

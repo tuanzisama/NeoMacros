@@ -257,4 +257,30 @@ public final class FabricEntityPort implements EntityPort {
     private static String registeredName(Holder<?> holder) {
         return holder.getRegisteredName();
     }
+
+    @Override
+    public Map<String, Object> livingExtras(UUID uuid) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return Map.of();
+            }
+            for (Entity entity : level.entitiesForRendering()) {
+                if (!entity.getUUID().equals(uuid)
+                        || !(entity instanceof LivingEntity living)) {
+                    continue;
+                }
+                Map<String, Object> state = new java.util.LinkedHashMap<>();
+                state.put("absorption", living.getAbsorptionAmount());
+                state.put("armorValue", (double) living.getArmorValue());
+                state.put("noGravity", living.isNoGravity());
+                state.put("glowing", living.isCurrentlyGlowing());
+                if (living instanceof net.minecraft.world.entity.monster.Enemy enemyCheck) {
+                    state.put("hostile", true);
+                }
+                return state;
+            }
+            return Map.of();
+        });
+    }
 }

@@ -45,4 +45,13 @@ public interface EntityPort {
     default java.util.Map<String, Object> speciesState(java.util.UUID uuid) {
         return java.util.Map.of();
     }
+
+    /**
+     * Returns live living-entity extras (e.g. {@code absorption},
+     * {@code armorValue}, {@code noGravity}, {@code baby}) keyed by member
+     * name; an empty map when the entity is absent or not living.
+     */
+    default java.util.Map<String, Object> livingExtras(java.util.UUID uuid) {
+        return java.util.Map.of();
+    }
 }
