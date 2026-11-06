@@ -100,8 +100,19 @@ class BaselineScenariosTest {
 
             e2e.adapter().chatPort().fireReceive("ping");
             e2e.awaitSettle();
-            assertTrue(e2e.adapter().chatPort().output().stream().anyMatch(l -> l.contains("echo:")),
-                    "output was: " + e2e.adapter().chatPort().output());
+            // the async-channel delivery can land a beat after the loop goes
+            // idle on cold runners; poll before declaring the echo missing
+            long deadline = System.currentTimeMillis() + 5000;
+            boolean echoed = false;
+            while (System.currentTimeMillis() < deadline) {
+                if (e2e.adapter().chatPort().output().stream()
+                        .anyMatch(l -> l.contains("echo:"))) {
+                    echoed = true;
+                    break;
+                }
+                Thread.sleep(20);
+            }
+            assertTrue(echoed, "output was: " + e2e.adapter().chatPort().output());
         }
     }
 

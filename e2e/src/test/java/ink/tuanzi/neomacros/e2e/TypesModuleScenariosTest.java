@@ -66,7 +66,17 @@ class TypesModuleScenariosTest {
             adapter.lifecyclePort().fireTick(1);
             e2e.awaitSettle();
 
-            TestBridge.Report report = e2e.bridge().get("types-module");
+            // tracker-published joins can land a beat after settle on cold
+            // runners; poll the report bridge before declaring it missing
+            TestBridge.Report report = null;
+            long deadline = System.currentTimeMillis() + 5000;
+            while (System.currentTimeMillis() < deadline) {
+                report = e2e.bridge().get("types-module");
+                if (report != null && report.pass()) {
+                    break;
+                }
+                Thread.sleep(20);
+            }
             assertTrue(report != null && report.pass(),
                     "types report: " + (report == null ? "missing" : report.detail()));
         }

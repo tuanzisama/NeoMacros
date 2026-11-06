@@ -1,0 +1,18 @@
+[     174ms] [WARNING] [Vue warn]: Unhandled error during execution of render function 
+  at <MacroSideBar key=0 > 
+  at <App> @ http://localhost:5240/node_modules/.vite/deps/vue.js?v=003e7edb:1822
+[     174ms] [WARNING] [Vue warn]: Unhandled error during execution of component update 
+  at <MacroSideBar key=0 > 
+  at <App> @ http://localhost:5240/node_modules/.vite/deps/vue.js?v=003e7edb:1822
+[     184ms] TypeError: Cannot read properties of undefined (reading 'length')
+    at Proxy.keyTagText (http://localhost:5240/src/components/explorer/MacroSideBar.vue:184:29)
+    at http://localhost:5240/src/components/explorer/MacroSideBar.vue:863:33
+    at renderList (http://localhost:5240/node_modules/.vite/deps/vue.js?v=003e7edb:4055:59)
+    at Proxy._sfc_render (http://localhost:5240/src/components/explorer/MacroSideBar.vue:773:5)
+    at renderComponentRoot (http://localhost:5240/node_modules/.vite/deps/vue.js?v=003e7edb:4957:35)
+    at ReactiveEffect.componentUpdateFn [as fn] (http://localhost:5240/node_modules/.vite/deps/vue.js?v=003e7edb:5874:22)
+    at ReactiveEffect.run (http://localhost:5240/node_modules/.vite/deps/vue.js?v=003e7edb:473:16)
+    at ReactiveEffect.runIfDirty (http://localhost:5240/node_modules/.vite/deps/vue.js?v=003e7edb:500:27)
+    at callWithErrorHandling (http://localhost:5240/node_modules/.vite/deps/vue.js?v=003e7edb:1960:31)
+    at flushJobs (http://localhost:5240/node_modules/.vite/deps/vue.js?v=003e7edb:2135:5)
+[     252ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:9454/api/v1/tasks:0

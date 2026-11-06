@@ -1,0 +1,113 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]: ▣
+        - generic [ref=e7]: NeoMacros 面板
+      - generic [ref=e8]:
+        - generic [ref=e10]: 已连接
+        - generic [ref=e57]: MC 26.3 · mod v0.1.0-stub · :9454
+    - generic [ref=e11]:
+      - navigation [ref=e12]:
+        - button "按键宏" [ref=e13] [cursor=pointer]
+        - button "事件宏" [ref=e16] [cursor=pointer]
+        - button "服务宏" [ref=e19] [cursor=pointer]
+        - separator [ref=e22]
+        - button "任务管理器" [ref=e23] [cursor=pointer]
+        - button "设置" [ref=e26] [cursor=pointer]
+        - button "关于" [ref=e29] [cursor=pointer]
+      - complementary [ref=e58]:
+        - generic [ref=e59]:
+          - generic [ref=e60]: 按键
+          - button "新建宏" [ref=e61] [cursor=pointer]
+        - textbox "过滤：名称 / 按键 / ID" [ref=e65]
+        - generic [ref=e67]:
+          - paragraph [ref=e68]: 还没有宏。
+          - button "新建第一个宏" [ref=e69] [cursor=pointer]
+      - generic "拖拽调宽，双击复位" [ref=e72]
+      - main [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e75]:
+            - generic [ref=e76]: ▣
+            - heading "NeoMacros 编辑器" [level=2] [ref=e77]
+            - paragraph [ref=e78]: 从左侧选择一个宏开始编辑，或新建一个宏。
+            - paragraph [ref=e79]:
+              - generic [ref=e80]: Ctrl+S 保存并热重载
+              - generic [ref=e81]: neo. 唤出 API 补全
+          - generic [ref=e85]:
+            - generic "拖拽调高，双击复位" [ref=e86]
+            - generic [ref=e87]:
+              - button "控制台" [ref=e88] [cursor=pointer]
+              - button "网络" [active] [ref=e89] [cursor=pointer]
+              - button "任务" [ref=e90] [cursor=pointer]
+              - generic [ref=e91]:
+                - button "独立窗口" [ref=e92] [cursor=pointer]
+                - button "关闭" [ref=e95] [cursor=pointer]
+            - generic [ref=e230]:
+              - generic [ref=e231]:
+                - combobox [ref=e232]:
+                  - option "全部" [selected]
+                  - option "2xx 成功"
+                  - option "3xx 重定向"
+                  - option "4xx 客户端错误"
+                  - option "5xx 服务端错误"
+                  - option "失败"
+                - textbox "过滤：URL / 方法 / 发起者 / 错误…" [ref=e233]
+                - button "暂停捕获" [ref=e234] [cursor=pointer]
+                - button "清空视图" [ref=e237] [cursor=pointer]
+              - table [ref=e242]:
+                - rowgroup [ref=e243]:
+                  - row [ref=e244]:
+                    - columnheader "名称" [ref=e245]
+                    - columnheader "方法" [ref=e246]
+                    - columnheader "状态" [ref=e247]
+                    - columnheader "类型" [ref=e248]
+                    - columnheader "大小" [ref=e249]
+                    - columnheader "耗时" [ref=e250]
+                    - columnheader "发起者" [ref=e251]
+                - rowgroup [ref=e252]:
+                  - row [ref=e253] [cursor=pointer]:
+                    - cell "items?page=1" [ref=e254]
+                    - cell "GET" [ref=e256]
+                    - cell "200" [ref=e257]
+                    - cell "json" [ref=e258]
+                    - cell "68 B" [ref=e259]
+                    - cell "34ms" [ref=e260]
+                    - cell "event/auto-welcome" [ref=e261]
+                  - row [ref=e263] [cursor=pointer]:
+                    - cell "orders" [ref=e264]
+                    - cell "POST" [ref=e266]
+                    - cell "401" [ref=e267]
+                    - cell "json" [ref=e268]
+                    - cell "42 B" [ref=e269]
+                    - cell "21ms" [ref=e270]
+                    - cell "services/shop-reporter" [ref=e271]
+                  - row [ref=e273] [cursor=pointer]:
+                    - cell "ping" [ref=e274]
+                    - cell "GET" [ref=e276]
+                    - cell "(失败)" [ref=e277]
+                    - cell "—" [ref=e278]
+                    - cell "—" [ref=e279]
+                    - cell "7ms" [ref=e280]
+                    - cell "—" [ref=e281]
+                  - row [ref=e283] [cursor=pointer]:
+                    - cell "tuanzi.png" [ref=e284]
+                    - cell "GET" [ref=e286]
+                    - cell "200" [ref=e287]
+                    - cell "img" [ref=e288]
+                    - cell "20.0 kB" [ref=e289]
+                    - cell "96ms" [ref=e290]
+                    - cell "event/auto-welcome" [ref=e291]
+    - contentinfo [ref=e44]:
+      - generic [ref=e45]:
+        - button "DevTools 5 1 0" [ref=e82] [cursor=pointer]:
+          - generic [ref=e49]: DevTools
+          - generic [ref=e50]:
+            - generic [ref=e51]: "5"
+            - generic [ref=e52]: "1"
+            - generic [ref=e53]: "0"
+        - generic [ref=e83]: 3 宏 · 2 已启用 · 1 运行中
+      - generic [ref=e55]: 事件流已连接
+  - generic [ref=e84]:
+    - alert
+    - alert
