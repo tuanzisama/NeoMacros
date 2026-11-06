@@ -237,6 +237,61 @@ public final class FabricEntityPort implements EntityPort {
         if (entity instanceof net.minecraft.world.entity.animal.golem.IronGolem golem) {
             state.put("playerCreated", golem.isPlayerCreated());
         }
+        if (entity instanceof net.minecraft.world.entity.animal.axolotl.Axolotl axolotl) {
+            state.put("variant", serialName(axolotl.getVariant()));
+            state.put("playingDead", axolotl.isPlayingDead());
+            state.put("fromBucket", axolotl.fromBucket());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.bee.Bee bee) {
+            state.put("nectar", bee.hasNectar());
+            state.put("stung", bee.hasStung());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.fox.Fox fox) {
+            state.put("sitting", fox.isSitting());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.frog.Frog frog) {
+            state.put("variant", registeredName(frog.getVariant()));
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.goat.Goat goat) {
+            state.put("leftHorn", goat.hasLeftHorn());
+            state.put("rightHorn", goat.hasRightHorn());
+            state.put("screaming", goat.isScreamingGoat());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.panda.Panda panda) {
+            state.put("mainGene", namespaced(panda.getMainGene()));
+            state.put("hiddenGene", namespaced(panda.getHiddenGene()));
+            state.put("sneezing", panda.isSneezing());
+            state.put("onBack", panda.isOnBack());
+            state.put("eating", panda.isEating());
+            state.put("lazy", panda.isLazy());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.parrot.Parrot parrot) {
+            state.put("variant", serialName(parrot.getVariant()));
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.polarbear.PolarBear polarBear) {
+            state.put("standing", polarBear.isStanding());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.Shulker shulker) {
+            state.put("color", namespaced(shulker.getColor()));
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.golem.SnowGolem snowGolem) {
+            state.put("pumpkin", snowGolem.hasPumpkin());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.turtle.Turtle turtle) {
+            state.put("hasEgg", turtle.hasEgg());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.Vex vex) {
+            state.put("charging", vex.isCharging());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.Witch witch) {
+            state.put("drinkingPotion", witch.isDrinkingPotion());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.dolphin.Dolphin dolphin) {
+            state.put("moistness", dolphin.getMoistnessLevel());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.warden.Warden warden) {
+            state.put("angerLevel", serialName(warden.getAngerLevel()));
+        }
         if (entity instanceof net.minecraft.world.entity.monster.Ghast ghast) {
             state.put("charging", ghast.isCharging());
         }
@@ -292,5 +347,16 @@ public final class FabricEntityPort implements EntityPort {
             }
             return Map.of();
         });
+    }
+
+    /** Renders a serializable enum constant as its lowercase id form. */
+    private static String serialName(Object value) {
+        if (value instanceof net.minecraft.util.StringRepresentable representable) {
+            return representable.getSerializedName();
+        }
+        if (value instanceof Enum enumValue) {
+            return enumValue.name().toLowerCase(java.util.Locale.ROOT);
+        }
+        return String.valueOf(value);
     }
 }
