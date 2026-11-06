@@ -1,0 +1,8 @@
+name: gap-api
+version: 1.0.0
+author: neomacros
+description: gap-api E2E-G case
+permissions: [fs]
+config:
+  event:
+    on: [game:start]
