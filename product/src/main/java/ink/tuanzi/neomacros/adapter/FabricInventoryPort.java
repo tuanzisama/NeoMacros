@@ -164,6 +164,27 @@ public final class FabricInventoryPort implements InventoryPort {
                 state.put("traderLevel", merchant.getTraderLevel());
                 state.put("traderXp", merchant.getTraderXp());
                 state.put("futureTraderXp", merchant.getFutureTraderXp());
+                java.util.List<Object> trades = new java.util.ArrayList<>();
+                for (net.minecraft.world.item.trading.MerchantOffer offer : merchant.getOffers()) {
+                    java.util.Map<String, Object> trade = new java.util.LinkedHashMap<>();
+                    if (!offer.getBaseCostA().isEmpty()) {
+                        trade.put("baseCostA", stackDataOf(offer.getBaseCostA()));
+                    }
+                    if (!offer.getCostA().isEmpty()) {
+                        trade.put("costA", stackDataOf(offer.getCostA()));
+                    }
+                    if (!offer.getCostB().isEmpty()) {
+                        trade.put("costB", stackDataOf(offer.getCostB()));
+                    }
+                    if (!offer.getResult().isEmpty()) {
+                        trade.put("result", stackDataOf(offer.getResult()));
+                    }
+                    trade.put("uses", offer.getUses());
+                    trade.put("maxUses", offer.getMaxUses());
+                    trade.put("demand", offer.getDemand());
+                    trades.add(trade);
+                }
+                state.put("trades", trades);
                 return state;
             }
             return java.util.Map.of();

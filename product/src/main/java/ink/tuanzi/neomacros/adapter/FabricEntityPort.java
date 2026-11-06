@@ -301,6 +301,83 @@ public final class FabricEntityPort implements EntityPort {
         if (entity instanceof net.minecraft.world.entity.boss.wither.WitherBoss wither) {
             state.put("invulnerableTicks", wither.getInvulnerableTicks());
         }
+        if (entity instanceof net.minecraft.world.entity.animal.allay.Allay allay) {
+            state.put("dancing", allay.isDancing());
+            state.put("spinning", allay.isSpinning());
+            state.put("hasItemInHand", allay.hasItemInHand());
+            state.put("flapping", allay.isFlapping());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.cow.Cow cow) {
+            state.put("variant", registeredName(cow.getVariant()));
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.armadillo.Armadillo armadillo) {
+            state.put("state", namespaced(armadillo.getState()));
+            state.put("scared", armadillo.isScared());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.camel.Camel camel) {
+            state.put("dashing", camel.isDashing());
+            state.put("sitting", camel.isCamelSitting());
+            state.put("poseTransition", camel.isInPoseTransition());
+            state.put("poseTime", camel.getPoseTime());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.sniffer.Sniffer sniffer) {
+            state.put("searching", sniffer.isSearching());
+            state.put("tempted", sniffer.isTempted());
+            state.put("canSniff", sniffer.canSniff());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.fish.AbstractFish fish) {
+            state.put("fromBucket", fish.fromBucket());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.fish.AbstractSchoolingFish schooling) {
+            state.put("hasFollowers", schooling.hasFollowers());
+            state.put("follower", schooling.isFollower());
+            state.put("canBeFollowed", schooling.canBeFollowed());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.fish.Salmon salmon) {
+            state.put("variant", namespaced(salmon.getVariant()));
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.fish.Pufferfish pufferfish) {
+            state.put("puffState", pufferfish.getPuffState());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.fish.TropicalFish tropicalFish) {
+            state.put("pattern", namespaced(tropicalFish.getPattern()));
+            state.put("baseColor", namespaced(tropicalFish.getBaseColor()));
+            state.put("patternColor", namespaced(tropicalFish.getPatternColor()));
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.piglin.AbstractPiglin abstractPiglin) {
+            state.put("converting", abstractPiglin.isConverting());
+            state.put("adult", abstractPiglin.isAdult());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.illager.Pillager pillager) {
+            state.put("chargingCrossbow", pillager.isChargingCrossbow());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.illager.Evoker evoker) {
+            state.put("castingSpell", evoker.isCastingSpell());
+        }
+        if (entity instanceof net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader wanderingTrader) {
+            state.put("despawnDelay", wanderingTrader.getDespawnDelay());
+        }
+        if (entity instanceof net.minecraft.world.entity.boss.enderdragon.EnderDragon enderDragon) {
+            state.put("phase", enderDragon.getEntityData()
+                    .get(net.minecraft.world.entity.boss.enderdragon.EnderDragon.DATA_PHASE));
+            state.put("deathTime", enderDragon.dragonDeathTime);
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.breeze.Breeze breeze) {
+            state.put("sliding", breeze.slide.isStarted());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.creaking.Creaking creaking) {
+            state.put("active", creaking.isActive());
+            state.put("tearingDown", creaking.isTearingDown());
+            state.put("heartBound", creaking.isHeartBound());
+            state.put("canMove", creaking.canMove());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.zombie.ZombieVillager zombieVillager) {
+            var villagerData = zombieVillager.getVillagerData();
+            state.put("profession", registeredName(villagerData.profession()));
+            state.put("level", villagerData.level());
+            state.put("variant", registeredName(villagerData.type()));
+            state.put("converting", zombieVillager.isConverting());
+        }
     }
 
     /** Namespaces a serializable enum constant, e.g. {@code minecraft:white}. */
