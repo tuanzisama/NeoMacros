@@ -25,6 +25,10 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     private final double x;
     private final double y;
 
+    /** The zero rotation/origin constant.
+     * @zh 零旋转/原点常量。 */
+    public static final Pos2D ZERO = new Pos2D(0, 0);
+
     /** Creates the point from two coordinates.
      * @zh 由两个坐标构造。 */
     @ApiSince("0.2.0")
@@ -133,5 +137,12 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
         return new Pos2D(
                 args != null && args.length > 0 && args[0] instanceof Number n ? n.doubleValue() : 0,
                 args != null && args.length > 1 && args[1] instanceof Number n ? n.doubleValue() : 0);
+    }
+
+    /** Component-wise lexicographic compare (x first, then y).
+     * @zh 分量字典序比较（先 x 后 y）。 */
+    public int compare(Pos2D other) {
+        int byX = Double.compare(x, other.x);
+        return byX != 0 ? byX : Double.compare(y, other.y);
     }
 }

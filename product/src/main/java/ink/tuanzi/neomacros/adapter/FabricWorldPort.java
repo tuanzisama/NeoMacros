@@ -68,7 +68,7 @@ public final class FabricWorldPort implements WorldPort {
                 return Optional.empty();
             }
             return Optional.of(new BlockData(blockId(state), toPos3d(blockPos),
-                    stateProperties(state)));
+                    stateProperties(state), stateExtras(state, blockPos)));
         });
     }
 
@@ -405,5 +405,26 @@ public final class FabricWorldPort implements WorldPort {
             }
             return out;
         });
+    }
+
+    /** Neutral physics/light extras read off one block state. */
+    private static Map<String, Object> stateExtras(BlockState state, BlockPos pos) {
+        Map<String, Object> extras = new LinkedHashMap<>();
+        var base = (net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase) state;
+        extras.put("luminance", base.getLightEmission());
+        extras.put("hardness", base.getDestroySpeed(level(), pos));
+        extras.put("opaque", base.canOcclude());
+        extras.put("emitsRedstonePower", base.isSignalSource());
+        extras.put("hasBlockEntity", base.hasBlockEntity());
+        extras.put("hasRandomTicks", base.isRandomlyTicking());
+        extras.put("isBurnable", base.ignitedByLava());
+        extras.put("replaceable", base.canBeReplaced());
+        extras.put("toolRequired", base.requiresCorrectToolForDrops());
+        return extras;
+    }
+
+    /** The client level for state queries. */
+    private static ClientLevel level() {
+        return Minecraft.getInstance().level;
     }
 }

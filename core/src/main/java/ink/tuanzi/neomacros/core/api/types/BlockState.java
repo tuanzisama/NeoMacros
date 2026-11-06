@@ -20,6 +20,7 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
 
     private final String id;
     private final Map<String, String> props;
+    private final Map<String, Object> extras;
 
     private static final java.util.Set<String> AIR_IDS = java.util.Set.of(
             "minecraft:air", "minecraft:cave_air", "minecraft:void_air");
@@ -29,14 +30,26 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
             "minecraft:flowing_lava");
 
     BlockState(String id) {
-        this(id, Map.of());
+        this(id, Map.of(), Map.of());
     }
 
     /** Creates the state from an identifier and its vanilla properties.
      * @zh 由标识符与原版属性构造状态。 */
     public BlockState(String id, Map<String, String> props) {
+        this(id, props, Map.of());
+    }
+
+    /** Creates the state with neutral physics/light extras attached. */
+    public BlockState(String id, Map<String, String> props,
+            Map<String, Object> extras) {
         this.id = id;
         this.props = Map.copyOf(props);
+        this.extras = Map.copyOf(extras);
+    }
+
+    /** Reads one extras entry, or null when absent. */
+    private Object extra(String key) {
+        return extras.get(key);
     }
 
     /** The namespaced block identifier, e.g. {@code minecraft:chest}.
@@ -77,9 +90,106 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
      * @zh 状态是否与精确属性表匹配（每项都相等；{@code id} 键同时比较标识符）。
      * @zh-param props 属性表
      */
+    /** The block light emission level (0-15).
+     * @zh 方块发光等级（0-15）。 */
     @ApiSince("0.2.0")
-    @ApiLoader("*")
     @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Integer getLuminance() {
+        Object value = extra("luminance");
+        return value instanceof Integer i ? i : null;
+    }
+
+    /** The destroy hardness, or undefined for unbreakable blocks.
+     * @zh 破坏硬度；不可破坏方块为 undefined。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Double getHardness() {
+        Object value = extra("hardness");
+        return value instanceof Number n && n.doubleValue() >= 0
+                ? n.doubleValue() : null;
+    }
+
+    /** Whether the state visually occludes the sky and neighbors.
+     * @zh 该状态是否遮蔽天光与相邻面。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean isOpaque() {
+        Object value = extra("opaque");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /** Whether the state emits redstone power.
+     * @zh 该状态是否发出红石信号。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean emitsRedstonePower() {
+        Object value = extra("emitsRedstonePower");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /** Whether the state carries a block entity.
+     * @zh 该状态是否带方块实体。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean hasBlockEntity() {
+        Object value = extra("hasBlockEntity");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /** Whether the state receives random ticks.
+     * @zh 该状态是否接收随机刻。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean hasRandomTicks() {
+        Object value = extra("hasRandomTicks");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /** Whether lava can ignite the block.
+     * @zh 岩浆是否可点燃该方块。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean isBurnable() {
+        Object value = extra("isBurnable");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /** Whether the block can be replaced by placing into it.
+     * @zh 该方块是否可被放置覆盖（如花草）。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean isReplaceable() {
+        Object value = extra("replaceable");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /** Whether the correct tool is required for drops.
+     * @zh 掉落物是否需要正确工具。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean isToolRequired() {
+        Object value = extra("toolRequired");
+        return value instanceof Boolean b ? b : null;
+    }
+
     public boolean isProps(java.util.Map<String, String> props) {
         for (java.util.Map.Entry<String, String> entry : props.entrySet()) {
             if (entry.getKey().equals("id")) {

@@ -45,7 +45,7 @@ public final class Block implements ScriptHandle {
     @ApiLoader("*")
     @ApiReadOnly
     public BlockState getState() {
-        return snapshot().map(data -> new BlockState(data.id(), data.properties())).orElse(null);
+        return snapshot().map(data -> new BlockState(data.id(), data.properties(), data.extras())).orElse(null);
     }
 
     /**
