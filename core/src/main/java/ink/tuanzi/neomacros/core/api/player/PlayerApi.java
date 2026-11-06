@@ -104,6 +104,7 @@ public final class PlayerApi {
             case "beacon" -> new BeaconInventory(title, kind, size);
             case "brewing" -> new BrewingStandInventory(title, kind, size);
             case "villager" -> new VillagerInventory(title, kind, size);
+            case "horse" -> new HorseInventory(title, kind, size);
             default -> new Inventory(title, kind, size);
         };
     }
@@ -1177,6 +1178,186 @@ public final class PlayerApi {
         public Integer getFutureTraderXp() {
             Object value = inventoryPort().containerState().get("futureTraderXp");
             return value instanceof Integer i ? i : null;
+        }
+
+        /** The trade offers currently shown.
+         * @zh 当前显示的交易报价。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public List<TradeOffer> getTrades() {
+            Object value = inventoryPort().containerState().get("trades");
+            if (!(value instanceof List<?> list)) {
+                return List.of();
+            }
+            List<TradeOffer> trades = new java.util.ArrayList<>();
+            for (Object entry : list) {
+                if (entry instanceof Map<?, ?> data) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> typed = (Map<String, Object>) data;
+                    trades.add(TradeOffer.of(typed));
+                }
+            }
+            return trades;
+        }
+    }
+
+    /**
+     * One trade offer: its two costs, the result stack, and the use count.
+     *
+     * @zh 一条交易报价：两项成本、结果物品堆与使用计数。
+     */
+    @ApiClass(name = "TradeOffer", kind = ApiClassKind.DATA,
+            wraps = "net.minecraft.world.item.trading.MerchantOffer")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class TradeOffer {
+
+        final ItemStack baseCostA;
+        final ItemStack costA;
+        final ItemStack costB;
+        final ItemStack result;
+        final int uses;
+        final int maxUses;
+        final int demand;
+
+        TradeOffer(ItemStack baseCostA, ItemStack costA, ItemStack costB,
+                ItemStack result, int uses, int maxUses, int demand) {
+            this.baseCostA = baseCostA;
+            this.costA = costA;
+            this.costB = costB;
+            this.result = result;
+            this.uses = uses;
+            this.maxUses = maxUses;
+            this.demand = demand;
+        }
+
+        /** Rebuilds one trade offer from its neutral port snapshot.
+         * @zh 由中立端口快照重建一条交易报价。 */
+        static TradeOffer of(Map<String, Object> data) {
+            return new TradeOffer(
+                    itemOrMissing(data.get("baseCostA")),
+                    itemOrMissing(data.get("costA")),
+                    itemOrMissing(data.get("costB")),
+                    itemOrMissing(data.get("result")),
+                    data.get("uses") instanceof Integer uses ? uses : 0,
+                    data.get("maxUses") instanceof Integer max ? max : 0,
+                    data.get("demand") instanceof Integer demand ? demand : 0);
+        }
+
+        private static ItemStack itemOrMissing(Object value) {
+            return value instanceof ink.tuanzi.neomacros.port.model.ItemStackData data
+                    ? ItemStack.of(data) : null;
+        }
+
+        /** The fixed first cost before price modifiers.
+         * @zh 价格修饰前的固定第一成本。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getBaseCostA() {
+            return baseCostA;
+        }
+
+        /** The live first cost after demand and reputation adjustments.
+         * @zh 经需求与声望调整后的实时第一成本。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getCostA() {
+            return costA;
+        }
+
+        /** The optional second cost; {@code undefined} when absent.
+         * @zh 可选第二成本；缺省为 undefined。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getCostB() {
+            return costB;
+        }
+
+        /** The stack the trader sells.
+         * @zh 交易者售出的物品堆。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getResult() {
+            return result;
+        }
+
+        /** How many times this offer has been traded.
+         * @zh 该报价已被交易的次数。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getUses() {
+            return uses;
+        }
+
+        /** How many trades this offer allows before locking.
+         * @zh 该报价锁定前允许的交易次数。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getMaxUses() {
+            return maxUses;
+        }
+
+        /** The current demand bonus affecting the price.
+         * @zh 影响价格的当前需求加成。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getDemand() {
+            return demand;
+        }
+    }
+
+    /**
+     * A mount inventory screen: the saddle and body armor slots over the
+     * ordinary slot face.
+     *
+     * @zh 坐骑物品栏界面：在普通槽位面之上的鞍槽与马甲槽。
+     */
+    @ApiClass(name = "HorseInventory", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.inventory.HorseInventoryMenu")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class HorseInventory extends Inventory {
+
+        HorseInventory(String title, String kind, int size) {
+            super(title, kind, size);
+        }
+
+        /** The stack in the saddle slot.
+         * @zh 鞍槽中的物品堆。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getSaddle() {
+            return slot(0);
+        }
+
+        /** The stack in the body armor slot.
+         * @zh 马甲槽中的物品堆。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getArmor() {
+            return slot(1);
         }
     }
     /**
