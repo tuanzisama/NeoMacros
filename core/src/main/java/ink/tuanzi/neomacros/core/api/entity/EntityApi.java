@@ -132,8 +132,9 @@ public final class EntityApi {
 
     /**
      * Wraps one entity UUID as the kind-specific handle: players become
-     * {@code Player}, dropped stacks {@code ItemEntity}, living entities
-     * {@code LivingEntity}, everything else the plain {@code Entity}.
+     * {@code Player}, dropped stacks {@code ItemEntity}, registered species
+     * their species handle, living entities {@code LivingEntity}, everything
+     * else the plain {@code Entity}.
      */
     static Entity wrap(UUID uuid) {
         return adapter().byUuid(uuid)
@@ -143,6 +144,10 @@ public final class EntityApi {
                     }
                     if (snapshot.type().equals("minecraft:item")) {
                         return (Entity) new ItemEntity(uuid);
+                    }
+                    var species = SpeciesEntities.registry().get(snapshot.type());
+                    if (species != null) {
+                        return species.apply(uuid);
                     }
                     if (snapshot.living()) {
                         return (Entity) new LivingEntity(uuid);
@@ -176,6 +181,37 @@ public final class EntityApi {
         /** Creates the handle (engine factory instantiation). */
         public Entity() {
             this.uuid = null;
+        }
+
+        /**
+         * The species-specific live state behind this handle, keyed by the
+         * script-facing member names; an empty map for plain entities.
+         * Species subclasses read their members through this channel.
+         *
+         * @zh 句柄背后的物种专属实时状态，按脚本成员名键控；普通实体为空映射。物种子类经此通道读取成员。
+         */
+        protected java.util.Map<String, Object> speciesState() {
+            return uuid != null
+                    ? adapter().speciesState(uuid)
+                    : java.util.Map.of();
+        }
+
+        /** Reads one boolean species-state entry, or null when absent. */
+        protected Boolean speciesBool(String key) {
+            Object value = speciesState().get(key);
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /** Reads one string species-state entry, or null when absent. */
+        protected String speciesString(String key) {
+            Object value = speciesState().get(key);
+            return value instanceof String v ? v : null;
+        }
+
+        /** Reads one integer species-state entry, or null when absent. */
+        protected Integer speciesInt(String key) {
+            Object value = speciesState().get(key);
+            return value instanceof Integer i ? i : null;
         }
 
         /**

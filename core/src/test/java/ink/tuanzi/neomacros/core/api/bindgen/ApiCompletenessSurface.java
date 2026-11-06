@@ -12,6 +12,7 @@ import ink.tuanzi.neomacros.core.api.StorageApi;
 import ink.tuanzi.neomacros.core.api.ThreadApi;
 import ink.tuanzi.neomacros.core.api.client.ClientApi;
 import ink.tuanzi.neomacros.core.api.entity.EntityApi;
+import ink.tuanzi.neomacros.core.api.entity.SpeciesEntities;
 import ink.tuanzi.neomacros.core.api.java.JavaApi;
 import ink.tuanzi.neomacros.core.api.player.PlayerApi;
 import ink.tuanzi.neomacros.core.api.reflect.ReflectApi;
@@ -59,7 +60,12 @@ final class ApiCompletenessSurface {
             Block.class, BlockState.class, RayHit.class,
             ItemStack.class, ItemStackBuilder.class,
             ink.tuanzi.neomacros.core.api.types.Image.class,
-            FsApi.FileHandle.class, NetApi.Ws.class, TimerHandle.class);
+            FsApi.FileHandle.class, NetApi.Ws.class,
+            SpeciesEntities.Mob.class, SpeciesEntities.Animal.class, SpeciesEntities.TamableAnimal.class,
+            SpeciesEntities.Sheep.class, SpeciesEntities.Wolf.class, SpeciesEntities.Cat.class,
+            SpeciesEntities.Villager.class, SpeciesEntities.Creeper.class, SpeciesEntities.Zombie.class,
+            SpeciesEntities.PrimedTnt.class, SpeciesEntities.Bat.class, SpeciesEntities.MushroomCow.class,
+            TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */
     static final List<Class<?>> EVENTS =

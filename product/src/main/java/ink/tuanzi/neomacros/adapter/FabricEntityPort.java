@@ -9,12 +9,24 @@ import ink.tuanzi.neomacros.port.model.Rot2d;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ambient.Bat;
+import net.minecraft.world.entity.animal.feline.Cat;
+import net.minecraft.world.entity.animal.cow.MushroomCow;
+import net.minecraft.world.entity.animal.sheep.Sheep;
+import net.minecraft.world.entity.animal.wolf.Wolf;
+import net.minecraft.world.entity.item.PrimedTnt;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.entity.npc.villager.Villager;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -137,5 +149,76 @@ public final class FabricEntityPort implements EntityPort {
             }
         }
         return java.util.Optional.empty();
+    }
+
+    @Override
+    public Map<String, Object> speciesState(UUID uuid) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return Map.of();
+            }
+            for (Entity entity : level.entitiesForRendering()) {
+                if (!entity.getUUID().equals(uuid)) {
+                    continue;
+                }
+                Map<String, Object> state = new java.util.LinkedHashMap<>();
+                collectSpeciesState(entity, state);
+                return state;
+            }
+            return Map.of();
+        });
+    }
+
+    /** Fills the neutral species state from one live entity. */
+    private static void collectSpeciesState(Entity entity, Map<String, Object> state) {
+        if (entity instanceof Mob mob) {
+            state.put("noAi", mob.isNoAi());
+            net.minecraft.world.entity.LivingEntity target = mob.getTarget();
+            state.put("target", target != null ? target.getUUID().toString() : null);
+        }
+        if (entity instanceof Sheep sheep) {
+            state.put("color", namespaced(sheep.getColor()));
+            state.put("sheared", sheep.isSheared());
+        }
+        if (entity instanceof Wolf wolf) {
+            state.put("collarColor", namespaced(wolf.getCollarColor()));
+        }
+        if (entity instanceof Cat cat) {
+            state.put("collarColor", namespaced(cat.getCollarColor()));
+            state.put("variant", registeredName(cat.getVariant()));
+        }
+        if (entity instanceof Villager villager) {
+            var data = villager.getVillagerData();
+            state.put("profession", registeredName(data.profession()));
+            state.put("level", data.level());
+            state.put("variant", registeredName(data.type()));
+        }
+        if (entity instanceof Creeper creeper) {
+            state.put("powered", creeper.isPowered());
+            state.put("ignited", creeper.isIgnited());
+        }
+        if (entity instanceof Zombie zombie) {
+            state.put("underWaterConverting", zombie.isUnderWaterConverting());
+        }
+        if (entity instanceof PrimedTnt tnt) {
+            state.put("fuse", tnt.getFuse());
+        }
+        if (entity instanceof Bat bat) {
+            state.put("resting", bat.isResting());
+        }
+        if (entity instanceof MushroomCow mooshroom) {
+            state.put("variant", namespaced(mooshroom.getVariant()));
+        }
+    }
+
+    /** Namespaces a serializable enum constant, e.g. {@code minecraft:white}. */
+    private static String namespaced(net.minecraft.util.StringRepresentable value) {
+        return "minecraft:" + value.getSerializedName();
+    }
+
+    /** The registry name behind a registry holder. */
+    private static String registeredName(Holder<?> holder) {
+        return holder.getRegisteredName();
     }
 }

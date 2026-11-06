@@ -169,6 +169,18 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("FileHandle",
                 ink.tuanzi.neomacros.core.api.FsApi.FileHandle.class);
         registry.registerGuestType("Ws", ink.tuanzi.neomacros.core.api.NetApi.Ws.class);
+        registry.registerGuestType("Mob", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Mob.class);
+        registry.registerGuestType("Animal", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Animal.class);
+        registry.registerGuestType("TamableAnimal", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.TamableAnimal.class);
+        registry.registerGuestType("Sheep", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Sheep.class);
+        registry.registerGuestType("Wolf", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Wolf.class);
+        registry.registerGuestType("Cat", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Cat.class);
+        registry.registerGuestType("Villager", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Villager.class);
+        registry.registerGuestType("Creeper", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Creeper.class);
+        registry.registerGuestType("Zombie", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Zombie.class);
+        registry.registerGuestType("PrimedTnt", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.PrimedTnt.class);
+        registry.registerGuestType("Bat", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.Bat.class);
+        registry.registerGuestType("MushroomCow", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.MushroomCow.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
         registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
         registry.registerGuestType("ItemEntity", EntityApi.ItemEntity.class);

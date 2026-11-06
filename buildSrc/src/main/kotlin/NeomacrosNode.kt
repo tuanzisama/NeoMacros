@@ -8,6 +8,14 @@ import dev.kikugie.stonecutter.build.StonecutterBuildExtension
 // appear anywhere in the shared sources; pairs that cannot satisfy that
 // (overlapping or ubiquitous strings) live in //? comment swaps instead.
 fun StonecutterBuildExtension.neomacrosReplacements() {
+    // 26.1 started the per-species entity packages (animal/sheep/, npc/villager/,
+    // monster/zombie/, ...); pre-26.1 nodes keep the flat animal/ and npc/ trees.
+    replacements.string(current.parsed < "26.1") {
+        replace("world.entity.animal.feline.Cat", "world.entity.animal.Cat")
+        replace("world.entity.animal.cow.MushroomCow", "world.entity.animal.MushroomCow")
+        replace("world.entity.monster.zombie.Zombie", "world.entity.monster.Zombie")
+        replace("world.entity.npc.villager.Villager", "world.entity.npc.Villager")
+    }
     // Pre-1.21.11 nodes.
     replacements.string(current.parsed < "1.21.11") {
         // fabric-api renamed the command helper and the keybind helper.

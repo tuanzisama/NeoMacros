@@ -35,4 +35,14 @@ public interface EntityPort {
     default java.util.Optional<Object> rawByUuid(java.util.UUID uuid) {
         return java.util.Optional.empty();
     }
+
+    /**
+     * Returns the species-specific live state of one entity as a flat map
+     * keyed by the script-facing member names (e.g. {@code color},
+     * {@code fuse}, {@code target} as a UUID string); an empty map for
+     * species without extra state or without a loaded entity.
+     */
+    default java.util.Map<String, Object> speciesState(java.util.UUID uuid) {
+        return java.util.Map.of();
+    }
 }
