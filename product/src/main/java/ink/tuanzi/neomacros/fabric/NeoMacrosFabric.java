@@ -198,6 +198,17 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("WitherBoss", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.WitherBoss.class);
         registry.registerGuestType("Chunk", ink.tuanzi.neomacros.core.api.types.Chunk.class);
         registry.registerGuestType("FurnaceInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.FurnaceInventory.class);
+        registry.registerGuestType("ContainerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.ContainerInventory.class);
+        registry.registerGuestType("CraftingInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.CraftingInventory.class);
+        registry.registerGuestType("AnvilInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.AnvilInventory.class);
+        registry.registerGuestType("EnchantInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.EnchantInventory.class);
+        registry.registerGuestType("GrindstoneInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.GrindstoneInventory.class);
+        registry.registerGuestType("StonecutterInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.StonecutterInventory.class);
+        registry.registerGuestType("SmithingInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.SmithingInventory.class);
+        registry.registerGuestType("CartographyInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.CartographyInventory.class);
+        registry.registerGuestType("BeaconInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.BeaconInventory.class);
+        registry.registerGuestType("BrewingStandInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.BrewingStandInventory.class);
+        registry.registerGuestType("VillagerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.VillagerInventory.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
         registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
         registry.registerGuestType("ItemEntity", EntityApi.ItemEntity.class);

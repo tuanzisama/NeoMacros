@@ -75,6 +75,12 @@ final class ApiCompletenessSurface {
             SpeciesEntities.Strider.class, SpeciesEntities.WitherBoss.class,
             Chunk.class,
             PlayerApi.FurnaceInventory.class,
+            PlayerApi.ContainerInventory.class, PlayerApi.CraftingInventory.class,
+            PlayerApi.AnvilInventory.class, PlayerApi.EnchantInventory.class,
+            PlayerApi.GrindstoneInventory.class, PlayerApi.StonecutterInventory.class,
+            PlayerApi.SmithingInventory.class, PlayerApi.CartographyInventory.class,
+            PlayerApi.BeaconInventory.class, PlayerApi.BrewingStandInventory.class,
+            PlayerApi.VillagerInventory.class,
             TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */
