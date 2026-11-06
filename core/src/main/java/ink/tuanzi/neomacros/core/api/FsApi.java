@@ -1,9 +1,13 @@
 package ink.tuanzi.neomacros.core.api;
 
+import ink.tuanzi.neomacros.core.api.ScriptHandle;
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
@@ -327,5 +331,119 @@ public final class FsApi {
     /** Sandbox boundary: resolves and validates paths against the game dir. */
     public interface FsBridge {
         Path resolve(String path);
+    }
+
+    /**
+     * Returns the path relative to the game directory root; paths outside
+     * the root throw.
+     *
+     * @zh 返回相对游戏目录根的路径；越出根目录的路径抛错。
+     * @zh-param path 绝对或游戏目录相对路径
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public String toRelative(String path) {
+        Path resolved = bridge.resolve(path);
+        Path root = bridge.resolve("");
+        return root.relativize(resolved).toString().replace('\\', '/');
+    }
+
+    /**
+     * Opens one file handle for streamed reads, attribute queries, and the
+     * java-gated raw path.
+     *
+     * @zh 打开一个文件句柄，用于流式读取、属性查询与 java 门控的原始路径。
+     * @zh-param path 游戏目录相对路径
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public FileHandle open(String path) {
+        return new FileHandle(bridge.resolve(path), ioExecutor);
+    }
+
+    /**
+     * Live handle over one file inside the game directory. Reads run on the
+     * IO executor; {@code raw} exposes the host path behind the {@code java}
+     * permission.
+     *
+     * @zh 游戏目录内单个文件的活句柄。读取在 IO 线程池执行；{@code raw} 在 {@code java} 权限后暴露宿主路径。
+     */
+    @ApiClass(name = "FileHandle", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class FileHandle implements ScriptHandle {
+
+        private final Path path;
+        private final ExecutorService ioExecutor;
+
+        FileHandle(Path path, ExecutorService ioExecutor) {
+            this.path = path;
+            this.ioExecutor = ioExecutor;
+        }
+
+        /**
+         * Reads the whole file as bytes.
+         *
+         * @zh 读取整个文件为字节。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<Uint8Array>")
+        public CompletableFuture<byte[]> readBytes() {
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    return java.nio.file.Files.readAllBytes(path);
+                } catch (java.io.IOException e) {
+                    throw new IllegalStateException("cannot read: " + path, e);
+                }
+            }, ioExecutor);
+        }
+
+        /**
+         * The file attributes as {@code {size, mtimeMs, isDir, isFile}}.
+         *
+         * @zh 文件属性 {@code {size, mtimeMs, isDir, isFile}}。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Map<String, Object> getAttributes() {
+            try {
+                var view = java.nio.file.Files.readAttributes(path,
+                        java.nio.file.attribute.BasicFileAttributes.class);
+                Map<String, Object> out = new LinkedHashMap<>();
+                out.put("size", view.size());
+                out.put("mtimeMs", view.lastModifiedTime().toMillis());
+                out.put("isDir", view.isDirectory());
+                out.put("isFile", view.isRegularFile());
+                return out;
+            } catch (java.io.IOException e) {
+                throw new IllegalStateException("cannot stat: " + path, e);
+            }
+        }
+
+        /**
+         * The raw host {@code Path} object. Requires the {@code java}
+         * permission.
+         *
+         * @zh 原始宿主 {@code Path} 对象。需 {@code java} 权限。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiPermission("java")
+        public Object getRaw() {
+            return path;
+        }
+
+        @Override
+        public String toString() {
+            return "FileHandle(" + path + ")";
+        }
     }
 }

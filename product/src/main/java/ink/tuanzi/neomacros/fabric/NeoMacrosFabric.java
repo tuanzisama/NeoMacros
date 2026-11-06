@@ -136,7 +136,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerAll(java.util.List.of(
                 EventsApi.class, ThreadApi.class, ChatApi.class, StorageApi.class,
                 WorldApi.class, EntityApi.class, PlayerApi.class,
-                ink.tuanzi.neomacros.core.api.client.ClientApi.class));
+                ink.tuanzi.neomacros.core.api.client.ClientApi.class,
+                ink.tuanzi.neomacros.core.api.screen.ScreenApi.class));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.reflect.ReflectApi(
                 ink.tuanzi.neomacros.adapter.FabricClassResolver::resolve));
         registry.registerInstance(
@@ -162,6 +163,9 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("ItemStack", ink.tuanzi.neomacros.core.api.types.ItemStack.class);
         registry.registerGuestType("ItemStackBuilder", ink.tuanzi.neomacros.core.api.types.ItemStackBuilder.class);
         registry.registerGuestType("Image", ink.tuanzi.neomacros.core.api.types.Image.class);
+        registry.registerGuestType("FileHandle",
+                ink.tuanzi.neomacros.core.api.FsApi.FileHandle.class);
+        registry.registerGuestType("Ws", ink.tuanzi.neomacros.core.api.NetApi.Ws.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
         registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
         registry.registerGuestType("ItemEntity", EntityApi.ItemEntity.class);

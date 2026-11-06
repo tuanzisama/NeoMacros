@@ -45,7 +45,8 @@ final class ApiCompletenessSurface {
             EventsApi.class, ThreadApi.class, ChatApi.class, StorageApi.class,
             WorldApi.class, EntityApi.class, PlayerApi.class, ClientApi.class,
             JavaApi.class, ReflectApi.class, FsApi.class, NetApi.class,
-            InputApi.class, CommandApi.class, HudApi.class, RenderApi.class);
+            InputApi.class, CommandApi.class, HudApi.class, RenderApi.class,
+            ink.tuanzi.neomacros.core.api.screen.ScreenApi.class);
 
     /** Script-facing class types ({@code @ApiClass}). */
     static final List<Class<?>> CLASSES = List.of(
@@ -55,7 +56,8 @@ final class ApiCompletenessSurface {
             Pos2D.class, Pos3D.class, BlockPos.class, ChunkPos.class,
             Block.class, BlockState.class, RayHit.class,
             ItemStack.class, ItemStackBuilder.class,
-            ink.tuanzi.neomacros.core.api.types.Image.class, TimerHandle.class);
+            ink.tuanzi.neomacros.core.api.types.Image.class,
+            FsApi.FileHandle.class, NetApi.Ws.class, TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */
     static final List<Class<?>> EVENTS =

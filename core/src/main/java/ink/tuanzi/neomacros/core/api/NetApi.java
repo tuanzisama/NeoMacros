@@ -1,10 +1,14 @@
 package ink.tuanzi.neomacros.core.api;
 
+import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.core.util.JsonLite;
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
@@ -192,6 +196,193 @@ public final class NetApi {
         @ApiType("Promise<Uint8Array>")
         public CompletableFuture<byte[]> bytes() {
             return CompletableFuture.completedFuture(body);
+        }
+    }
+
+    /**
+     * Opens a WebSocket connection and resolves with the live socket once
+     * the handshake completes; handshake failures reject. Requires the
+     * {@code net} capability (module-level gate).
+     *
+     * @zh 打开 WebSocket 连接，握手完成后以活连接落定；握手失败 reject。需 net 能力授权。
+     * @zh-param url ws(s):// URL
+     * @zh-return Promise，以 {@code Ws} 落定
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<Ws>")
+    public CompletableFuture<Ws> connect(String url) {
+        URI uri;
+        try {
+            uri = URI.create(url);
+        } catch (RuntimeException e) {
+            CompletableFuture<Ws> failed = new CompletableFuture<>();
+            failed.completeExceptionally(
+                    new IllegalArgumentException("invalid websocket url: " + url, e));
+            return failed;
+        }
+        CompletableFuture<Ws> future = new CompletableFuture<>();
+        Ws handle = new Ws(uri);
+        client.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(10))
+                .buildAsync(uri, handle.listener()).whenComplete((socket, error) -> {
+                    if (error != null) {
+                        future.completeExceptionally(error);
+                        handle.dispatch("error", error.toString());
+                    } else {
+                        handle.attach(socket);
+                        future.complete(handle);
+                        handle.dispatch("open", null);
+                    }
+                });
+        return future;
+    }
+
+    /**
+     * Live WebSocket connection. Events surface through {@code on} with the
+     * names {@code open}, {@code message} (string payload), {@code close},
+     * and {@code error} (message string).
+     *
+     * @zh 活的 WebSocket 连接。事件经 {@code on} 订阅：{@code open}、{@code message}（字符串载荷）、{@code close}、{@code error}（错误消息）。
+     */
+    @ApiClass(name = "Ws", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class Ws implements ScriptHandle {
+
+        private final URI uri;
+        private final Map<String, java.util.List<java.util.function.Consumer<Object>>> listeners =
+                new LinkedHashMap<>();
+        private volatile java.net.http.WebSocket socket;
+        private final StringBuilder fragment = new StringBuilder();
+
+        Ws(URI uri) {
+            this.uri = uri;
+        }
+
+        /** The connected URL.
+         * @zh 连接的 URL。 */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getUrl() {
+            return uri.toString();
+        }
+
+        /**
+         * Subscribes one event handler ({@code open}/{@code message}/
+         * {@code close}/{@code error}).
+         *
+         * @zh 订阅事件（{@code open}/{@code message}/{@code close}/{@code error}）。
+         * @zh-param name 事件名
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public void on(String name, java.util.function.Consumer<Object> handler) {
+            if (!java.util.Set.of("open", "message", "close", "error").contains(name)) {
+                throw new IllegalArgumentException("unknown websocket event: " + name);
+            }
+            synchronized (listeners) {
+                listeners.computeIfAbsent(name,
+                        key -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(handler);
+            }
+        }
+
+        /**
+         * Sends one text frame.
+         *
+         * @zh 发送一帧文本。
+         * @zh-param data 文本内容
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public void send(String data) {
+            java.net.http.WebSocket current = socket;
+            if (current == null) {
+                throw new IllegalStateException("websocket is not open");
+            }
+            current.sendText(data, true);
+        }
+
+        /**
+         * Closes the connection gracefully.
+         *
+         * @zh 优雅地关闭连接。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public void close() {
+            java.net.http.WebSocket current = socket;
+            if (current != null) {
+                current.sendClose(java.net.http.WebSocket.NORMAL_CLOSURE, "");
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "Ws(" + uri + ")";
+        }
+
+        /** Attaches the underlying socket once the handshake completes. */
+        void attach(java.net.http.WebSocket socket) {
+            this.socket = socket;
+            socket.request(1);
+        }
+
+        /** Dispatches one event to the registered handlers. */
+        void dispatch(String name, Object payload) {
+            synchronized (listeners) {
+                java.util.List<java.util.function.Consumer<Object>> handlers = listeners.get(name);
+                if (handlers == null) {
+                    return;
+                }
+                for (java.util.function.Consumer<Object> handler : handlers) {
+                    try {
+                        handler.accept(payload);
+                    } catch (RuntimeException ignored) {
+                        // one failing handler must not break the socket pump
+                    }
+                }
+            }
+        }
+
+        /** Builds the java HttpClient listener driving the event dispatch. */
+        java.net.http.WebSocket.Listener listener() {
+            return new java.net.http.WebSocket.Listener() {
+                @Override
+                public void onOpen(java.net.http.WebSocket webSocket) {
+                    webSocket.request(1);
+                }
+
+                @Override
+                public java.util.concurrent.CompletionStage<?> onText(
+                        java.net.http.WebSocket webSocket, CharSequence data, boolean last) {
+                    fragment.append(data);
+                    if (last) {
+                        dispatch("message", fragment.toString());
+                        fragment.setLength(0);
+                    }
+                    webSocket.request(1);
+                    return null;
+                }
+
+                @Override
+                public java.util.concurrent.CompletionStage<?> onClose(
+                        java.net.http.WebSocket webSocket, int statusCode, String reason) {
+                    dispatch("close", reason);
+                    return null;
+                }
+
+                @Override
+                public void onError(java.net.http.WebSocket webSocket, Throwable error) {
+                    dispatch("error", String.valueOf(error));
+                }
+            };
         }
     }
 }
