@@ -420,6 +420,12 @@ public final class FabricWorldPort implements WorldPort {
         extras.put("isBurnable", base.ignitedByLava());
         extras.put("replaceable", base.canBeReplaced());
         extras.put("toolRequired", base.requiresCorrectToolForDrops());
+        extras.put("pistonBehaviour", base.getPistonPushReaction()
+                .name().toLowerCase(java.util.Locale.ROOT));
+        extras.put("suffocating", base.isSuffocating(level(), pos));
+        extras.put("fluid", base.getFluidState().isEmpty() ? null
+                : net.minecraft.core.registries.BuiltInRegistries.FLUID
+                        .getKey(base.getFluidState().getType()).toString());
         return extras;
     }
 

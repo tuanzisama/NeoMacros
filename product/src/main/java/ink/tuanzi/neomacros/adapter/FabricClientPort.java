@@ -190,7 +190,7 @@ public final class FabricClientPort implements ClientPort {
                 return Optional.empty();
             }
             String label = data.name != null && !data.name.isBlank() ? data.name : data.ip;
-            return Optional.of(new ServerInfoData(label, data.ip));
+            return Optional.of(new ServerInfoData(label, data.ip, data.ping));
         });
     }
 

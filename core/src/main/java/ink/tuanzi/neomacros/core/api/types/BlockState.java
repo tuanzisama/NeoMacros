@@ -190,6 +190,39 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
         return value instanceof Boolean b ? b : null;
     }
 
+    /** The piston push behaviour (lowercase, e.g. {@code normal}).
+     * @zh 活塞推动行为（小写，如 {@code normal}）。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getPistonBehaviour() {
+        Object value = extra("pistonBehaviour");
+        return value instanceof String s ? s : null;
+    }
+
+    /** Whether this state suffocates entities standing inside it.
+     * @zh 该状态是否会令其中的实体窒息。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean isSuffocating() {
+        Object value = extra("suffocating");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /** The contained fluid identifier, or {@code null} when dry.
+     * @zh 所含流体标识；无流体为 null。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getFluid() {
+        Object value = extra("fluid");
+        return value instanceof String s ? s : null;
+    }
+
     public boolean isProps(java.util.Map<String, String> props) {
         for (java.util.Map.Entry<String, String> entry : props.entrySet()) {
             if (entry.getKey().equals("id")) {
