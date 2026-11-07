@@ -13,16 +13,16 @@ import java.util.UUID;
 import java.util.function.Function;
 
 /**
- * The species handle tree: Mojang-named guest subclasses over the living
- * entity hierarchy, one class per species carrying that species' gap
- * members. Registration is data-driven ({@link #registry()}); the API
+ * The species handle tree: guest subclasses over the living entity
+ * hierarchy, one class per species carrying that species' gap members;
+ * every class name carries the Entity suffix. Registration is data-driven ({@link #registry()}); the API
  * consults it when wrapping so queries return the deepest species handle.
  * Intermediate Mojang classes without gap members stay structural.
  *
  * <p>Members read live species state through the entity port; a vanished
  * entity reads back as {@code undefined} like every other handle.</p>
  *
- * @zh 物种句柄树：活实体层级之上的 Mojang 命名 guest 子类，每物种一类、携带该物种的缺口成员。注册数据驱动（{@link #registry()}），包装时查表返回最深的物种句柄；无缺口成员的 Mojang 中间类保持结构性存在。成员经实体端口实时读取；实体消失后属性回读为 undefined，与其他句柄一致。
+ * @zh 物种句柄树：活实体层级之上的 guest 子类，每物种一类、携带该物种的缺口成员；类名一律带 Entity 后缀。注册数据驱动（{@link #registry()}），包装时查表返回最深的物种句柄；无缺口成员的 Mojang 中间类保持结构性存在。成员经实体端口实时读取；实体消失后属性回读为 undefined，与其他句柄一致。
  */
 public final class SpeciesEntities {
 
@@ -45,67 +45,67 @@ public final class SpeciesEntities {
 
         private static Map<String, Function<UUID, EntityApi.Entity>> build() {
             Map<String, Function<UUID, EntityApi.Entity>> map = new LinkedHashMap<>();
-            put(map, "minecraft:bat", Bat::new);
-            put(map, "minecraft:cat", Cat::new);
-            put(map, "minecraft:creeper", Creeper::new);
-            put(map, "minecraft:mooshroom", MushroomCow::new);
-            put(map, "minecraft:sheep", Sheep::new);
-            put(map, "minecraft:tnt", PrimedTnt::new);
-            put(map, "minecraft:villager", Villager::new);
-            put(map, "minecraft:wolf", Wolf::new);
-            put(map, "minecraft:zombie", Zombie::new);
-            put(map, "minecraft:donkey", Donkey::new);
-            put(map, "minecraft:enderman", Enderman::new);
-            put(map, "minecraft:horse", Horse::new);
-            put(map, "minecraft:iron_golem", IronGolem::new);
-            put(map, "minecraft:llama", Llama::new);
-            put(map, "minecraft:phantom", Phantom::new);
-            put(map, "minecraft:spider", Spider::new);
-            put(map, "minecraft:zombified_piglin", ZombifiedPiglin::new);
-            put(map, "minecraft:zombie_villager", ZombieVillager::new);
-            put(map, "minecraft:drowned", Drowned::new);
-            put(map, "minecraft:warden", Warden::new);
-            put(map, "minecraft:dolphin", Dolphin::new);
-            put(map, "minecraft:witch", Witch::new);
-            put(map, "minecraft:vex", Vex::new);
-            put(map, "minecraft:turtle", Turtle::new);
-            put(map, "minecraft:snow_golem", SnowGolem::new);
-            put(map, "minecraft:shulker", Shulker::new);
-            put(map, "minecraft:polar_bear", PolarBear::new);
-            put(map, "minecraft:parrot", Parrot::new);
-            put(map, "minecraft:panda", Panda::new);
-            put(map, "minecraft:goat", Goat::new);
-            put(map, "minecraft:frog", Frog::new);
-            put(map, "minecraft:fox", Fox::new);
-            put(map, "minecraft:bee", Bee::new);
-            put(map, "minecraft:axolotl", Axolotl::new);
-            put(map, "minecraft:chicken", Chicken::new);
-            put(map, "minecraft:ghast", Ghast::new);
-            put(map, "minecraft:ocelot", Ocelot::new);
-            put(map, "minecraft:rabbit", Rabbit::new);
-            put(map, "minecraft:strider", Strider::new);
-            put(map, "minecraft:wither", WitherBoss::new);
-            put(map, "minecraft:allay", Allay::new);
-            put(map, "minecraft:cow", Cow::new);
-            put(map, "minecraft:armadillo", Armadillo::new);
-            put(map, "minecraft:camel", Camel::new);
-            put(map, "minecraft:sniffer", Sniffer::new);
-            put(map, "minecraft:salmon", Salmon::new);
-            put(map, "minecraft:cod", Cod::new);
-            put(map, "minecraft:pufferfish", Pufferfish::new);
-            put(map, "minecraft:tropical_fish", TropicalFish::new);
-            put(map, "minecraft:piglin", Piglin::new);
-            put(map, "minecraft:piglin_brute", PiglinBrute::new);
-            put(map, "minecraft:pillager", Pillager::new);
-            put(map, "minecraft:evoker", Evoker::new);
-            put(map, "minecraft:wandering_trader", WanderingTrader::new);
-            put(map, "minecraft:ender_dragon", EnderDragon::new);
-            put(map, "minecraft:breeze", Breeze::new);
-            put(map, "minecraft:creaking", Creaking::new);
-            put(map, "minecraft:armor_stand", ArmorStand::new);
-            put(map, "minecraft:falling_block", FallingBlock::new);
-            put(map, "minecraft:item_frame", ItemFrame::new);
-            put(map, "minecraft:area_effect_cloud", AreaEffectCloud::new);
+            put(map, "minecraft:bat", BatEntity::new);
+            put(map, "minecraft:cat", CatEntity::new);
+            put(map, "minecraft:creeper", CreeperEntity::new);
+            put(map, "minecraft:mooshroom", MushroomCowEntity::new);
+            put(map, "minecraft:sheep", SheepEntity::new);
+            put(map, "minecraft:tnt", PrimedTntEntity::new);
+            put(map, "minecraft:villager", VillagerEntity::new);
+            put(map, "minecraft:wolf", WolfEntity::new);
+            put(map, "minecraft:zombie", ZombieEntity::new);
+            put(map, "minecraft:donkey", DonkeyEntity::new);
+            put(map, "minecraft:enderman", EndermanEntity::new);
+            put(map, "minecraft:horse", HorseEntity::new);
+            put(map, "minecraft:iron_golem", IronGolemEntity::new);
+            put(map, "minecraft:llama", LlamaEntity::new);
+            put(map, "minecraft:phantom", PhantomEntity::new);
+            put(map, "minecraft:spider", SpiderEntity::new);
+            put(map, "minecraft:zombified_piglin", ZombifiedPiglinEntity::new);
+            put(map, "minecraft:zombie_villager", ZombieVillagerEntity::new);
+            put(map, "minecraft:drowned", DrownedEntity::new);
+            put(map, "minecraft:warden", WardenEntity::new);
+            put(map, "minecraft:dolphin", DolphinEntity::new);
+            put(map, "minecraft:witch", WitchEntity::new);
+            put(map, "minecraft:vex", VexEntity::new);
+            put(map, "minecraft:turtle", TurtleEntity::new);
+            put(map, "minecraft:snow_golem", SnowGolemEntity::new);
+            put(map, "minecraft:shulker", ShulkerEntity::new);
+            put(map, "minecraft:polar_bear", PolarBearEntity::new);
+            put(map, "minecraft:parrot", ParrotEntity::new);
+            put(map, "minecraft:panda", PandaEntity::new);
+            put(map, "minecraft:goat", GoatEntity::new);
+            put(map, "minecraft:frog", FrogEntity::new);
+            put(map, "minecraft:fox", FoxEntity::new);
+            put(map, "minecraft:bee", BeeEntity::new);
+            put(map, "minecraft:axolotl", AxolotlEntity::new);
+            put(map, "minecraft:chicken", ChickenEntity::new);
+            put(map, "minecraft:ghast", GhastEntity::new);
+            put(map, "minecraft:ocelot", OcelotEntity::new);
+            put(map, "minecraft:rabbit", RabbitEntity::new);
+            put(map, "minecraft:strider", StriderEntity::new);
+            put(map, "minecraft:wither", WitherBossEntity::new);
+            put(map, "minecraft:allay", AllayEntity::new);
+            put(map, "minecraft:cow", CowEntity::new);
+            put(map, "minecraft:armadillo", ArmadilloEntity::new);
+            put(map, "minecraft:camel", CamelEntity::new);
+            put(map, "minecraft:sniffer", SnifferEntity::new);
+            put(map, "minecraft:salmon", SalmonEntity::new);
+            put(map, "minecraft:cod", CodEntity::new);
+            put(map, "minecraft:pufferfish", PufferfishEntity::new);
+            put(map, "minecraft:tropical_fish", TropicalFishEntity::new);
+            put(map, "minecraft:piglin", PiglinEntity::new);
+            put(map, "minecraft:piglin_brute", PiglinBruteEntity::new);
+            put(map, "minecraft:pillager", PillagerEntity::new);
+            put(map, "minecraft:evoker", EvokerEntity::new);
+            put(map, "minecraft:wandering_trader", WanderingTraderEntity::new);
+            put(map, "minecraft:ender_dragon", EnderDragonEntity::new);
+            put(map, "minecraft:breeze", BreezeEntity::new);
+            put(map, "minecraft:creaking", CreakingEntity::new);
+            put(map, "minecraft:armor_stand", ArmorStandEntity::new);
+            put(map, "minecraft:falling_block", FallingBlockEntity::new);
+            put(map, "minecraft:item_frame", ItemFrameEntity::new);
+            put(map, "minecraft:area_effect_cloud", AreaEffectCloudEntity::new);
             return map;
         }
 
@@ -121,15 +121,15 @@ public final class SpeciesEntities {
      *
      * @zh 生物基类：AI 开关与当前攻击目标，为敌对与可驯物种共享。
      */
-    @ApiClass(name = "Mob", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "MobEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.Mob")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Mob extends EntityApi.LivingEntity {
+    public static class MobEntity extends EntityApi.LivingEntity {
 
         /** Creates the handle for one mob UUID. */
-        public Mob(UUID uuid) {
+        public MobEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -166,15 +166,15 @@ public final class SpeciesEntities {
      *
      * @zh 可繁殖动物基类（牛、羊、猫、狼等）。
      */
-    @ApiClass(name = "Animal", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "AnimalEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.Animal")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Animal extends Mob {
+    public static class AnimalEntity extends MobEntity {
 
         /** Creates the handle for one animal UUID. */
-        public Animal(UUID uuid) {
+        public AnimalEntity(UUID uuid) {
             super(uuid);
         }
     }
@@ -185,15 +185,15 @@ public final class SpeciesEntities {
      *
      * @zh 可驯化基类（狼、猫）：归属与坐下状态随驯化缺口批落地。
      */
-    @ApiClass(name = "TamableAnimal", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "TamableAnimalEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.TamableAnimal")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class TamableAnimal extends Animal {
+    public static class TamableAnimalEntity extends AnimalEntity {
 
         /** Creates the handle for one tameable UUID. */
-        public TamableAnimal(UUID uuid) {
+        public TamableAnimalEntity(UUID uuid) {
             super(uuid);
         }
     }
@@ -203,15 +203,15 @@ public final class SpeciesEntities {
      *
      * @zh 绵羊：羊毛颜色与剪毛状态。
      */
-    @ApiClass(name = "Sheep", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "SheepEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.sheep.Sheep")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Sheep extends Animal {
+    public static class SheepEntity extends AnimalEntity {
 
         /** Creates the handle for one sheep UUID. */
-        public Sheep(UUID uuid) {
+        public SheepEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -248,15 +248,15 @@ public final class SpeciesEntities {
      *
      * @zh 狼：项圈颜色。愤怒与乞食状态随驯化缺口批（原版访问器已移入 wolf AI 配置）。
      */
-    @ApiClass(name = "Wolf", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "WolfEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.wolf.Wolf")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Wolf extends TamableAnimal {
+    public static class WolfEntity extends TamableAnimalEntity {
 
         /** Creates the handle for one wolf UUID. */
-        public Wolf(UUID uuid) {
+        public WolfEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -279,15 +279,15 @@ public final class SpeciesEntities {
      *
      * @zh 猫：项圈颜色与花色变体。
      */
-    @ApiClass(name = "Cat", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "CatEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.feline.Cat")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Cat extends TamableAnimal {
+    public static class CatEntity extends TamableAnimalEntity {
 
         /** Creates the handle for one cat UUID. */
-        public Cat(UUID uuid) {
+        public CatEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -323,15 +323,15 @@ public final class SpeciesEntities {
      *
      * @zh 村民：职业、交易等级与生物群系变体。
      */
-    @ApiClass(name = "Villager", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "VillagerEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.npc.villager.Villager")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Villager extends Mob {
+    public static class VillagerEntity extends MobEntity {
 
         /** Creates the handle for one villager UUID. */
-        public Villager(UUID uuid) {
+        public VillagerEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -383,15 +383,15 @@ public final class SpeciesEntities {
      *
      * @zh 苦力怕：充能与点燃状态。原版客户端类未暴露引信倒计时访问器，随物种缺口后随批。
      */
-    @ApiClass(name = "Creeper", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "CreeperEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.Creeper")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Creeper extends Mob {
+    public static class CreeperEntity extends MobEntity {
 
         /** Creates the handle for one creeper UUID. */
-        public Creeper(UUID uuid) {
+        public CreeperEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -427,15 +427,15 @@ public final class SpeciesEntities {
      *
      * @zh 僵尸：溺水转化状态。
      */
-    @ApiClass(name = "Zombie", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "ZombieEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.zombie.Zombie")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Zombie extends Mob {
+    public static class ZombieEntity extends MobEntity {
 
         /** Creates the handle for one zombie UUID. */
-        public Zombie(UUID uuid) {
+        public ZombieEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -458,15 +458,15 @@ public final class SpeciesEntities {
      *
      * @zh 已点燃的 TNT 实体：引信倒计时。
      */
-    @ApiClass(name = "PrimedTnt", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "PrimedTntEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.item.PrimedTnt")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class PrimedTnt extends EntityApi.Entity {
+    public static class PrimedTntEntity extends EntityApi.Entity {
 
         /** Creates the handle for one primed TNT UUID. */
-        public PrimedTnt(UUID uuid) {
+        public PrimedTntEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -490,15 +490,15 @@ public final class SpeciesEntities {
      *
      * @zh 蝙蝠：栖息状态。
      */
-    @ApiClass(name = "Bat", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "BatEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.ambient.Bat")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Bat extends Mob {
+    public static class BatEntity extends MobEntity {
 
         /** Creates the handle for one bat UUID. */
-        public Bat(UUID uuid) {
+        public BatEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -521,15 +521,15 @@ public final class SpeciesEntities {
      *
      * @zh 蘑菇牛（哞菇）：棕色或红色变体。
      */
-    @ApiClass(name = "MushroomCow", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "MushroomCowEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.cow.MushroomCow")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class MushroomCow extends Animal {
+    public static class MushroomCowEntity extends AnimalEntity {
 
         /** Creates the handle for one mooshroom UUID. */
-        public MushroomCow(UUID uuid) {
+        public MushroomCowEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -554,15 +554,15 @@ public final class SpeciesEntities {
      *
      * @zh 末影人：当前搬起的方块 id 字符串；未搬起为 undefined。
      */
-    @ApiClass(name = "Enderman", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "EndermanEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.Enderman")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Enderman extends Mob {
+    public static class EndermanEntity extends MobEntity {
 
         /** Creates the handle for one enderman UUID. */
-        public Enderman(UUID uuid) {
+        public EndermanEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -579,15 +579,15 @@ public final class SpeciesEntities {
 
     /** A phantom: its size tier.
      * @zh 幻翼：体型档位。 */
-    @ApiClass(name = "Phantom", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "PhantomEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.Phantom")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Phantom extends Mob {
+    public static class PhantomEntity extends MobEntity {
 
         /** Creates the handle for one phantom UUID. */
-        public Phantom(UUID uuid) {
+        public PhantomEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -604,15 +604,15 @@ public final class SpeciesEntities {
 
     /** A spider: wall-climbing state.
      * @zh 蜘蛛：爬墙状态。 */
-    @ApiClass(name = "Spider", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "SpiderEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.spider.Spider")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Spider extends Mob {
+    public static class SpiderEntity extends MobEntity {
 
         /** Creates the handle for one spider UUID. */
-        public Spider(UUID uuid) {
+        public SpiderEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -630,15 +630,15 @@ public final class SpeciesEntities {
     /** The horse base: taming, eating and breeding states plus the saddle
      * inventory size.
      * @zh 马基类：驯服/进食/繁殖状态与鞍上背包容量。 */
-    @ApiClass(name = "AbstractHorse", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "AbstractHorseEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.equine.AbstractHorse")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class AbstractHorse extends Animal {
+    public static class AbstractHorseEntity extends AnimalEntity {
 
         /** Creates the handle for one horse UUID. */
-        public AbstractHorse(UUID uuid) {
+        public AbstractHorseEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -685,15 +685,15 @@ public final class SpeciesEntities {
 
     /** A horse: coat variant.
      * @zh 马：毛色变体。 */
-    @ApiClass(name = "Horse", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "HorseEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.equine.Horse")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Horse extends AbstractHorse {
+    public static class HorseEntity extends AbstractHorseEntity {
 
         /** Creates the handle for one horse UUID. */
-        public Horse(UUID uuid) {
+        public HorseEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -711,45 +711,45 @@ public final class SpeciesEntities {
     /** The chested-horse base (donkeys, mules, llamas); the chest state
      * accessor is not public and rides the follow-up batch.
      * @zh 驮箱马基类（驴、骡、羊驼）；原版未公开箱子状态访问器，随后随批。 */
-    @ApiClass(name = "AbstractChestedHorse", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "AbstractChestedHorseEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.equine.AbstractChestedHorse")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class AbstractChestedHorse extends AbstractHorse {
+    public static class AbstractChestedHorseEntity extends AbstractHorseEntity {
 
         /** Creates the handle for one chested horse UUID. */
-        public AbstractChestedHorse(UUID uuid) {
+        public AbstractChestedHorseEntity(UUID uuid) {
             super(uuid);
         }
     }
 
     /** A donkey.
      * @zh 驴。 */
-    @ApiClass(name = "Donkey", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "DonkeyEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.equine.Donkey")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Donkey extends AbstractChestedHorse {
+    public static class DonkeyEntity extends AbstractChestedHorseEntity {
 
         /** Creates the handle for one donkey UUID. */
-        public Donkey(UUID uuid) {
+        public DonkeyEntity(UUID uuid) {
             super(uuid);
         }
     }
 
     /** A llama: strength tier and variant.
      * @zh 羊驼：力量档位与变体。 */
-    @ApiClass(name = "Llama", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "LlamaEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.equine.Llama")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Llama extends AbstractChestedHorse {
+    public static class LlamaEntity extends AbstractChestedHorseEntity {
 
         /** Creates the handle for one llama UUID. */
-        public Llama(UUID uuid) {
+        public LlamaEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -776,15 +776,15 @@ public final class SpeciesEntities {
 
     /** An iron golem: whether a player built it.
      * @zh 铁傀儡：是否为玩家建造。 */
-    @ApiClass(name = "IronGolem", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "IronGolemEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.golem.IronGolem")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class IronGolem extends Animal {
+    public static class IronGolemEntity extends AnimalEntity {
 
         /** Creates the handle for one iron golem UUID. */
-        public IronGolem(UUID uuid) {
+        public IronGolemEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -801,30 +801,30 @@ public final class SpeciesEntities {
 
     /** A chicken.
      * @zh 鸡。 */
-    @ApiClass(name = "Chicken", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "ChickenEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.chicken.Chicken")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Chicken extends Animal {
+    public static class ChickenEntity extends AnimalEntity {
 
         /** Creates the handle for one chicken UUID. */
-        public Chicken(UUID uuid) {
+        public ChickenEntity(UUID uuid) {
             super(uuid);
         }
     }
 
     /** A ghast: fire charging state.
      * @zh 恶魂：喷火蓄力状态。 */
-    @ApiClass(name = "Ghast", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "GhastEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.Ghast")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Ghast extends Mob {
+    public static class GhastEntity extends MobEntity {
 
         /** Creates the handle for one ghast UUID. */
-        public Ghast(UUID uuid) {
+        public GhastEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -841,15 +841,15 @@ public final class SpeciesEntities {
 
     /** An ocelot: trusting state.
      * @zh 豹猫：信任状态。 */
-    @ApiClass(name = "Ocelot", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "OcelotEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.feline.Ocelot")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Ocelot extends Animal {
+    public static class OcelotEntity extends AnimalEntity {
 
         /** Creates the handle for one ocelot UUID. */
-        public Ocelot(UUID uuid) {
+        public OcelotEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -857,15 +857,15 @@ public final class SpeciesEntities {
 
     /** A rabbit: its variant id.
      * @zh 兔子：变体标识。 */
-    @ApiClass(name = "Rabbit", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "RabbitEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.rabbit.Rabbit")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Rabbit extends Animal {
+    public static class RabbitEntity extends AnimalEntity {
 
         /** Creates the handle for one rabbit UUID. */
-        public Rabbit(UUID uuid) {
+        public RabbitEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -882,15 +882,15 @@ public final class SpeciesEntities {
 
     /** A strider: saddle and shivering state.
      * @zh 炽足兽：鞍与颤抖状态。 */
-    @ApiClass(name = "Strider", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "StriderEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.strider.Strider")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Strider extends Mob {
+    public static class StriderEntity extends MobEntity {
 
         /** Creates the handle for one strider UUID. */
-        public Strider(UUID uuid) {
+        public StriderEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -898,15 +898,15 @@ public final class SpeciesEntities {
 
     /** A wither boss: invulnerable armor phase state.
      * @zh 凋灵：无敌护甲阶段状态。 */
-    @ApiClass(name = "WitherBoss", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "WitherBossEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.boss.wither.WitherBoss")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class WitherBoss extends Mob {
+    public static class WitherBossEntity extends MobEntity {
 
         /** Creates the handle for one wither UUID. */
-        public WitherBoss(UUID uuid) {
+        public WitherBossEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -924,15 +924,15 @@ public final class SpeciesEntities {
 
     /** An axolotl: variant, playing-dead state, and bucket origin.
      * @zh 六角恐龙：变体、装死状态与桶装来源。 */
-    @ApiClass(name = "Axolotl", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "AxolotlEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.axolotl.Axolotl")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Axolotl extends Animal {
+    public static class AxolotlEntity extends AnimalEntity {
 
         /** Creates the handle for one axolotl UUID. */
-        public Axolotl(UUID uuid) {
+        public AxolotlEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -969,15 +969,15 @@ public final class SpeciesEntities {
 
     /** A bee: nectar and sting state.
      * @zh 蜜蜂：花粉与蜇刺状态。 */
-    @ApiClass(name = "Bee", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "BeeEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.bee.Bee")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Bee extends Animal {
+    public static class BeeEntity extends AnimalEntity {
 
         /** Creates the handle for one bee UUID. */
-        public Bee(UUID uuid) {
+        public BeeEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1004,15 +1004,15 @@ public final class SpeciesEntities {
 
     /** A fox: sitting state.
      * @zh 狐狸：坐下状态。 */
-    @ApiClass(name = "Fox", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "FoxEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.fox.Fox")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Fox extends Animal {
+    public static class FoxEntity extends AnimalEntity {
 
         /** Creates the handle for one fox UUID. */
-        public Fox(UUID uuid) {
+        public FoxEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1029,15 +1029,15 @@ public final class SpeciesEntities {
 
     /** A frog: variant.
      * @zh 青蛙：变体。 */
-    @ApiClass(name = "Frog", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "FrogEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.frog.Frog")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Frog extends Animal {
+    public static class FrogEntity extends AnimalEntity {
 
         /** Creates the handle for one frog UUID. */
-        public Frog(UUID uuid) {
+        public FrogEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1054,15 +1054,15 @@ public final class SpeciesEntities {
 
     /** A goat: horn state and screaming variant.
      * @zh 山羊：角状态与尖叫变体。 */
-    @ApiClass(name = "Goat", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "GoatEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.goat.Goat")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Goat extends Animal {
+    public static class GoatEntity extends AnimalEntity {
 
         /** Creates the handle for one goat UUID. */
-        public Goat(UUID uuid) {
+        public GoatEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1099,15 +1099,15 @@ public final class SpeciesEntities {
 
     /** A panda: gene pair and behavior states.
      * @zh 熊猫：基因对与行为状态。 */
-    @ApiClass(name = "Panda", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "PandaEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.panda.Panda")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Panda extends Animal {
+    public static class PandaEntity extends AnimalEntity {
 
         /** Creates the handle for one panda UUID. */
-        public Panda(UUID uuid) {
+        public PandaEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1174,15 +1174,15 @@ public final class SpeciesEntities {
 
     /** A parrot: variant.
      * @zh 鹦鹉：变体。 */
-    @ApiClass(name = "Parrot", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "ParrotEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.parrot.Parrot")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Parrot extends Animal {
+    public static class ParrotEntity extends AnimalEntity {
 
         /** Creates the handle for one parrot UUID. */
-        public Parrot(UUID uuid) {
+        public ParrotEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1199,15 +1199,15 @@ public final class SpeciesEntities {
 
     /** A polar bear: standing state.
      * @zh 北极熊：站立状态。 */
-    @ApiClass(name = "PolarBear", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "PolarBearEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.polarbear.PolarBear")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class PolarBear extends Animal {
+    public static class PolarBearEntity extends AnimalEntity {
 
         /** Creates the handle for one polar bear UUID. */
-        public PolarBear(UUID uuid) {
+        public PolarBearEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1224,15 +1224,15 @@ public final class SpeciesEntities {
 
     /** A shulker: shell color.
      * @zh 潜影贝：壳颜色。 */
-    @ApiClass(name = "Shulker", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "ShulkerEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.Shulker")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Shulker extends Mob {
+    public static class ShulkerEntity extends MobEntity {
 
         /** Creates the handle for one shulker UUID. */
-        public Shulker(UUID uuid) {
+        public ShulkerEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1249,15 +1249,15 @@ public final class SpeciesEntities {
 
     /** A snow golem: pumpkin hat state.
      * @zh 雪傀儡：南瓜头状态。 */
-    @ApiClass(name = "SnowGolem", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "SnowGolemEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.golem.SnowGolem")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class SnowGolem extends Mob {
+    public static class SnowGolemEntity extends MobEntity {
 
         /** Creates the handle for one snow golem UUID. */
-        public SnowGolem(UUID uuid) {
+        public SnowGolemEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1274,15 +1274,15 @@ public final class SpeciesEntities {
 
     /** A turtle: egg-laying state.
      * @zh 海龟：产卵状态。 */
-    @ApiClass(name = "Turtle", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "TurtleEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.turtle.Turtle")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Turtle extends Animal {
+    public static class TurtleEntity extends AnimalEntity {
 
         /** Creates the handle for one turtle UUID. */
-        public Turtle(UUID uuid) {
+        public TurtleEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1299,15 +1299,15 @@ public final class SpeciesEntities {
 
     /** A vex: charging attack state.
      * @zh 恼鬼：冲锋攻击状态。 */
-    @ApiClass(name = "Vex", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "VexEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.Vex")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Vex extends Mob {
+    public static class VexEntity extends MobEntity {
 
         /** Creates the handle for one vex UUID. */
-        public Vex(UUID uuid) {
+        public VexEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1324,15 +1324,15 @@ public final class SpeciesEntities {
 
     /** A witch: potion-drinking state.
      * @zh 女巫：喝药状态。 */
-    @ApiClass(name = "Witch", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "WitchEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.Witch")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Witch extends Mob {
+    public static class WitchEntity extends MobEntity {
 
         /** Creates the handle for one witch UUID. */
-        public Witch(UUID uuid) {
+        public WitchEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1349,15 +1349,15 @@ public final class SpeciesEntities {
 
     /** A dolphin: moisture level.
      * @zh 海豚：湿润度。 */
-    @ApiClass(name = "Dolphin", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "DolphinEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.dolphin.Dolphin")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Dolphin extends Mob {
+    public static class DolphinEntity extends MobEntity {
 
         /** Creates the handle for one dolphin UUID. */
-        public Dolphin(UUID uuid) {
+        public DolphinEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1374,15 +1374,15 @@ public final class SpeciesEntities {
 
     /** A warden: anger level.
      * @zh 监守者：愤怒等级。 */
-    @ApiClass(name = "Warden", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "WardenEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.warden.Warden")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Warden extends Mob {
+    public static class WardenEntity extends MobEntity {
 
         /** Creates the handle for one warden UUID. */
-        public Warden(UUID uuid) {
+        public WardenEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1399,30 +1399,30 @@ public final class SpeciesEntities {
 
     /** A drowned.
      * @zh 溺尸。 */
-    @ApiClass(name = "Drowned", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "DrownedEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.zombie.Drowned")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Drowned extends Zombie {
+    public static class DrownedEntity extends ZombieEntity {
 
         /** Creates the handle for one drowned UUID. */
-        public Drowned(UUID uuid) {
+        public DrownedEntity(UUID uuid) {
             super(uuid);
         }
     }
 
     /** A zombie villager: trade identity and conversion state.
      * @zh 僵尸村民：交易身份与转化状态。 */
-    @ApiClass(name = "ZombieVillager", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "ZombieVillagerEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.zombie.ZombieVillager")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class ZombieVillager extends Zombie {
+    public static class ZombieVillagerEntity extends ZombieEntity {
 
         /** Creates the handle for one zombie villager UUID. */
-        public ZombieVillager(UUID uuid) {
+        public ZombieVillagerEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1484,30 +1484,30 @@ public final class SpeciesEntities {
 
     /** A zombified piglin.
      * @zh 僵尸猪灵。 */
-    @ApiClass(name = "ZombifiedPiglin", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "ZombifiedPiglinEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.zombie.ZombifiedPiglin")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class ZombifiedPiglin extends Zombie {
+    public static class ZombifiedPiglinEntity extends ZombieEntity {
 
         /** Creates the handle for one zombified piglin UUID. */
-        public ZombifiedPiglin(UUID uuid) {
+        public ZombifiedPiglinEntity(UUID uuid) {
             super(uuid);
         }
     }
 
     /** An allay: jukebox dance and held-item state.
      * @zh 悦灵：唱片机起舞与持物状态。 */
-    @ApiClass(name = "Allay", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "AllayEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.allay.Allay")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Allay extends Mob {
+    public static class AllayEntity extends MobEntity {
 
         /** Creates the handle for one allay UUID. */
-        public Allay(UUID uuid) {
+        public AllayEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1566,15 +1566,15 @@ public final class SpeciesEntities {
 
     /** A cow: coat variant.
      * @zh 牛：毛色变体。 */
-    @ApiClass(name = "Cow", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "CowEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.cow.Cow")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Cow extends Animal {
+    public static class CowEntity extends AnimalEntity {
 
         /** Creates the handle for one cow UUID. */
-        public Cow(UUID uuid) {
+        public CowEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1594,15 +1594,15 @@ public final class SpeciesEntities {
 
     /** An armadillo: shell roll state.
      * @zh 犰狳：缩壳状态。 */
-    @ApiClass(name = "Armadillo", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "ArmadilloEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.armadillo.Armadillo")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Armadillo extends Animal {
+    public static class ArmadilloEntity extends AnimalEntity {
 
         /** Creates the handle for one armadillo UUID. */
-        public Armadillo(UUID uuid) {
+        public ArmadilloEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1639,15 +1639,15 @@ public final class SpeciesEntities {
 
     /** A camel: dash and sit pose, over the horse inventory base.
      * @zh 骆驼：冲刺与坐姿，继承马匹背包基类。 */
-    @ApiClass(name = "Camel", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "CamelEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.camel.Camel")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Camel extends AbstractHorse {
+    public static class CamelEntity extends AbstractHorseEntity {
 
         /** Creates the handle for one camel UUID. */
-        public Camel(UUID uuid) {
+        public CamelEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1706,15 +1706,15 @@ public final class SpeciesEntities {
 
     /** A sniffer: sniffing and digging state.
      * @zh 嗅探兽：嗅探与挖刨状态。 */
-    @ApiClass(name = "Sniffer", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "SnifferEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.sniffer.Sniffer")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Sniffer extends Animal {
+    public static class SnifferEntity extends AnimalEntity {
 
         /** Creates the handle for one sniffer UUID. */
-        public Sniffer(UUID uuid) {
+        public SnifferEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1760,15 +1760,15 @@ public final class SpeciesEntities {
 
     /** The fish base: bucket-birth state.
      * @zh 鱼类基类：桶装来源状态。 */
-    @ApiClass(name = "AbstractFish", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "AbstractFishEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.fish.AbstractFish")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class AbstractFish extends Animal {
+    public static class AbstractFishEntity extends AnimalEntity {
 
         /** Creates the handle for one fish UUID. */
-        public AbstractFish(UUID uuid) {
+        public AbstractFishEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1788,15 +1788,15 @@ public final class SpeciesEntities {
 
     /** The schooling fish base: school membership.
      * @zh 群游鱼类基类：鱼群成员关系。 */
-    @ApiClass(name = "AbstractSchoolingFish", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "AbstractSchoolingFishEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.fish.AbstractSchoolingFish")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class AbstractSchoolingFish extends AbstractFish {
+    public static class AbstractSchoolingFishEntity extends AbstractFishEntity {
 
         /** Creates the handle for one schooling fish UUID. */
-        public AbstractSchoolingFish(UUID uuid) {
+        public AbstractSchoolingFishEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1842,15 +1842,15 @@ public final class SpeciesEntities {
 
     /** A salmon: size variant.
      * @zh 鲑鱼：体型变体。 */
-    @ApiClass(name = "Salmon", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "SalmonEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.fish.Salmon")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Salmon extends AbstractSchoolingFish {
+    public static class SalmonEntity extends AbstractSchoolingFishEntity {
 
         /** Creates the handle for one salmon UUID. */
-        public Salmon(UUID uuid) {
+        public SalmonEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1872,30 +1872,30 @@ public final class SpeciesEntities {
 
     /** A cod.
      * @zh 鳕鱼。 */
-    @ApiClass(name = "Cod", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "CodEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.fish.Cod")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Cod extends AbstractSchoolingFish {
+    public static class CodEntity extends AbstractSchoolingFishEntity {
 
         /** Creates the handle for one cod UUID. */
-        public Cod(UUID uuid) {
+        public CodEntity(UUID uuid) {
             super(uuid);
         }
     }
 
     /** A pufferfish: puff inflation level (0-2).
      * @zh 河豚：鼓胀等级（0-2）。 */
-    @ApiClass(name = "Pufferfish", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "PufferfishEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.fish.Pufferfish")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Pufferfish extends AbstractFish {
+    public static class PufferfishEntity extends AbstractFishEntity {
 
         /** Creates the handle for one pufferfish UUID. */
-        public Pufferfish(UUID uuid) {
+        public PufferfishEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1915,15 +1915,15 @@ public final class SpeciesEntities {
 
     /** A tropical fish: shape pattern and colors.
      * @zh 热带鱼：形态花纹与配色。 */
-    @ApiClass(name = "TropicalFish", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "TropicalFishEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.fish.TropicalFish")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class TropicalFish extends AbstractFish {
+    public static class TropicalFishEntity extends AbstractFishEntity {
 
         /** Creates the handle for one tropical fish UUID. */
-        public TropicalFish(UUID uuid) {
+        public TropicalFishEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -1969,15 +1969,15 @@ public final class SpeciesEntities {
 
     /** A piglin: barterer growth and zombification state.
      * @zh 猪灵：以物易物者的成长与僵尸化状态。 */
-    @ApiClass(name = "Piglin", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "PiglinEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.piglin.Piglin")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Piglin extends Mob {
+    public static class PiglinEntity extends MobEntity {
 
         /** Creates the handle for one piglin UUID. */
-        public Piglin(UUID uuid) {
+        public PiglinEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2010,15 +2010,15 @@ public final class SpeciesEntities {
 
     /** A piglin brute: aggressive growth and zombification state.
      * @zh 猪灵蛮兵：好战者的成长与僵尸化状态。 */
-    @ApiClass(name = "PiglinBrute", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "PiglinBruteEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.piglin.PiglinBrute")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class PiglinBrute extends Mob {
+    public static class PiglinBruteEntity extends MobEntity {
 
         /** Creates the handle for one piglin brute UUID. */
-        public PiglinBrute(UUID uuid) {
+        public PiglinBruteEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2051,15 +2051,15 @@ public final class SpeciesEntities {
 
     /** A pillager: crossbow charging state.
      * @zh 掠夺者：弩充能状态。 */
-    @ApiClass(name = "Pillager", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "PillagerEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.illager.Pillager")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Pillager extends Mob {
+    public static class PillagerEntity extends MobEntity {
 
         /** Creates the handle for one pillager UUID. */
-        public Pillager(UUID uuid) {
+        public PillagerEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2079,15 +2079,15 @@ public final class SpeciesEntities {
 
     /** An evoker: spell casting state.
      * @zh 唤魔者：施法状态。 */
-    @ApiClass(name = "Evoker", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "EvokerEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.illager.Evoker")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Evoker extends Mob {
+    public static class EvokerEntity extends MobEntity {
 
         /** Creates the handle for one evoker UUID. */
-        public Evoker(UUID uuid) {
+        public EvokerEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2107,15 +2107,15 @@ public final class SpeciesEntities {
 
     /** A wandering trader: despawn countdown.
      * @zh 流浪商人：滞留倒计时。 */
-    @ApiClass(name = "WanderingTrader", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "WanderingTraderEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class WanderingTrader extends Mob {
+    public static class WanderingTraderEntity extends MobEntity {
 
         /** Creates the handle for one wandering trader UUID. */
-        public WanderingTrader(UUID uuid) {
+        public WanderingTraderEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2135,15 +2135,15 @@ public final class SpeciesEntities {
 
     /** The ender dragon: fight phase and death countdown.
      * @zh 末影龙：战斗阶段与死亡倒计时。 */
-    @ApiClass(name = "EnderDragon", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "EnderDragonEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.boss.enderdragon.EnderDragon")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class EnderDragon extends Mob {
+    public static class EnderDragonEntity extends MobEntity {
 
         /** Creates the handle for one ender dragon UUID. */
-        public EnderDragon(UUID uuid) {
+        public EnderDragonEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2176,15 +2176,15 @@ public final class SpeciesEntities {
 
     /** A breeze: slide attack state.
      * @zh 旋风人：滑行攻击状态。 */
-    @ApiClass(name = "Breeze", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "BreezeEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.breeze.Breeze")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Breeze extends Mob {
+    public static class BreezeEntity extends MobEntity {
 
         /** Creates the handle for one breeze UUID. */
-        public Breeze(UUID uuid) {
+        public BreezeEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2204,15 +2204,15 @@ public final class SpeciesEntities {
 
     /** A creaking: heart binding and mobility state.
      * @zh 嘎枝：心脏绑定与移动状态。 */
-    @ApiClass(name = "Creaking", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "CreakingEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.creaking.Creaking")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class Creaking extends Mob {
+    public static class CreakingEntity extends MobEntity {
 
         /** Creates the handle for one creaking UUID. */
-        public Creaking(UUID uuid) {
+        public CreakingEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2274,15 +2274,15 @@ public final class SpeciesEntities {
      *
      * @zh 盔甲架：隐形判定标记与小尺寸旗标。
      */
-    @ApiClass(name = "ArmorStand", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "ArmorStandEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.decoration.ArmorStand")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class ArmorStand extends Mob {
+    public static class ArmorStandEntity extends MobEntity {
 
         /** Creates the handle for one armor stand UUID. */
-        public ArmorStand(UUID uuid) {
+        public ArmorStandEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2318,15 +2318,15 @@ public final class SpeciesEntities {
      *
      * @zh 下落方块：其所携带的方块。
      */
-    @ApiClass(name = "FallingBlock", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "FallingBlockEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.item.FallingBlockEntity")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class FallingBlock extends EntityApi.Entity {
+    public static class FallingBlockEntity extends EntityApi.Entity {
 
         /** Creates the handle for one falling block UUID. */
-        public FallingBlock(UUID uuid) {
+        public FallingBlockEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2349,15 +2349,15 @@ public final class SpeciesEntities {
      *
      * @zh 物品展示框：所展示的物品堆与旋转步进。
      */
-    @ApiClass(name = "ItemFrame", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "ItemFrameEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.decoration.ItemFrame")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class ItemFrame extends EntityApi.Entity {
+    public static class ItemFrameEntity extends EntityApi.Entity {
 
         /** Creates the handle for one item frame UUID. */
-        public ItemFrame(UUID uuid) {
+        public ItemFrameEntity(UUID uuid) {
             super(uuid);
         }
 
@@ -2395,15 +2395,15 @@ public final class SpeciesEntities {
      *
      * @zh 药水效果云：半径与潜伏状态。
      */
-    @ApiClass(name = "AreaEffectCloud", kind = ApiClassKind.HANDLE,
+    @ApiClass(name = "AreaEffectCloudEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.AreaEffectCloud")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class AreaEffectCloud extends EntityApi.Entity {
+    public static class AreaEffectCloudEntity extends EntityApi.Entity {
 
         /** Creates the handle for one effect cloud UUID. */
-        public AreaEffectCloud(UUID uuid) {
+        public AreaEffectCloudEntity(UUID uuid) {
             super(uuid);
         }
 

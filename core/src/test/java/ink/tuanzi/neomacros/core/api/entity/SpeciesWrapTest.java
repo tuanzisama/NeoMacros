@@ -73,9 +73,9 @@ class SpeciesWrapTest {
     @Test
     void sheepWrapsToSpeciesWithMembers() {
         EntityApi.Entity handle = EntityApi.wrap(sheepId);
-        assertTrue(handle instanceof SpeciesEntities.Sheep, "sheep wraps as Sheep");
+        assertTrue(handle instanceof SpeciesEntities.SheepEntity, "sheep wraps as Sheep");
         assertTrue(handle instanceof EntityApi.LivingEntity, "sheep stays a living entity");
-        SpeciesEntities.Sheep sheep = (SpeciesEntities.Sheep) handle;
+        SpeciesEntities.SheepEntity sheep = (SpeciesEntities.SheepEntity) handle;
         assertEquals("minecraft:white", sheep.getColor());
         assertEquals(false, sheep.isSheared());
     }
@@ -83,20 +83,20 @@ class SpeciesWrapTest {
     @Test
     void zombieCarriesMobMembersAndTarget() {
         EntityApi.Entity handle = EntityApi.wrap(zombieId);
-        assertTrue(handle instanceof SpeciesEntities.Zombie, "zombie wraps as Zombie");
-        SpeciesEntities.Zombie zombie = (SpeciesEntities.Zombie) handle;
+        assertTrue(handle instanceof SpeciesEntities.ZombieEntity, "zombie wraps as Zombie");
+        SpeciesEntities.ZombieEntity zombie = (SpeciesEntities.ZombieEntity) handle;
         assertEquals(false, zombie.isNoAi());
         assertEquals(true, zombie.isUnderWaterConverting());
         EntityApi.Entity target = zombie.getTarget();
-        assertTrue(target instanceof SpeciesEntities.Sheep, "target wraps as the sheep");
+        assertTrue(target instanceof SpeciesEntities.SheepEntity, "target wraps as the sheep");
         assertEquals(sheepId, target.getUuid() == null ? null : UUID.fromString(target.getUuid()));
     }
 
     @Test
     void villagerCarriesTradeData() {
         EntityApi.Entity handle = EntityApi.wrap(villagerId);
-        assertTrue(handle instanceof SpeciesEntities.Villager, "villager wraps as Villager");
-        SpeciesEntities.Villager villager = (SpeciesEntities.Villager) handle;
+        assertTrue(handle instanceof SpeciesEntities.VillagerEntity, "villager wraps as Villager");
+        SpeciesEntities.VillagerEntity villager = (SpeciesEntities.VillagerEntity) handle;
         assertEquals("minecraft:farmer", villager.getProfession());
         assertEquals(5, villager.getLevel());
         assertEquals("minecraft:plains", villager.getVariant());
@@ -105,7 +105,7 @@ class SpeciesWrapTest {
     @Test
     void unregisteredSpeciesFallToLivingEntity() {
         EntityApi.Entity handle = EntityApi.wrap(plainId);
-        assertFalse(handle instanceof SpeciesEntities.Animal,
+        assertFalse(handle instanceof SpeciesEntities.AnimalEntity,
                 "unregistered species stay on the base tree");
         assertTrue(handle instanceof EntityApi.LivingEntity);
         assertEquals("minecraft:pig", handle.snapshot().type(),
