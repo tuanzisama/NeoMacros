@@ -45,6 +45,11 @@ public final class Payloads {
         if (value instanceof ItemStackData stack) {
             return ItemStack.of(stack);
         }
+        if (value instanceof ink.tuanzi.neomacros.port.model.ChatComponent component) {
+            // Received chat crosses as the Text face: plain-object via
+            // toJSON, with the full styled-segment behavior available.
+            return ink.tuanzi.neomacros.core.api.types.Text.from(component);
+        }
         if (value instanceof AabbData box) {
             Map<String, Object> view = new LinkedHashMap<>();
             view.put("min", snapshot(box.min()));

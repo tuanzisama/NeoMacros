@@ -53,10 +53,19 @@ public final class TextBuilder implements ScriptHandle {
         Boolean strikethrough = merge(style, "strikethrough", base.strikethrough());
         Boolean obfuscated = merge(style, "obfuscated", base.obfuscated());
         String hoverText = style.get("hoverText") != null ? String.valueOf(style.get("hoverText")) : base.hoverText();
+        ink.tuanzi.neomacros.port.model.ItemStackData hoverItem = style.get("hoverItem") != null
+                ? itemHover(String.valueOf(style.get("hoverItem"))) : base.hoverItem();
         String clickCommand = style.get("clickCommand") != null ? String.valueOf(style.get("clickCommand")) : base.clickCommand();
         String clickUrl = style.get("clickUrl") != null ? String.valueOf(style.get("clickUrl")) : base.clickUrl();
         return new TextSegmentData(base.text(), color, bold, italic, underlined,
-                strikethrough, obfuscated, hoverText, clickCommand, clickUrl);
+                strikethrough, obfuscated, hoverText, hoverItem, clickCommand, clickUrl);
+    }
+
+    /** Builds a one-count item hover fact from an item id.
+     * @zh 由物品 id 构建单计数的悬停物品事实。 */
+    private static ink.tuanzi.neomacros.port.model.ItemStackData itemHover(String itemId) {
+        return new ink.tuanzi.neomacros.port.model.ItemStackData(
+                ItemStack.namespaced(itemId), 1, "", 0, 0, List.of(), List.of(), Map.of());
     }
 
     /** Sets the segment color (named color or #rrggbb).
@@ -133,6 +142,22 @@ public final class TextBuilder implements ScriptHandle {
         replaceLast(new TextSegmentData(last.text(), last.color(), last.bold(), last.italic(),
                 last.underlined(), last.strikethrough(), last.obfuscated(),
                 hoverText, last.clickCommand(), last.clickUrl()));
+        return this;
+    }
+
+    /**
+     * Sets the show-item hover content from an item id (one-count stack).
+     *
+     * @zh 由物品 id 设置悬停展示物品（单计数）。
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public TextBuilder hoverItem(String itemId) {
+        TextSegmentData last = last();
+        replaceLast(new TextSegmentData(last.text(), last.color(), last.bold(), last.italic(),
+                last.underlined(), last.strikethrough(), last.obfuscated(),
+                last.hoverText(), itemHover(itemId), last.clickCommand(), last.clickUrl()));
         return this;
     }
 

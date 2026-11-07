@@ -123,6 +123,20 @@ public final class FabricChatPort implements ChatPort {
                     style = style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
                             net.minecraft.network.chat.Component.literal(segment.hoverText())));
                 }
+                //? if <26.1 {
+                /*
+                if (segment.hoverItem() != null) {
+                    style = style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowItem(
+                            showItemPayload(segment.hoverItem())));
+                }
+                */
+                //?}
+                //? if >=26.1 {
+                if (segment.hoverItem() != null) {
+                    style = style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowItem(
+                            showItemPayload(segment.hoverItem())));
+                }
+                //?}
                 if (segment.clickCommand() != null) {
                     style = style.withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(
                             segment.clickCommand()));
@@ -147,6 +161,28 @@ public final class FabricChatPort implements ChatPort {
             }
         });
     }
+
+    /** Rebuilds the show-item hover payload from one neutral snapshot. */
+    //? if <26.1 {
+    /*
+    private static net.minecraft.world.item.ItemStack showItemPayload(
+            ink.tuanzi.neomacros.port.model.ItemStackData hover) {
+        var id = net.minecraft.resources.Identifier.parse(hover.id());
+        var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(id)
+                .orElseThrow(() -> new IllegalArgumentException("unknown item: " + hover.id()));
+        return new net.minecraft.world.item.ItemStack(item, hover.count());
+    }
+    */
+    //?}
+    //? if >=26.1 {
+    private static net.minecraft.world.item.ItemStackTemplate showItemPayload(
+            ink.tuanzi.neomacros.port.model.ItemStackData hover) {
+        var id = net.minecraft.resources.Identifier.parse(hover.id());
+        var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(id)
+                .orElseThrow(() -> new IllegalArgumentException("unknown item: " + hover.id()));
+        return new net.minecraft.world.item.ItemStackTemplate(item, hover.count());
+    }
+    //?}
 
     /** Resolves a named formatting color or a #rrggbb hex color. */
     private static net.minecraft.network.chat.Style withColor(
