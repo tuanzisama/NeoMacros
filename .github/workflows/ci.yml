@@ -47,6 +47,19 @@ jobs:
           set -o pipefail
           ./gradlew :doc-api:build :ports:build :core:build :engine:build :e2e:build :product:1.21.6:build :product:26.1.2:build :product:26.2:build :product:26.3:build --continue --console=plain 2>&1 | tee build-output.log
 
+      # Collects every jar produced by the build (the installable product
+      # mods in product/*/build/libs plus the version-independent module
+      # jars) as a downloadable run artifact.
+      - name: Archive built jars
+        uses: actions/upload-artifact@v4
+        with:
+          name: jars
+          path: |
+            **/build/libs/*.jar
+            !**/build/libs/*-sources.jar
+          if-no-files-found: error
+          retention-days: 14
+
       # Surfaces the failing tasks and compiler errors as check-run
       # annotations (readable through the public API without
       # authentication); skipped when everything passes.
