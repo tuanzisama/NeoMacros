@@ -2,8 +2,7 @@
 # the folder; with both present the priority is yml > json).
 #
 # Required fields: name / version / author - if any is missing, the folder is
-# not loaded and the reason shows up in the management panel and in
-# /neomacros errors.
+# not loaded and the reason shows up in /neomacros list and /neomacros errors.
 name: hello-key            # unique ID: commands, the trust table and the
                            # enable table are all keyed by it; unique across
                            # all three category directories
@@ -23,9 +22,9 @@ config:
   keypress:
     on: keypress           # trigger edge: keypress (default) / keydown / keyup
     default-key: key.keyboard.j
-                           # suggested initial binding. Changes made in the
-                           # panel or via /neomacros keypress bind are stored
-                           # in the central keymapping and win over this
-                           # suggestion. Every trigger invokes the exported
-                           # startup(ev) function of this script.
+                           # suggested initial binding. Changes made via
+                           # /neomacros keypress bind are stored in the
+                           # central keymapping and win over this suggestion.
+                           # Every trigger invokes the exported startup(ev)
+                           # function of this script.
     # modifiers: [ctrl]    # require ctrl/shift/alt to be held (optional)

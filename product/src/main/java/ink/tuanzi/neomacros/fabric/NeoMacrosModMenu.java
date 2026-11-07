@@ -5,7 +5,7 @@ import com.terraformersmc.modmenu.api.ModMenuApi;
 import net.minecraft.client.gui.screens.Screen;
 
 /**
- * ModMenu bridge: points the config button at the script management panel.
+ * ModMenu bridge: points the config button at the Cloth settings screen.
  * Fabric instantiates the modmenu entrypoint only when ModMenu is installed,
  * so the ModMenu types stay unloaded in plain deployments.
  */
@@ -17,6 +17,6 @@ public final class NeoMacrosModMenu implements ModMenuApi {
                 .isModLoaded("cloth-config2")) {
             return NeoMacrosClothConfig::create;
         }
-        return NeoMacrosFabric::createConfigPanel;
+        return parent -> null;
     }
 }

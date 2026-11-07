@@ -70,7 +70,7 @@ final class WebCommands {
                     long now = System.currentTimeMillis();
                     for (var session : sessions) {
                         feedback(ctx.getSource(), "neomacros.cmd.web.sessions_row",
-                                Msg.name(session.id()), Msg.name(session.remote()),
+                                Msg.name(session.id()), Msg.dim(session.remote()),
                                 Msg.num((now - session.connectedAtMillis()) / 1000));
                     }
                     return Command.SINGLE_SUCCESS;
@@ -160,8 +160,7 @@ final class WebCommands {
                             Msg.num(devices.size()));
                     for (var device : devices) {
                         feedback(ctx.getSource(), "neomacros.cmd.web.device_row",
-                                Msg.name(device.id()), Msg.name(device.label()),
-                                Msg.num(device.algo()));
+                                Msg.name(device.id()), Msg.dim(device.label()));
                     }
                     return Command.SINGLE_SUCCESS;
                 })

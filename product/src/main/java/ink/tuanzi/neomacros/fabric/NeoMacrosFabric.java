@@ -532,13 +532,6 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
         registerCommands(trustManager, errorPresenter, pendingTrusts);
-        // Controls-menu key (default N): opens the management panel.
-        ink.tuanzi.neomacros.adapter.OpenPanelKeybind.register(() -> {
-            var screen = createConfigPanel(null);
-            if (screen != null) {
-                ScriptManagerScreen.show(screen);
-            }
-        });
         preRegisterScriptBindings();
         // Raw keyboard source: the cancellable path fans the edge out to the
         // key:press event (sync subscribers may cancel, which also swallows
@@ -835,6 +828,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts) {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(literal("neomacros")
+                    .executes(ctx -> {
+                        feedbackText(ctx, Msg.dim(UiText.tr("neomacros.cmd.help")));
+                        return Command.SINGLE_SUCCESS;
+                    })
                     .then(literal("status").executes(ctx -> {
                         feedback(ctx, "neomacros.cmd.status",
                                 Msg.name(NeoMacros.VERSION),
@@ -908,11 +905,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                                 feedback(ctx, "neomacros.ui.panel.unbound",
                                                         Msg.name(name));
                                                 return Command.SINGLE_SUCCESS;
-                                            })))
-                            .then(literal("list").executes(ctx -> {
-                                feedback(ctx, describeScripts(ScriptCategory.KEYPRESS));
-                                return Command.SINGLE_SUCCESS;
-                            })))
+                                            }))))
                     .then(literal("service")
                             .then(literal("start")
                                     .then(argument("script", StringArgumentType.word())
@@ -949,17 +942,42 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                                         ? "neomacros.cmd.restarted" : "neomacros.cmd.cannot_start",
                                                         Msg.name(name));
                                                 return started ? Command.SINGLE_SUCCESS : 0;
-                                            })))
-                            .then(literal("list").executes(ctx -> {
-                                feedback(ctx, describeScripts(ScriptCategory.SERVICES));
-                                return Command.SINGLE_SUCCESS;
-                            })))
+                                            }))))
+                    .then(literal("enable")
+                            .then(argument("script", StringArgumentType.word())
+                                    .suggests(SUGGEST_ANY)
+                                    .executes(ctx -> {
+                                        String name = string(ctx, "script");
+                                        if (entry(name).isEmpty()) {
+                                            feedback(ctx, "neomacros.cmd.unknown_script",
+                                                    Msg.name(name));
+                                            return 0;
+                                        }
+                                        options.autoload.put(name, true);
+                                        configManager.save();
+                                        if (modules.loaded(name).isEmpty()) {
+                                            modules.loadByName(name);
+                                        }
+                                        feedback(ctx, "neomacros.cmd.enabled", Msg.name(name));
+                                        return Command.SINGLE_SUCCESS;
+                                    })))
+                    .then(literal("disable")
+                            .then(argument("script", StringArgumentType.word())
+                                    .suggests(SUGGEST_ANY)
+                                    .executes(ctx -> {
+                                        String name = string(ctx, "script");
+                                        if (entry(name).isEmpty()) {
+                                            feedback(ctx, "neomacros.cmd.unknown_script",
+                                                    Msg.name(name));
+                                            return 0;
+                                        }
+                                        options.autoload.put(name, false);
+                                        configManager.save();
+                                        modules.unload(name);
+                                        feedback(ctx, "neomacros.cmd.disabled", Msg.name(name));
+                                        return Command.SINGLE_SUCCESS;
+                                    })))
                     .then(literal("trust")
-                            .then(literal("list").executes(ctx -> {
-                                feedback(ctx, "neomacros.cmd.trusted_hashes",
-                                        Msg.num(trustManager.trustedHashes().size()));
-                                return Command.SINGLE_SUCCESS;
-                            }))
                             .then(argument("script", StringArgumentType.word())
                                     .executes(ctx -> {
                                         String name = string(ctx, "script");
@@ -981,47 +999,45 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                     .executes(ctx -> {
                                         Optional<ScriptEntry> found = entry(string(ctx, "script"));
                                         if (found.isEmpty()) {
-                                            feedback(ctx, "neomacros.cmd.unknown_script_panel");
+                                            feedback(ctx, "neomacros.cmd.unknown_script_new");
                                             return 0;
                                         }
                                         ScriptEditorScreen.open(found.get().entryFile(), modules::reloadAll);
                                         return Command.SINGLE_SUCCESS;
                                     })))
-                    .then(literal("panel").executes(ctx -> {
-                        openPanel();
-                        return Command.SINGLE_SUCCESS;
-                    }))
+                    .then(literal("new")
+                            .then(argument("category", StringArgumentType.word())
+                                    .suggests(SUGGEST_CATEGORY)
+                                    .executes(ctx -> {
+                                        ScriptCategory category = ScriptCategory
+                                                .fromDirName(string(ctx, "category"));
+                                        if (category == null) {
+                                            feedback(ctx, "neomacros.cmd.unknown_category",
+                                                    Msg.name(string(ctx, "category")));
+                                            return 0;
+                                        }
+                                        String folder = createScaffold(category.dirName());
+                                        if (folder == null) {
+                                            feedback(ctx, "neomacros.cmd.create_failed");
+                                            return 0;
+                                        }
+                                        modules.checkForChanges();
+                                        feedback(ctx, "neomacros.cmd.created", Msg.name(folder));
+                                        return Command.SINGLE_SUCCESS;
+                                    })))
                     .then(literal("errors").executes(ctx -> {
                         var recent = errorPresenter.recent();
                         var lines = new java.util.ArrayList<String>(recent);
                         for (ink.tuanzi.neomacros.core.module.ScriptLoadError error : modules.errors()) {
                             lines.add(UiText.tr("neomacros.cmd.invalid_folder",
-                                    error.folder().getFileName(), error.message()));
+                                    Msg.err(error.folder().getFileName()),
+                                    Msg.err(error.message())));
                         }
                         ScriptScreen.open(UiText.tr("neomacros.cmd.recent_errors"),
                                 lines.isEmpty() ? UiText.tr("neomacros.cmd.no_recent_errors")
                                         : String.join("\n\n", lines));
                         return Command.SINGLE_SUCCESS;
                     }))
-                    .then(literal("open")
-                            .then(argument("script", StringArgumentType.word())
-                                    .suggests(SUGGEST_ANY)
-                                    .executes(ctx -> {
-                                        Optional<ScriptEntry> found = entry(string(ctx, "script"));
-                                        if (found.isEmpty()) {
-                                            feedback(ctx, "neomacros.cmd.unknown_script",
-                                                    Msg.name(string(ctx, "script")));
-                                            return 0;
-                                        }
-                                        try {
-                                            ScriptScreen.open(found.get().name(),
-                                                    Files.readString(found.get().entryFile()));
-                                        } catch (IOException e) {
-                                            feedback(ctx, "neomacros.cmd.cannot_read",
-                                                    Msg.err(e.getMessage()));
-                                        }
-                                        return Command.SINGLE_SUCCESS;
-                                    })))
                     .then(WebCommands.subtree(webContext())));
         });
     }
@@ -1082,13 +1098,13 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 Msg.name(label), Msg.num(source))));
         String id = request.id();
         adapter.chat().logClickable(
-                Msg.line(UiText.tr("neomacros.chat.pair_request_approve")),
+                Msg.line(Msg.ok(UiText.tr("neomacros.chat.pair_request_approve"))),
                 "/neomacros editor approve " + id);
         adapter.chat().logClickable(
-                Msg.line(UiText.tr("neomacros.chat.pair_request_trust")),
+                Msg.line(Msg.num(UiText.tr("neomacros.chat.pair_request_trust"))),
                 "/neomacros editor trust-host " + id);
         adapter.chat().logClickable(
-                Msg.line(UiText.tr("neomacros.chat.pair_request_deny")),
+                Msg.line(Msg.err(UiText.tr("neomacros.chat.pair_request_deny"))),
                 "/neomacros editor deny " + id);
     }
 
@@ -1142,80 +1158,6 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 : Msg.dim(UiText.tr("neomacros.ui.state.stopped"));
     }
 
-    /** Builds the panel row snapshot: category headers, scripts, and error rows. */
-    private static List<ScriptManagerScreen.RowData> buildPanelRows(
-            java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts) {
-        modules.discover();
-        List<ScriptManagerScreen.RowData> rows = new java.util.ArrayList<>();
-        for (ScriptCategory category : ScriptCategory.values()) {
-            rows.add(new ScriptManagerScreen.RowData("", "[" + category.dirName() + "]",
-                    "", false, true, false, null));
-            for (ScriptEntry entry : modules.entries().stream()
-                    .filter(e -> e.category() == category).toList()) {
-                String name = entry.name();
-                String state = entryState(name);
-                if (category == ScriptCategory.KEYPRESS) {
-                    String key = entry.effectiveKey(options.keybinds);
-                    state += "  " + UiText.tr("neomacros.ui.state.key",
-                            key.isEmpty() ? UiText.tr("neomacros.ui.state.unbound") : key);
-                }
-                state += "  " + UiText.tr("neomacros.ui.state.version",
-                        entry.manifest().version(), entry.manifest().author());
-                rows.add(new ScriptManagerScreen.RowData(name,
-                        name + "  (" + entry.folder().getFileName() + ")", state,
-                        pendingTrusts.containsKey(name), false,
-                        category == ScriptCategory.KEYPRESS, entry.entryFile()));
-            }
-            for (ink.tuanzi.neomacros.core.module.ScriptLoadError error : modules.errors()) {
-                if (error.folder().getParent().getFileName().toString().equals(category.dirName())) {
-                    rows.add(new ScriptManagerScreen.RowData("",
-                            "  " + error.folder().getFileName(), error.message(),
-                            false, false, false, null));
-                }
-            }
-        }
-        return rows;
-    }
-
-    /**
-     * Builds the management panel for the ModMenu config button. Returns
-     * null before bootstrap has run (ModMenu then offers no config screen).
-     */
-    public static net.minecraft.client.gui.screens.Screen createConfigPanel(
-            net.minecraft.client.gui.screens.Screen parent) {
-        if (modules == null || trustManager == null || pendingTrusts == null) {
-            return null;
-        }
-        return ScriptManagerScreen.create(() -> buildPanelRows(pendingTrusts),
-                pendingTrusts,
-                (name, key) -> {
-                    options.keybinds.put(name, key);
-                    configManager.save();
-                    reloadIfLoaded(name);
-                },
-                name -> {
-                    options.keybinds.put(name, "");
-                    configManager.save();
-                    reloadIfLoaded(name);
-                },
-                (name, enabled) -> {
-                    options.autoload.put(name, enabled);
-                    configManager.save();
-                    if (enabled) {
-                        if (modules.loaded(name).isEmpty()) {
-                            modules.loadByName(name);
-                        }
-                    } else {
-                        modules.unload(name);
-                    }
-                },
-                categoryDir -> {
-                    createScaffold(categoryDir);
-                    modules.checkForChanges();
-                },
-                modules::reloadAll);
-    }
-
     /** Config bridge for the optional Cloth settings screen. */
     static CoreOptions configOptions() {
         return options;
@@ -1243,16 +1185,11 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         }
     }
 
-    /** Opens the management screen on the client thread. */
-    private static void openPanel() {
-        var screen = createConfigPanel(null);
-        if (screen != null) {
-            ScriptManagerScreen.show(screen);
-        }
-    }
-
-    /** Creates a minimal new-script folder (manifest + index.js) in a category. */
-    private static void createScaffold(String categoryDirName) {
+    /**
+     * Creates a minimal new-script folder (manifest + index.js) in a
+     * category; returns the new folder name, or null when creation failed.
+     */
+    private static String createScaffold(String categoryDirName) {
         Path categoryDir = macrosDir.resolve(categoryDirName);
         String base = "new-script";
         Path folder = categoryDir.resolve(base);
@@ -1273,8 +1210,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                     "",
                     "neo.chat.log('" + folder.getFileName() + " loaded');",
                     ""));
+            return folder.getFileName().toString();
         } catch (IOException e) {
             LOGGER.warn("neomacros: cannot create scaffold: {}", e.getMessage());
+            return null;
         }
     }
 
