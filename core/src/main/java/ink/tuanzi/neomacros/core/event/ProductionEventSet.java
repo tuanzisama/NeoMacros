@@ -27,6 +27,8 @@ public final class ProductionEventSet {
                 ink.tuanzi.neomacros.core.event.def.player.PlayerExpEvent.class,
                 ink.tuanzi.neomacros.core.event.def.player.PlayerHeldItemEvent.class,
                 ink.tuanzi.neomacros.core.event.def.player.PlayerGamemodeEvent.class,
+                ink.tuanzi.neomacros.core.event.def.player.PlayerRidingEvent.class,
+                ink.tuanzi.neomacros.core.event.def.player.PlayerArmorEvent.class,
                 ink.tuanzi.neomacros.core.event.def.movement.PlayerSneakEvent.class,
                 ink.tuanzi.neomacros.core.event.def.movement.PlayerSprintEvent.class,
                 ink.tuanzi.neomacros.core.event.def.movement.PlayerGlidingEvent.class,
