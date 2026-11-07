@@ -102,6 +102,10 @@ public final class SpeciesEntities {
             put(map, "minecraft:ender_dragon", EnderDragon::new);
             put(map, "minecraft:breeze", Breeze::new);
             put(map, "minecraft:creaking", Creaking::new);
+            put(map, "minecraft:armor_stand", ArmorStand::new);
+            put(map, "minecraft:falling_block", FallingBlock::new);
+            put(map, "minecraft:item_frame", ItemFrame::new);
+            put(map, "minecraft:area_effect_cloud", AreaEffectCloud::new);
             return map;
         }
 
@@ -2262,6 +2266,185 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public Boolean canMove() {
             return speciesBool("canMove");
+        }
+    }
+
+    /**
+     * An armor stand: the marker and small pose flags.
+     *
+     * @zh 盔甲架：隐形判定标记与小尺寸旗标。
+     */
+    @ApiClass(name = "ArmorStand", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.decoration.ArmorStand")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class ArmorStand extends Mob {
+
+        /** Creates the handle for one armor stand UUID. */
+        public ArmorStand(UUID uuid) {
+            super(uuid);
+        }
+
+        /**
+         * Whether the stand is a hitbox-less marker.
+         *
+         * @zh 盔甲架是否为无碰撞判定标记。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isMarker() {
+            return speciesBool("marker");
+        }
+
+        /**
+         * Whether the stand uses the small pose.
+         *
+         * @zh 盔甲架是否为小尺寸。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isSmall() {
+            return speciesBool("small");
+        }
+    }
+
+    /**
+     * A falling block: the block it carries.
+     *
+     * @zh 下落方块：其所携带的方块。
+     */
+    @ApiClass(name = "FallingBlock", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.item.FallingBlockEntity")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class FallingBlock extends EntityApi.Entity {
+
+        /** Creates the handle for one falling block UUID. */
+        public FallingBlock(UUID uuid) {
+            super(uuid);
+        }
+
+        /**
+         * The identifier of the block this entity carries.
+         *
+         * @zh 该实体携带的方块标识。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getBlock() {
+            return speciesString("block");
+        }
+    }
+
+    /**
+     * An item frame: the displayed stack and its rotation step.
+     *
+     * @zh 物品展示框：所展示的物品堆与旋转步进。
+     */
+    @ApiClass(name = "ItemFrame", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.decoration.ItemFrame")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class ItemFrame extends EntityApi.Entity {
+
+        /** Creates the handle for one item frame UUID. */
+        public ItemFrame(UUID uuid) {
+            super(uuid);
+        }
+
+        /**
+         * The displayed stack; empty air when the frame is empty.
+         *
+         * @zh 展示的物品堆；空框为 minecraft:air。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.ItemStack getItem() {
+            Object data = speciesState().get("item");
+            return data instanceof ink.tuanzi.neomacros.port.model.ItemStackData stack
+                    ? ink.tuanzi.neomacros.core.api.types.ItemStack.of(stack) : null;
+        }
+
+        /**
+         * The rotation step of the displayed stack (0-3).
+         *
+         * @zh 展示物品的旋转步进（0-3）。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getFrameRotation() {
+            return speciesInt("rotation");
+        }
+    }
+
+    /**
+     * An area effect cloud: radius and waiting state.
+     *
+     * @zh 药水效果云：半径与潜伏状态。
+     */
+    @ApiClass(name = "AreaEffectCloud", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.AreaEffectCloud")
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class AreaEffectCloud extends EntityApi.Entity {
+
+        /** Creates the handle for one effect cloud UUID. */
+        public AreaEffectCloud(UUID uuid) {
+            super(uuid);
+        }
+
+        /**
+         * The current cloud radius in blocks.
+         *
+         * @zh 效果云当前半径（格）。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getRadius() {
+            Object value = speciesState().get("radius");
+            return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /**
+         * Whether the cloud is waiting before the effect starts.
+         *
+         * @zh 效果云是否处于生效前的潜伏中。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isWaiting() {
+            return speciesBool("waiting");
+        }
+
+        /**
+         * The remaining wait time in ticks.
+         *
+         * @zh 潜伏剩余刻数。
+         */
+        @ApiSince("0.2.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getWaitTime() {
+            return speciesInt("waitTime");
         }
     }
 }
