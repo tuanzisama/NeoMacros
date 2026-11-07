@@ -35,6 +35,20 @@ class RenderApiTest {
         }
 
         @Override
+        public void addTraceLine(String layerId, java.util.UUID entityUuid, int argbColor) {
+            shapes.add(new Shape("trace", layerId,
+                    new Pos3d(0, 0, 0), new Pos3d(0, 0, 0), argbColor));
+        }
+
+        @Override
+        public void drawSurface(String layerId, java.util.List<Pos3d> points, int argbColor) {
+            shapes.add(new Shape("surface", layerId,
+                    points.isEmpty() ? new Pos3d(0, 0, 0) : points.get(0),
+                    points.size() > 1 ? points.get(points.size() - 1) : new Pos3d(0, 0, 0),
+                    argbColor));
+        }
+
+        @Override
         public void clearLayer(String layerId) {
             shapes.removeIf(shape -> shape.layerId().equals(layerId));
         }
@@ -73,5 +87,34 @@ class RenderApiTest {
         api.clearLayer("missing");
         assertTrue(backing.shapes.isEmpty());
         assertEquals(List.of(), api.layerIds());
+    }
+
+    @Test
+    void surfaceNeedsThreePointsAndDelegates() {
+        RecordingDraw3D backing = new RecordingDraw3D();
+        RenderApi api = new RenderApi(backing);
+
+        assertTrue(assertThrows(IllegalArgumentException.class,
+                () -> api.surface("tri", java.util.List.of(
+                        new ink.tuanzi.neomacros.core.api.types.Pos3D(0, 0, 0),
+                        new ink.tuanzi.neomacros.core.api.types.Pos3D(1, 0, 0)), 0xFFFF0000)) != null);
+
+        api.surface("tri", java.util.List.of(
+                new ink.tuanzi.neomacros.core.api.types.Pos3D(0, 64, 0),
+                new ink.tuanzi.neomacros.core.api.types.Pos3D(1, 64, 0),
+                new ink.tuanzi.neomacros.core.api.types.Pos3D(1, 65, 1)), 0x80FFFFFF);
+        assertEquals(1, backing.shapes.size());
+        assertEquals("surface", backing.shapes.get(0).kind());
+        assertEquals(0x80FFFFFF, backing.shapes.get(0).color());
+    }
+
+    private static IllegalArgumentException assertThrows(Class<IllegalArgumentException> type,
+            Runnable action) {
+        try {
+            action.run();
+        } catch (IllegalArgumentException error) {
+            return error;
+        }
+        return null;
     }
 }

@@ -65,6 +65,46 @@ public final class RenderApi {
     }
 
     /**
+     * Draws a live line from the local player's eyes to the entity, kept
+     * aimed at it every frame while the entity stays loaded.
+     *
+     * @zh 绘制一条从本地玩家眼睛到实体的活动连线，实体在场景中时每帧保持指向。
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public void traceLine(String layerId, ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity target,
+            int argbColor) {
+        ink.tuanzi.neomacros.port.model.EntitySnapshot snapshot =
+                target == null ? null : target.snapshot();
+        if (snapshot == null) {
+            throw new IllegalStateException("target entity is not loaded");
+        }
+        draw3d.addTraceLine(layerId, snapshot.uuid(), argbColor);
+    }
+
+    /**
+     * Draws a filled convex surface through three or more vertices (a fan
+     * from the first point on modern nodes; an outlined polygon on 1.x).
+     *
+     * @zh 绘制穿过三个及以上顶点的凸面（新节点为自首点的扇面；1.x 节点为多边形描边）。
+     */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public void surface(String layerId, java.util.List<ink.tuanzi.neomacros.core.api.types.Pos3D> points,
+            int argbColor) {
+        if (points == null || points.size() < 3) {
+            throw new IllegalArgumentException("a surface needs at least three points");
+        }
+        java.util.List<Pos3d> vertices = new java.util.ArrayList<>(points.size());
+        for (ink.tuanzi.neomacros.core.api.types.Pos3D point : points) {
+            vertices.add(new Pos3d(point.getX(), point.getY(), point.getZ()));
+        }
+        draw3d.drawSurface(layerId, vertices, argbColor);
+    }
+
+    /**
      * Removes all shapes on one layer.
      *
      * @zh 清空一个图层上的全部形状。
