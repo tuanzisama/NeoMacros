@@ -18,7 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -49,17 +48,7 @@ class JavaInteropIntegrationTest {
         registry = new BindingRegistry("26.3");
         registry.registerAll(List.of(ChatApi.class,
                 ink.tuanzi.neomacros.core.api.java.JavaApi.class));
-        var engine = new GraalJsEngine(new ModuleResolver() {
-            @Override
-            public Optional<String> virtualSource(String specifier) {
-                return registry.virtualSourceFor(specifier, PermissionView.ALLOW_ALL);
-            }
-
-            @Override
-            public Optional<Path> fileFor(String specifier) {
-                return Optional.empty();
-            }
-        });
+        var engine = new GraalJsEngine();
         runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, 500);
         runtime.createContext("java-interop");
     }
@@ -85,35 +74,32 @@ class JavaInteropIntegrationTest {
     }
 
     private static final String SCRIPT = String.join("\n",
-            "import { chat } from '@neomacros/chat';",
-            "import { java } from '@neomacros/java';",
-            "",
             "export function startup() {",
-            "  chat.log('JAVA-STARTUP');",
+            "  neo.chat.log('JAVA-STARTUP');",
             "}",
             "",
-            "const MathCls = java.type('java.lang.Math');",
-            "chat.log('JAVA-pi=' + (MathCls.PI > 3.14 && MathCls.PI < 3.15));",
-            "chat.log('JAVA-floor=' + (MathCls.floor(3.7) === 3));",
+            "const MathCls = neo.java.type('java.lang.Math');",
+            "neo.chat.log('JAVA-pi=' + (MathCls.PI > 3.14 && MathCls.PI < 3.15));",
+            "neo.chat.log('JAVA-floor=' + (MathCls.floor(3.7) === 3));",
             "",
-            "const list = java.type('java.util.ArrayList').new();",
+            "const list = neo.java.type('java.util.ArrayList').new();",
             "list.add('alpha');",
             "list.add('beta');",
-            "chat.log('JAVA-list=' + (list.size() === 2 && list.get(0) === 'alpha'",
+            "neo.chat.log('JAVA-list=' + (list.size() === 2 && list.get(0) === 'alpha'",
             "    && list.get(1) === 'beta'));",
             "",
-            "const id = java.type('java.util.UUID').fromString('00000000-0000-0000-0000-000000000000');",
-            "chat.log('JAVA-uuid=' + (id.toString() === '00000000-0000-0000-0000-000000000000'));",
-            "chat.log('JAVA-instanceOf=' + id.instanceOf('java.util.UUID'));",
+            "const id = neo.java.type('java.util.UUID').fromString('00000000-0000-0000-0000-000000000000');",
+            "neo.chat.log('JAVA-uuid=' + (id.toString() === '00000000-0000-0000-0000-000000000000'));",
+            "neo.chat.log('JAVA-instanceOf=' + id.instanceOf('java.util.UUID'));",
             "",
             "let ran = false;",
-            "const runnable = java.proxy(['java.lang.Runnable'], { run() { ran = true; } });",
+            "const runnable = neo.java.proxy(['java.lang.Runnable'], { run() { ran = true; } });",
             "runnable.run();",
-            "chat.log('JAVA-proxy=' + ran);",
-            "const arr = java.fromList(list);",
-            "chat.log('JAVA-fromList=' + (Array.isArray(arr) && arr.length === 2 && arr[0] === 'alpha'));",
-            "const hostList = java.toList(['x', 'y']);",
-            "chat.log('JAVA-toList=' + (hostList.size() === 2 && hostList.get(1) === 'y'));",
+            "neo.chat.log('JAVA-proxy=' + ran);",
+            "const arr = neo.java.fromList(list);",
+            "neo.chat.log('JAVA-fromList=' + (Array.isArray(arr) && arr.length === 2 && arr[0] === 'alpha'));",
+            "const hostList = neo.java.toList(['x', 'y']);",
+            "neo.chat.log('JAVA-toList=' + (hostList.size() === 2 && hostList.get(1) === 'y'));",
             "");
 
     /** Writes one script folder (manifest + index.js) and returns its discovery entry. */

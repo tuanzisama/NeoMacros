@@ -38,7 +38,6 @@ import ink.tuanzi.neomacros.core.runtime.ScriptRuntime;
 import ink.tuanzi.neomacros.core.security.TrustManager;
 import ink.tuanzi.neomacros.core.thread.ScriptThreadPool;
 import ink.tuanzi.neomacros.engine.GraalJsEngine;
-import ink.tuanzi.neomacros.engine.ModuleResolver;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -150,8 +149,6 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
-        // Script-facing event classes (BaseEvent chain) for instanceof dispatch.
-        registry.registerEventType("BaseEvent", false);
         for (var descriptor : catalog.all()) {
             registry.registerEventType(descriptor.name(), descriptor.cancellable());
         }
@@ -332,7 +329,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var commandApi = new CommandApi(commandPort);
         registry.registerInstance(commandApi);
 
-        ScriptEngine engine = new GraalJsEngine(new ScriptsModuleResolver(macrosDir, registry));
+        ScriptEngine engine = new GraalJsEngine();
         runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, options.maxSyncTime);
         var extraIgnores = new java.util.ArrayList<>(EventBus.DEFAULT_WILDCARD_IGNORES);
         extraIgnores.addAll(options.wildcardIgnoresExtra);
@@ -1036,7 +1033,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 throw new IllegalStateException("the web service is not running");
             }
             String panel = options.web.panelUrl == null || options.web.panelUrl.isBlank()
-                    ? "https://panel.neomacros.app" : options.web.panelUrl.strip();
+                    ? "https://neomacro-editor.tuanzi.ink" : options.web.panelUrl.strip();
             while (panel.endsWith("/")) {
                 panel = panel.substring(0, panel.length() - 1);
             }
@@ -1273,30 +1270,11 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                     ""));
             Files.writeString(folder.resolve("index.js"), String.join("\n",
                     "// Entry script: top-level code runs once at load.",
-                    "import { chat } from '@neomacros/chat';",
                     "",
-                    "chat.log('" + folder.getFileName() + " loaded');",
+                    "neo.chat.log('" + folder.getFileName() + " loaded');",
                     ""));
         } catch (IOException e) {
             LOGGER.warn("neomacros: cannot create scaffold: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * Module source resolver over the macros tree. Virtual module specifiers
-     * resolve through the binding registry; file specifiers resolve relative
-     * to the macros root so scripts can import their own folder siblings.
-     */
-    private record ScriptsModuleResolver(Path macrosDir, BindingRegistry registry) implements ModuleResolver {
-        @Override
-        public Optional<String> virtualSource(String specifier) {
-            return registry.virtualSourceFor(specifier, PermissionView.ALLOW_ALL);
-        }
-
-        @Override
-        public Optional<Path> fileFor(String specifier) {
-            Path file = macrosDir.resolve(specifier);
-            return Files.isRegularFile(file) ? Optional.of(file) : Optional.empty();
         }
     }
 

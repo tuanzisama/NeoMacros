@@ -15,11 +15,11 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * T-402 scenarios: the types module hands out the real guest class
- * constructors; the global and module channels yield the identical object;
- * exported constructors support instanceof checks and user subclassing.
+ * Guest class scenarios: every script-facing class hangs directly on the
+ * {@code neo} root ({@code neo.Entity}, {@code neo.LocalPlayer}); the
+ * constructors support instanceof checks and user subclassing.
  */
-class TypesModuleScenariosTest {
+class RootClassScenariosTest {
 
     @TempDir
     Path dir;
@@ -41,21 +41,17 @@ class TypesModuleScenariosTest {
     }
 
     @Test
-    void typesModuleIdentityAndInstanceof() throws Exception {
+    void rootClassIdentityAndInstanceof() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "types.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { player } from '@neomacros/player';",
-                    "import { Entity } from '@neomacros/entity';",
-                    "import { report } from '@neomacros/__test';",
-                    "events.on('player:join', () => {",
-                    "  const self = player.self;",
-                    "  report('types-module',",
-                    "    neo.types.Entity === Entity",
-                    "    && neo.types.LocalPlayer === self.constructor",
-                    "    && self instanceof neo.types.LocalPlayer",
-                    "    && typeof neo.types.LocalPlayer === 'function',",
-                    "    JSON.stringify({ same: neo.types.Entity === Entity }));",
+                    "neo.events.on('player:join', () => {",
+                    "  const self = neo.player.self;",
+                    "  neo.__test.report('root-class',",
+                    "    self.constructor === neo.LocalPlayer",
+                    "    && self instanceof neo.Entity",
+                    "    && self instanceof neo.LocalPlayer",
+                    "    && typeof neo.Entity === 'function',",
+                    "    JSON.stringify({ ctor: typeof neo.Entity }));",
                     "});",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("types.js"));
@@ -71,14 +67,14 @@ class TypesModuleScenariosTest {
             TestBridge.Report report = null;
             long deadline = System.currentTimeMillis() + 5000;
             while (System.currentTimeMillis() < deadline) {
-                report = e2e.bridge().get("types-module");
+                report = e2e.bridge().get("root-class");
                 if (report != null && report.pass()) {
                     break;
                 }
                 Thread.sleep(20);
             }
             assertTrue(report != null && report.pass(),
-                    "types report: " + (report == null ? "missing" : report.detail()));
+                    "class report: " + (report == null ? "missing" : report.detail()));
         }
     }
 
@@ -87,17 +83,14 @@ class TypesModuleScenariosTest {
     void userSubclassExtendsExportedConstructor() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "subclass.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { player } from '@neomacros/player';",
-                    "import { report } from '@neomacros/__test';",
-                    "events.on('player:join', () => {",
-                    "  const self = player.self;",
-                    "  class Tracked extends neo.types.Player {",
+                    "neo.events.on('player:join', () => {",
+                    "  const self = neo.player.self;",
+                    "  class Tracked extends neo.Player {",
                     "    shout() { return 'hi ' + this.name; }",
                     "  }",
                     "  const tracked = new Tracked(self.__cell);",
-                    "  report('user-subclass',",
-                    "    tracked instanceof neo.types.Player",
+                    "  neo.__test.report('user-subclass',",
+                    "    tracked instanceof neo.Player",
                     "    && tracked.shout() === 'hi tester'",
                     "    && tracked.valid === true,",
                     "    'wrapped');",

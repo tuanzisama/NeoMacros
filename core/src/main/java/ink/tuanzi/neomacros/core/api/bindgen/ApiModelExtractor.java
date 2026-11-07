@@ -70,7 +70,7 @@ public final class ApiModelExtractor {
         }
         properties.sort(Comparator.comparing(ApiModel.PropertyModel::name));
         methods.sort(Comparator.comparing(ApiModel.MethodModel::name));
-        return new ApiModel.ModuleModel(module.name(), module.category(), module.global(),
+        return new ApiModel.ModuleModel(module.name(), module.category(),
                 classSince, classMc, classPermission,
                 List.copyOf(properties), List.copyOf(methods));
     }

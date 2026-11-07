@@ -102,8 +102,6 @@ class AnnotationContractTest {
     void moduleDefaults() {
         assertEquals("", defaultValue(ApiModule.class, "category"),
                 "module without a category is uncategorized");
-        assertEquals(true, defaultValue(ApiModule.class, "global"),
-                "modules default to also being a neo.* global member");
         assertNull(defaultValue(ApiModule.class, "name"), "module name is mandatory");
     }
 

@@ -29,15 +29,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Full script loading chain against the real engine: annotated facades, the
- * virtual {@code @neomacros/*} module sources, event subscription, the clock
- * primitives, and the chat facade — the same path production bootstrap runs.
+ * {@code neo} global tree, event subscription, the clock primitives, and
+ * the chat facade — the same path production bootstrap runs.
  */
 class ScriptLoadIntegrationTest {
 
@@ -136,17 +135,7 @@ class ScriptLoadIntegrationTest {
         registry = new BindingRegistry("26.3");
         registry.registerAll(List.of(EventsApi.class, ThreadApi.class, ChatApi.class, StorageApi.class));
         registry.promoteRootMembers("thread", List.of("sleep", "ticks", "nextTick", "runOnMain"));
-        engine = new GraalJsEngine(new ModuleResolver() {
-            @Override
-            public Optional<String> virtualSource(String specifier) {
-                return registry.virtualSourceFor(specifier, PermissionView.ALLOW_ALL);
-            }
-
-            @Override
-            public Optional<Path> fileFor(String specifier) {
-                return Optional.empty();
-            }
-        });
+        engine = new GraalJsEngine();
         runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, 500);
         context = runtime.createContext("integration");
     }
@@ -164,10 +153,8 @@ class ScriptLoadIntegrationTest {
         var manager = new ink.tuanzi.neomacros.core.module.ModuleManager(
                 runtime, registry, PermissionView.ALLOW_ALL, scriptsDir, m -> { });
         manager.load(writeEntry(manager, "storer", String.join("\n",
-                "import { chat } from '@neomacros/chat';",
-                "import { storage } from '@neomacros/storage';",
-                "storage.put('count', { n: 7 });",
-                "chat.log('COUNT-' + storage.get('count').n);",
+                "neo.storage.put('count', { n: 7 });",
+                "neo.chat.log('COUNT-' + neo.storage.get('count').n);",
                 "export function startup() {}",
                 "")));
 
@@ -178,22 +165,19 @@ class ScriptLoadIntegrationTest {
     }
 
     @Test
-    void loadsSmokeScriptThroughVirtualModules() throws Exception {
+    void loadsSmokeScriptThroughTheGlobalTree() throws Exception {
         var manager = new ink.tuanzi.neomacros.core.module.ModuleManager(
                 runtime, registry, PermissionView.ALLOW_ALL, scriptsDir, m -> { });
         manager.load(writeEntry(manager, "smoke", String.join("\n",
-                "import { events, thread } from '@neomacros/core';",
-                "import { chat } from '@neomacros/chat';",
-                "",
                 "let ticks = 0;",
-                "events.on('tick', () => {",
+                "neo.events.on('tick', () => {",
                 "  ticks++;",
                 "  if (ticks === 2) {",
-                "    chat.log('TICKS-OK');",
+                "    neo.chat.log('TICKS-OK');",
                 "  }",
                 "});",
-                "thread.sleep(10).then(() => {",
-                "  chat.log('SLEEP-OK');",
+                "neo.thread.sleep(10).then(() => {",
+                "  neo.chat.log('SLEEP-OK');",
                 "});",
                 "export function startup() {}",
                 "")));

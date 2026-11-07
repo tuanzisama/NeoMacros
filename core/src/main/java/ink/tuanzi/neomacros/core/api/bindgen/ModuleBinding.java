@@ -165,7 +165,7 @@ public final class ModuleBinding {
         this.members = Map.copyOf(members);
     }
 
-    /** The module name ({@code neo.<name>} and {@code @neomacros/<name>}). */
+    /** The binding name: a module ({@code neo.<name>}) or a root entry. */
     public String name() {
         return name;
     }

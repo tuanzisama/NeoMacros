@@ -42,7 +42,7 @@ class ConsoleLocationTest {
     void nonFileSourcesStayUnresolved() {
         String stack = "Error\n"
                 + "    at send (neomacros-engine-glue:50:21)\n"
-                + "    at @neomacros/core:7:2";
+                + "    at <engine>:7:2";
         ConsoleLocation.Location location = ConsoleLocation.parse(stack, ROOT);
         assertNull(location.file());
         assertEquals(7, location.line());

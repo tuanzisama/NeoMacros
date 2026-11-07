@@ -51,18 +51,13 @@ class LaneWorldScenariosTest {
     void playerJoinHandleQueryAndBlockLookup() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "lane.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { world } from '@neomacros/world';",
-                    "import { entity } from '@neomacros/entity';",
-                    "import { player } from '@neomacros/player';",
-                    "import { report } from '@neomacros/__test';",
                     "let joined = 0;",
-                    "events.on('player:join', (ev) => {",
+                    "neo.events.on('player:join', (ev) => {",
                     "  joined++;",
-                    "  const self = player.self;",
-                    "  const block = world.blockAt(1, 64, 2);",
-                    "  const found = entity.lookup(ev.player.uuid);",
-                    "  report('lane-world', joined === 1",
+                    "  const self = neo.player.self;",
+                    "  const block = neo.world.blockAt(1, 64, 2);",
+                    "  const found = neo.entity.lookup(ev.player.uuid);",
+                    "  neo.__test.report('lane-world', joined === 1",
                     "      && self !== undefined && self.name === 'tester' && self.health === 10.5",
                     "      && block !== undefined && block.state.id === 'minecraft:stone'",
                     "      && found !== undefined && found.type === 'minecraft:pig' && found.health === 5.5,",
@@ -94,14 +89,12 @@ class LaneWorldScenariosTest {
     void interactionSyncCancelReachesAdapter() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "guard.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { report } from '@neomacros/__test';",
                     "let saw = null;",
-                    "events.onSync('player:attackEntity', (ev) => {",
+                    "neo.events.onSync('player:attackEntity', (ev) => {",
                     "  saw = ev.target.type;",
                     "  return ev.target.type === 'minecraft:iron_golem';",
                     "});",
-                    "events.on('game:start', () => report('lane-guard', saw === null, 'registered'));",
+                    "neo.events.on('game:start', () => neo.__test.report('lane-guard', saw === null, 'registered'));",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("guard.js"));
 
@@ -123,13 +116,10 @@ class LaneWorldScenariosTest {
     void handleReadsUndefinedWhenEntityVanishes() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "vanish.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { entity } from '@neomacros/entity';",
-                    "import { report } from '@neomacros/__test';",
-                    "events.on('tick', () => {",
+                    "neo.events.on('tick', () => {",
                     "  if (ticks() !== 3) return;",
-                    "  const found = entity.lookup('11111111-2222-3333-4444-555555555555');",
-                    "  report('lane-vanish', found === undefined,",
+                    "  const found = neo.entity.lookup('11111111-2222-3333-4444-555555555555');",
+                    "  neo.__test.report('lane-vanish', found === undefined,",
                     "    found === undefined ? 'absent reads undefined' : 'unexpected handle');",
                     "});",
                     "let n = 0;",

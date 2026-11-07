@@ -47,10 +47,8 @@ class BaselineScenariosTest {
     void topLevelAndGameStartSubscription() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "hello.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { chat } from '@neomacros/chat';",
-                    "chat.log('HELLO-TOPLEVEL');",
-                    "events.on('game:start', () => chat.log('HELLO-START'));",
+                    "neo.chat.log('HELLO-TOPLEVEL');",
+                    "neo.events.on('game:start', () => neo.chat.log('HELLO-START'));",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("hello.js"));
 
@@ -67,12 +65,10 @@ class BaselineScenariosTest {
     void tickCountingThroughSelfReport() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "ticker.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { report } from '@neomacros/__test';",
                     "let n = 0;",
-                    "events.on('tick', () => {",
+                    "neo.events.on('tick', () => {",
                     "  n++;",
-                    "  if (n === 3) report('ticker', true, 'counted to 3');",
+                    "  if (n === 3) neo.__test.report('ticker', true, 'counted to 3');",
                     "});",
                     ""));
 
@@ -92,9 +88,7 @@ class BaselineScenariosTest {
     void chatReceiveEcho() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "echo.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { chat } from '@neomacros/chat';",
-                    "events.on('chat:receive', (ev) => chat.log('echo:' + JSON.stringify(ev)));",
+                    "neo.events.on('chat:receive', (ev) => neo.chat.log('echo:' + JSON.stringify(ev)));",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("echo.js"));
 
@@ -120,8 +114,7 @@ class BaselineScenariosTest {
     void syncCancellationRejectsEvent() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "filter.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "events.onSync('chat:send', (ev) => ev.message === 'spam');",
+                    "neo.events.onSync('chat:send', (ev) => ev.message === 'spam');",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("filter.js"));
 
@@ -140,20 +133,16 @@ class BaselineScenariosTest {
         Path scripts = dir.resolve("scripts");
         try (E2ERuntime e2e = E2ERuntime.create(scripts, dir.resolve("storage"))) {
             fixture(scripts, "counter.js", String.join("\n",
-                    "import { storage } from '@neomacros/storage';",
-                    "import { report } from '@neomacros/__test';",
-                    "const n = (storage.get('n') ?? 0) + 1;",
-                    "storage.put('n', n);",
-                    "report('storage-count', n >= 1, 'n=' + n);",
+                    "const n = (neo.storage.get('n') ?? 0) + 1;",
+                    "neo.storage.put('n', n);",
+                    "neo.__test.report('storage-count', n >= 1, 'n=' + n);",
                     ""));
             e2e.loadScript(scripts.resolve("counter.js"));
             assertTrue(e2e.bridge().get("storage-count").pass());
         }
         try (E2ERuntime e2e = E2ERuntime.create(scripts, dir.resolve("storage"))) {
             fixture(scripts, "counter.js", String.join("\n",
-                    "import { storage } from '@neomacros/storage';",
-                    "import { report } from '@neomacros/__test';",
-                    "report('storage-count2', storage.get('n') === 1, 'n=' + storage.get('n'));",
+                    "neo.__test.report('storage-count2', neo.storage.get('n') === 1, 'n=' + neo.storage.get('n'));",
                     ""));
             e2e.loadScript(scripts.resolve("counter.js"));
             assertTrue(e2e.bridge().get("storage-count2").pass(),
@@ -165,10 +154,8 @@ class BaselineScenariosTest {
     void reloadKeepsSingleSubscription() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "reloader.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { report } from '@neomacros/__test';",
                     "let n = 0;",
-                    "events.on('game:start', () => { n++; report('reload', n === 1, 'fired ' + n); });",
+                    "neo.events.on('game:start', () => { n++; neo.__test.report('reload', n === 1, 'fired ' + n); });",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("reloader.js"));
 
@@ -185,10 +172,8 @@ class BaselineScenariosTest {
     void domainWildcardSubscription() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "wild.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { report } from '@neomacros/__test';",
-                    "events.on('lifecycle:*', () => report('wild', true, 'fired'));",
-                    "events.on('game:start', () => report('wild-exact', true, 'exact fired'));",
+                    "neo.events.on('lifecycle:*', () => neo.__test.report('wild', true, 'fired'));",
+                    "neo.events.on('game:start', () => neo.__test.report('wild-exact', true, 'exact fired'));",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("wild.js"));
             e2e.adapter().lifecyclePort().fireGameStart();
@@ -202,13 +187,11 @@ class BaselineScenariosTest {
     void asyncPrimitivesResolve() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "sleeper.js", String.join("\n",
-                    "import { thread } from '@neomacros/core';",
-                    "import { report } from '@neomacros/__test';",
-                    "report('async-top', true, 'toplevel-ran');",
-                    "thread.sleep(5).then(() => {",
-                    "  thread.ticks(1).then(() => report('async', true, 'resolved'),",
-                    "    (e) => report('async', false, 'ticks-rejected: ' + e));",
-                    "}, (e) => report('async', false, 'sleep-rejected: ' + e));",
+                    "neo.__test.report('async-top', true, 'toplevel-ran');",
+                    "neo.thread.sleep(5).then(() => {",
+                    "  neo.thread.ticks(1).then(() => neo.__test.report('async', true, 'resolved'),",
+                    "    (e) => neo.__test.report('async', false, 'ticks-rejected: ' + e));",
+                    "}, (e) => neo.__test.report('async', false, 'sleep-rejected: ' + e));",
                     "globalThis.__stage = 'installed';",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("sleeper.js"));
@@ -231,9 +214,8 @@ class BaselineScenariosTest {
         ScriptConsole.installDispatcher(dispatcher);
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "logger.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
                     "console.log('boot', {n: 1});",
-                    "events.on('game:start', () => console.warn('started'));",
+                    "neo.events.on('game:start', () => console.warn('started'));",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("logger.js"));
 
@@ -241,7 +223,7 @@ class BaselineScenariosTest {
             assertTrue(boot != null, "the top-level console event is missing");
             assertEquals("logger", boot.macro(), "the macro id is the manifest name");
             assertEquals("index.js", boot.file());
-            assertEquals(2, boot.line());
+            assertEquals(1, boot.line());
             assertEquals("log", boot.level());
 
             e2e.adapter().lifecyclePort().fireGameStart();

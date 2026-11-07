@@ -12,7 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -30,26 +29,10 @@ class WarmupBenchmarkTest {
     @Test
     void coldVersusWarmSessionCosts() throws Exception {
         Path entry = scriptsDir.resolve("bench.mjs");
-        Files.writeString(entry,
-                "import { marker } from '@neomacros/core';\n"
-                + "globalThis.__marker = marker;\n");
-
-        ModuleResolver resolver = new ModuleResolver() {
-            @Override
-            public Optional<String> virtualSource(String specifier) {
-                return "@neomacros/core".equals(specifier)
-                        ? Optional.of("export const marker = 'ok';\n")
-                        : Optional.empty();
-            }
-
-            @Override
-            public Optional<Path> fileFor(String specifier) {
-                return Optional.empty();
-            }
-        };
+        Files.writeString(entry, "globalThis.__marker = neo.core.marker;\n");
 
         try (ScriptThreadPool pool = new ScriptThreadPool(2);
-             GraalJsEngine engine = new GraalJsEngine(resolver);
+             GraalJsEngine engine = new GraalJsEngine();
              ScriptRuntime runtime = new ScriptRuntime(engine, null,
                      new EventCatalog(), new EventBus(new EventCatalog(), Runnable::run), pool, 500)) {
             List<Long> sessionMillis = new ArrayList<>();

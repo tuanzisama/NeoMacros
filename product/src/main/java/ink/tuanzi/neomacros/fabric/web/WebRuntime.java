@@ -639,10 +639,9 @@ public final class WebRuntime implements PanelBackend, GameRunner {
                     "// Entry script: NeoMacros invokes startup(...) per trigger -",
                     "// once at activation for services, and once per key press /",
                     "// event occurrence for the other categories.",
-                    "import { chat } from '@neomacros/chat';",
                     "",
                     "export function startup(ev) {",
-                    "  chat.log('" + name + " started', ev);",
+                    "  neo.chat.log('" + name + " started', ev);",
                     "}",
                     ""));
         } catch (IOException e) {

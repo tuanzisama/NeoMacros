@@ -39,9 +39,9 @@ import java.util.regex.Pattern;
  * session operation (module import, binding install, guest reads) funnels
  * onto the loop, so GraalJS never sees concurrent access (03 §3 thread
  * model). Host access is disabled, module loading routes through the sandbox
- * file system (virtual {@code @neomacros/*} modules plus the script
- * directory), the {@code neo} global is injected deeply frozen, and
- * {@link AsyncBinding} members surface as JS Promise factories.
+ * file system confined to the script directory, the {@code neo} global is
+ * injected deeply frozen, and {@link AsyncBinding} members surface as JS
+ * Promise factories.
  */
 public final class GraalJsEngine implements ScriptEngine {
 
@@ -343,13 +343,11 @@ public final class GraalJsEngine implements ScriptEngine {
             };
             """;
 
-    private final ModuleResolver resolver;
     private final List<GraalJsSession> sessions = new CopyOnWriteArrayList<>();
     private volatile boolean closed;
 
-    /** Creates the engine; the resolver feeds virtual modules and script files. */
-    public GraalJsEngine(ModuleResolver resolver) {
-        this.resolver = resolver;
+    /** Creates the engine. */
+    public GraalJsEngine() {
     }
 
     @Override
@@ -436,7 +434,7 @@ public final class GraalJsEngine implements ScriptEngine {
             this.context = Context.newBuilder("js")
                     .allowHostAccess(HostAccess.NONE)
                     .allowIO(IOAccess.newBuilder()
-                            .fileSystem(new ScriptSandboxFileSystem(resolver, moduleRoot))
+                            .fileSystem(new ScriptSandboxFileSystem(moduleRoot))
                             .build())
                     .build();
         }
@@ -1008,7 +1006,8 @@ public final class GraalJsEngine implements ScriptEngine {
                 if (value instanceof Map<?, ?> nested) {
                     tree.putMember(entry.getKey(), buildTree(unchecked(nested), makeAsync));
                 } else if (value instanceof ModuleBinding module) {
-                    tree.putMember(entry.getKey(), context.asValue(moduleProxy(module, makeAsync)));
+                    tree.putMember(entry.getKey(),
+                            context.asValue(bindingValue(entry.getKey(), module, makeAsync)));
                 } else if (value instanceof AsyncBinding async) {
                     tree.putMember(entry.getKey(), makeAsync.execute(executable(arguments -> {
                         Value jsArgs = arguments[0];
@@ -1030,6 +1029,79 @@ public final class GraalJsEngine implements ScriptEngine {
         }
 
         /**
+         * Renders one binding tree entry: a binding whose single member
+         * carries the binding's own name (root-promoted functions,
+         * root-level classes) renders as that member's value itself, so
+         * {@code neo.sleep} and {@code neo.Pos3D} are directly usable; any
+         * other binding renders as a namespace object.
+         */
+        private Object bindingValue(String key, ModuleBinding binding, Value makeAsync) {
+            if (binding.members().size() == 1) {
+                Map.Entry<String, ModuleBinding.BindingMember> single =
+                        binding.members().entrySet().iterator().next();
+                if (single.getKey().equals(key)) {
+                    return renderMember(single.getValue(), makeAsync);
+                }
+            }
+            return moduleProxy(binding, makeAsync);
+        }
+
+        /**
+         * Renders one binding member as its guest value: bean getters read
+         * live on every access, functions cross as proxies (async ones
+         * wrapped into promise factories), and class members build the
+         * script-facing guest classes.
+         */
+        private Object renderMember(ModuleBinding.BindingMember member, Value makeAsync) {
+            if (member instanceof ModuleBinding.GuestTypeMember typeMember) {
+                return guestClassFor(typeMember.cellClass());
+            }
+            if (member instanceof ModuleBinding.EventTypeMember eventType) {
+                // Guest event classes live in the glue; "BaseEvent" is
+                // the shared base class itself.
+                if (eventType.eventName().equals("BaseEvent")) {
+                    return glueMember("__neoBaseEvent");
+                }
+                return glueMember("__neoEventClass")
+                        .execute(eventType.eventName(), eventType.cancellable());
+            }
+            if (member instanceof ModuleBinding.PropertyMember property) {
+                try {
+                    return asGuestValue(property.get());
+                } catch (PolyglotException e) {
+                    throw e;
+                } catch (Throwable t) {
+                    throw new RuntimeException(t);
+                }
+            }
+            if (member instanceof ModuleBinding.FunctionMember function) {
+                if (function.isAsync()) {
+                    return makeAsync.execute(executable(arguments ->
+                            invokeAsync(function, arguments)));
+                }
+                return executable(arguments -> {
+                    try {
+                        return asGuestValue(function.invoke(convertArgs(function, arguments)));
+                    } catch (PolyglotException e) {
+                        throw e;
+                    } catch (Throwable t) {
+                        throw new RuntimeException(t);
+                    }
+                });
+            }
+            if (member instanceof ModuleBinding.DeniedMember denied) {
+                return executable(arguments -> {
+                    throw new PermissionError("permission '" + denied.permission()
+                            + "' is not declared in this script's meta.permissions");
+                });
+            }
+            if (member instanceof ModuleBinding.ConstantMember constant) {
+                return constant.value();
+            }
+            throw new IllegalStateException("unrenderable binding member");
+        }
+
+        /**
          * Renders a module binding as a read-only guest object: bean getters
          * read live on every property access, functions cross as proxies
          * (async ones wrapped into promise factories), and putMember throws
@@ -1043,52 +1115,7 @@ public final class GraalJsEngine implements ScriptEngine {
                     if (member == null) {
                         throw new IllegalStateException("unknown binding member: " + name);
                     }
-                    if (member instanceof ModuleBinding.GuestTypeMember typeMember) {
-                        return guestClassFor(typeMember.cellClass());
-                    }
-                    if (member instanceof ModuleBinding.EventTypeMember eventType) {
-                        // Guest event classes live in the glue; "BaseEvent" is
-                        // the shared base class itself.
-                        if (eventType.eventName().equals("BaseEvent")) {
-                            return glueMember("__neoBaseEvent");
-                        }
-                        return glueMember("__neoEventClass")
-                                .execute(eventType.eventName(), eventType.cancellable());
-                    }
-                    if (member instanceof ModuleBinding.PropertyMember property) {
-                        try {
-                            return asGuestValue(property.get());
-                        } catch (PolyglotException e) {
-                            throw e;
-                        } catch (Throwable t) {
-                            throw new RuntimeException(t);
-                        }
-                    }
-                    if (member instanceof ModuleBinding.FunctionMember function) {
-                        if (function.isAsync()) {
-                            return makeAsync.execute(executable(arguments ->
-                                    invokeAsync(function, arguments)));
-                        }
-                        return executable(arguments -> {
-                            try {
-                                return asGuestValue(function.invoke(convertArgs(function, arguments)));
-                            } catch (PolyglotException e) {
-                                throw e;
-                            } catch (Throwable t) {
-                                throw new RuntimeException(t);
-                            }
-                        });
-                    }
-                    if (member instanceof ModuleBinding.DeniedMember denied) {
-                        return executable(arguments -> {
-                            throw new PermissionError("permission '" + denied.permission()
-                                    + "' is not declared in this script's meta.permissions");
-                        });
-                    }
-                    if (member instanceof ModuleBinding.ConstantMember constant) {
-                        return constant.value();
-                    }
-                    throw new IllegalStateException("unrenderable binding member");
+                    return renderMember(member, makeAsync);
                 }
 
                 @Override

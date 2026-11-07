@@ -27,7 +27,6 @@ class ApiModelExtractorTest {
         ApiModel.ModuleModel module = model.modules().get(0);
         assertEquals("fixture", module.name());
         assertEquals("test", module.category());
-        assertTrue(module.global());
         assertEquals("0.1.0", module.since());
         assertNull(module.mc(), "class-level ApiMC absent on the fixture");
         assertNull(module.permission());
@@ -172,17 +171,5 @@ class ApiModelExtractorTest {
         ModuleBinding.PropertyMember reads = (ModuleBinding.PropertyMember) binding.members().get("reads");
         assertEquals(1, reads.get());
         assertEquals(2, reads.get(), "each read invokes the live getter");
-    }
-
-    @Test
-    void esmModuleAndGlobalTreeShareTheSameBinding() {
-        BindingRegistry registry = new BindingRegistry("26.3");
-        registry.register(BindgenFixture.class);
-        PermissionView view = PermissionView.ALLOW_ALL;
-
-        Map<String, Object> tree = registry.neoTree(view);
-        assertEquals(tree.get("fixture"), registry.esmModule("fixture", view).orElseThrow(),
-                "both channels expose the same binding object (05 §2)");
-        assertTrue(registry.esmModule("nope", view).isEmpty());
     }
 }

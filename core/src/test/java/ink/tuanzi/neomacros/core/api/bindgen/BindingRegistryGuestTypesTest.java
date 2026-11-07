@@ -6,21 +6,18 @@ import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The {@code types} module: guest-type registration, the {@code neo.types}
- * tree entry, the {@code @neomacros/types} re-export source, and the
- * automatic per-module re-export of module-owned classes.
+ * Root-level guest classes: registration lands each class constructor as a
+ * self-named {@code neo.<name>} root entry, and collisions with modules,
+ * other classes, or the reserved BaseEvent root are rejected.
  */
 class BindingRegistryGuestTypesTest {
 
-    //** Test module class owning the sample cell (module name drives the re-export). */
+    /** Test module class owning the sample cell. */
     @ApiModule(name = "sample", category = "test")
     @ApiSince("0.1.0")
     public static class SampleApi {
@@ -37,44 +34,22 @@ class BindingRegistryGuestTypesTest {
     }
 
     @Test
-    void typesModuleCarriesRegisteredConstructors() {
+    void guestTypesLandAsRootEntries() {
         var registry = new BindingRegistry("26.3");
         registry.register(SampleApi.class);
         registry.registerGuestType("Sample", SampleApi.Sample.class);
         registry.registerGuestType("Other", Other.class);
 
         var tree = registry.neoTree(PermissionView.ALLOW_ALL);
-        ModuleBinding types = assertInstanceOf(ModuleBinding.class, tree.get("types"),
-                "types module present in the neo tree");
-        ModuleBinding.GuestTypeMember sample =
+        ModuleBinding sample = assertInstanceOf(ModuleBinding.class, tree.get("Sample"),
+                "guest classes are root entries, not a types namespace");
+        ModuleBinding.GuestTypeMember sampleMember =
                 assertInstanceOf(ModuleBinding.GuestTypeMember.class,
-                        types.members().get("Sample"));
-        assertEquals(SampleApi.Sample.class, sample.cellClass());
+                        sample.members().get("Sample"));
+        assertEquals(SampleApi.Sample.class, sampleMember.cellClass());
         assertEquals(ModuleBinding.GuestTypeMember.class,
-                types.members().get("Other").getClass());
-
-        Optional<String> source = registry.virtualSourceFor(
-                "@neomacros/types", PermissionView.ALLOW_ALL);
-        assertTrue(source.isPresent(), "types module has a virtual source");
-        assertTrue(source.get().contains("export const types = m;"),
-                "aggregate export present");
-        assertTrue(source.get().contains("export const Sample = m.Sample;"),
-                "per-type exports present");
-        assertTrue(source.get().contains("export const Other = m.Other;"),
-                "second type exported");
-    }
-
-    @Test
-    void moduleOwnedClassesReExportFromTheirModule() {
-        var registry = new BindingRegistry("26.3");
-        registry.register(SampleApi.class);
-        registry.registerGuestType("Sample", SampleApi.Sample.class);
-
-        Optional<String> source = registry.virtualSourceFor(
-                "@neomacros/sample", PermissionView.ALLOW_ALL);
-        assertTrue(source.isPresent());
-        assertTrue(source.get().contains("export const Sample = globalThis.neo.types.Sample;"),
-                "module-owned class re-exports through its module specifier");
+                assertInstanceOf(ModuleBinding.class, tree.get("Other"))
+                        .members().get("Other").getClass());
     }
 
     @Test
@@ -91,5 +66,8 @@ class BindingRegistryGuestTypesTest {
         assertThrows(IllegalStateException.class,
                 () -> registry.registerGuestType("Sample", SampleApi.Sample.class),
                 "duplicate type registration is rejected");
+        assertThrows(IllegalStateException.class,
+                () -> registry.registerGuestType("BaseEvent", Other.class),
+                "the reserved BaseEvent root cannot be shadowed by a guest type");
     }
 }

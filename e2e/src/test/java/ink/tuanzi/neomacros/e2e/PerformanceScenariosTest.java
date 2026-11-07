@@ -14,10 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * E2E-A scenarios for the performance module: real scripts through the real
- * engine exercising both import channels ({@code @neomacros/performance} and
- * the {@code neo.performance} global) across the User Timing surface —
- * marks, measures in every accepted form, entry queries, clears, and the
- * session origin.
+ * engine exercising the {@code neo.performance} global across the User
+ * Timing surface — marks, measures in every accepted form, entry queries,
+ * clears, and the session origin.
  */
 class PerformanceScenariosTest {
 
@@ -41,35 +40,33 @@ class PerformanceScenariosTest {
     }
 
     @Test
-    void userTimingSurfaceThroughEsmImport() throws Exception {
+    void userTimingSurfaceThroughTheGlobalChannel() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "perf-user-timing.js", String.join("\n",
-                    "import { performance } from '@neomacros/performance';",
-                    "import { report } from '@neomacros/__test';",
                     "const results = {};",
-                    "const t0 = performance.now();",
+                    "const t0 = neo.performance.now();",
                     "results['now'] = typeof t0 === 'number' && t0 >= 0;",
-                    "performance.mark('a');",
-                    "const m = performance.measure('span', 'a');",
+                    "neo.performance.mark('a');",
+                    "const m = neo.performance.measure('span', 'a');",
                     "results['measureFromMark'] = m.name === 'span' && m.entryType === 'measure'",
                     "    && m.startTime >= 0 && m.duration >= 0;",
-                    "const raw = performance.measure('raw', 1.5, 3.5);",
+                    "const raw = neo.performance.measure('raw', 1.5, 3.5);",
                     "results['rawBounds'] = raw.startTime === 1.5 && raw.duration === 2;",
-                    "results['byName'] = performance.entriesByName('span').length === 1",
-                    "    && performance.entriesByName('span', 'measure').length === 1",
-                    "    && performance.entriesByName('span', 'mark').length === 0;",
-                    "results['byType'] = performance.entriesByType('mark').length === 1",
-                    "    && performance.entriesByType('measure').length === 2",
-                    "    && performance.entriesByType('paint').length === 0;",
-                    "const json = JSON.stringify(performance.entriesByName('a')[0]);",
+                    "results['byName'] = neo.performance.entriesByName('span').length === 1",
+                    "    && neo.performance.entriesByName('span', 'measure').length === 1",
+                    "    && neo.performance.entriesByName('span', 'mark').length === 0;",
+                    "results['byType'] = neo.performance.entriesByType('mark').length === 1",
+                    "    && neo.performance.entriesByType('measure').length === 2",
+                    "    && neo.performance.entriesByType('paint').length === 0;",
+                    "const json = JSON.stringify(neo.performance.entriesByName('a')[0]);",
                     "results['jsonShape'] = json.includes('\"name\":\"a\"')",
                     "    && json.includes('\"entryType\":\"mark\"')",
                     "    && json.includes('\"startTime\"') && json.includes('\"duration\"');",
-                    "performance.clearMarks();",
-                    "results['clearMarks'] = performance.entriesByType('mark').length === 0;",
-                    "performance.clearMeasures();",
-                    "results['clearMeasures'] = performance.entries.length === 0;",
-                    "report('perf-user-timing', Object.values(results).every(Boolean),",
+                    "neo.performance.clearMarks();",
+                    "results['clearMarks'] = neo.performance.entriesByType('mark').length === 0;",
+                    "neo.performance.clearMeasures();",
+                    "results['clearMeasures'] = neo.performance.entries.length === 0;",
+                    "neo.__test.report('perf-user-timing', Object.values(results).every(Boolean),",
                     "    JSON.stringify(results));",
                     ""));
 
@@ -87,7 +84,6 @@ class PerformanceScenariosTest {
     void globalFaceAnchorsTimeOriginToSessionStart() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "perf-global.js", String.join("\n",
-                    "import { report } from '@neomacros/__test';",
                     "const results = {};",
                     "const perf = neo.performance;",
                     "results['globalFace'] = typeof perf.now === 'function'",
@@ -98,7 +94,7 @@ class PerformanceScenariosTest {
                     "    && perf.timeOrigin <= Date.now() + 50;",
                     "results['comparableToDateNow'] = Date.now() - perf.timeOrigin < 60_000;",
                     "results['isolatedTimeline'] = perf.entries.length === 0;",
-                    "report('perf-global', Object.values(results).every(Boolean),",
+                    "neo.__test.report('perf-global', Object.values(results).every(Boolean),",
                     "    JSON.stringify(results));",
                     ""));
 

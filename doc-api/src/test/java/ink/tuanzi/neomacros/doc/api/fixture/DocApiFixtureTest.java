@@ -33,7 +33,6 @@ class DocApiFixtureTest {
         assertNotNull(module);
         assertEquals("fixture", module.name());
         assertEquals("test", module.category());
-        assertTrue(module.global(), "default global must be present on the fixture");
     }
 
     @Test

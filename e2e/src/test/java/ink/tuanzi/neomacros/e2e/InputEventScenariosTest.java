@@ -41,15 +41,13 @@ class InputEventScenariosTest {
     void keyPressIsCancellableAndWheelPublishes() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "keys.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { report } from '@neomacros/__test';",
-                    "events.onSync('key:press', (ev) => ev.key === 'key.keyboard.blocked');",
-                    "events.on('key:press', (ev) => {",
-                    "  report('key-press', ev.key === 'key.keyboard.free' && ev.action === 'press',",
+                    "neo.events.onSync('key:press', (ev) => ev.key === 'key.keyboard.blocked');",
+                    "neo.events.on('key:press', (ev) => {",
+                    "  neo.__test.report('key-press', ev.key === 'key.keyboard.free' && ev.action === 'press',",
                     "    JSON.stringify({ key: ev.key, action: ev.action }));",
                     "});",
-                    "events.on('input:wheel', (ev) => {",
-                    "  report('wheel', ev.amount === 2.5, String(ev.amount));",
+                    "neo.events.on('input:wheel', (ev) => {",
+                    "  neo.__test.report('wheel', ev.amount === 2.5, String(ev.amount));",
                     "});",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("keys.js"));
@@ -78,13 +76,11 @@ class InputEventScenariosTest {
     void customEventsRegisterEmitAndSubscribe() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "custom.js", String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { report } from '@neomacros/__test';",
-                    "events.register('macro:pulse');",
-                    "events.on('macro:pulse', (ev) => {",
-                    "  report('custom', ev.count === 3, JSON.stringify(ev));",
+                    "neo.events.register('macro:pulse');",
+                    "neo.events.on('macro:pulse', (ev) => {",
+                    "  neo.__test.report('custom', ev.count === 3, JSON.stringify(ev));",
                     "});",
-                    "events.emit('macro:pulse', { count: 3 });",
+                    "neo.events.emit('macro:pulse', { count: 3 });",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("custom.js"));
 
@@ -98,12 +94,10 @@ class InputEventScenariosTest {
 
             // Registering a second time or shadowing a built-in domain raises.
             var script = String.join("\n",
-                    "import { events } from '@neomacros/core';",
-                    "import { report } from '@neomacros/__test';",
                     "let raised = '';",
-                    "try { events.register('macro:pulse'); } catch (e) { raised = 'dup'; }",
-                    "try { events.register('player:fake'); } catch (e) { raised += '-domain'; }",
-                    "report('custom-guards', raised === 'dup-domain', raised);",
+                    "try { neo.events.register('macro:pulse'); } catch (e) { raised = 'dup'; }",
+                    "try { neo.events.register('player:fake'); } catch (e) { raised += '-domain'; }",
+                    "neo.__test.report('custom-guards', raised === 'dup-domain', raised);",
                     "");
             fixture(dir.resolve("scripts"), "guards.js", script);
             e2e.loadScript(dir.resolve("scripts").resolve("guards.js"));

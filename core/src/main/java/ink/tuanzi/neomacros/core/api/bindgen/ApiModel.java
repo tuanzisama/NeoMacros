@@ -13,9 +13,9 @@ import java.util.List;
  */
 public record ApiModel(List<ModuleModel> modules) {
 
-    /** One script-visible ES module. */
+    /** One script-visible API module. */
     public record ModuleModel(
-            String name, String category, boolean global,
+            String name, String category,
             String since, String mc, String permission,
             List<PropertyModel> properties, List<MethodModel> methods) {
     }

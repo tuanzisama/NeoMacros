@@ -19,8 +19,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -88,7 +88,7 @@ class BindingIntegrationTest {
         pool = new ScriptThreadPool(2);
         BindingRegistry registry = new BindingRegistry("26.3");
         registry.register(FixtureFacade.class);
-        engine = new GraalJsEngine(testResolver());
+        engine = new GraalJsEngine();
         runtime = new ScriptRuntime(engine, null,
                 new EventCatalog(), new EventBus(new EventCatalog(), Runnable::run), pool, 500);
         var context = runtime.createContext("bindings");
@@ -100,24 +100,6 @@ class BindingIntegrationTest {
     void tearDown() {
         runtime.close();
         pool.close();
-    }
-
-    private ModuleResolver testResolver() {
-        return new ModuleResolver() {
-            @Override
-            public Optional<String> virtualSource(String specifier) {
-                if ("@neomacros/core".equals(specifier)) {
-                    return Optional.of("const m = globalThis.neo.fixture;\n"
-                            + "export const fixture = m;\n");
-                }
-                return Optional.empty();
-            }
-
-            @Override
-            public Optional<Path> fileFor(String specifier) {
-                return Optional.empty();
-            }
-        };
     }
 
     private Path writeModule(String fileName, String source) throws Exception {
@@ -194,13 +176,23 @@ class BindingIntegrationTest {
     }
 
     @Test
-    void esmChannelSeesTheSameBindingObject() throws Exception {
-        Path entry = writeModule("identity.mjs",
-                "import { fixture } from '@neomacros/core';\n"
-                + "globalThis.__same = fixture === neo.fixture;\n");
+    void rootPromotedSingleMemberBindingIsCallable() throws Exception {
+        BindingRegistry registry = new BindingRegistry("26.3");
+        registry.register(FixtureFacade.class);
+        registry.promoteRootMembers("fixture", List.of("greet"));
+        // Fresh session: neo installs once per context.
+        var rootContext = runtime.createContext("rooted");
+        var rootSession = (GraalJsEngine.GraalJsSession) engine.openSession(rootContext, scriptsDir);
+        rootSession.installBindings(registry.neoTree(PermissionView.of(Set.of())));
 
-        session.importModule("identity", entry);
-        assertTrue(sessionGlobal("__same").asBoolean(),
-                "both channels resolve to the identical binding object");
+        Path entry = writeModule("rooted.mjs",
+                "globalThis.__greeting = neo.greet('root');\n"
+                + "globalThis.__moduleStillThere = typeof neo.fixture.greet;\n");
+
+        rootSession.importModule("rooted", entry);
+        assertEquals("hi root", rootSession.global("__greeting").asString(),
+                "a root-promoted member is callable directly on neo");
+        assertEquals("function", rootSession.global("__moduleStillThere").asString(),
+                "the module namespace keeps its members alongside the root promotion");
     }
 }

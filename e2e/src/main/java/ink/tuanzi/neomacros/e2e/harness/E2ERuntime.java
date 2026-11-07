@@ -20,12 +20,10 @@ import ink.tuanzi.neomacros.core.runtime.ScriptEngine;
 import ink.tuanzi.neomacros.core.runtime.ScriptRuntime;
 import ink.tuanzi.neomacros.core.thread.ScriptThreadPool;
 import ink.tuanzi.neomacros.engine.GraalJsEngine;
-import ink.tuanzi.neomacros.engine.ModuleResolver;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Application-level E2E harness: assembles the real engine, the real event
@@ -74,8 +72,6 @@ public final class E2ERuntime implements AutoCloseable {
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
-        // Script-facing event classes (BaseEvent chain) for instanceof dispatch.
-        registry.registerEventType("BaseEvent", false);
         for (var descriptor : catalog.all()) {
             registry.registerEventType(descriptor.name(), descriptor.cancellable());
         }
@@ -185,17 +181,7 @@ public final class E2ERuntime implements AutoCloseable {
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(storageDir);
 
-        ScriptEngine engine = new GraalJsEngine(new ModuleResolver() {
-            @Override
-            public Optional<String> virtualSource(String specifier) {
-                return registry.virtualSourceFor(specifier, PermissionView.ALLOW_ALL);
-            }
-
-            @Override
-            public Optional<Path> fileFor(String specifier) {
-                return Optional.empty();
-            }
-        });
+        ScriptEngine engine = new GraalJsEngine();
         var runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, 500);
         // Script-side failures must surface in test output, never vanish.
         StringBuilder errors = new StringBuilder();

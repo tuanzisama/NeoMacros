@@ -23,7 +23,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -131,17 +130,7 @@ class ClassTreeIntegrationTest {
         ScriptApiEnvironment.install(bus, adapter);
         registry = new BindingRegistry("26.3");
         registry.registerAll(List.of(TreeApi.class, ChatApi.class));
-        var engine = new GraalJsEngine(new ModuleResolver() {
-            @Override
-            public Optional<String> virtualSource(String specifier) {
-                return registry.virtualSourceFor(specifier, PermissionView.ALLOW_ALL);
-            }
-
-            @Override
-            public Optional<Path> fileFor(String specifier) {
-                return Optional.empty();
-            }
-        });
+        var engine = new GraalJsEngine();
         runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, 500);
         runtime.createContext("class-tree");
     }
@@ -168,19 +157,16 @@ class ClassTreeIntegrationTest {
     }
 
     private static final String SCRIPT = String.join("\n",
-            "import { chat } from '@neomacros/chat';",
-            "import { tree } from '@neomacros/tree';",
-            "",
             "export function startup() {",
-            "  chat.log('TREE-STARTUP');",
+            "  neo.chat.log('TREE-STARTUP');",
             "}",
             "",
-            "const leaf = tree.leaf();",
+            "const leaf = neo.tree.leaf();",
             "const LeafCtor = leaf.constructor;",
             "const TwigCtor = Object.getPrototypeOf(LeafCtor);",
             "const BranchCtor = Object.getPrototypeOf(TwigCtor);",
             "const TreeNodeCtor = Object.getPrototypeOf(BranchCtor);",
-            "const up = tree.upcast();",
+            "const up = neo.tree.upcast();",
             "class Tracked extends LeafCtor {",
             "  shout() { return 'leaf:' + this.kind; }",
             "}",
@@ -200,10 +186,10 @@ class ClassTreeIntegrationTest {
             "  readOnlyProps: (() => { try { leaf.color = 'red'; return false; } catch (e) { return true; } })(),",
             "};",
             "for (const [key, value] of Object.entries(results)) {",
-            "  chat.log('TREE-' + key + '=' + value);",
+            "  neo.chat.log('TREE-' + key + '=' + value);",
             "}",
-            "chat.log('TREE-bareProxy=' + (tree.bare().value === 'bare'));",
-            "chat.log('TREE-bareNoTag=' + (Object.prototype.toString.call(tree.bare()) === '[object Object]'));",
+            "neo.chat.log('TREE-bareProxy=' + (neo.tree.bare().value === 'bare'));",
+            "neo.chat.log('TREE-bareNoTag=' + (Object.prototype.toString.call(neo.tree.bare()) === '[object Object]'));",
             "");
 
     /** Writes one script folder (manifest + index.js) and returns its discovery entry. */

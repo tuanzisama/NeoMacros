@@ -9,10 +9,10 @@ import java.util.concurrent.Executor;
  * implementation). The interface exists so the runtime is testable with a
  * stub engine; engine dependencies stay isolated behind it.
  *
- * <p>Contract: ES module imports with {@code @neomacros/*} specifier
- * resolution, binding-tree injection, promise settlement scheduled onto the
- * context loop, engine exceptions translated to {@link ScriptError} (with
- * source location), and deterministic disposal.</p>
+ * <p>Contract: ES module loading for entry files and in-folder imports,
+ * binding-tree injection, promise settlement scheduled onto the context
+ * loop, engine exceptions translated to {@link ScriptError} (with source
+ * location), and deterministic disposal.</p>
  */
 public interface ScriptEngine extends AutoCloseable {
 

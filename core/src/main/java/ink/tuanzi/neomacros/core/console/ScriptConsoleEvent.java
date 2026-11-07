@@ -16,7 +16,7 @@ import java.util.List;
  *                 group | groupEnd | clear | assert
  * @param level    log | info | warn | error | debug
  * @param file     script-relative POSIX path of the call site, null when
- *                 the frame could not be resolved (virtual modules)
+ *                 the frame could not be resolved
  * @param line     call-site line, null when unresolved
  * @param column   call-site column, null when unresolved
  * @param depth    group nesting level of the call site

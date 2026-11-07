@@ -1,14 +1,5 @@
-import { events } from '@neomacros/core';
-import { chat } from '@neomacros/chat';
-import { world } from '@neomacros/world';
-import { client } from '@neomacros/client';
-import { player } from '@neomacros/player';
-import { input } from '@neomacros/input';
-import { screen } from '@neomacros/screen';
-import { fs } from '@neomacros/fs';
-
 let fired = false;
-events.on('game:start', () => {
+neo.events.on('game:start', () => {
   if (fired) return;
   fired = true;
   start();
@@ -18,28 +9,28 @@ function start() {
   const results = {};
   const check = (key, value) => { results[key] = Boolean(value); };
 
-  check('world.moonPhase', typeof world.moonPhase === 'number');
-  check('world.levelName', typeof world.levelName === 'string');
+  check('world.moonPhase', typeof neo.world.moonPhase === 'number');
+  check('world.levelName', typeof neo.world.levelName === 'string');
   check('world.tabList-null-or-object',
-      world.tabList === null || typeof world.tabList === 'object');
-  check('world.bossbars-array', Array.isArray(world.bossbars));
+      neo.world.tabList === null || typeof neo.world.tabList === 'object');
+  check('world.bossbars-array', Array.isArray(neo.world.bossbars));
   check('world.scoreboards-null-or-object',
-      world.scoreboards === null || typeof world.scoreboards === 'object');
-  check('client.mods-array', Array.isArray(client.mods));
-  check('client.isDevEnv', typeof client.isDevEnv === 'boolean');
-  check('client.window', client.window === null || typeof client.window === 'object');
-  check('client.mouse', typeof client.mouse === 'object');
-  check('client.clipboard', typeof client.clipboard === 'string');
-  check('input.keybinds-array', Array.isArray(input.keybinds));
-  check('input.pressedKeys-array', Array.isArray(input.pressedKeys));
-  check('input.movementState', typeof input.movementState === 'object');
-  const moveSub = input.movement({ forward: true });
+      neo.world.scoreboards === null || typeof neo.world.scoreboards === 'object');
+  check('client.mods-array', Array.isArray(neo.client.mods));
+  check('client.isDevEnv', typeof neo.client.isDevEnv === 'boolean');
+  check('client.window', neo.client.window === null || typeof neo.client.window === 'object');
+  check('client.mouse', typeof neo.client.mouse === 'object');
+  check('client.clipboard', typeof neo.client.clipboard === 'string');
+  check('input.keybinds-array', Array.isArray(neo.input.keybinds));
+  check('input.pressedKeys-array', Array.isArray(neo.input.pressedKeys));
+  check('input.movementState', typeof neo.input.movementState === 'object');
+  const moveSub = neo.input.movement({ forward: true });
   moveSub.cancel();
   check('input.movement-subscription', typeof moveSub.cancel === 'function');
   check('screen.opened-null-or-object',
-      screen.opened === null || typeof screen.opened === 'object');
-  check('chat.getWidth', typeof chat.getWidth('hello') === 'number');
-  const self = player.self;
+      neo.screen.opened === null || typeof neo.screen.opened === 'object');
+  check('chat.getWidth', typeof neo.chat.getWidth('hello') === 'number');
+  const self = neo.player.self;
   check('player.self-null-or-handle', self === undefined || typeof self === 'object');
   if (self) {
     check('player.statistics', self.statistics === null || typeof self.statistics === 'object');
@@ -48,7 +39,7 @@ function start() {
     check('player.isBreakingBlock', typeof self.isBreakingBlock === 'boolean');
   }
   try {
-    const handle = fs.open('neomacro-test-gap.txt');
+    const handle = neo.fs.open('neomacro-test-gap.txt');
     check('fs.open-handle', typeof handle.readBytes === 'function'
         && typeof handle.attributes === 'function');
   } catch (e) {
@@ -57,9 +48,9 @@ function start() {
 
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
-    chat.log('[E2E] ' + key + '=' + value);
+    neo.chat.log('[E2E] ' + key + '=' + value);
   }
-  chat.log('[E2E] gap-api: ' + (pass ? 'PASS' : 'FAIL'));
+  neo.chat.log('[E2E] gap-api: ' + (pass ? 'PASS' : 'FAIL'));
 }
 
 export function startup() {}

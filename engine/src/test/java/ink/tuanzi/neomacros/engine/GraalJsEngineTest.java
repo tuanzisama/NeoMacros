@@ -15,7 +15,6 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,10 +23,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Integration tests of the GraalJS engine against real script files and
- * virtual modules: the feasibility checks behind risk item R1 (ESM specifier
- * interception, top-level await, host denial, source-position errors, frozen
- * global, promise settlement on the context loop).
+ * Integration tests of the GraalJS engine against real script files:
+ * relative ESM imports inside the module folder, the sandbox boundary,
+ * top-level await, host denial, source-position errors, the frozen
+ * {@code neo} global, and promise settlement on the context loop.
  */
 class GraalJsEngineTest {
 
@@ -43,7 +42,7 @@ class GraalJsEngineTest {
     @BeforeEach
     void setUp() throws Exception {
         pool = new ScriptThreadPool(2);
-        engine = new GraalJsEngine(testResolver());
+        engine = new GraalJsEngine();
         runtime = new ScriptRuntime(engine, null,
                 new EventCatalog(), new EventBus(new EventCatalog(), Runnable::run), pool, 500);
         context = runtime.createContext("graal");
@@ -54,28 +53,6 @@ class GraalJsEngineTest {
     void tearDown() {
         runtime.close();
         pool.close();
-    }
-
-    /** Serves the core virtual module; re-exports members of the frozen neo tree. */
-    private ModuleResolver testResolver() {
-        return new ModuleResolver() {
-            @Override
-            public Optional<String> virtualSource(String specifier) {
-                if ("@neomacros/core".equals(specifier)) {
-                    return Optional.of("const m = globalThis.neo.core;\n"
-                            + "export const marker = m.marker;\n"
-                            + "export const sleep = m.sleep;\n"
-                            + "export const thread = m.thread;\n"
-                            + "export const explode = m.explode;\n");
-                }
-                return Optional.empty();
-            }
-
-            @Override
-            public Optional<Path> fileFor(String specifier) {
-                return Optional.empty();
-            }
-        };
     }
 
     private Path writeModule(String fileName, String source) throws Exception {
@@ -159,14 +136,14 @@ class GraalJsEngineTest {
     }
 
     @Test
-    void virtualSpecifierResolvesThroughSandbox() throws Exception {
-        session.installBindings(Map.of("core", Map.of("marker", "core-marker")));
-        Path entry = writeModule("virtual-entry.mjs",
-                "import { marker } from '@neomacros/core';\n"
-                + "globalThis.__result = marker;\n");
+    void removedModuleSpecifierReportsMigrationHint() throws Exception {
+        Path entry = writeModule("legacy-import.mjs",
+                "import { chat } from '@neomacros/chat';\n");
 
-        session.importModule("virtual-entry", entry);
-        assertEquals("core-marker", sessionGlobal("__result").asString());
+        ScriptError error = assertThrows(ScriptError.class,
+                () -> session.importModule("legacy-import", entry));
+        assertTrue(error.getMessage().contains("@neomacros/chat"), () -> error.getMessage());
+        assertTrue(error.getMessage().contains("neo global"), () -> error.getMessage());
     }
 
     @Test
@@ -239,10 +216,9 @@ class GraalJsEngineTest {
                 })));
 
         Path entry = writeModule("async-probe.mjs",
-                "import { sleep, thread } from '@neomacros/core';\n"
-                + "const message = await sleep(40);\n"
+                "const message = await neo.core.sleep(40);\n"
                 + "globalThis.__message = message;\n"
-                + "globalThis.__continuationThread = thread();\n");
+                + "globalThis.__continuationThread = neo.core.thread();\n");
 
         session.importModule("async-probe", entry);
 

@@ -39,17 +39,7 @@ class ExportReaderTest {
     @BeforeEach
     void setUp() throws Exception {
         pool = new ScriptThreadPool(2);
-        engine = new GraalJsEngine(new ModuleResolver() {
-            @Override
-            public java.util.Optional<String> virtualSource(String specifier) {
-                return java.util.Optional.empty();
-            }
-
-            @Override
-            public java.util.Optional<Path> fileFor(String specifier) {
-                return java.util.Optional.empty();
-            }
-        });
+        engine = new GraalJsEngine();
         runtime = new ScriptRuntime(engine, null,
                 new EventCatalog(), new EventBus(new EventCatalog(), Runnable::run), pool, 500);
         context = runtime.createContext("export-reader");

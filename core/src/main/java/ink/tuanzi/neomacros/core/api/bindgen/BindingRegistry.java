@@ -4,14 +4,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
- * Registry of script module bindings: the single source both channels share
- * (the {@code neo.*} global tree and the {@code @neomacros/*} ESM module
- * table resolve to the same binding objects, 05 §2). API classes are
- * scanned once; binding trees are built per permission view and trimmed by
- * the current milestone node's {@code @ApiMC} ranges.
+ * Registry of script module bindings: the single source of the {@code neo.*}
+ * global tree (modules, root-level guest classes, and root-level event
+ * classes). API classes are scanned once; binding trees are built per
+ * permission view and trimmed by the current milestone node's {@code @ApiMC}
+ * ranges.
  */
 public final class BindingRegistry {
 
@@ -22,13 +21,6 @@ public final class BindingRegistry {
     private final Map<String, List<String>> promoted = new LinkedHashMap<>();
     private final Map<String, Class<?>> guestTypes = new LinkedHashMap<>();
     private final Map<String, Boolean> eventTypes = new LinkedHashMap<>();
-
-    /** JS reserved words that cannot appear as export names. */
-    private static final java.util.Set<String> JS_RESERVED_WORDS = java.util.Set.of(
-            "delete", "class", "catch", "default", "export", "extends", "function", "import",
-            "in", "instanceof", "new", "return", "super", "switch", "this", "throw", "try",
-            "typeof", "var", "void", "while", "with", "yield", "await", "const", "let",
-            "break", "case", "continue", "debugger", "do", "else", "finally", "for", "if");
 
     /** Creates the registry for the running milestone node. */
     public BindingRegistry(String currentMcVersion) {
@@ -104,14 +96,13 @@ public final class BindingRegistry {
     }
 
     /**
-     * Registers one script-facing class constructor under the {@code types}
-     * module: {@code neo.types.<name>} and the matching {@code @neomacros/*}
-     * re-export resolve to the real guest ES class built from the cell type's
-     * {@code @ApiClass} declaration. Name collisions with modules or other
-     * types are rejected.
+     * Registers one script-facing class constructor at the root of the
+     * global tree: {@code neo.<name>} resolves to the real guest ES class
+     * built from the cell type's {@code @ApiClass} declaration. Name
+     * collisions with modules or other root classes are rejected.
      */
     public void registerGuestType(String name, Class<?> cellClass) {
-        if (modules.containsKey(name) || guestTypes.containsKey(name)) {
+        if (modules.containsKey(name) || guestTypes.containsKey(name) || name.equals("BaseEvent")) {
             throw new IllegalStateException("guest type collision: " + name);
         }
         var annotation = cellClass.getAnnotation(
@@ -125,10 +116,19 @@ public final class BindingRegistry {
     }
 
     /**
-     * Registers one script-facing event class under the {@code types} module:
-     * {@code neo.types.<XxxEvent>} resolves to the guest event class.
+     * Registers one script-facing event class at the root of the global
+     * tree: {@code neo.<XxxEvent>} resolves to the guest event class.
      */
     public void registerEventType(String eventName, boolean cancellable) {
+        String className = eventNameToClassName(eventName);
+        if (modules.containsKey(className) || guestTypes.containsKey(className)) {
+            throw new IllegalStateException("event class collision: " + className);
+        }
+        for (String registered : eventTypes.keySet()) {
+            if (eventNameToClassName(registered).equals(className)) {
+                throw new IllegalStateException("event class collision: " + className);
+            }
+        }
         eventTypes.putIfAbsent(eventName, cancellable);
     }
 
@@ -137,15 +137,16 @@ public final class BindingRegistry {
         return Map.copyOf(eventTypes);
     }
 
-    /** The registered script-facing classes ({@code neo.types.*}), in registration order. */
+    /** The registered script-facing root classes ({@code neo.<name>}), in registration order. */
     public Map<String, Class<?>> guestTypes() {
         return Map.copyOf(guestTypes);
     }
 
     /**
-     * Builds the {@code neo} global tree for one permission view: module name
-     * → {@link ModuleBinding}. Members outside the node's {@code @ApiMC}
-     * ranges are omitted; permission-gated members render as denied members.
+     * Builds the {@code neo} global tree for one permission view: module
+     * name → {@link ModuleBinding}, plus guest classes and event classes as
+     * root entries. Members outside the node's {@code @ApiMC} ranges are
+     * omitted; permission-gated members render as denied members.
      */
     public Map<String, Object> neoTree(PermissionView view) {
         Map<String, Object> tree = new LinkedHashMap<>();
@@ -155,111 +156,28 @@ public final class BindingRegistry {
         for (Map.Entry<String, List<String>> promotion : promoted.entrySet()) {
             ModuleBinding binding = bindingFor(modules.get(promotion.getKey()), view);
             for (String member : promotion.getValue()) {
-                tree.put(member, ModuleBinding.ofMembers(member,
-                        Map.of(member, binding.members().get(member))));
+                tree.put(member, rootEntry(member, binding.members().get(member)));
             }
         }
         if (!guestTypes.isEmpty()) {
-            Map<String, ModuleBinding.BindingMember> members = new LinkedHashMap<>();
             for (Map.Entry<String, Class<?>> type : guestTypes.entrySet()) {
-                members.put(type.getKey(), new ModuleBinding.GuestTypeMember(type.getValue()));
+                tree.put(type.getKey(), rootEntry(type.getKey(),
+                        new ModuleBinding.GuestTypeMember(type.getValue())));
             }
-            members.put("BaseEvent", new ModuleBinding.EventTypeMember("BaseEvent", false));
+            tree.put("BaseEvent", rootEntry("BaseEvent",
+                    new ModuleBinding.EventTypeMember("BaseEvent", false)));
             for (Map.Entry<String, Boolean> type : eventTypes.entrySet()) {
-                members.put(eventNameToClassName(type.getKey()),
-                        new ModuleBinding.EventTypeMember(type.getKey(), type.getValue()));
+                String className = eventNameToClassName(type.getKey());
+                tree.put(className, rootEntry(className,
+                        new ModuleBinding.EventTypeMember(type.getKey(), type.getValue())));
             }
-            tree.put("types", ModuleBinding.ofMembers("types", members));
         }
         return tree;
     }
 
-    /**
-     * The ESM module binding for one specifier ({@code @neomacros/<name>}),
-     * resolving to the same binding object the global tree exposes; empty for
-     * unknown or node-filtered modules.
-     */
-    public Optional<String> virtualSourceFor(String specifier, PermissionView view) {
-        String prefix = "@neomacros/";
-        if (!specifier.startsWith(prefix)) {
-            return Optional.empty();
-        }
-        String name = specifier.substring(prefix.length());
-        if (name.equals("core")) {
-            StringBuilder source = new StringBuilder();
-            for (String aggregated : List.of("events", "thread")) {
-                ApiModel.ModuleModel model = modules.get(aggregated);
-                if (model == null) {
-                    continue;
-                }
-                source.append("const m_").append(aggregated).append(" = globalThis.neo.")
-                        .append(aggregated).append(";\n");
-                source.append("export const ").append(aggregated)
-                        .append(" = m_").append(aggregated).append(";\n");
-                for (ApiModel.MethodModel method : model.methods()) {
-                    if (!method.internal()) {
-                        source.append("export const ").append(method.name())
-                                .append(" = m_").append(aggregated).append(".").append(method.name())
-                                .append(";\n");
-                    }
-                }
-            }
-            return source.isEmpty() ? Optional.empty() : Optional.of(source.toString());
-        }
-        if (name.equals("types")) {
-            if (guestTypes.isEmpty()) {
-                return Optional.empty();
-            }
-            StringBuilder source = new StringBuilder("const m = globalThis.neo.types;\n");
-            source.append("export const types = m;\n");
-            for (String typeName : guestTypes.keySet()) {
-                source.append("export const ").append(typeName).append(" = m.")
-                        .append(typeName).append(";\n");
-            }
-            source.append("export const BaseEvent = m.BaseEvent;\n");
-            for (String eventName : eventTypes.keySet()) {
-                String className = eventNameToClassName(eventName);
-                source.append("export const ").append(className).append(" = m.")
-                        .append(className).append(";\n");
-            }
-            return Optional.of(source.toString());
-        }
-        ApiModel.ModuleModel model = modules.get(name);
-        if (model == null) {
-            return Optional.empty();
-        }
-        for (ApiModel.MethodModel method : model.methods()) {
-            if (JS_RESERVED_WORDS.contains(method.name())) {
-                throw new IllegalStateException("module method '" + method.name()
-                        + "' of module '" + name + "' is a JS reserved word; rename it");
-            }
-        }
-        StringBuilder source = new StringBuilder("const m = globalThis.neo.").append(name).append(";\n");
-        source.append("export const ").append(name).append(" = m;\n");
-        for (ApiModel.MethodModel method : model.methods()) {
-            if (!method.internal()) {
-                source.append("export const ").append(method.name())
-                        .append(" = m.").append(method.name()).append(";\n");
-            }
-        }
-        for (ApiModel.PropertyModel property : model.properties()) {
-            if (!property.internal()) {
-                source.append("export let ").append(property.name())
-                        .append(" = m.").append(property.name()).append(";\n");
-            }
-        }
-        for (Map.Entry<String, Class<?>> type : guestTypes.entrySet()) {
-            // Classes owned by this module re-export through the
-            // module specifier; the canonical export point stays neo.types.
-            var owner = type.getValue().getEnclosingClass();
-            var ownerModule = owner == null ? null : owner.getAnnotation(
-                    ink.tuanzi.neomacros.doc.api.ApiModule.class);
-            if (ownerModule != null && ownerModule.name().equals(name)) {
-                source.append("export const ").append(type.getKey())
-                        .append(" = globalThis.neo.types.").append(type.getKey()).append(";\n");
-            }
-        }
-        return Optional.of(source.toString());
+    /** Wraps one member as a self-named root entry; the engine renders it as the value itself. */
+    private static ModuleBinding rootEntry(String name, ModuleBinding.BindingMember member) {
+        return ModuleBinding.ofMembers(name, Map.of(name, member));
     }
 
     /** The script-facing class name of one event ({@code chat:receive} ->
@@ -286,17 +204,8 @@ public final class BindingRegistry {
         return instances.get(moduleName);
     }
 
-    public Optional<Object> esmModule(String name, PermissionView view) {
-        ApiModel.ModuleModel model = modules.get(name);
-        if (model == null) {
-            return Optional.empty();
-        }
-        return Optional.of(bindingFor(model, view));
-    }
-
     /**
-     * Builds (and caches per permission view) the binding of one module, so
-     * the global and ESM channels resolve to the identical binding object.
+     * Builds (and caches per permission view) the binding of one module.
      */
     private ModuleBinding bindingFor(ApiModel.ModuleModel model, PermissionView view) {
         Map<String, ModuleBinding> perView = bindingCache.computeIfAbsent(
@@ -317,7 +226,7 @@ public final class BindingRegistry {
                 && properties.size() == model.properties().size()) {
             return model;
         }
-        return new ApiModel.ModuleModel(model.name(), model.category(), model.global(),
+        return new ApiModel.ModuleModel(model.name(), model.category(),
                 model.since(), model.mc(), model.permission(), properties, methods);
     }
 

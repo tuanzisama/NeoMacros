@@ -56,7 +56,7 @@ class ScriptConsoleIntegrationTest {
         events = new LinkedBlockingQueue<>();
         ScriptConsole.installDispatcher(dispatcher);
         pool = new ScriptThreadPool(2);
-        engine = new GraalJsEngine(testResolver());
+        engine = new GraalJsEngine();
         runtime = new ScriptRuntime(engine, null,
                 new EventCatalog(), new EventBus(new EventCatalog(), Runnable::run), pool, 500);
         context = runtime.createContext("console");
@@ -69,20 +69,6 @@ class ScriptConsoleIntegrationTest {
         ScriptConsole.installComponentView(null);
         runtime.close();
         pool.close();
-    }
-
-    private ModuleResolver testResolver() {
-        return new ModuleResolver() {
-            @Override
-            public Optional<String> virtualSource(String specifier) {
-                return Optional.empty();
-            }
-
-            @Override
-            public Optional<Path> fileFor(String specifier) {
-                return Optional.empty();
-            }
-        };
     }
 
     private Path writeModule(String fileName, String source) throws Exception {
