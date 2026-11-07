@@ -189,9 +189,9 @@ public final class FabricWorldPort implements WorldPort {
             }
             var integrated = Minecraft.getInstance().getSingleplayerServer();
             if (integrated != null) {
-                String levelId = ink.tuanzi.neomacros.adapter.mixin.ServerStorageAccessor
-                        .levelId(integrated);
-                return levelId != null ? levelId : "";
+                var access = ((ink.tuanzi.neomacros.adapter.mixin.ServerStorageAccessor) (Object) integrated)
+                        .neomacros$storageSource();
+                return access != null ? access.getLevelId() : "";
             }
             return "";
         });
