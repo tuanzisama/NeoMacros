@@ -94,6 +94,8 @@ final class ApiCompletenessSurface {
             SpeciesEntities.Pillager.class, SpeciesEntities.Evoker.class,
             SpeciesEntities.WanderingTrader.class, SpeciesEntities.EnderDragon.class,
             SpeciesEntities.Breeze.class, SpeciesEntities.Creaking.class,
+            SpeciesEntities.ArmorStand.class, SpeciesEntities.FallingBlock.class,
+            SpeciesEntities.ItemFrame.class, SpeciesEntities.AreaEffectCloud.class,
             Chunk.class,
             PlayerApi.FurnaceInventory.class,
             PlayerApi.ContainerInventory.class, PlayerApi.CraftingInventory.class,

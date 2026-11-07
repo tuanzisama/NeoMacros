@@ -378,6 +378,23 @@ public final class FabricEntityPort implements EntityPort {
             state.put("variant", registeredName(villagerData.type()));
             state.put("converting", zombieVillager.isConverting());
         }
+        if (entity instanceof net.minecraft.world.entity.decoration.ArmorStand armorStand) {
+            state.put("marker", armorStand.isMarker());
+            state.put("small", armorStand.isSmall());
+        }
+        if (entity instanceof net.minecraft.world.entity.item.FallingBlockEntity fallingBlock) {
+            var blockState = fallingBlock.getBlockState();
+            state.put("block", BuiltInRegistries.BLOCK.getKey(blockState.getBlock()).toString());
+        }
+        if (entity instanceof net.minecraft.world.entity.decoration.ItemFrame itemFrame) {
+            state.put("item", FabricInventoryPort.stackDataOf(itemFrame.getItem()));
+            state.put("rotation", itemFrame.getRotation());
+        }
+        if (entity instanceof net.minecraft.world.entity.AreaEffectCloud effectCloud) {
+            state.put("radius", (double) effectCloud.getRadius());
+            state.put("waiting", effectCloud.isWaiting());
+            state.put("waitTime", effectCloud.getWaitTime());
+        }
     }
 
     /** Namespaces a serializable enum constant, e.g. {@code minecraft:white}. */
