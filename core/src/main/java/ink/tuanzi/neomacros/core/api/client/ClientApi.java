@@ -314,11 +314,26 @@ public final class ClientApi {
     }
 
     /**
-     * The identifiers of one registry kind ({@code block}, {@code item},
-     * {@code entity_type}, {@code sound_event}, {@code particle_type},
-     * {@code mob_effect}); unknown kinds throw.
+     * One game option value by name ({@code fov}, {@code sensitivity},
+     * {@code particles}, ...); the value is a Boolean, a number, or a
+     * lowercase enum name. Unknown names return {@code null}.
      *
-     * @zh 返回一类注册表的全部标识（{@code block}/{@code item}/{@code entity_type}/{@code sound_event}/{@code particle_type}/{@code mob_effect}）；未知类别抛错。
+     * @zh 按名称读取单个游戏设置（{@code fov}/{@code sensitivity}/{@code particles} 等）；值为布尔、数字或小写枚举名；未知名称为 null。
+     * @zh-param name 设置名
+     */
+    @ApiSince("0.2.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public Object option(String name) {
+        return adapter().optionValue(name).orElse(null);
+    }
+
+    /**
+     * The identifiers of one built-in registry kind, e.g. {@code block},
+     * {@code item}, {@code enchantment}, {@code worldgen/biome}; any
+     * registry id resolves, unknown kinds throw.
+     *
+     * @zh 返回一类内置注册表的全部标识，如 {@code block}/{@code item}/{@code enchantment}/{@code worldgen/biome}；任意注册表 id 均可解析；未知类别抛错。
      * @zh-kind 注册表类别
      */
     @ApiSince("0.2.0")

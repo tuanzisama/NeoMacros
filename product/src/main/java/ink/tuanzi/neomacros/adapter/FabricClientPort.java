@@ -263,15 +263,61 @@ public final class FabricClientPort implements ClientPort {
     }
 
     /** Resolves a registry kind name onto the built-in registry. */
-    private static net.minecraft.core.Registry<?> registryOf(String kind) {        return switch (kind == null ? "" : kind) {
-            case "block" -> BuiltInRegistries.BLOCK;
-            case "item" -> BuiltInRegistries.ITEM;
-            case "entity_type" -> BuiltInRegistries.ENTITY_TYPE;
-            case "sound_event" -> BuiltInRegistries.SOUND_EVENT;
-            case "particle_type" -> BuiltInRegistries.PARTICLE_TYPE;
-            case "mob_effect" -> BuiltInRegistries.MOB_EFFECT;
-            default -> throw new IllegalArgumentException(
-                    "unknown registry kind: " + kind);
-        };
+    private static net.minecraft.core.Registry<?> registryOf(String kind) {
+        var id = net.minecraft.resources.Identifier.tryParse(
+                kind != null && kind.indexOf(':') >= 0 ? kind : "minecraft:" + kind);
+        var found = BuiltInRegistries.REGISTRY.getOptional(id);
+        if (found.isEmpty()) {
+            throw new IllegalArgumentException("unknown registry kind: " + kind);
+        }
+        return found.get();
+    }
+
+    /** Option names shared by every supported node (checked before lookup). */
+    private static final java.util.Set<String> OPTION_NAMES = java.util.Set.of(
+            "allowServerListing", "ambientOcclusion", "attackIndicator", "autoJump",
+            "autoSuggestions", "backgroundForChatOnly", "biomeBlendRadius", "bobView",
+            "chatColors", "chatDelay", "chatHeightFocused", "chatHeightUnfocused",
+            "chatLineSpacing", "chatLinks", "chatLinksPrompt", "chatOpacity",
+            "chatScale", "chatVisibility", "chatWidth", "cloudRange", "cloudStatus",
+            "damageTiltStrength", "darkMojangStudiosBackground", "darknessEffectScale",
+            "directionalAudio", "discreteMouseScroll", "enableVsync",
+            "entityDistanceScaling", "entityShadows", "forceUnicodeFont", "fov",
+            "fovEffectScale", "framerateLimit", "fullscreen", "gamma", "glintSpeed",
+            "glintStrength", "guiScale", "hideLightningFlash", "hideMatchedNames",
+            "hideSplashTexts", "highContrast", "highContrastBlockOutline",
+            "inactivityFpsLimit", "japaneseGlyphVariants", "mainHand",
+            "menuBackgroundBlurriness", "mipmapLevels", "mouseWheelSensitivity",
+            "musicFrequency", "narrator", "narratorHotkey", "notificationDisplayTime",
+            "onlyShowSecureChat", "operatorItemsTab", "panoramaSpeed", "particles",
+            "prioritizeChunkUpdates", "realmsNotifications", "reducedDebugInfo",
+            "renderDistance", "rotateWithMinecart", "screenEffectScale",
+            "sensitivity", "showAutosaveIndicator", "showSubtitles",
+            "simulationDistance", "soundDevice", "telemetryOptInExtra",
+            "textBackgroundOpacity", "toggleCrouch", "toggleSprint");
+
+    @Override
+    public java.util.Optional<Object> optionValue(String name) {
+        return MainThread.run(() -> {
+            var options = Minecraft.getInstance().options;
+            if (options == null || name == null || !OPTION_NAMES.contains(name)) {
+                return java.util.Optional.empty();
+            }
+            try {
+                var instance = (net.minecraft.client.OptionInstance<?>)
+                        options.getClass().getMethod(name).invoke(options);
+                Object value = instance.get();
+                if (value instanceof Enum<?> constant) {
+                    return java.util.Optional.of(
+                            constant.name().toLowerCase(java.util.Locale.ROOT));
+                }
+                if (value instanceof Number number) {
+                    return java.util.Optional.of(number.doubleValue());
+                }
+                return java.util.Optional.ofNullable(value);
+            } catch (ReflectiveOperationException | ClassCastException error) {
+                return java.util.Optional.empty();
+            }
+        });
     }
 }
