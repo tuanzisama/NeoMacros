@@ -259,6 +259,20 @@ public final class StubAdapter implements NeomacrosAdapter {
         }
 
         @Override
+        public void addTraceLine(String layerId, java.util.UUID entityUuid, int argbColor) {
+            shapes.add(new Shape("trace", layerId,
+                    new Pos3d(0, 0, 0), new Pos3d(0, 0, 0), argbColor));
+        }
+
+        @Override
+        public void drawSurface(String layerId, java.util.List<Pos3d> points, int argbColor) {
+            shapes.add(new Shape("surface", layerId,
+                    points.isEmpty() ? new Pos3d(0, 0, 0) : points.get(0),
+                    points.size() > 1 ? points.get(points.size() - 1) : new Pos3d(0, 0, 0),
+                    argbColor));
+        }
+
+        @Override
         public void clearLayer(String layerId) {
             shapes.removeIf(shape -> shape.layerId().equals(layerId));
         }

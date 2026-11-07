@@ -17,6 +17,15 @@ public interface Draw3DPort {
     /** Draws a line between two world positions. */
     void drawLine(String layerId, Pos3d from, Pos3d to, int argbColor);
 
+    /**
+     * Draws a live line from the local player's eyes to the entity behind
+     * the UUID, re-resolved every frame while the entity is loaded.
+     */
+    void addTraceLine(String layerId, java.util.UUID entityUuid, int argbColor);
+
+    /** Draws a filled convex surface through the given vertices (three or more). */
+    void drawSurface(String layerId, List<Pos3d> points, int argbColor);
+
     /** Removes all shapes for one layer. */
     void clearLayer(String layerId);
 

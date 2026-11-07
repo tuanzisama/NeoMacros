@@ -35,13 +35,19 @@ public final class FabricDraw3DPort implements Draw3DPort {
 
     private static final float LINE_WIDTH = 2.0f;
 
-    private sealed interface Shape permits Box, Line {
+    private sealed interface Shape permits Box, Line, Trace, Surface {
     }
 
     private record Box(Pos3d min, Pos3d max, int color) implements Shape {
     }
 
     private record Line(Pos3d from, Pos3d to, int color) implements Shape {
+    }
+
+    private record Trace(java.util.UUID entityUuid, int color) implements Shape {
+    }
+
+    private record Surface(java.util.List<Pos3d> points, int color) implements Shape {
     }
 
     private final Map<String, CopyOnWriteArrayList<Shape>> layers = new ConcurrentHashMap<>();
@@ -82,6 +88,18 @@ public final class FabricDraw3DPort implements Draw3DPort {
     }
 
     @Override
+    public void addTraceLine(String layerId, java.util.UUID entityUuid, int argbColor) {
+        layers.computeIfAbsent(layerId, k -> new CopyOnWriteArrayList<>())
+                .add(new Trace(entityUuid, argbColor));
+    }
+
+    @Override
+    public void drawSurface(String layerId, java.util.List<Pos3d> points, int argbColor) {
+        layers.computeIfAbsent(layerId, k -> new CopyOnWriteArrayList<>())
+                .add(new Surface(java.util.List.copyOf(points), argbColor));
+    }
+
+    @Override
     public void clearLayer(String layerId) {
         layers.remove(layerId);
     }
@@ -100,9 +118,35 @@ public final class FabricDraw3DPort implements Draw3DPort {
                     primitives.addLine(vec(from), vec(to), color, LINE_WIDTH);
                 } else if (shape instanceof Box(Pos3d min, Pos3d max, int color)) {
                     emitBoxEdges(primitives, min, max, color);
+                } else if (shape instanceof Trace(java.util.UUID uuid, int color)) {
+                    Vec3[] trace = traceEndpoints(uuid);
+                    if (trace != null) {
+                        primitives.addLine(trace[0], trace[1], color, LINE_WIDTH);
+                    }
+                } else if (shape instanceof Surface(java.util.List<Pos3d> points, int color)) {
+                    Vec3[] fan = new Vec3[points.size()];
+                    for (int i = 0; i < fan.length; i++) {
+                        fan[i] = vec(points.get(i));
+                    }
+                    primitives.addTriangleFan(fan, color);
                 }
             }
         }
+    }
+
+    /** Resolves player-eyes → entity-eyes endpoints for one trace, or null. */
+    private static Vec3[] traceEndpoints(java.util.UUID uuid) {
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        var player = net.minecraft.client.Minecraft.getInstance().player;
+        if (level == null || player == null) {
+            return null;
+        }
+        for (net.minecraft.world.entity.Entity entity : level.entitiesForRendering()) {
+            if (entity.getUUID().equals(uuid)) {
+                return new Vec3[] {player.getEyePosition(), entity.getEyePosition()};
+            }
+        }
+        return null;
     }
 
     /** Emits a box as its twelve wireframe edges. */
@@ -146,6 +190,28 @@ public final class FabricDraw3DPort implements Draw3DPort {
             for (Shape shape : shapes) {
                 if (shape instanceof Line(Pos3d from, Pos3d to, int color)) {
                     addWorldLine(buffer, pose, from, to, color);
+                } else if (shape instanceof Trace(java.util.UUID uuid, int color)) {
+                    var level = net.minecraft.client.Minecraft.getInstance().level;
+                    var player = net.minecraft.client.Minecraft.getInstance().player;
+                    if (level != null && player != null) {
+                        for (net.minecraft.world.entity.Entity entity : level.entitiesForRendering()) {
+                            if (entity.getUUID().equals(uuid)) {
+                                var eye = player.getEyePosition();
+                                var other = entity.getEyePosition();
+                                addWorldLine(buffer, pose,
+                                        new double[] {eye.x, eye.y, eye.z},
+                                        new double[] {other.x, other.y, other.z}, color);
+                                break;
+                            }
+                        }
+                    }
+                } else if (shape instanceof Surface(
+                        java.util.List<Pos3d> points, int color)) {
+                    for (int i = 0; i < points.size(); i++) {
+                        Pos3d a = points.get(i);
+                        Pos3d b = points.get((i + 1) % points.size());
+                        addWorldLine(buffer, pose, a, b, color);
+                    }
                 } else if (shape instanceof Box(Pos3d min, Pos3d max, int color)) {
                     double x1 = min.x(), y1 = min.y(), z1 = min.z();
                     double x2 = max.x(), y2 = max.y(), z2 = max.z();
