@@ -112,6 +112,14 @@ public interface ClientPort {
     }
 
     /**
+     * Returns one game option value by its option name (Boolean, Double, or
+     * String), or empty when the name is unknown on this node.
+     */
+    default Optional<Object> optionValue(String name) {
+        return Optional.empty();
+    }
+
+    /**
      * Captures the main framebuffer as PNG-encoded image data, resolving on
      * the render thread after the next frame read.
      */
