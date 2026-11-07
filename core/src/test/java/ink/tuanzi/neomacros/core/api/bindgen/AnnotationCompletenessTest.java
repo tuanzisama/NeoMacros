@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * available (or vice versa). Class/module-level annotations describe the
  * type itself and never satisfy the members.
  *
- * <p>Scope: facade classes ({@code @ApiModule}), script-facing classes
+ * <p>Scope: API module classes ({@code @ApiModule}), script-facing classes
  * ({@code @ApiClass}), and event payload records ({@code @ApiEvent}).
  * Members outside the script surface stay unmarked: {@code Object}
  * overrides, constructors (the guest factory path), and {@code @ApiInternal}
@@ -37,7 +37,7 @@ class AnnotationCompletenessTest {
 
     @Test
     void everyScriptFacingMemberCarriesTheExplicitTriple() {
-        scan(ApiCompletenessSurface.FACADES, "facade");
+        scan(ApiCompletenessSurface.MODULE_CLASSES, "module");
         scan(ApiCompletenessSurface.CLASSES, "class");
         scan(ApiCompletenessSurface.EVENTS, "event");
         assertTrue(MISSING.isEmpty(),

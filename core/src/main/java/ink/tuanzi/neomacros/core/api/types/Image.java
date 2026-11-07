@@ -26,7 +26,7 @@ public final class Image implements ScriptHandle {
     private final int height;
     private final byte[] bytes;
 
-    /** Builds one image from PNG-encoded content (facade-facing). */
+    /** Builds one image from PNG-encoded content (engine-facing). */
     public Image(int width, int height, byte[] bytes) {
         this.width = width;
         this.height = height;

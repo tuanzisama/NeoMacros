@@ -26,11 +26,11 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The {@code neo.player} facade: the local player plus the currently open
+ * The {@code neo.player} module: the local player plus the currently open
  * container screen. {@code self} is a live handle reading current state
  * through the player port; outside a world it reads back as {@code undefined}.
  *
- * @zh {@code neo.player} 门面：本地玩家与当前打开的容器屏幕。{@code self} 是经玩家端口回读当前状态的活句柄；不在世界内时回读为 undefined。
+ * @zh {@code neo.player}：本地玩家与当前打开的容器屏幕。{@code self} 是经玩家端口回读当前状态的活句柄；不在世界内时回读为 undefined。
  */
 @ApiModule(name = "player", category = "世界")
 @ApiSince("0.1.0")
@@ -67,12 +67,12 @@ public final class PlayerApi {
                 .orElse(null);
     }
 
-    /** The player port behind the facade (single adapter access point). */
+    /** The player port behind the API (single adapter access point). */
     private static ink.tuanzi.neomacros.port.PlayerPort adapter() {
         return ScriptApiEnvironment.adapter().player();
     }
 
-    /** The inventory port behind the facade (container screen access). */
+    /** The inventory port behind the API (container screen access). */
     private static ink.tuanzi.neomacros.port.InventoryPort inventoryPort() {
         return ScriptApiEnvironment.adapter().inventory();
     }

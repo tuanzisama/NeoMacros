@@ -13,11 +13,11 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * The {@code neo.events} facade: EventEmitter-style subscription over the
+ * The {@code neo.events} module: EventEmitter-style subscription over the
  * event bus. Subscriptions created while a module is loading are attributed
  * to that module and auto-unsubscribed when the module unloads.
  *
- * @zh {@code neo.events} 门面：事件总线上的 EventEmitter 风格订阅。模块装载期创建的订阅归属该模块，模块卸载时自动退订。
+ * @zh {@code neo.events}：事件总线上的 EventEmitter 风格订阅。模块装载期创建的订阅归属该模块，模块卸载时自动退订。
  */
 @ApiModule(name = "events", category = "核心")
 @ApiSince("0.1.0")

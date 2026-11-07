@@ -8,7 +8,7 @@ import java.util.UUID;
  * Immutable point-in-time copy of an entity's state.
  *
  * <p>Neutral value object carried across port signatures and event payloads;
- * never a live game reference. Live access goes through the entity facade,
+ * never a live game reference. Live access goes through the entity API,
  * which queries {@code EntityPort} and wraps results as handles. Absent
  * data uses neutral defaults: a zero origin vector for direction/velocity on
  * plain entities, an empty passenger list, and {@code null} bounding box /

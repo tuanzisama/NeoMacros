@@ -9,7 +9,7 @@ import java.util.Optional;
 /**
  * Registry of script module bindings: the single source both channels share
  * (the {@code neo.*} global tree and the {@code @neomacros/*} ESM module
- * table resolve to the same binding objects, 05 §2). Facade classes are
+ * table resolve to the same binding objects, 05 §2). API classes are
  * scanned once; binding trees are built per permission view and trimmed by
  * the current milestone node's {@code @ApiMC} ranges.
  */
@@ -35,9 +35,9 @@ public final class BindingRegistry {
         this.currentMcVersion = currentMcVersion;
     }
 
-    /** Registers one facade class (instantiated with its no-arg constructor). */
-    public void register(Class<?> facade) {
-        ApiModel.ModuleModel model = ApiModelExtractor.extractModule(facade);
+    /** Registers one API module class (instantiated with its no-arg constructor). */
+    public void register(Class<?> moduleClass) {
+        ApiModel.ModuleModel model = ApiModelExtractor.extractModule(moduleClass);
         if (modules.containsKey(model.name())) {
             throw new IllegalStateException("module name collision: " + model.name());
         }
@@ -46,27 +46,27 @@ public final class BindingRegistry {
         }
         modules.put(model.name(), model);
         try {
-            instances.put(model.name(), facade.getDeclaredConstructor().newInstance());
+            instances.put(model.name(), moduleClass.getDeclaredConstructor().newInstance());
         } catch (NoSuchMethodException e) {
             throw new IllegalArgumentException(
-                    "facade " + facade.getName() + " needs a no-arg constructor", e);
+                    "module class " + moduleClass.getName() + " needs a no-arg constructor", e);
         } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("facade instantiation failed: " + facade.getName(), e);
+            throw new IllegalStateException("module instantiation failed: " + moduleClass.getName(), e);
         }
     }
 
-    /** Registers a batch of facade classes. */
-    public void registerAll(List<Class<?>> facades) {
-        facades.forEach(this::register);
+    /** Registers a batch of API classes. */
+    public void registerAll(List<Class<?>> moduleClasses) {
+        moduleClasses.forEach(this::register);
     }
 
     /**
-     * Registers a pre-built facade instance (stateful facades whose
+     * Registers a pre-built API instance (stateful API modules whose
      * constructor needs runtime wiring). Model extraction and collision
      * checks behave exactly like {@link #register(Class)}.
      */
-    public void registerInstance(Object facade) {
-        ApiModel.ModuleModel model = ApiModelExtractor.extractModule(facade.getClass());
+    public void registerInstance(Object moduleClass) {
+        ApiModel.ModuleModel model = ApiModelExtractor.extractModule(moduleClass.getClass());
         if (modules.containsKey(model.name())) {
             throw new IllegalStateException("module name collision: " + model.name());
         }
@@ -74,7 +74,7 @@ public final class BindingRegistry {
             return;
         }
         modules.put(model.name(), model);
-        instances.put(model.name(), facade);
+        instances.put(model.name(), moduleClass);
     }
 
     /** The extracted model (module metadata; members unfiltered by permission). */
@@ -230,7 +230,7 @@ public final class BindingRegistry {
         }
         for (ApiModel.MethodModel method : model.methods()) {
             if (JS_RESERVED_WORDS.contains(method.name())) {
-                throw new IllegalStateException("facade method '" + method.name()
+                throw new IllegalStateException("module method '" + method.name()
                         + "' of module '" + name + "' is a JS reserved word; rename it");
             }
         }
@@ -249,7 +249,7 @@ public final class BindingRegistry {
             }
         }
         for (Map.Entry<String, Class<?>> type : guestTypes.entrySet()) {
-            // Classes owned by this module's facade re-export through the
+            // Classes owned by this module re-export through the
             // module specifier; the canonical export point stays neo.types.
             var owner = type.getValue().getEnclosingClass();
             var ownerModule = owner == null ? null : owner.getAnnotation(
@@ -281,7 +281,7 @@ public final class BindingRegistry {
         return out.toString();
     }
 
-    /** The registered facade instance for one module name (harness access). */
+    /** The registered API instance for one module name (harness access). */
     public Object instance(String moduleName) {
         return instances.get(moduleName);
     }

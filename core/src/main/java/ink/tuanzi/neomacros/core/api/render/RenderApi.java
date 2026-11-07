@@ -10,11 +10,11 @@ import ink.tuanzi.neomacros.port.model.Pos3d;
 import java.util.List;
 
 /**
- * The {@code neo.render} facade: world-space shape drawing on top of the
+ * The {@code neo.render} module: world-space shape drawing on top of the
  * vanilla gizmo pipeline. Shapes persist across frames until cleared or the
  * module unloads; coordinates are world coordinates.
  *
- * @zh {@code neo.render} 门面：基于原版 gizmo 管线的世界坐标图形绘制。图形跨帧保留，直到清空或模块卸载；坐标为世界坐标。
+ * @zh {@code neo.render}：基于原版 gizmo 管线的世界坐标图形绘制。图形跨帧保留，直到清空或模块卸载；坐标为世界坐标。
  */
 @ApiModule(name = "render", category = "界面")
 @ApiSince("0.1.0")
@@ -24,7 +24,7 @@ public final class RenderApi {
 
     private final Draw3DPort draw3d;
 
-    /** Creates the facade over the world-space render port (bootstrap-provided). */
+    /** Creates the API over the world-space render port (bootstrap-provided). */
     public RenderApi(Draw3DPort draw3d) {
         this.draw3d = draw3d;
     }

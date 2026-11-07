@@ -81,7 +81,7 @@ class JavaInteropTest {
         ModuleBinding allowed = (ModuleBinding) registry.neoTree(PermissionView.ALLOW_ALL)
                 .get("java");
         assertTrue(allowed.members().get("type") instanceof ModuleBinding.FunctionMember,
-                "the trusted view reaches the facade function");
+                "the trusted view reaches the API function");
     }
 
     @Test

@@ -78,7 +78,7 @@ public final class ModuleBinding {
             this.async = async;
         }
 
-        /** Invokes the facade method with already-converted Java arguments. */
+        /** Invokes the API method with already-converted Java arguments. */
         public Object invoke(Object[] arguments) throws Throwable {
             try {
                 return method.invoke(instance, arguments);

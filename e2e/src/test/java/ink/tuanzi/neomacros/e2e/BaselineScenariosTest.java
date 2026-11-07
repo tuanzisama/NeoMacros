@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Baseline E2E-A scenarios: real user-format scripts through the real engine,
- * event framework, facades, and the stub adapter. Each scenario writes a
+ * event framework, API modules, and the stub adapter. Each scenario writes a
  * fixture, loads it through the module manager, drives injected events, and
  * asserts on chat output and {@code __test} reports.
  */

@@ -13,13 +13,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The {@code neo.reflect} facade: meta-level tools for the escape layer.
- * Where {@code neo.java} proxies objects, this facade resolves exact
+ * The {@code neo.reflect} module: meta-level tools for the escape layer.
+ * Where {@code neo.java} proxies objects, this module resolves exact
  * signatures (including private members), invokes reflectively, and
  * constructs instances. The whole module rides the {@code java} permission
  * gate.
  *
- * @zh {@code neo.reflect} 门面：穿透层的元级工具箱。{@code neo.java} 代理对象，本门面解析精确签名（含私有成员）、反射调用与构造实例。整模块走 {@code java} 权限闸。
+ * @zh {@code neo.reflect}：穿透层的元级工具箱。{@code neo.java} 代理对象，本模块解析精确签名（含私有成员）、反射调用与构造实例。整模块走 {@code java} 权限闸。
  */
 @ApiModule(name = "reflect", category = "系统")
 @ApiPermission("java")
@@ -36,12 +36,12 @@ public final class ReflectApi {
 
     private final ClassResolver resolver;
 
-    /** Creates the facade with a mapping-layer name resolver. */
+    /** Creates the API with a mapping-layer name resolver. */
     public ReflectApi(ClassResolver resolver) {
         this.resolver = resolver;
     }
 
-    /** Creates the facade (harness use; exact class names required). */
+    /** Creates the API (harness use; exact class names required). */
     public ReflectApi() {
         this(name -> name);
     }

@@ -29,11 +29,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The {@code neo.entity} facade: entity queries over the loaded world.
+ * The {@code neo.entity} module: entity queries over the loaded world.
  * Queries return live handles whose getters read current state in real time;
  * a vanished entity reads back as {@code undefined} instead of raising.
  *
- * @zh {@code neo.entity} 门面：对已加载世界的实体查询。查询返回活句柄，属性实时回读当前状态；实体消失后属性回读为 undefined 而不报错。
+ * @zh {@code neo.entity}：对已加载世界的实体查询。查询返回活句柄，属性实时回读当前状态；实体消失后属性回读为 undefined 而不报错。
  */
 @ApiModule(name = "entity", category = "世界")
 @ApiSince("0.1.0")
@@ -125,7 +125,7 @@ public final class EntityApi {
                 .orElse(null);
     }
 
-    /** The entity port behind the facade (single adapter access point). */
+    /** The entity port behind the API (single adapter access point). */
     private static EntityPort adapter() {
         return ScriptApiEnvironment.adapter().entity();
     }
@@ -167,7 +167,7 @@ public final class EntityApi {
             wraps = "net.minecraft.world.entity.Entity")
     public static class Entity implements ink.tuanzi.neomacros.core.api.ScriptHandle {
 
-        /** The wrapped entity UUID (subclasses across facade packages read it). */
+        /** The wrapped entity UUID (subclasses across API packages read it). */
         protected final UUID uuid;
 
         /** Creates the handle for one entity UUID (cross-cell factory use). */

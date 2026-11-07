@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The {@code neo.hud} facade: HUD overlay text rendered on top of the vanilla
+ * The {@code neo.hud} module: HUD overlay text rendered on top of the vanilla
  * HUD. Text entries persist across frames until removed or the module
  * unloads.
  *
- * @zh {@code neo.hud} 门面：叠加在原版 HUD 之上的文本层。文本条目跨帧保留，直到移除或模块卸载。
+ * @zh {@code neo.hud}：叠加在原版 HUD 之上的文本层。文本条目跨帧保留，直到移除或模块卸载。
  */
 @ApiModule(name = "hud", category = "界面")
 @ApiSince("0.1.0")
@@ -24,7 +24,7 @@ public final class HudApi {
 
     private final HudRegistry registry;
 
-    /** Creates the facade over the HUD registry (bootstrap-provided). */
+    /** Creates the API over the HUD registry (bootstrap-provided). */
     public HudApi(HudRegistry registry) {
         this.registry = registry;
     }

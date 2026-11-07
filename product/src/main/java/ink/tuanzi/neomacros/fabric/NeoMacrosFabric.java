@@ -411,7 +411,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
         // Web panel subsystem: state backend over the module manager, device
         // registry beside options.json, and the service mapping core.web. The
-        // events facade carries the panel broadcasts to whatever hub the
+        // events module carries the panel broadcasts to whatever hub the
         // current service start owns.
         var panelEvents = new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents();
         webRuntime = new ink.tuanzi.neomacros.fabric.web.WebRuntime(
@@ -1301,7 +1301,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     }
 
     /**
-     * Sandbox boundary for the fs facade: game-dir relative, traversal denied.
+     * Sandbox boundary for the fs API: game-dir relative, traversal denied.
      */
     private record GameDirFsBridge() implements ink.tuanzi.neomacros.core.api.FsApi.FsBridge {
         @Override

@@ -14,7 +14,7 @@ import java.util.function.DoubleConsumer;
 /**
  * Input sources backed by vanilla KeyMapping (tick-polled press edges) and a
  * wheel sink fed from the scroll mixin. Keybinds register into the vanilla
- * options so they surface in the controls menu. Script-facade keybinds use
+ * options so they surface in the controls menu. Script-registered keybinds use
  * generated handle ids; manifest-driven script bindings use the script name
  * as their id and rebind in place ({@link KeyMapping#setKey}) because fabric
  * api offers no keymapping removal.

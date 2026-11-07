@@ -11,7 +11,7 @@ import java.util.function.Predicate;
 /**
  * Entity query services over neutral snapshots.
  *
- * <p>Live access is layered on top: the entity facade wraps snapshots as
+ * <p>Live access is layered on top: the entity API wraps snapshots as
  * handles and re-queries through this port for real-time getters.</p>
  */
 public interface EntityPort {

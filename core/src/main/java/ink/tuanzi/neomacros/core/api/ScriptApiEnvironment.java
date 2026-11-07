@@ -10,10 +10,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.UnaryOperator;
 
 /**
- * Static installation point for the script-facing facade classes: the facade
+ * Static installation point for the script-facing API classes: the API
  * instances are singletons created by the binding registry, so the runtime
  * singletons they delegate to (the event bus) are installed here once at
- * bootstrap. Facade methods called from a script resolve their per-context
+ * bootstrap. API methods called from a script resolve their per-context
  * state through the load tracker instead.
  */
 public final class ScriptApiEnvironment {

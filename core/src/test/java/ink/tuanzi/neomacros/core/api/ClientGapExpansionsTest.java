@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The client gap expansions: connection lifecycle futures, mod listing,
  * window/mouse/clipboard surfaces, server info, option slice, and registry
- * queries, driven through the facade over a canned port.
+ * queries, driven through the API over a canned port.
  */
 class ClientGapExpansionsTest {
 

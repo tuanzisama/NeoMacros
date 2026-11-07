@@ -16,16 +16,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The {@code types} module: guest-type registration, the {@code neo.types}
  * tree entry, the {@code @neomacros/types} re-export source, and the
- * automatic per-module re-export of facade-owned classes.
+ * automatic per-module re-export of module-owned classes.
  */
 class BindingRegistryGuestTypesTest {
 
-    /** Test facade owning the sample cell (module name drives the re-export). */
+    //** Test module class owning the sample cell (module name drives the re-export). */
     @ApiModule(name = "sample", category = "test")
     @ApiSince("0.1.0")
     public static class SampleApi {
 
-        /** Annotated cell owned by this facade. */
+        /** Annotated cell owned by this module class. */
         @ApiClass(name = "Sample", kind = ApiClassKind.HANDLE)
         public static class Sample {
         }
@@ -65,7 +65,7 @@ class BindingRegistryGuestTypesTest {
     }
 
     @Test
-    void facadeOwnedClassesReExportFromTheirModule() {
+    void moduleOwnedClassesReExportFromTheirModule() {
         var registry = new BindingRegistry("26.3");
         registry.register(SampleApi.class);
         registry.registerGuestType("Sample", SampleApi.Sample.class);
@@ -74,7 +74,7 @@ class BindingRegistryGuestTypesTest {
                 "@neomacros/sample", PermissionView.ALLOW_ALL);
         assertTrue(source.isPresent());
         assertTrue(source.get().contains("export const Sample = globalThis.neo.types.Sample;"),
-                "facade-owned class re-exports through its module specifier");
+                "module-owned class re-exports through its module specifier");
     }
 
     @Test

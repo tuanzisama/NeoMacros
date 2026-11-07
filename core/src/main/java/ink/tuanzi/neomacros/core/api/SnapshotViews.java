@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * Renders neutral snapshots as the plain object shape scripts see. Shared by
- * handle JSON forms and snapshot-returning facade methods so the field names
+ * handle JSON forms and snapshot-returning API methods so the field names
  * stay identical everywhere.
  */
 public final class SnapshotViews {

@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.function.LongSupplier;
 
 /**
- * Per-script timeline backing the {@code neo.performance} facade: a
+ * Per-script timeline backing the {@code neo.performance} module: a
  * monotonic high-resolution clock anchored at the session origin plus a
  * bounded ring of mark and measure entries. Each script owns one timeline;
  * all access happens on that script's loop thread, and methods are

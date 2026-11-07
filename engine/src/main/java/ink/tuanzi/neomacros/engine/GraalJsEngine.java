@@ -1128,7 +1128,7 @@ public final class GraalJsEngine implements ScriptEngine {
         }
 
         /**
-         * Prepares a facade result for the guest: plain-data containers are
+         * Prepares a API result for the guest: plain-data containers are
          * snapshotted (polyglot views must not escape) and wrapped as proxies
          * so the guest can read them under HostAccess.NONE.
          */
@@ -1155,7 +1155,7 @@ public final class GraalJsEngine implements ScriptEngine {
             Object plain = snapshotValue(result);
             if (plain == null) {
                 // ES surface rule: an absent value reads as undefined, never
-                // host null (missing handles/properties per the facade spec).
+                // host null (missing handles/properties per the API spec).
                 return undefinedValue();
             }
             if (plain instanceof ink.tuanzi.neomacros.core.api.java.JavaInterop interop) {
@@ -1365,7 +1365,7 @@ public final class GraalJsEngine implements ScriptEngine {
         }
 
         /**
-         * Renders a live facade handle for the guest. Annotated handles
+         * Renders a live API handle for the guest. Annotated handles
          * ({@code @ApiClass}) become instances of a real guest ES class
          * (built once per session): {@code instanceof} and user subclassing
          * work natively, getters read the backing member proxy live on every
@@ -1472,7 +1472,7 @@ public final class GraalJsEngine implements ScriptEngine {
         }
 
         /**
-         * Renders a live facade handle as a guest-readable member proxy: bean
+         * Renders a live API handle as a guest-readable member proxy: bean
          * getters read as properties on every access (real-time per the
          * handle contract), zero-argument public methods cross as functions,
          * writes throw. Raw host objects are unreadable under the closed
@@ -1623,7 +1623,7 @@ public final class GraalJsEngine implements ScriptEngine {
             return cachedUndefined;
         }
 
-        /** Converts guest arguments to the facade method's declared Java types. */
+        /** Converts guest arguments to the API method's declared Java types. */
         private Object[] convertArgs(ModuleBinding.FunctionMember function, Value[] arguments) {
             Class<?>[] types = function.parameterTypes();
             Object[] out = new Object[types.length];
@@ -1696,7 +1696,7 @@ public final class GraalJsEngine implements ScriptEngine {
                     });
         }
 
-        /** Invokes an async facade function and settles the promise on the loop. */
+        /** Invokes an async API function and settles the promise on the loop. */
         private Object invokeAsync(ModuleBinding.FunctionMember function, Value[] arguments) {
             // arguments = [jsArgsArray, resolve, reject]; only [0] carries method params.
             Value jsArgs = arguments[0];

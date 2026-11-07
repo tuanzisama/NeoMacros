@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Model extraction assertions over the fully annotated fixture facade:
+ * Model extraction assertions over the fully annotated fixture module class:
  * module metadata, getter-to-property split, annotation carry-over with
  * class-level fallbacks, internal flagging, and async detection.
  */

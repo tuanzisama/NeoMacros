@@ -14,7 +14,7 @@ import java.util.zip.ZipFile;
  * Scans the classpath for classes of one package (subpackages included)
  * carrying a given annotation.
  *
- * <p>Used to collect annotated event payload records and API facade classes
+ * <p>Used to collect annotated event payload records and API API classes
  * (the registration mechanism shared with the binding builder). Works over
  * directory and jar classpath entries; on launchers where the module classpath
  * is not reflected in {@code java.class.path} (e.g. nested mod jars), callers

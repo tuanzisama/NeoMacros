@@ -26,8 +26,8 @@ public final class RayHit implements ScriptHandle {
     private final Pos3D direction;
     private final RayOptions options;
 
-    /** Creates the handle (facade entry).
-     * @zh 构造句柄（门面入口）。 */
+    /** Creates the handle (engine factory).
+     * @zh 构造句柄。 */
     public RayHit(Pos3D origin, Pos3D direction, RayOptions options) {
         this.origin = origin;
         this.direction = direction;

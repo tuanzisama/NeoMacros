@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
  * calls that omit the parameter (and trailing ones after it), and the
  * generated TypeScript definitions render it with a {@code ?} marker.
  *
- * <p>Omitted parameters arrive at the facade as {@code null}; the facade
+ * <p>Omitted parameters arrive at the API as {@code null}; the API
  * documents its own defaults.</p>
  */
 @Documented

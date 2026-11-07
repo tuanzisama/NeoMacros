@@ -7,7 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Declares a facade class as one script-visible ES module.
+ * Declares an API class as one script-visible ES module.
  *
  * <p>The annotated class is exposed to scripts under two names that resolve
  * to the same binding object: the {@code neo.<name>} global namespace member

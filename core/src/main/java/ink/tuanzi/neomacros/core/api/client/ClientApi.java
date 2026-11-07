@@ -18,11 +18,11 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The {@code neo.client} facade: process-level facts about the running game
+ * The {@code neo.client} module: process-level facts about the running game
  * client, window and input surfaces, the connection lifecycle, and read-only
  * registry and option slices.
  *
- * @zh {@code neo.client} 门面：运行中游戏客户端的进程级事实、窗口与输入面、连接生命周期，以及只读的注册表与设置切片。
+ * @zh {@code neo.client}：运行中游戏客户端的进程级事实、窗口与输入面、连接生命周期，以及只读的注册表与设置切片。
  */
 @ApiModule(name = "client", category = "系统")
 @ApiSince("0.2.0")
@@ -412,7 +412,7 @@ public final class ClientApi {
         return view;
     }
 
-    /** The client port behind the facade (single adapter access point). */
+    /** The client port behind the API (single adapter access point). */
     private static ink.tuanzi.neomacros.port.ClientPort adapter() {
         return ScriptApiEnvironment.adapter().client();
     }

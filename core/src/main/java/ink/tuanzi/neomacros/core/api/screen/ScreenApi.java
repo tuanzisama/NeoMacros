@@ -11,10 +11,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * The {@code neo.screen} facade: metadata about the currently open screen.
+ * The {@code neo.screen} module: metadata about the currently open screen.
  * The script-built GUI surface stays a later-phase design.
  *
- * @zh {@code neo.screen} 门面：当前打开屏幕的元信息。脚本自建 GUI 属后续阶段设计。
+ * @zh {@code neo.screen}：当前打开屏幕的元信息。脚本自建 GUI 属后续阶段设计。
  */
 @ApiModule(name = "screen", category = "界面")
 @ApiSince("0.2.0")

@@ -35,18 +35,18 @@ import ink.tuanzi.neomacros.core.runtime.TimerHandle;
 import java.util.List;
 
 /**
- * The explicit-triple gate's scan surface: every registered facade, every
+ * The explicit-triple gate's scan surface: every registered API module class, every
  * {@code @ApiClass} script type, and the timer handle. Event payload records
  * join through their own list. Keep in sync with production registration
- * (the facade registry list and the guest-type table).
+ * (the module class list and the guest-type table).
  */
 final class ApiCompletenessSurface {
 
     private ApiCompletenessSurface() {
     }
 
-    /** Facade classes ({@code @ApiModule}). */
-    static final List<Class<?>> FACADES = List.of(
+    //** API module classes ({@code @ApiModule}). */
+    static final List<Class<?>> MODULE_CLASSES = List.of(
             EventsApi.class, ThreadApi.class, ChatApi.class, StorageApi.class,
             PerformanceApi.class,
             WorldApi.class, EntityApi.class, PlayerApi.class, ClientApi.class,

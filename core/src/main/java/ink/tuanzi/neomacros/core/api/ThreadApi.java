@@ -13,12 +13,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Callable;
 
 /**
- * The {@code neo.thread} facade: thread introspection, time-based and
+ * The {@code neo.thread} module: thread introspection, time-based and
  * main-thread asynchronous primitives, and timers, each bound to the calling
  * script's context event loop. Every scheduling function returns a promise or
  * a cancellable timer handle.
  *
- * @zh {@code neo.thread} 门面：线程自省、基于时间与主线程的异步原语与定时器，各自绑定调用脚本的上下文事件循环；调度函数返回 Promise 或可取消的定时器句柄。
+ * @zh {@code neo.thread}：线程自省、基于时间与主线程的异步原语与定时器，各自绑定调用脚本的上下文事件循环；调度函数返回 Promise 或可取消的定时器句柄。
  */
 @ApiModule(name = "thread", category = "核心")
 @ApiSince("0.1.0")

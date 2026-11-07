@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 /**
  * The world gap expansions: level name, moon phase, tab list, boss bars,
  * scoreboards, tick rate estimate, and the sound/particle actions, driven
- * through the facade over a canned port.
+ * through the API over a canned port.
  */
 class WorldGapExpansionsTest {
 

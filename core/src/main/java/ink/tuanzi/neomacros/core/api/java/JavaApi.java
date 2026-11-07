@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The {@code neo.java} facade: the escape layer over the host JVM. Class
+ * The {@code neo.java} module: the escape layer over the host JVM. Class
  * lookup uses binary names (Mojmap for Minecraft classes, translated at the
  * call site by the mapping layer); every capability of this module requires
  * the {@code java} permission — granting it hands the script full host
@@ -21,7 +21,7 @@ import java.util.Map;
  * proxy's {@code new(...)} member; results wrap as object proxies whose
  * members reach unwrapped Java fields and methods.
  *
- * @zh {@code neo.java} 门面：宿主 JVM 的穿透层。类查找使用二进制名（Minecraft 类为 Mojmap 名，调用点经映射层翻译）；本模块全部能力需 java 权限——授予权限即交给脚本完整宿主访问，无类过滤。构造经类代理的 {@code new(...)} 成员完成，结果包装为对象代理，其成员直达未包装的 Java 字段与方法。
+ * @zh {@code neo.java}：宿主 JVM 的穿透层。类查找使用二进制名（Minecraft 类为 Mojmap 名，调用点经映射层翻译）；本模块全部能力需 java 权限——授予权限即交给脚本完整宿主访问，无类过滤。构造经类代理的 {@code new(...)} 成员完成，结果包装为对象代理，其成员直达未包装的 Java 字段与方法。
  */
 @ApiModule(name = "java", category = "系统")
 @ApiPermission("java")
@@ -45,17 +45,17 @@ public final class JavaApi {
     private final ClassResolver resolver;
     private final RawWrapper wrapper;
 
-    /** Creates the facade with identity name resolution (tests, unobf nodes). */
+    /** Creates the API with identity name resolution (tests, unobf nodes). */
     public JavaApi() {
         this(name -> name);
     }
 
-    /** Creates the facade with a mapping-layer name resolver. */
+    /** Creates the API with a mapping-layer name resolver. */
     public JavaApi(ClassResolver resolver) {
         this(resolver, null);
     }
 
-    /** Creates the facade with a name resolver and a raw-to-handle wrapper. */
+    /** Creates the API with a name resolver and a raw-to-handle wrapper. */
     public JavaApi(ClassResolver resolver, RawWrapper wrapper) {
         this.resolver = resolver;
         this.wrapper = wrapper;

@@ -15,11 +15,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * The {@code neo.input} facade: keybind registration (surfaced in the vanilla
+ * The {@code neo.input} module: keybind registration (surfaced in the vanilla
  * controls menu), raw key press listening, mouse wheel events, and key
  * injection ({@code press/release/hold/set}).
  *
- * @zh {@code neo.input} 门面：按键绑定注册（显示在原版控制设置中）、原始按键监听、鼠标滚轮事件与按键注入（{@code press/release/hold/set}）。
+ * @zh {@code neo.input}：按键绑定注册（显示在原版控制设置中）、原始按键监听、鼠标滚轮事件与按键注入（{@code press/release/hold/set}）。
  */
 @ApiModule(name = "input", category = "输入")
 @ApiSince("0.1.0")
@@ -30,12 +30,12 @@ public final class InputApi {
     private final InputBridge bridge;
     private final ScheduledExecutorService delayer;
 
-    /** Creates the facade over the input bridge (bootstrap-provided). */
+    /** Creates the API over the input bridge (bootstrap-provided). */
     public InputApi(InputBridge bridge) {
         this(bridge, defaultDelayer());
     }
 
-    /** Creates the facade with an explicit delay scheduler (for hold). */
+    /** Creates the API with an explicit delay scheduler (for hold). */
     public InputApi(InputBridge bridge, ScheduledExecutorService delayer) {
         this.bridge = bridge;
         this.delayer = delayer;

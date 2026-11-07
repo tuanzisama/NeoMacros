@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * The {@code neo.performance} facade: Web-Performance-style macro profiling —
+ * The {@code neo.performance} module: Web-Performance-style macro profiling —
  * a high-resolution monotonic clock anchored at the script's session origin,
  * plus User Timing marks and measures kept in a bounded per-script buffer.
  * Wall-clock timestamps remain the domain of the ES-native
@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentMap;
  * owns an isolated timeline, so {@code timeOrigin} and buffered entries
  * reset when the script reloads.
  *
- * @zh {@code neo.performance} 门面：Web Performance 风格的宏性能分析——锚定脚本会话起点的高精度单调时钟，外加保存在每脚本有界缓冲中的 User Timing 标记与测量。墙钟时间仍用 ES 原生 {@code Date.now()}；本模块负责耗时测量。每脚本会话持有独立时间线，脚本重载后 timeOrigin 与缓冲随之重置。
+ * @zh {@code neo.performance}：Web Performance 风格的宏性能分析——锚定脚本会话起点的高精度单调时钟，外加保存在每脚本有界缓冲中的 User Timing 标记与测量。墙钟时间仍用 ES 原生 {@code Date.now()}；本模块负责耗时测量。每脚本会话持有独立时间线，脚本重载后 timeOrigin 与缓冲随之重置。
  */
 @ApiModule(name = "performance", category = "核心")
 @ApiSince("0.2.0")

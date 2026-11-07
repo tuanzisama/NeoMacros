@@ -17,14 +17,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
- * The {@code neo.command} facade: client command registration and dispatch.
+ * The {@code neo.command} module: client command registration and dispatch.
  * Commands register declaratively with typed argument slots built through
  * {@code command.arg} ({@code int() float() bool() word() string() greedy()
  * player() pos()} plus {@code optional()} and {@code default(v)}); the
  * handler receives a context whose {@code args} carry parsed values and
  * whose {@code raw} keeps the remainder string.
  *
- * @zh {@code neo.command} 门面：客户端命令注册与派发。命令以声明式注册，经 {@code command.arg} 构建带类型的参数槽（{@code int() float() bool() word() string() greedy() player() pos()}，另有 {@code optional()} 与 {@code default(v)}）；处理器收到的上下文 {@code args} 携带解析值，{@code raw} 保留剩余字符串。
+ * @zh {@code neo.command}：客户端命令注册与派发。命令以声明式注册，经 {@code command.arg} 构建带类型的参数槽（{@code int() float() bool() word() string() greedy() player() pos()}，另有 {@code optional()} 与 {@code default(v)}）；处理器收到的上下文 {@code args} 携带解析值，{@code raw} 保留剩余字符串。
  */
 @ApiModule(name = "command", category = "界面")
 @ApiSince("0.1.0")
@@ -35,7 +35,7 @@ public final class CommandApi {
     private final CommandRegistry registry;
     private final CommandArgFactory argFactory = new CommandArgFactory();
 
-    /** Creates the facade over the command registry (bootstrap-provided). */
+    /** Creates the API over the command registry (bootstrap-provided). */
     public CommandApi(CommandRegistry registry) {
         this.registry = registry;
     }

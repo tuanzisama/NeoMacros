@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
  * <p>Annotated bindings are wrapped by the permission proxy at binding build
  * time: a script whose declared {@code meta.permissions} do not contain the
  * catalog entry gets a {@code PermissionError} on call instead of reaching
- * the facade. Facade implementations must not re-check permissions
+ * the API. API implementations must not re-check permissions
  * themselves; this annotation is the single gating mechanism.</p>
  */
 @Documented

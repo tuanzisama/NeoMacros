@@ -31,7 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Flow;
 
 /**
- * The {@code neo.net} facade: HTTP client with fetch semantics. Requests run
+ * The {@code neo.net} module: HTTP client with fetch semantics. Requests run
  * on a dedicated IO executor and require the {@code net} capability; the
  * promise settles with a live {@link NetApi.Response} whose body readers
  * ({@code text()}, {@code json()}, {@code bytes()}) are async. Each settled
@@ -40,7 +40,7 @@ import java.util.concurrent.Flow;
  * {@link #RETAIN_LIMIT} only while a sink listens. Recording is free when
  * no dispatcher listens.
  *
- * @zh {@code neo.net} 门面：fetch 语义的 HTTP 客户端。请求在专用 IO 线程池执行，需 net 能力授权；Promise 以活 {@code Response} 落定，其 body 读取器（{@code text()}、{@code json()}、{@code bytes()}）均为异步。每次请求落定会经 {@link NetTrace} 记录到 DevTools 网络面板——预览恒记，阶段计时与 ≤{@link #RETAIN_LIMIT} 的完整 body 仅在有监听时保留；无监听时记录近乎零开销。
+ * @zh {@code neo.net}：fetch 语义的 HTTP 客户端。请求在专用 IO 线程池执行，需 net 能力授权；Promise 以活 {@code Response} 落定，其 body 读取器（{@code text()}、{@code json()}、{@code bytes()}）均为异步。每次请求落定会经 {@link NetTrace} 记录到 DevTools 网络面板——预览恒记，阶段计时与 ≤{@link #RETAIN_LIMIT} 的完整 body 仅在有监听时保留；无监听时记录近乎零开销。
  */
 @ApiModule(name = "net", category = "系统")
 @ApiSince("0.1.0")
@@ -60,7 +60,7 @@ public final class NetApi {
     private final HttpClient client;
     private final ExecutorService ioExecutor;
 
-    /** Creates the facade; the executor dispatches promise settlements. */
+    /** Creates the API; the executor dispatches promise settlements. */
     public NetApi(ExecutorService ioExecutor) {
         this.client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
         this.ioExecutor = ioExecutor;

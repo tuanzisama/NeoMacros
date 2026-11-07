@@ -9,8 +9,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Handle of one pending or repeating timer created through the thread
- * facade; cancelling stops the schedule (idempotent).
- * @zh thread 门面创建的单个定时器句柄；cancel 停止调度（幂等）。
+ * module; cancelling stops the schedule (idempotent).
+ * @zh thread 定时器句柄；cancel 停止调度（幂等）。
  */
 @ApiSince("0.2.0")
 @ApiLoader("*")

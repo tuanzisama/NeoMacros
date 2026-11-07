@@ -28,7 +28,7 @@ public final class TextBuilder implements ScriptHandle {
 
     private final List<TextSegmentData> segments = new ArrayList<>();
 
-    /** Creates the builder from one initial literal segment (facade-facing). */
+    /** Creates the builder from one initial literal segment (engine-facing). */
     public TextBuilder(String text, Map<String, Object> style) {
         segments.add(styled(new TextSegmentData(text, null, null, null,
                 null, null, null, null, null, null), style));

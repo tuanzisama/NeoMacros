@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Extracts the runtime {@link ApiModel} from annotated facade classes via
+ * Extracts the runtime {@link ApiModel} from annotated API classes via
  * reflection: public bean getters become live properties, remaining public
  * methods become functions (async when they return a CompletableFuture), and
  * annotation values carry over with class-level fallbacks.
@@ -27,19 +27,19 @@ public final class ApiModelExtractor {
     private ApiModelExtractor() {
     }
 
-    /** Builds the model of one annotated facade class. */
-    public static ApiModel.ModuleModel extractModule(Class<?> facade) {
-        ApiModule module = facade.getAnnotation(ApiModule.class);
+    /** Builds the model of one annotated API module class. */
+    public static ApiModel.ModuleModel extractModule(Class<?> moduleClass) {
+        ApiModule module = moduleClass.getAnnotation(ApiModule.class);
         if (module == null) {
-            throw new IllegalArgumentException(facade.getName() + " is not annotated with @ApiModule");
+            throw new IllegalArgumentException(moduleClass.getName() + " is not annotated with @ApiModule");
         }
-        String classSince = sinceOf(facade);
-        String classMc = mcOf(facade);
-        String classPermission = permissionOf(facade);
+        String classSince = sinceOf(moduleClass);
+        String classMc = mcOf(moduleClass);
+        String classPermission = permissionOf(moduleClass);
 
         List<ApiModel.PropertyModel> properties = new ArrayList<>();
         List<ApiModel.MethodModel> methods = new ArrayList<>();
-        for (Method method : facade.getDeclaredMethods()) {
+        for (Method method : moduleClass.getDeclaredMethods()) {
             if (!Modifier.isPublic(method.getModifiers()) || Modifier.isStatic(method.getModifiers())) {
                 continue;
             }
@@ -75,11 +75,11 @@ public final class ApiModelExtractor {
                 List.copyOf(properties), List.copyOf(methods));
     }
 
-    /** Extracts the full model of the given facade classes, sorted by module name. */
-    public static ApiModel extract(List<Class<?>> facades) {
+    /** Extracts the full model of the given API classes, sorted by module name. */
+    public static ApiModel extract(List<Class<?>> moduleClasses) {
         List<ApiModel.ModuleModel> modules = new ArrayList<>();
-        for (Class<?> facade : facades) {
-            modules.add(extractModule(facade));
+        for (Class<?> moduleClass : moduleClasses) {
+            modules.add(extractModule(moduleClass));
         }
         modules.sort(Comparator.comparing(ApiModel.ModuleModel::name));
         return new ApiModel(List.copyOf(modules));

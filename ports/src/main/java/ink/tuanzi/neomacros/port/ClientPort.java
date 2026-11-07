@@ -26,7 +26,7 @@ public interface ClientPort {
 
     /**
      * Returns the raw host client instance for the escape layer; only
-     * reachable through the facade member gated by the {@code java}
+     * reachable through the API member gated by the {@code java}
      * permission.
      */
     Object minecraftInstance();

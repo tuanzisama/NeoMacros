@@ -22,8 +22,8 @@ public final class Block implements ScriptHandle {
 
     private final BlockPos pos;
 
-    /** Creates the handle (facade entry; package-private by design otherwise).
-     * @zh 构造句柄（门面入口）。 */
+    /** Creates the handle (engine factory; package-private by design otherwise).
+     * @zh 构造句柄。 */
     public Block(BlockPos pos) {
         this.pos = pos;
     }

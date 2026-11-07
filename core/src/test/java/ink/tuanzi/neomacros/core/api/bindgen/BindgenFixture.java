@@ -12,7 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Fixture facade exercising the full annotation set for binding extraction:
+ * Fixture module class exercising the full annotation set for binding extraction:
  * live getter property, sync and async functions, a permission-gated member,
  * a node-filtered member, and an internal member.
  */

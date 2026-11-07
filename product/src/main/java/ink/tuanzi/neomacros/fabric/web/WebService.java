@@ -37,7 +37,7 @@ import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
- * The web panel service facade: owns the HTTP server, the authentication
+ * The web panel service: owns the HTTP server, the authentication
  * chain, the pairing flow, the device registry handle, and the log ring,
  * and maps the {@code core.web} settings onto them per start. Starting is
  * explicit (command, editor deep link, or autoStart); stopping broadcasts
@@ -78,7 +78,7 @@ public final class WebService {
      * registry are process-lifetime collaborators handed in by the fabric
      * layer (the stores' files survive service stop/start); the setting
      * suppliers are read per start so config changes apply without
-     * recreating the service; the events facade carries broadcasts from
+     * recreating the service; the events module carries broadcasts from
      * game-side surfaces to the per-start hub.
      */
     public WebService(PanelBackend backend, GameRunner game, DeviceRegistry devices,

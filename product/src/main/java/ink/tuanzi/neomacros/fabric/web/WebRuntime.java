@@ -100,7 +100,7 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         this.gameVersion = gameVersion;
         this.tasks = tasks;
         // Task feed: every registry change broadcasts to the panel (the
-        // events facade is no-op while the web service is stopped).
+        // events module is no-op while the web service is stopped).
         if (tasks != null) {
             tasks.onTaskEvent((event, snapshot) -> events.broadcast("task:state",
                     Jsons.stringify(ink.tuanzi.neomacros.fabric.web.v1.TaskEntry.of(snapshot))));

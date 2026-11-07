@@ -3,7 +3,7 @@ package ink.tuanzi.neomacros.port.model;
 /**
  * Neutral 2D drawing interface for HUD layers: text, rectangles, and
  * outlines. The adapter maps these calls to the version-specific rendering
- * API; scripts access it through the {@code neo.hud} facade.
+ * API; scripts access it through {@code neo.hud}.
  *
  * <p>All coordinates are screen-space pixels from the top-left corner.</p>
  */

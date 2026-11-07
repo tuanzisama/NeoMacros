@@ -15,14 +15,14 @@ import java.util.function.Function;
 /**
  * The species handle tree: Mojang-named guest subclasses over the living
  * entity hierarchy, one class per species carrying that species' gap
- * members. Registration is data-driven ({@link #registry()}); the facade
+ * members. Registration is data-driven ({@link #registry()}); the API
  * consults it when wrapping so queries return the deepest species handle.
  * Intermediate Mojang classes without gap members stay structural.
  *
  * <p>Members read live species state through the entity port; a vanished
  * entity reads back as {@code undefined} like every other handle.</p>
  *
- * @zh 物种句柄树：活实体层级之上的 Mojang 命名 guest 子类，每物种一类、携带该物种的缺口成员。注册数据驱动（{@link #registry()}），门面包装时查表返回最深的物种句柄；无缺口成员的 Mojang 中间类保持结构性存在。成员经实体端口实时读取；实体消失后属性回读为 undefined，与其他句柄一致。
+ * @zh 物种句柄树：活实体层级之上的 Mojang 命名 guest 子类，每物种一类、携带该物种的缺口成员。注册数据驱动（{@link #registry()}），包装时查表返回最深的物种句柄；无缺口成员的 Mojang 中间类保持结构性存在。成员经实体端口实时读取；实体消失后属性回读为 undefined，与其他句柄一致。
  */
 public final class SpeciesEntities {
 

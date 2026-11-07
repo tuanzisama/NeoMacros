@@ -10,7 +10,7 @@ package ink.tuanzi.neomacros.port.model;
  */
 public record RayOptions(double maxDist, boolean entities, boolean blocks, boolean fluids) {
 
-    /** The defaults the facade applies when the script passes no options. */
+    /** The defaults the API applies when the script passes no options. */
     public static RayOptions defaults() {
         return new RayOptions(32, true, true, false);
     }

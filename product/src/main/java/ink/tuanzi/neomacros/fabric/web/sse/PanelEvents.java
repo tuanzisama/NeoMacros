@@ -1,7 +1,7 @@
 package ink.tuanzi.neomacros.fabric.web.sse;
 
 /**
- * The service-lifetime broadcast facade: the hub lives and dies with each
+ * The service-lifetime broadcast hub: the hub lives and dies with each
  * {@code WebService.start()}, while game-side surfaces (the runtime backend,
  * the module listeners) outlive restarts. They broadcast through this handle;
  * with no listener attached the calls are no-ops.
