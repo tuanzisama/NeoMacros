@@ -129,6 +129,19 @@ public interface PlayerPort {
         return false;
     }
 
+    /** Returns the entity UUID the local player rides, or empty on foot. */
+    default java.util.Optional<java.util.UUID> vehicleUuid() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the four armor slots in feet, legs, chest, head order; empty
+     * slots read as {@code minecraft:air}.
+     */
+    default java.util.List<ink.tuanzi.neomacros.port.model.ItemStackData> armorSlots() {
+        return java.util.List.of();
+    }
+
     // --- Local-only write face: every action below writes client-side
     // state on the game main thread. Multiplayer servers keep authority
     // over flying and position, so writes may be corrected shortly after.

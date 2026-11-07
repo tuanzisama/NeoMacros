@@ -243,6 +243,38 @@ public final class FabricPlayerPort implements PlayerPort {
         return percent != null ? percent : 0f;
     }
 
+    @Override
+    public java.util.Optional<java.util.UUID> vehicleUuid() {
+        return MainThread.run(() -> {
+            var player = Minecraft.getInstance().player;
+            var vehicle = player != null ? player.getVehicle() : null;
+            return vehicle != null
+                    ? java.util.Optional.of(vehicle.getUUID())
+                    : java.util.Optional.<java.util.UUID>empty();
+        });
+    }
+
+    @Override
+    public java.util.List<ink.tuanzi.neomacros.port.model.ItemStackData> armorSlots() {
+        return MainThread.run(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player == null) {
+                return java.util.List
+                        .<ink.tuanzi.neomacros.port.model.ItemStackData>of();
+            }
+            java.util.List<ink.tuanzi.neomacros.port.model.ItemStackData> slots =
+                    new java.util.ArrayList<>(4);
+            for (net.minecraft.world.entity.EquipmentSlot slot : new net.minecraft.world.entity.EquipmentSlot[] {
+                    net.minecraft.world.entity.EquipmentSlot.FEET,
+                    net.minecraft.world.entity.EquipmentSlot.LEGS,
+                    net.minecraft.world.entity.EquipmentSlot.CHEST,
+                    net.minecraft.world.entity.EquipmentSlot.HEAD}) {
+                slots.add(FabricInventoryPort.stackDataOf(player.getItemBySlot(slot)));
+            }
+            return java.util.List.copyOf(slots);
+        });
+    }
+
     /** Finds one loaded entity by UUID. */
     private net.minecraft.world.entity.Entity findEntity(java.util.UUID uuid) {
         var level = Minecraft.getInstance().level;

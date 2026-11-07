@@ -22,8 +22,10 @@ import ink.tuanzi.neomacros.core.event.def.player.PlayerInteractBlockEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerInteractEntityEvent;
 import ink.tuanzi.neomacros.core.event.def.input.InputWheelEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerExpEvent;
+import ink.tuanzi.neomacros.core.event.def.player.PlayerArmorEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerGamemodeEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerHeldItemEvent;
+import ink.tuanzi.neomacros.core.event.def.player.PlayerRidingEvent;
 import ink.tuanzi.neomacros.core.event.def.screen.ScreenCloseEvent;
 import ink.tuanzi.neomacros.core.event.def.screen.ScreenOpenEvent;
 import ink.tuanzi.neomacros.core.event.def.world.WorldWeatherEvent;
@@ -155,6 +157,8 @@ public final class PortEventWiring {
         private String lastHeldItemId;
         private boolean lastScreenOpen;
         private String lastScreenTitle;
+        private java.util.UUID lastVehicle;
+        private String lastArmorSignature = "";
 
         SelfStateTracker(EventBus bus) {
             this.bus = bus;
@@ -182,6 +186,8 @@ public final class PortEventWiring {
             emitWorld(adapter, now);
             emitEntityHealth(adapter, now);
             emitDerived(adapter, now);
+            emitRiding(adapter);
+            emitArmor(adapter);
             emitScreen(adapter);
             emitEffectChanges(adapter);
         }
@@ -198,6 +204,35 @@ public final class PortEventWiring {
             timeInitialized = false;
             entityHealth.clear();
             effectAmplifiers.clear();
+            lastVehicle = null;
+            lastArmorSignature = "";
+        }
+
+        /** Diffs the mount state and publishes player:riding edges. */
+        private void emitRiding(NeomacrosAdapter adapter) {
+            java.util.UUID vehicle = adapter.player().vehicleUuid().orElse(null);
+            if (java.util.Objects.equals(vehicle, lastVehicle)) {
+                return;
+            }
+            lastVehicle = vehicle;
+            EntitySnapshot snapshot = vehicle == null
+                    ? null : adapter.entity().byUuid(vehicle).orElse(null);
+            bus.publish("player:riding", new PlayerRidingEvent(snapshot));
+        }
+
+        /** Diffs the four armor slots and publishes player:armor. */
+        private void emitArmor(NeomacrosAdapter adapter) {
+            List<ink.tuanzi.neomacros.port.model.ItemStackData> armor =
+                    adapter.player().armorSlots();
+            StringBuilder signature = new StringBuilder();
+            for (ink.tuanzi.neomacros.port.model.ItemStackData stack : armor) {
+                signature.append(stack.id()).append('x').append(stack.count()).append(',');
+            }
+            if (signature.toString().equals(lastArmorSignature)) {
+                return;
+            }
+            lastArmorSignature = signature.toString();
+            bus.publish("player:armor", new PlayerArmorEvent(armor));
         }
 
         /**
