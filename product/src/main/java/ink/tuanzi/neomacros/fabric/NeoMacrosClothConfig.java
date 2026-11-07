@@ -109,7 +109,7 @@ public final class NeoMacrosClothConfig {
                 .addEntry(entries.startStrField(
                                 Component.translatable("neomacros.config.web.panel_url"),
                                 NeoMacrosFabric.configOptions().web.panelUrl)
-                        .setDefaultValue("https://panel.neomacros.app")
+                        .setDefaultValue("https://neomacro-editor.tuanzi.ink")
                         .setSaveConsumer(value -> {
                             NeoMacrosFabric.configOptions().web.panelUrl = value;
                         })

@@ -70,6 +70,6 @@ class NestedSectionTest {
         manager.load();
         assertEquals(1234, section.web.port);
         assertFalse(section.web.enabled);
-        assertEquals("https://panel.neomacros.app", section.web.panelUrl);
+        assertEquals("https://neomacro-editor.tuanzi.ink", section.web.panelUrl);
     }
 }

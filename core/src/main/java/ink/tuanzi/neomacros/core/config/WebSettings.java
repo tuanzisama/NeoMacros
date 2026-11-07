@@ -34,7 +34,7 @@ public final class WebSettings {
 
     /** Static site the panel is served from; its origin is the default CORS echo. */
     @Option(description = "Panel site origin used for CORS")
-    public String panelUrl = "https://panel.neomacros.app";
+    public String panelUrl = "https://neomacro-editor.tuanzi.ink";
 
     /**
      * Extra origins CORS may echo besides the panel site (mirrors, local
