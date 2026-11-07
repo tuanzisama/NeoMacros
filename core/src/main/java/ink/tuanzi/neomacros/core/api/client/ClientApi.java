@@ -398,6 +398,7 @@ public final class ClientApi {
         Map<String, Object> view = new LinkedHashMap<>();
         view.put("name", data.name());
         view.put("address", data.address());
+        view.put("ping", data.ping());
         return view;
     }
 
