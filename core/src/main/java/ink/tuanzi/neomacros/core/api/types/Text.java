@@ -40,6 +40,39 @@ public final class Text implements ScriptHandle {
                 null, null, null, null, null, null)));
     }
 
+    /**
+     * Flattens one neutral chat component tree into segments: each node's
+     * explicit style overrides the inherited parent style, and the depth
+     * order is preserved.
+     *
+     * @zh 将中立聊天组件树展平为分段：节点显式样式覆盖继承的父样式，保持深度顺序。
+     */
+    public static Text from(ink.tuanzi.neomacros.port.model.ChatComponent component) {
+        List<TextSegmentData> segments = new ArrayList<>();
+        flatten(component, null, null, null, null, null, null, segments);
+        return new Text(segments);
+    }
+
+    private static void flatten(ink.tuanzi.neomacros.port.model.ChatComponent node,
+            String color, Boolean bold, Boolean italic, Boolean underlined,
+            Boolean strikethrough, Boolean obfuscated, List<TextSegmentData> out) {
+        String ownColor = node.color() != null ? node.color() : color;
+        Boolean ownBold = node.bold() != null ? node.bold() : bold;
+        Boolean ownItalic = node.italic() != null ? node.italic() : italic;
+        Boolean ownUnderlined = node.underlined() != null ? node.underlined() : underlined;
+        Boolean ownStrikethrough = node.strikethrough() != null ? node.strikethrough() : strikethrough;
+        Boolean ownObfuscated = node.obfuscated() != null ? node.obfuscated() : obfuscated;
+        if (!node.text().isEmpty()) {
+            out.add(new TextSegmentData(node.text(), ownColor, ownBold, ownItalic,
+                    ownUnderlined, ownStrikethrough, ownObfuscated,
+                    null, null, null));
+        }
+        for (ink.tuanzi.neomacros.port.model.ChatComponent child : node.children()) {
+            flatten(child, ownColor, ownBold, ownItalic, ownUnderlined,
+                    ownStrikethrough, ownObfuscated, out);
+        }
+    }
+
     /** The styled segments in order.
      * @zh 按序的样式分段。 */
     @ApiSince("0.2.0")
@@ -91,6 +124,9 @@ public final class Text implements ScriptHandle {
             }
             if (segment.hoverText() != null) {
                 view.put("hoverText", segment.hoverText());
+            }
+            if (segment.hoverItem() != null) {
+                view.put("hoverItem", segment.hoverItem().id());
             }
             if (segment.clickCommand() != null) {
                 view.put("clickCommand", segment.clickCommand());
