@@ -75,7 +75,7 @@ jobs:
         run: |
           mkdir dist
           find product/versions -path '*/build/libs/*.jar' -exec cp {} dist/ \;
-          (cd dist && sha256sum *.jar > SHA256SUMS)
+          (cd dist && sha256sum ./*.jar > SHA256SUMS)
           ls -1 dist
 
       - name: Publish release or rolling prerelease

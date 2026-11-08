@@ -96,8 +96,15 @@ class AsyncPrimitivesTest {
 
     @Test
     void waitForPassesWhenConditionMet() throws Exception {
-        CompletableFuture<Boolean> done = async.waitFor(unused -> true, 500);
+        // The gate keeps the future pending until the capture is attached:
+        // an immediately-true condition can complete on the loop thread
+        // before whenComplete attaches, and the callback then runs inline
+        // on the test thread, flaking the completion-thread assertion.
+        java.util.concurrent.atomic.AtomicBoolean ready =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        CompletableFuture<Boolean> done = async.waitFor(unused -> ready.get(), 500);
         java.util.concurrent.CompletableFuture<String> completedOn = captureCompletionThread(done);
+        ready.set(true);
         assertTrue(done.get(2, TimeUnit.SECONDS));
         awaitCapture(completedOn);
         assertEquals(loop.threadName(), completedOn.get());

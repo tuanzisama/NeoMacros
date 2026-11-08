@@ -81,7 +81,7 @@ jobs:
               if (re.match(r'^> Task .+ FAILED$', line)
                       or ' error: ' in line
                       or '错误' in line):
-                  snippet = ' | '.join(l.strip() for l in lines.slice(i, i + 6).concat(lines.slice(Math.max(0, i - 2), i)).filter(Boolean))
+                  snippet = ' | '.join(l.strip() for l in lines[max(0, i - 2):i + 6] if l.strip())
                   print(f'::error title=build::{snippet[:400]}')
                   shown += 1
                   if shown >= 15:
@@ -156,7 +156,7 @@ jobs:
         run: |
           mkdir dist
           find downloaded -name '*.jar' -exec cp {} dist/ \;
-          (cd dist && sha256sum *.jar > SHA256SUMS)
+          (cd dist && sha256sum ./*.jar > SHA256SUMS)
           ls -1 dist
 
       - name: Publish rolling dev prerelease
