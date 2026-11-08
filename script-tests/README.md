@@ -6,9 +6,9 @@ End-to-end cases that run inside a real game client. Each entry is a script
 folder (manifest + entry) following the standard macros layout:
 
 - `suite/` — the E2E-G runner (`e2e-suite`, lifecycle `always`); install below
-  `config/neomacros/macros/services/`.
+  `config/NeoMacros/macros/services/`.
 - `cases/` — standalone cases; event-driven ones go below
-  `config/neomacros/macros/event/`.
+  `config/NeoMacros/macros/event/`.
 
 The suite prints one result line per case (`[NeoMacros-E2E] <caseId>
 PASS|FAIL <detail>`) plus a final `SUITE-DONE` marker, and persists the full

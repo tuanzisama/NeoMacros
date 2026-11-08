@@ -84,7 +84,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         LOGGER.info("NeoMacros bootstrap");
-        configDir = FabricLoader.getInstance().getConfigDir().resolve(NeoMacros.MOD_ID);
+        configDir = FabricLoader.getInstance().getConfigDir().resolve(NeoMacros.CONFIG_DIR_NAME);
         // Carry a pre-rename options.json over so player settings survive.
         Path configFile = configDir.resolve("config.json");
         Path legacyConfigFile = configDir.resolve("options.json");
