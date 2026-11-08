@@ -21,7 +21,7 @@ license: MIT
 config:
   keypress:
     on: keypress           # trigger edge: keypress (default) / keydown / keyup
-    default-key: key.keyboard.j
+    key_code: key.keyboard.j
                            # suggested initial binding. Changes made via
                            # /neomacros keypress bind are stored in the
                            # central keymapping and win over this suggestion.

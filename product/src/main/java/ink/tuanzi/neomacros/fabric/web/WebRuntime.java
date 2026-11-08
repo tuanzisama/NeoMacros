@@ -918,8 +918,8 @@ public final class WebRuntime implements PanelBackend, GameRunner {
                 out.append("  keypress:\n");
                 out.append("    on: ").append(keypress == null ? "keypress" : keypress.onOrDefault())
                         .append('\n');
-                if (keypress != null && !keypress.defaultKeyOrEmpty().isEmpty()) {
-                    out.append("    default-key: ").append(yamlQuote(keypress.defaultKeyOrEmpty()))
+                if (keypress != null && !keypress.keyCodeOrEmpty().isEmpty()) {
+                    out.append("    key_code: ").append(yamlQuote(keypress.keyCodeOrEmpty()))
                             .append('\n');
                 }
                 if (keypress != null && !keypress.modifiersOrEmpty().isEmpty()) {

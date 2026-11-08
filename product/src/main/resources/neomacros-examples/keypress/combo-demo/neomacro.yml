@@ -8,5 +8,5 @@ description: logs when Ctrl+K is pressed (keydown edge + modifier example)
 config:
   keypress:
     on: keydown            # exact press/release edges come from raw keyboard events
-    default-key: key.keyboard.k
+    key_code: key.keyboard.k
     modifiers: [ctrl]      # all listed modifiers must be held; extra ones are fine

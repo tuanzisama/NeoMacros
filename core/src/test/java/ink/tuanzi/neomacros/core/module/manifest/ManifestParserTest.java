@@ -34,7 +34,7 @@ class ManifestParserTest {
                   - net
                 config:
                   keypress:
-                    default-key: key.keyboard.j
+                    key_code: key.keyboard.j
                     on: keydown
                     modifiers: [ctrl, shift]
                   service:
@@ -56,7 +56,7 @@ class ManifestParserTest {
 
         MacroConfig.Keypress keypress = manifest.configOrEmpty().keypress();
         assertEquals("keydown", keypress.on());
-        assertEquals("key.keyboard.j", keypress.defaultKey());
+        assertEquals("key.keyboard.j", keypress.keyCode());
         assertEquals(List.of("ctrl", "shift"), keypress.modifiers());
         assertEquals("keydown", keypress.onOrDefault());
 
@@ -186,7 +186,7 @@ class ManifestParserTest {
                 """);
         MacroConfig.Keypress keypress = ManifestParser.parse(dir, m -> { }).configOrEmpty().keypress();
         assertEquals("keypress", keypress.onOrDefault());
-        assertEquals("", keypress.defaultKeyOrEmpty());
+        assertEquals("", keypress.keyCodeOrEmpty());
         assertEquals(List.of(), keypress.modifiersOrEmpty());
     }
 
@@ -205,18 +205,21 @@ class ManifestParserTest {
     }
 
     @Test
-    void legacyKeypressKeyInsideConfigRejects(@TempDir Path dir) throws IOException {
-        Files.writeString(dir.resolve("neomacro.yml"), """
-                name: demo
-                version: 1.0.0
-                author: tuanzi
-                config:
-                  keypress:
-                    key: key.keyboard.j
-                """);
-        ManifestParseException e = assertThrows(ManifestParseException.class,
-                () -> ManifestParser.parse(dir, m -> { }));
-        assertTrue(e.getMessage().contains("default-key"), e.getMessage());
+    void legacyKeypressKeyFieldsInsideConfigReject(@TempDir Path dir) throws IOException {
+        for (String legacy : List.of("key: key.keyboard.j", "default-key: key.keyboard.j")) {
+            Files.writeString(dir.resolve("neomacro.yml"), """
+                    name: demo
+                    version: 1.0.0
+                    author: tuanzi
+                    config:
+                      keypress:
+                        %s
+                    """.formatted(legacy));
+            ManifestParseException e = assertThrows(ManifestParseException.class,
+                    () -> ManifestParser.parse(dir, m -> { }),
+                    "legacy field should reject: " + legacy);
+            assertTrue(e.getMessage().contains("key_code"), e.getMessage());
+        }
     }
 
     @Test

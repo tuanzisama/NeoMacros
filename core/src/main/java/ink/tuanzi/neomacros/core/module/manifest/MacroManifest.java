@@ -43,7 +43,7 @@ public record MacroManifest(String name, String version, String author,
      * targets; their presence rejects the manifest with a migration hint.
      */
     private static final Map<String, String> LEGACY_FIELDS = Map.of(
-            "key", "config.keypress.default-key",
+            "key", "config.keypress.key_code",
             "lifecycle", "config.service.lifecycle",
             "autostart", "config.service.autostart",
             "events", "config.event.on",
@@ -180,16 +180,18 @@ public record MacroManifest(String name, String version, String author,
             throw new ManifestParseException(source + ": 'config.keypress' must be a mapping");
         }
         Map<String, Object> block = stringKeyed(map, source, "config.keypress");
-        if (block.containsKey("key")) {
-            throw new ManifestParseException(source + ": config.keypress field 'key"
-                    + "' is now 'default-key' (see the migration guide)");
+        for (String legacy : List.of("key", "default-key")) {
+            if (block.containsKey(legacy)) {
+                throw new ManifestParseException(source + ": config.keypress field '" + legacy
+                        + "' is now 'key_code' (see the migration guide)");
+            }
         }
         String on = optionalString(block, "on");
         if (!on.isEmpty() && !MacroConfig.Keypress.EDGES.contains(on)) {
             throw new ManifestParseException(source + ": config.keypress.on must be one of "
                     + MacroConfig.Keypress.EDGES + " but was '" + on + "'");
         }
-        String defaultKey = optionalString(block, "default-key");
+        String keyCode = optionalString(block, "key_code");
         List<String> modifiers = stringList(block.get("modifiers"), source, "config.keypress.modifiers", true);
         for (String modifier : modifiers) {
             if (!MacroConfig.Keypress.MODIFIERS.contains(modifier)) {
@@ -197,7 +199,7 @@ public record MacroManifest(String name, String version, String author,
                         + MacroConfig.Keypress.MODIFIERS + " but contained '" + modifier + "'");
             }
         }
-        return new MacroConfig.Keypress(on, defaultKey, modifiers);
+        return new MacroConfig.Keypress(on, keyCode, modifiers);
     }
 
     private static MacroConfig.Event parseEvent(Object value, String source) {

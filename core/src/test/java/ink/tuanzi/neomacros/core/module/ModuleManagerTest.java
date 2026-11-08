@@ -351,7 +351,7 @@ class ModuleManagerTest {
     @Test
     void triggerDispatchesToStartupExport(@TempDir Path root) throws Exception {
         writeScript(root, "keypress", "ping",
-                MANIFEST.formatted("ping") + "config:\n  keypress:\n    default-key: key.keyboard.j\n",
+                MANIFEST.formatted("ping") + "config:\n  keypress:\n    key_code: key.keyboard.j\n",
                 "// stub");
         var engine = new StubEngine();
 

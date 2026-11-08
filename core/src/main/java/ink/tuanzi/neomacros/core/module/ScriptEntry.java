@@ -30,11 +30,11 @@ public record ScriptEntry(ScriptCategory category, Path folder, MacroManifest ma
     /**
      * The effective key binding: the central keymapping table wins (including
      * an empty-string entry, which is a persisted unbind), otherwise the
-     * manifest's suggested {@code config.keypress.default-key}.
+     * manifest's suggested {@code config.keypress.key_code}.
      */
     public String effectiveKey(java.util.Map<String, String> overrides) {
         return overrides.getOrDefault(manifest.name(),
                 manifest.configOrEmpty().keypress() == null
-                        ? "" : manifest.configOrEmpty().keypress().defaultKeyOrEmpty());
+                        ? "" : manifest.configOrEmpty().keypress().keyCodeOrEmpty());
     }
 }

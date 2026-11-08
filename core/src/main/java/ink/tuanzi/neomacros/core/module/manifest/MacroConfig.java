@@ -20,7 +20,7 @@ public record MacroConfig(Keypress keypress, Event event, Service service) {
     public static final MacroConfig EMPTY = new MacroConfig(null, null, null);
 
     /** keypress trigger definition. */
-    public record Keypress(String on, String defaultKey, List<String> modifiers) {
+    public record Keypress(String on, String keyCode, List<String> modifiers) {
 
         /** Recognized trigger edges in declaration order. */
         public static final List<String> EDGES = List.of("keydown", "keyup", "keypress");
@@ -34,8 +34,8 @@ public record MacroConfig(Keypress keypress, Event event, Service service) {
         }
 
         /** The suggested initial binding; empty when undeclared. */
-        public String defaultKeyOrEmpty() {
-            return defaultKey == null ? "" : defaultKey;
+        public String keyCodeOrEmpty() {
+            return keyCode == null ? "" : keyCode;
         }
 
         /** The modifier keys that must be held for the trigger to fire; never null. */
