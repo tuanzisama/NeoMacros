@@ -23,6 +23,7 @@
     ,"ChatScreenAccessor"
     ,"BookEditScreenAccessor"
     ,"AbstractSignEditScreenAccessor"
+    ,"ClientAdvancementsAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -801,7 +801,8 @@ public final class EntityApi {
             return value instanceof Boolean b ? b : null;
         }
 
-        /** Whether the entity is hostile (implements the Enemy marker). */
+        /** Whether the entity is hostile (implements the Enemy marker).
+         * @zh 实体是否为敌对（实现 Enemy 标记接口）。 */
         @ApiSince("0.2.0")
         @ApiMC("*")
         @ApiLoader("*")

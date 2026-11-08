@@ -11,5 +11,6 @@ import java.util.List;
 public record Meta(
         @NmDesc("Supported API major versions") List<Integer> api,
         @NmDesc("The mod version") String modVersion,
-        @NmDesc("The running Minecraft version") String gameVersion) {
+        @NmDesc("The running Minecraft version") String gameVersion,
+        @NmDesc("The build channel: release, dev, canary or local") String channel) {
 }

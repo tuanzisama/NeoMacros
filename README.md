@@ -47,6 +47,12 @@ repository; API-source pushes here trigger its regeneration through the
 ./gradlew :product:build  # active node only
 ```
 
+Local builds land on the `local` channel
+(`neomacros-26.3-fabric-0.1.0-local.jar`); CI stamps dev/canary/release
+channels with the same env contract. Channel naming, triggers and the
+update-check data flow are documented in
+[docs/releasing.md](docs/releasing.md).
+
 ## License
 
 MIT

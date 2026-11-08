@@ -66,6 +66,10 @@ public final class CoreOptions implements ConfigSection {
     @Option(description = "MCP agent server settings")
     public McpSettings mcp = new McpSettings();
 
+    /** The nested {@code update} subsection (update checker settings). */
+    @Option(description = "Update checker settings")
+    public UpdateSettings update = new UpdateSettings();
+
     @Override
     public String key() {
         return "core";

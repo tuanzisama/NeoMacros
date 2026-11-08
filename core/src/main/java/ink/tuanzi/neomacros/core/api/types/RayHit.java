@@ -48,6 +48,18 @@ public final class RayHit implements ScriptHandle {
                 .orElse(null);
     }
 
+    /** The hit block face name ({@code up}, {@code north}, ...), or undefined on entity hits / misses.
+     * @zh 命中面名（{@code up}、{@code north} 等）；命中实体或未命中时为 undefined。 */
+    @ApiSince("0.3.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getFace() {
+        return snapshot()
+                .map(hit -> hit.block() != null ? hit.block().face() : null)
+                .orElse(null);
+    }
+
     /** The hit entity handle, or undefined on block hits / misses.
      * @zh 命中实体句柄；命中方块或未命中时为 undefined。 */
     @ApiSince("0.1.0")

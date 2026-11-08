@@ -158,5 +158,15 @@ public final class LoadedModule implements AutoCloseable {
         subscriptions.forEach(Subscription::unsubscribe);
         subscriptions.clear();
         context.close();
+        // Release the engine session too: without this the polyglot context
+        // (and its heap) would stay reachable in the engine until shutdown.
+        ScriptEngine.EngineSession engineSession = session;
+        if (engineSession != null) {
+            try {
+                engineSession.close();
+            } catch (Throwable ignored) {
+                // unload must not fail because the engine session is already gone
+            }
+        }
     }
 }

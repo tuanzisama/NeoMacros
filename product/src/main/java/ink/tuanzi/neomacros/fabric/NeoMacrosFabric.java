@@ -81,10 +81,23 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     private static ink.tuanzi.neomacros.fabric.web.WebService webService;
     private static ink.tuanzi.neomacros.fabric.mcp.McpService mcpService;
     private static ink.tuanzi.neomacros.fabric.web.WebRuntime webRuntime;
+    private static ink.tuanzi.neomacros.fabric.update.UpdateChecker updateChecker;
+
+    /**
+     * The version string this install actually runs (channel-suffixed, e.g.
+     * {@code 0.1.0-dev.123+abc1234}), resolved from the fabric.mod.json
+     * metadata the build stamps; {@link NeoMacros#VERSION} stays the plain
+     * baseline fallback.
+     */
+    private static String runtimeVersion = NeoMacros.VERSION;
 
     @Override
     public void onInitializeClient() {
         LOGGER.info("NeoMacros bootstrap");
+        runtimeVersion = FabricLoader.getInstance()
+                .getModContainer(NeoMacros.MOD_ID)
+                .map(container -> container.getMetadata().getVersion().getFriendlyString())
+                .orElse(NeoMacros.VERSION);
         configDir = FabricLoader.getInstance().getConfigDir().resolve(NeoMacros.CONFIG_DIR_NAME);
         // Carry a pre-rename options.json over so player settings survive.
         Path configFile = configDir.resolve("config.json");
@@ -437,7 +450,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         var panelEvents = new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents();
         webRuntime = new ink.tuanzi.neomacros.fabric.web.WebRuntime(
                 modules, options, configManager, macrosDir, runtime.mainThread(), panelEvents,
-                NeoMacros.VERSION, mcVersion(), tasks);
+                runtimeVersion, mcVersion(), tasks);
         modules.onLoadError(webRuntime::moduleLoadError);
         modules.onLoad(webRuntime::moduleLoaded);
         modules.onUnload(webRuntime::moduleUnloaded);
@@ -454,19 +467,28 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         webService = new ink.tuanzi.neomacros.fabric.web.WebService(
                 webRuntime, webRuntime, devices, pairingStore, pairingRequests,
                 () -> options.web.listen, () -> options.web.port,
-                () -> options.web.panelUrl, () -> options.web.allowedOrigins, panelEvents);
+                () -> options.web.panelUrl, () -> options.web.allowedOrigins, panelEvents,
+                webRuntime.memoryCenter());
         // Tokenless pairing prompts: each new request renders one chat line
         // with clickable approve/trust/deny commands (the trust-prompt idiom).
         webService.onPairRequest(request ->
                 sendPairRequestCard(request));
         webRuntime.serverInfo(() -> new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(
                 webService.port(), webService.status().uptimeMs(), options.web.listen));
+        // Update checker: compares the running build's channel against the
+        // remote manifest (self-hosted, GitHub fallback). Notices fan out to
+        // the in-game card and the panel SSE stream; dedupe and ignores
+        // persist in the update config section.
+        updateChecker = new ink.tuanzi.neomacros.fabric.update.UpdateChecker(
+                options.update, runtimeVersion,
+                notice -> presentUpdateNotice(notice, panelEvents));
+        updateChecker.start();
         // The MCP agent server reads the same rings' data through its own
         // instances and shares the backend/command registry; a generated
         // token lands in the config with everything else.
         mcpService = new ink.tuanzi.neomacros.fabric.mcp.McpService(
                 webRuntime, webRuntime, adapter, commandPort,
-                () -> options.mcp, () -> NeoMacros.VERSION,
+                () -> options.mcp, () -> runtimeVersion,
                 token -> {
                     options.mcp.token = token;
                     configManager.save();
@@ -491,6 +513,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         adapter.lifecycle().onGameStart(() ->
                 LOGGER.info("NeoMacros: {} scripts loaded", modules.loaded().size()));
         adapter.lifecycle().onGameQuit(() -> {
+            updateChecker.stop();
             mcpService.stop();
             webService.stop();
             webService.saveDevices();
@@ -586,7 +609,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                 click.button(), click.shift())));
 
         ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
-        registerCommands(trustManager, errorPresenter, pendingTrusts);
+        registerCommands(trustManager, errorPresenter, pendingTrusts, updateChecker, adapter.chat());
         preRegisterScriptBindings();
         // Raw keyboard source: the cancellable path fans the edge out to the
         // key:press event (sync subscribers may cancel, which also swallows
@@ -871,7 +894,9 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     /** Registers the root {@code /neomacros} command, its subcommands and the {@code /nm} alias. */
     private static void registerCommands(TrustManager trustManager,
             ink.tuanzi.neomacros.core.runtime.ErrorPresenter errorPresenter,
-            java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts) {
+            java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts,
+            ink.tuanzi.neomacros.fabric.update.UpdateChecker updateChecker,
+            ink.tuanzi.neomacros.port.ChatPort chat) {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             var root = dispatcher.register(literal("neomacros")
                     .executes(ctx -> {
@@ -880,13 +905,14 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                     })
                     .then(literal("status").executes(ctx -> {
                         feedback(ctx, "neomacros.cmd.status",
-                                Msg.name(NeoMacros.VERSION),
+                                Msg.name(runtimeVersion),
                                 Msg.num(runtime.eventCatalog().all().size()),
                                 Msg.num(modules.loaded().size()),
                                 Msg.num(modules.errors().size()),
                                 Msg.num(runtime.tickClock().currentTick()));
                         return Command.SINGLE_SUCCESS;
                     }))
+                    .then(UpdateCommands.subtree(updateChecker, chat))
                     .then(literal("list")
                             .executes(ctx -> {
                                 // The digest needs a fresh discovery (a walk of
@@ -1078,6 +1104,50 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             case "::1" -> "[::1]";
             default -> "127.0.0.1";
         };
+    }
+
+    /**
+     * Fan-out for an update notice: the editor stream hears every finding,
+     * while the in-game toast plus chat card fires once per
+     * {@code channel@version} and never for one the player ignored.
+     * Arrives on the checker thread.
+     */
+    private static void presentUpdateNotice(
+            ink.tuanzi.neomacros.fabric.update.UpdateNotice notice,
+            ink.tuanzi.neomacros.fabric.web.sse.PanelEvents panelEvents) {
+        String key = notice.key();
+        if (key.equals(options.update.ignoredVersion)) {
+            return;
+        }
+        if (options.update.notifyEditor) {
+            panelEvents.broadcast("update:available", new com.google.gson.Gson().toJson(
+                    java.util.Map.of(
+                            "channel", notice.channel(),
+                            "current", notice.currentVersion(),
+                            "latest", notice.latestVersion(),
+                            "notes", notice.notes() == null ? "" : notice.notes(),
+                            "date", notice.date() == null ? "" : notice.date())));
+        }
+        if (!options.update.notifyInGame || key.equals(options.update.lastNotified)) {
+            return;
+        }
+        options.update.lastNotified = key;
+        configManager.save();
+        MainThread.run(() -> {
+            adapter.chat().toast(
+                    UiText.tr("neomacros.chat.update.toast_title"),
+                    UiText.tr("neomacros.chat.update.toast_body",
+                            Msg.name(notice.latestVersion()), Msg.dim(notice.channel())));
+            adapter.chat().log(Msg.line(UiText.tr("neomacros.chat.update.available",
+                    Msg.name(notice.latestVersion()), Msg.dim(notice.channel()))));
+            if (notice.notes() != null && !notice.notes().isBlank()) {
+                adapter.chat().logLink(
+                        Msg.line(UiText.tr("neomacros.chat.update.notes")), notice.notes());
+            }
+            adapter.chat().logClickable(
+                    Msg.line(Msg.dim(UiText.tr("neomacros.chat.update.ignore"))),
+                    "/neomacros update ignore");
+        });
     }
 
     /**

@@ -83,17 +83,34 @@ public interface PlayerPort {
     java.util.concurrent.CompletableFuture<Void> attack(EntitySnapshot target);
 
     /**
-     * Uses (right-clicks) the entity identified by the snapshot's UUID.
+     * Uses (right-clicks) the entity identified by the snapshot's UUID with
+     * the named hand ({@code main} or {@code off}).
      */
-    java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target);
+    java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target, String hand);
 
     /**
-     * Uses (right-clicks) the block identified by the interaction hit.
+     * Uses (right-clicks) the block identified by the interaction hit with
+     * the named hand ({@code main} or {@code off}); the hit carries the face.
      */
-    java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit);
+    java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit, String hand);
 
-    /** Swings the main hand. */
-    java.util.concurrent.CompletableFuture<Void> swingHand();
+    /**
+     * Uses (right-clicks) the held item in the air with the named hand
+     * ({@code main} or {@code off}).
+     */
+    java.util.concurrent.CompletableFuture<Void> useItem(String hand);
+
+    /**
+     * Starts breaking the block identified by the interaction hit: swings
+     * and begins the destroy path (instant-break blocks complete at once).
+     */
+    java.util.concurrent.CompletableFuture<Void> attackBlock(BlockInteraction hit);
+
+    /** Releases the ongoing block breaking. */
+    java.util.concurrent.CompletableFuture<Void> stopBreaking();
+
+    /** Swings the named hand ({@code main} or {@code off}). */
+    java.util.concurrent.CompletableFuture<Void> swingHand(String hand);
 
     /** Drops the held item stack (all = the whole stack). */
     java.util.concurrent.CompletableFuture<Void> dropHeld(boolean all);
@@ -131,6 +148,31 @@ public interface PlayerPort {
 
     /** Returns the entity UUID the local player rides, or empty on foot. */
     default java.util.Optional<java.util.UUID> vehicleUuid() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the current crosshair pick: the first block or entity within
+     * the interaction ranges, or empty on a miss or without a world.
+     */
+    default java.util.Optional<ink.tuanzi.neomacros.port.model.RayHit> target() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the display data of every client-known advancement with a
+     * visible display entry; empty without a server connection.
+     */
+    default java.util.List<ink.tuanzi.neomacros.port.model.AdvancementData> advancements() {
+        return java.util.List.of();
+    }
+
+    /**
+     * Returns the client-known progress of one advancement id, or empty when
+     * the id is unknown or no server is connected.
+     */
+    default java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressData>
+            advancementProgress(String id) {
         return java.util.Optional.empty();
     }
 

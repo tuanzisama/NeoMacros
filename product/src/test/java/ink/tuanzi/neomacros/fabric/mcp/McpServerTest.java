@@ -338,7 +338,7 @@ class McpServerTest {
 
         @Override
         public Meta meta() {
-            return new Meta(List.of(1), "9.9.9-test", "26.3-stub");
+            return new Meta(List.of(1), "9.9.9-test", "26.3-stub", "dev");
         }
 
         @Override

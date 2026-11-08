@@ -224,6 +224,60 @@ public final class NeoMacrosClothConfig {
                         })
                         .build());
 
+        builder.getOrCreateCategory(Component.translatable("neomacros.config.category.update"))
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.update.enabled"),
+                                NeoMacrosFabric.configOptions().update.enabled)
+                        .setDefaultValue(true)
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().update.enabled = value;
+                        })
+                        .build())
+                .addEntry(entries.startIntSlider(
+                                Component.translatable("neomacros.config.update.interval"),
+                                NeoMacrosFabric.configOptions().update.intervalHours, 1, 168)
+                        .setDefaultValue(12)
+                        .setTooltip(Component.translatable(
+                                "neomacros.config.update.interval_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().update.intervalHours = value;
+                        })
+                        .build())
+                .addEntry(entries.startStrField(
+                                Component.translatable("neomacros.config.update.channel"),
+                                NeoMacrosFabric.configOptions().update.channel)
+                        .setDefaultValue("auto")
+                        .setErrorSupplier(value -> java.util.List
+                                .of("auto", "release", "dev", "canary")
+                                .contains(value == null ? "" : value.strip().toLowerCase(
+                                        java.util.Locale.ROOT))
+                                ? java.util.Optional.<Component>empty()
+                                : java.util.Optional.of(Component.translatable(
+                                        "neomacros.config.update.channel_invalid")))
+                        .setTooltip(Component.translatable(
+                                "neomacros.config.update.channel_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().update.channel =
+                                    value.strip().toLowerCase(java.util.Locale.ROOT);
+                        })
+                        .build())
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.update.notify_in_game"),
+                                NeoMacrosFabric.configOptions().update.notifyInGame)
+                        .setDefaultValue(true)
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().update.notifyInGame = value;
+                        })
+                        .build())
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.update.notify_editor"),
+                                NeoMacrosFabric.configOptions().update.notifyEditor)
+                        .setDefaultValue(true)
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().update.notifyEditor = value;
+                        })
+                        .build());
+
         builder.setSavingRunnable(() -> {
             NeoMacrosFabric.saveConfig();
             NeoMacrosFabric.restartWebIfRunning();

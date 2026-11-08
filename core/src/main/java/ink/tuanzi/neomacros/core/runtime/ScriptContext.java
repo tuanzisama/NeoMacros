@@ -41,6 +41,11 @@ public final class ScriptContext implements AutoCloseable {
         return loop;
     }
 
+    /** The loop thread id ({@link ContextEventLoop#threadId()}); 0 before the thread exists. */
+    public long threadId() {
+        return loop.threadId();
+    }
+
     /** Async primitives (sleep/ticks/nextTick/waitFor/runOnMain) bound to this context. */
     public AsyncPrimitives async() {
         return async;

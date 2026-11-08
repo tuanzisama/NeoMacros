@@ -87,6 +87,17 @@ public final class ContextEventLoop implements Executor, AutoCloseable {
         return worker == null ? "" : worker.getName();
     }
 
+    /**
+     * The loop thread id; 0 before the thread exists. All guest (GraalJS)
+     * execution of the owning context happens on this thread, so its
+     * per-thread allocation counter is the per-script memory signal for the
+     * web memory sampler.
+     */
+    public long threadId() {
+        Thread current = worker;
+        return current == null ? 0 : current.getId();
+    }
+
     /** Stops accepting tasks, waits for the loop thread to exit; pending tasks are dropped. */
     @Override
     public void close() {

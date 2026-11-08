@@ -66,6 +66,7 @@ class WebApiIntegrationTest {
 
     private TestKeys.Device device;
     private WebService service;
+    private ink.tuanzi.neomacros.fabric.web.sse.PanelEvents panelEvents;
 
     /** A stub backend recording the actions the panel requests. */
     static final class StubBackend implements PanelBackend {
@@ -114,7 +115,7 @@ class WebApiIntegrationTest {
 
         @Override
         public Meta meta() {
-            return new Meta(List.of(1), "0.1.0-test", "26.3");
+            return new Meta(List.of(1), "0.1.0-test", "26.3", "dev");
         }
 
         @Override
@@ -296,6 +297,7 @@ class WebApiIntegrationTest {
             java.util.List<String> extraOrigins) throws IOException {
         StubBackend backend = new StubBackend();
         var events = new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents();
+        panelEvents = events;
         // The stub mirrors the real WebRuntime wiring: task registry changes
         // broadcast to the panel as task:state events.
         backend.tasks.onTaskEvent((event, snapshot) -> events.broadcast("task:state",
@@ -308,7 +310,7 @@ class WebApiIntegrationTest {
         service = new WebService(backend, runner, registry, newPairingStore(),
                 new ink.tuanzi.neomacros.fabric.web.pair.PairingRequests(System::currentTimeMillis),
                 () -> "loopback", () -> 0, () -> "http://localhost:5173",
-                () -> extraOrigins, events);
+                () -> extraOrigins, events, null);
         service.start();
         return backend;
     }
@@ -384,6 +386,7 @@ class WebApiIntegrationTest {
         assertEquals(1, meta.getAsJsonArray("api").get(0).getAsInt());
         assertEquals("0.1.0-test", meta.get("modVersion").getAsString());
         assertEquals("26.3", meta.get("gameVersion").getAsString());
+        assertEquals("dev", meta.get("channel").getAsString());
     }
 
     @Test
@@ -965,6 +968,35 @@ class WebApiIntegrationTest {
         assertEquals(401, noTicket.statusCode());
     }
 
+    @Test
+    void updateAvailableRidesThePanelEventsHandleThroughSse() throws Exception {
+        start(DIRECT);
+        HttpResponse<String> ticketResponse = signed("POST", "/api/v1/events/ticket",
+                new byte[0]);
+        JsonObject ticket = JsonParser.parseString(ticketResponse.body()).getAsJsonObject();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl()
+                + "/api/v1/events?ticket=" + ticket.get("ticket").getAsString()))
+                .timeout(Duration.ofSeconds(10))
+                .GET().build();
+        HttpResponse<InputStream> stream = client.send(request,
+                HttpResponse.BodyHandlers.ofInputStream());
+        InputStream input = stream.body();
+        readUntil(input, "\n\n");
+
+        // The production wiring broadcasts update notices through the
+        // service-lifetime PanelEvents handle, not the hub directly.
+        CompletableFuture<Void> broadcast = CompletableFuture.runAsync(() ->
+                panelEvents.broadcast("update:available",
+                        "{\"channel\":\"dev\",\"current\":\"0.1.0-dev.9+aaa1111\","
+                                + "\"latest\":\"0.1.0-dev.10+bbb2222\","
+                                + "\"notes\":\"https://example.com/releases/tag/dev\",\"date\":\"\"}"));
+        broadcast.get(5, TimeUnit.SECONDS);
+        String frame = readUntil(input, "\n\n");
+        assertTrue(frame.contains("event: update:available"), frame);
+        assertTrue(frame.contains("\"latest\":\"0.1.0-dev.10+bbb2222\""), frame);
+        input.close();
+    }
+
     /** Reads from the stream until the delimiter passes; returns the chunk. */
     private static String readUntil(InputStream input, String delimiter) throws IOException {
         var buffer = new StringBuilder();
@@ -1024,7 +1056,7 @@ class WebApiIntegrationTest {
         service = new WebService(backend, DIRECT, registry, store,
                 new ink.tuanzi.neomacros.fabric.web.pair.PairingRequests(System::currentTimeMillis),
                 () -> "loopback", () -> 0, () -> "http://localhost:5173",
-                () -> java.util.List.of(), new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents());
+                () -> java.util.List.of(), new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents(), null);
         service.start();
         String token = service.newPairingToken();
         service.stop();
@@ -1035,7 +1067,7 @@ class WebApiIntegrationTest {
         service = new WebService(backend, DIRECT, registry, reloaded,
                 new ink.tuanzi.neomacros.fabric.web.pair.PairingRequests(System::currentTimeMillis),
                 () -> "loopback", () -> 0, () -> "http://localhost:5173",
-                () -> java.util.List.of(), new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents());
+                () -> java.util.List.of(), new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents(), null);
         service.start();
         TestKeys.Device browser = TestKeys.ed25519("dev_browser_restart");
         byte[] body = Jsons.stringify(Map.of(
@@ -1493,7 +1525,7 @@ class WebApiIntegrationTest {
         service = new WebService(backend, DIRECT, registry, newPairingStore(),
                 new ink.tuanzi.neomacros.fabric.web.pair.PairingRequests(System::currentTimeMillis),
                 () -> "127.0.0.1", () -> 0, () -> "http://localhost:5173",
-                () -> java.util.List.of("*"), new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents());
+                () -> java.util.List.of("*"), new ink.tuanzi.neomacros.fabric.web.sse.PanelEvents(), null);
         service.start();
         HttpResponse<String> response = send("GET", "/api/v1/meta", new byte[0], null);
         assertEquals(200, response.statusCode());

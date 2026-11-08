@@ -27,6 +27,13 @@ jobs:
   compile:
     name: compile (all active nodes + version-independent modules)
     runs-on: ubuntu-latest
+    env:
+      # Channel-stamped versioning (docs/releasing.md): main pushes land in
+      # the dev channel so the archived jars are installable dev builds;
+      # PR runs are stamped local and never published.
+      RELEASE_CHANNEL: ${{ github.event_name == 'push' && 'dev' || 'local' }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      GIT_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v5
 
@@ -121,5 +128,59 @@ jobs:
                   print(f"::error title={cls}.{name}::{msg[:180]}")
                   break  # first failing case per class is enough
           if not found:
-              print("::error::unit job failed without test reports under */build/test-results")
+            print("::error::unit job failed without test reports under */build/test-results")
           EOF
+
+  publish-dev:
+    name: publish dev prerelease (rolling tag)
+    runs-on: ubuntu-latest
+    # Every green main push rolls the "dev" prerelease: delete + recreate so
+    # stale assets (older MC nodes) never linger, and the tag URL
+    # https://github.com/<repo>/releases/tags/dev stays a stable download
+    # entry for update checks.
+    needs: [compile, unit]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: NeoMacros-Artifacts
+          path: downloaded
+
+      # The artifact keeps the versions/<mc>/build/libs tree; flatten the
+      # mod jars into one dir for checksums and upload.
+      - name: Collect mod jars and checksums
+        run: |
+          mkdir dist
+          find downloaded -name '*.jar' -exec cp {} dist/ \;
+          (cd dist && sha256sum *.jar > SHA256SUMS)
+          ls -1 dist
+
+      - name: Publish rolling dev prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dev --cleanup-tag -y --repo "$GITHUB_REPOSITORY" || true
+          gh release create dev \
+            --prerelease \
+            --title "dev builds" \
+            --notes "Rolling dev builds from \`main\` (build ${BUILD_NUMBER}, commit ${GITHUB_SHA:0:7}). Rebuilt on every push; always the newest passing state. See docs/releasing.md for channel semantics." \
+            --repo "$GITHUB_REPOSITORY" \
+            dist/*
+
+      - name: Dispatch update-manifest to NeoMacros-Docs
+        env:
+          DOCS_DISPATCH_TOKEN: ${{ secrets.DOCS_DISPATCH_TOKEN }}
+        if: env.DOCS_DISPATCH_TOKEN != ''
+        run: |
+          status=$(curl -sS -o /tmp/dispatch-response.txt -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $DOCS_DISPATCH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/tuanzisama/NeoMacros-Docs/dispatches \
+            -d '{"event_type":"update-manifest"}') || true
+          echo "dispatch HTTP $status"
+          cat /tmp/dispatch-response.txt
+          [ "$status" = "204" ] || exit 1

@@ -83,6 +83,7 @@ public final class WebRuntime implements PanelBackend, GameRunner {
     private final ink.tuanzi.neomacros.core.task.TaskRegistry tasks;
     private final Map<String, LocatedError> lastErrors = new ConcurrentHashMap<>();
     private volatile Supplier<ServerInfo> serverInfo = () -> new ServerInfo(0, 0, "loopback");
+    private final ink.tuanzi.neomacros.fabric.web.memory.MemoryCenter memoryCenter;
     /** Folders whose watch-scan changes are panel-caused (echo suppression). */
     private final Set<Path> suppressDiskEvents = new HashSet<>();
 
@@ -100,6 +101,8 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         this.modVersion = modVersion;
         this.gameVersion = gameVersion;
         this.tasks = tasks;
+        this.memoryCenter = new ink.tuanzi.neomacros.fabric.web.memory.MemoryCenter(
+                modules, tasks, options);
         // Task feed: every registry change broadcasts to the panel (the
         // events module is no-op while the web service is stopped).
         if (tasks != null) {
@@ -118,6 +121,11 @@ public final class WebRuntime implements PanelBackend, GameRunner {
     /** Wires the server-status source once the service exists. */
     public void serverInfo(Supplier<ServerInfo> serverInfo) {
         this.serverInfo = serverInfo;
+    }
+
+    /** The memory sampler the web service starts/stops with itself. */
+    public ink.tuanzi.neomacros.fabric.web.memory.MemoryCenter memoryCenter() {
+        return memoryCenter;
     }
 
     /** Tracks one module load failure (the panel's error field). */
@@ -211,7 +219,15 @@ public final class WebRuntime implements PanelBackend, GameRunner {
 
     @Override
     public Meta meta() {
-        return new Meta(List.of(1), modVersion, gameVersion);
+        return new Meta(List.of(1), modVersion, gameVersion, channelName());
+    }
+
+    /** The build channel (release|dev|canary|local), derived from the stamped version. */
+    private String channelName() {
+        ink.tuanzi.neomacros.core.update.ChannelVersions.Version version =
+                ink.tuanzi.neomacros.core.update.ChannelVersions.parse(modVersion);
+        return version == null ? "unknown"
+                : version.channel().name().toLowerCase(java.util.Locale.ROOT);
     }
 
     @Override

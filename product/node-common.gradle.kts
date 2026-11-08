@@ -29,6 +29,30 @@ val loaderMin = nodeProps.getProperty("fabric_loader_min") ?: prop("fabric_loade
 
 val modId = providers.gradleProperty("mod_id").get()
 
+// Channel-aware effective version (see docs/releasing.md): CI stamps
+// RELEASE_CHANNEL=release|dev|canary plus BUILD_NUMBER/GIT_SHA; a local
+// build carries no env and lands on -local so it can never be mistaken
+// for a published channel. The effective version flows both into the jar
+// file name (Gradle appends "-$version" to archivesName) and the
+// fabric.mod.json "version" expansion below, so the running mod can
+// resolve its own channel for update checks.
+val baseVersion = providers.gradleProperty("version").get()
+val releaseChannel = providers.environmentVariable("RELEASE_CHANNEL").orElse("local").get()
+val buildNumber = providers.environmentVariable("BUILD_NUMBER").orElse("").get()
+val gitSha = providers.environmentVariable("GIT_SHA").orElse("").get()
+val modVersion = when (releaseChannel) {
+    "release" -> baseVersion
+    "local" -> "$baseVersion-local"
+    "dev", "canary" -> {
+        require(buildNumber.isNotEmpty() && gitSha.isNotEmpty()) {
+            "RELEASE_CHANNEL=$releaseChannel requires BUILD_NUMBER and GIT_SHA env"
+        }
+        "$baseVersion-$releaseChannel.${buildNumber.toLong()}+${gitSha.take(7)}"
+    }
+    else -> error("Unknown RELEASE_CHANNEL '$releaseChannel' (expected release|dev|canary)")
+}
+version = modVersion
+
 configure<org.gradle.api.plugins.BasePluginExtension> {
     // Gradle appends "-$version", producing e.g. neomacros-26.3-fabric-0.1.0.jar
     archivesName.set("$modId-$mc-fabric")
@@ -79,7 +103,7 @@ for (g in listOf(
 
 tasks.withType<ProcessResources>().configureEach {
     val expandProps = mapOf(
-        "version" to providers.gradleProperty("version").get(),
+        "version" to modVersion,
         "mod_id" to modId,
         "mc_range" to prop("fabric_minecraft_version_range"),
         "loader_min" to loaderMin,

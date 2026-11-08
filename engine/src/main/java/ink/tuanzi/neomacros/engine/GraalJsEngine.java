@@ -958,6 +958,9 @@ public final class GraalJsEngine implements ScriptEngine {
 
         @Override
         public void close() {
+            // Leave the tracked set first so sampling never touches a
+            // closing session; removal is idempotent with engine shutdown.
+            sessions.remove(this);
             context.close();
         }
 

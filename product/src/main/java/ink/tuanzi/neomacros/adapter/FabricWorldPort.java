@@ -117,8 +117,9 @@ public final class FabricWorldPort implements WorldPort {
             }
             BlockPos blockPos = blockHit.getBlockPos();
             BlockState state = level.getBlockState(blockPos);
-            var data = new BlockData(blockId(state), toPos3d(blockPos));
-            return Optional.of(new RayHit(data, null, toPos3dFrom(blockHit.getLocation()), blockDist));
+            var block = new BlockInteraction(blockId(state), toPos3d(blockPos),
+                    blockHit.getDirection().getName());
+            return Optional.of(new RayHit(block, null, toPos3dFrom(blockHit.getLocation()), blockDist));
         });
     }
 

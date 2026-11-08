@@ -42,4 +42,16 @@ public final class WebSettings {
      */
     @Option(description = "Additional CORS origins beyond the panel site; * allows any origin")
     public List<String> allowedOrigins = List.of("*");
+
+    /**
+     * Memory sampling gate for the panel's memory surfaces: {@code auto}
+     * samples while a panel is connected (default), {@code always} samples
+     * regardless, {@code off} disables sampling entirely.
+     */
+    @Option(description = "Memory sampling: auto (panel connected), always, off")
+    public String memorySampling = "auto";
+
+    /** Memory sampling interval in milliseconds (JVM heap + per-script thread counters). */
+    @Option(description = "Memory sampling interval in milliseconds", min = 250, max = 60_000)
+    public int memorySampleIntervalMs = 1000;
 }

@@ -46,6 +46,11 @@ claude mcp add --transport http neomacros http://127.0.0.1:30637/mcp \
 ./gradlew :product:build  # 仅当前活跃节点
 ```
 
+本地构建落在 `local` 渠道（`neomacros-26.3-fabric-0.1.0-local.jar`）；
+CI 通过同一套 env 契约打上 dev/canary/release 渠道标记。渠道命名、
+触发规则与更新检查数据流见 [docs/releasing.md](docs/releasing.md)
+（英文）。
+
 ## 许可
 
 MIT

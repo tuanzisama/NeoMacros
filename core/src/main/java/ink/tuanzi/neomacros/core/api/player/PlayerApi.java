@@ -14,10 +14,12 @@ import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
+import ink.tuanzi.neomacros.port.model.AdvancementData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
 import ink.tuanzi.neomacros.port.model.Pos3d;
+import ink.tuanzi.neomacros.port.model.RayHit;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -150,6 +152,29 @@ public final class PlayerApi {
     /** The latest local player snapshot, or empty when not in a world. */
     static Optional<PlayerSnapshot> current() {
         return adapter().self();
+    }
+
+    /** Normalizes the script hand name onto the port contract ({@code main}/{@code off}). */
+    static String normalizedHand(String hand) {
+        if (hand == null || "main".equals(hand)) {
+            return "main";
+        }
+        if ("off".equals(hand)) {
+            return "off";
+        }
+        throw new IllegalArgumentException("hand must be 'main' or 'off': " + hand);
+    }
+
+    /** Normalizes the script face name, defaulting to up; unknown faces throw. */
+    static String normalizedFace(String face) {
+        if (face == null || "up".equals(face)) {
+            return "up";
+        }
+        if ("down".equals(face) || "north".equals(face) || "south".equals(face)
+                || "east".equals(face) || "west".equals(face)) {
+            return face;
+        }
+        throw new IllegalArgumentException("unknown face: " + face);
     }
 
     /** Resolves the handle class for one open screen kind. */
@@ -547,22 +572,25 @@ public final class PlayerApi {
         }
 
         /**
-         * The client-side statistics as {@code statTypeId:valueId -> value}
-         * entries; only non-zero values appear. {@code null} without a world.
+         * The client-side statistics handle: typed per-category queries over
+         * the live stat counters. {@code null} without a world.
          *
-         * @zh 客户端统计 {@code 类型id:条目id -> 数值}；仅含非零值；无世界时为 null。
+         * @zh 客户端统计句柄：活统计计数器上的分类查询。无世界时为 null。
          */
-        @ApiSince("0.2.0")
+        @ApiSince("0.3.0")
         @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
-        public Map<String, Integer> getStatistics() {
-            Map<String, Integer> stats = adapter().statistics();
-            return stats.isEmpty() ? null : stats;
+        public Statistics getStatistics() {
+            return current().map(s -> new Statistics()).orElse(null);
         }
 
-        /** The block interaction range in blocks.
-         * @zh 方块交互距离（格）。 */
+        /**
+         * The block interaction range in blocks (survival base 4.5; the
+         * creative modifier raises it to 5.0; attribute modifiers apply).
+         *
+         * @zh 方块交互距离（格）：生存基线 4.5；创造修饰提升到 5.0；属性修饰符生效。
+         */
         @ApiSince("0.2.0")
         @ApiLoader("*")
         @ApiMC("*")
@@ -571,14 +599,47 @@ public final class PlayerApi {
             return adapter().blockInteractionRange();
         }
 
-        /** The entity interaction range in blocks.
-         * @zh 实体交互距离（格）。 */
+        /**
+         * The entity interaction range in blocks (survival base 3.0; the
+         * creative modifier raises it to 3.5; attribute modifiers apply).
+         *
+         * @zh 实体交互距离（格）：生存基线 3.0；创造修饰提升到 3.5；属性修饰符生效。
+         */
         @ApiSince("0.2.0")
         @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
         public double getEntityInteractionRange() {
             return adapter().entityInteractionRange();
+        }
+
+        /**
+         * The crosshair pick: the first block or entity inside the
+         * interaction ranges, re-read on every access. {@code null} without
+         * a world.
+         *
+         * @zh 准星选取：交互距离内的第一个方块或实体，每次访问实时回读。无世界时为 null。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Target getTarget() {
+            return current().map(s -> new Target()).orElse(null);
+        }
+
+        /**
+         * The client-known advancements: tree queries plus per-advancement
+         * progress. {@code null} without a server connection.
+         *
+         * @zh 客户端已知的进度：树查询加逐条进度。无服务器连接时为 null。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Advancements getAdvancements() {
+            return adapter().advancements().isEmpty() ? null : new Advancements();
         }
 
         /** Whether the local player is currently breaking a block.
@@ -679,32 +740,89 @@ public final class PlayerApi {
             return adapter().attack(targetData);
         }
 
-        /** Uses (right-clicks) the entity behind the target handle.
-         * @zh 与目标句柄背后的实体交互（右键）。 */
+        /**
+         * Uses (right-clicks) the entity behind the target handle with the
+         * named hand ({@code main} or {@code off}; default main).
+         *
+         * @zh 与目标句柄背后的实体交互（右键），可用手为 {@code main}/{@code off}（默认 main）。
+         */
         @ApiSince("0.1.0")
         @ApiLoader("*")
         @ApiMC("*")
         @ApiType("Promise<void>")
-        public CompletableFuture<Void> interactEntity(EntityApi.Entity target) {
+        public CompletableFuture<Void> interactEntity(EntityApi.Entity target,
+                @ApiOptional String hand) {
             EntitySnapshot targetData = target == null ? null : target.snapshot();
             if (targetData == null) {
                 return CompletableFuture.failedFuture(
                         new IllegalStateException("target entity is not loaded"));
             }
-            return adapter().useEntity(targetData);
+            return adapter().useEntity(targetData, normalizedHand(hand));
         }
 
-        /** Uses (right-clicks) the block behind the position handle.
-         * @zh 与坐标句柄背后的方块交互（右键）。 */
+        /**
+         * Uses (right-clicks) the held item in the air with the named hand
+         * ({@code main} or {@code off}; default main).
+         *
+         * @zh 在空中对手持物品执行使用（右键），可用手为 {@code main}/{@code off}（默认 main）。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> interactItem(@ApiOptional String hand) {
+            return adapter().useItem(normalizedHand(hand));
+        }
+
+        /**
+         * Uses (right-clicks) the block behind the position handle on the
+         * named face ({@code up}/{@code down}/{@code north}/{@code south}/
+         * {@code east}/{@code west}; default up) with the named hand
+         * ({@code main} or {@code off}; default main). Unknown faces throw.
+         *
+         * @zh 与坐标句柄背后的方块在指定面上交互（右键），面可选 {@code up}/{@code down}/{@code north}/{@code south}/{@code east}/{@code west}（默认 up），手可选 {@code main}/{@code off}（默认 main）；未知面抛错。
+         */
         @ApiSince("0.1.0")
         @ApiLoader("*")
         @ApiMC("*")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> interactBlock(
-                ink.tuanzi.neomacros.core.api.types.BlockPos pos) {
+                ink.tuanzi.neomacros.core.api.types.BlockPos pos,
+                @ApiOptional String face, @ApiOptional String hand) {
             var hit = new BlockInteraction("minecraft:use", new Pos3d(
-                    pos.getIntX(), pos.getIntY(), pos.getIntZ()));
-            return adapter().useBlock(hit);
+                    pos.getIntX(), pos.getIntY(), pos.getIntZ()), normalizedFace(face));
+            return adapter().useBlock(hit, normalizedHand(hand));
+        }
+
+        /**
+         * Starts breaking the block at the position on the named face
+         * (defaults to up): swings and begins the destroy path; instant-break
+         * blocks complete at once, harder blocks start the mining progress
+         * that the game advances while the attack key stays held. Unknown
+         * faces throw.
+         *
+         * @zh 开始破坏坐标处方块的指定面（默认 up）：挥手并进入破坏流程；瞬挖方块立即完成，更硬的方块开始挖掘进度（需要按住攻击键推进）；未知面抛错。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> attackBlock(
+                ink.tuanzi.neomacros.core.api.types.BlockPos pos,
+                @ApiOptional String face) {
+            var hit = new BlockInteraction("minecraft:attack", new Pos3d(
+                    pos.getIntX(), pos.getIntY(), pos.getIntZ()), normalizedFace(face));
+            return adapter().attackBlock(hit);
+        }
+
+        /** Releases the ongoing block breaking (the same path as releasing the attack key).
+         * @zh 结束正在进行的方块破坏（与松开攻击键同路）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> stopBreaking() {
+            return adapter().stopBreaking();
         }
 
         /** Swings the main hand (offhand = the off hand).
@@ -714,7 +832,7 @@ public final class PlayerApi {
         @ApiMC("*")
         @ApiType("Promise<void>")
         public CompletableFuture<Void> swingHand(boolean offhand) {
-            return adapter().swingHand();
+            return adapter().swingHand(normalizedHand(offhand ? "off" : "main"));
         }
 
         /** Drops the held item stack ({@code all} = the whole stack).
@@ -733,6 +851,482 @@ public final class PlayerApi {
         public String toString() {
             var snapshot = snapshot();
             return snapshot == null ? "LocalPlayer(unloaded)" : "LocalPlayer(" + getName() + ")";
+        }
+    }
+
+    /**
+     * Live statistics handle: every read re-queries the client stat
+     * counters. Values are keyed by stat type and entry; only non-zero
+     * entries appear in the aggregate views.
+     *
+     * @zh 活统计句柄：每次读取都重新查询客户端统计计数器。数值按统计类型与条目键控；聚合视图只含非零条目。
+     */
+    @ApiClass(name = "Statistics", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.stats.StatsCounter")
+    @ApiSince("0.3.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class Statistics {
+
+        /** Reads the live non-zero stat map ({@code statTypeId:valueId -> value}).
+         * @zh 读取实时非零统计映射（{@code 类型id:条目id -> 数值}）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        @ApiType("Record<string, number>")
+        public Map<String, Integer> getSnapshot() {
+            return adapter().statistics();
+        }
+
+        /**
+         * Every non-zero stat as a typed entry ({@code category} is the stat
+         * type id, {@code key} the entry id).
+         *
+         * @zh 每条非零统计的类型化条目（{@code category} 为统计类型 id，{@code key} 为条目 id）。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        @ApiType("Array<StatisticsEntry>")
+        public List<StatisticsEntry> getEntries() {
+            List<StatisticsEntry> out = new java.util.ArrayList<>();
+            for (Map.Entry<String, Integer> entry : adapter().statistics().entrySet()) {
+                int split = entry.getKey().indexOf(':', entry.getKey().indexOf(':') + 1);
+                if (split < 0) {
+                    out.add(new StatisticsEntry(entry.getKey(), "", entry.getValue()));
+                } else {
+                    out.add(new StatisticsEntry(entry.getKey().substring(0, split),
+                            entry.getKey().substring(split + 1), entry.getValue()));
+                }
+            }
+            return out;
+        }
+
+        /**
+         * The value of one stat: {@code category} is the stat type id
+         * ({@code minecraft:mined}, {@code minecraft:custom}, ...), {@code
+         * key} the entry id. Unknown entries read as 0.
+         *
+         * @zh 单条统计值：{@code category} 为统计类型 id（{@code minecraft:mined}、{@code minecraft:custom} 等），{@code key} 为条目 id；未知条目读作 0。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public int value(String category, String key) {
+            Integer count = adapter().statistics().get(category + ":" + key);
+            return count != null ? count : 0;
+        }
+
+        /** How many of the block the player has mined.
+         * @zh 玩家已挖掘该方块的数量。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public int mined(String blockId) {
+            return value("minecraft:mined", ItemStack.namespaced(blockId));
+        }
+
+        /** How many of the item the player has crafted.
+         * @zh 玩家已合成该物品的数量。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public int crafted(String itemId) {
+            return value("minecraft:crafted", ItemStack.namespaced(itemId));
+        }
+
+        /** How many times the player has used the item.
+         * @zh 玩家已使用该物品的次数。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public int used(String itemId) {
+            return value("minecraft:used", ItemStack.namespaced(itemId));
+        }
+
+        /** How many of the item the player has broken (depleted).
+         * @zh 玩家已用坏该物品的数量。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public int broken(String itemId) {
+            return value("minecraft:broken", ItemStack.namespaced(itemId));
+        }
+
+        /** How many of the item the player has picked up.
+         * @zh 玩家已拾取该物品的数量。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public int pickedUp(String itemId) {
+            return value("minecraft:picked_up", ItemStack.namespaced(itemId));
+        }
+
+        /** How many of the item the player has dropped.
+         * @zh 玩家已丢弃该物品的数量。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public int dropped(String itemId) {
+            return value("minecraft:dropped", ItemStack.namespaced(itemId));
+        }
+
+        /** How many of the entity the player has killed.
+         * @zh 玩家已击杀该实体的数量。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public int killed(String entityId) {
+            return value("minecraft:killed", ItemStack.namespaced(entityId));
+        }
+
+        /** How many times the entity kind has killed the player.
+         * @zh 该实体击杀玩家的次数。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public int killedBy(String entityId) {
+            return value("minecraft:killed_by", ItemStack.namespaced(entityId));
+        }
+
+        /**
+         * The custom stat value ({@code minecraft:play_time},
+         * {@code minecraft:walk_one_cm}, ...).
+         *
+         * @zh 自定义统计值（{@code minecraft:play_time}、{@code minecraft:walk_one_cm} 等）。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public int custom(String statId) {
+            return value("minecraft:custom", ItemStack.namespaced(statId));
+        }
+    }
+
+    /**
+     * Live advancements handle: tree queries plus per-advancement progress,
+     * re-read on every access. Requires a server connection (singleplayer
+     * integrated server included).
+     *
+     * @zh 活进度句柄：树查询加逐条进度，每次访问实时回读。需要服务器连接（含单机内置服务端）。
+     */
+    @ApiClass(name = "Advancements", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.multiplayer.ClientAdvancements")
+    @ApiSince("0.3.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class Advancements {
+
+        /** The ids of every client-known advancement, in registry order.
+         * @zh 客户端已知的全部进度 id（按注册序）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<String> getIds() {
+            List<String> out = new java.util.ArrayList<>();
+            for (AdvancementData data : adapter().advancements()) {
+                out.add(data.id());
+            }
+            return out;
+        }
+
+        /** The ids of root advancements (those without a parent).
+         * @zh 根进度 id（无父节点的进度）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<String> getRoots() {
+            List<String> out = new java.util.ArrayList<>();
+            for (AdvancementData data : adapter().advancements()) {
+                if (data.parentId() == null) {
+                    out.add(data.id());
+                }
+            }
+            return out;
+        }
+
+        /** The ids of fully completed advancements.
+         * @zh 已全部完成的进度 id。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<String> getCompleted() {
+            List<String> out = new java.util.ArrayList<>();
+            for (AdvancementData data : adapter().advancements()) {
+                var progress = adapter().advancementProgress(data.id()).orElse(null);
+                if (progress != null && progress.done()) {
+                    out.add(data.id());
+                }
+            }
+            return out;
+        }
+
+        /** The ids of started but incomplete advancements.
+         * @zh 已开始但未完成的进度 id。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<String> getStarted() {
+            List<String> out = new java.util.ArrayList<>();
+            for (AdvancementData data : adapter().advancements()) {
+                var progress = adapter().advancementProgress(data.id()).orElse(null);
+                if (progress != null && !progress.done() && !progress.obtained().isEmpty()) {
+                    out.add(data.id());
+                }
+            }
+            return out;
+        }
+
+        /**
+         * The children (direct sub-advancements) of one advancement id, in
+         * registry order; unknown ids return an empty list.
+         *
+         * @zh 指定进度的直接子进度 id（按注册序）；未知 id 返回空列表。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public List<String> children(String id) {
+            List<String> out = new java.util.ArrayList<>();
+            for (AdvancementData data : adapter().advancements()) {
+                if (id.equals(data.parentId())) {
+                    out.add(data.id());
+                }
+            }
+            return out;
+        }
+
+        /**
+         * The live advancement handle for one id, or {@code undefined} when
+         * unknown.
+         *
+         * @zh 指定 id 的活进度句柄；未知时为 undefined。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public Advancement get(String id) {
+            for (AdvancementData data : adapter().advancements()) {
+                if (data.id().equals(id)) {
+                    return new Advancement(id);
+                }
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Live advancement handle: the display data and progress of one
+     * advancement, re-read on every access.
+     *
+     * @zh 活进度条目句柄：单个进度的展示数据与进度，每次访问实时回读。
+     */
+    @ApiClass(name = "Advancement", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.advancements.AdvancementHolder")
+    @ApiSince("0.3.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class Advancement {
+
+        private final String id;
+
+        Advancement(String id) {
+            this.id = id;
+        }
+
+        /** Reads the live display data, or null when the id is no longer known. */
+        private AdvancementData data() {
+            for (AdvancementData data : adapter().advancements()) {
+                if (data.id().equals(id)) {
+                    return data;
+                }
+            }
+            return null;
+        }
+
+        /** The namespaced advancement id.
+         * @zh 进度的命名空间 id。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getId() {
+            return id;
+        }
+
+        /** The parent advancement id, or {@code undefined} on roots.
+         * @zh 父进度 id；根进度为 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getParentId() {
+            AdvancementData data = data();
+            return data != null ? data.parentId() : null;
+        }
+
+        /** The display title plain text.
+         * @zh 展示标题纯文本。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getTitle() {
+            AdvancementData data = data();
+            return data != null ? data.title() : null;
+        }
+
+        /** The display description plain text.
+         * @zh 展示描述纯文本。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getDescription() {
+            AdvancementData data = data();
+            return data != null ? data.description() : null;
+        }
+
+        /**
+         * The display frame ({@code task}, {@code goal}, {@code challenge}).
+         *
+         * @zh 展示框样式（{@code task}/{@code goal}/{@code challenge}）。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getFrame() {
+            AdvancementData data = data();
+            return data != null ? data.frame() : null;
+        }
+
+        /** Whether the advancement is hidden until completed.
+         * @zh 进度是否在完成前隐藏。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public boolean isHidden() {
+            AdvancementData data = data();
+            return data != null && data.hidden();
+        }
+
+        /** The live progress, or {@code undefined} without server progress data.
+         * @zh 实时进度；无服务器进度数据时为 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public AdvancementProgress getProgress() {
+            return adapter().advancementProgress(id)
+                    .map(p -> new AdvancementProgress(p.done(), p.obtained(), p.remaining()))
+                    .orElse(null);
+        }
+    }
+
+    /**
+     * Live crosshair pick handle: what the player is currently aiming at,
+     * capped by the block and entity interaction ranges; re-read on every
+     * access.
+     *
+     * @zh 活准星选取句柄：玩家当前指向的目标，上限为方块与实体交互距离；每次访问实时回读。
+     */
+    @ApiClass(name = "Target", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.phys.HitResult")
+    @ApiSince("0.3.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class Target {
+
+        /** Reads the live crosshair pick, or empty on a miss or without a world. */
+        private Optional<RayHit> pick() {
+            return adapter().target();
+        }
+
+        /** The aimed block handle, or {@code undefined} on entity hits or misses.
+         * @zh 指向的方块句柄；指向实体或未命中时为 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.Block getBlock() {
+            return pick()
+                    .filter(hit -> hit.block() != null)
+                    .map(hit -> new ink.tuanzi.neomacros.core.api.types.Block(
+                            new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                                    hit.block().pos().x(), hit.block().pos().y(),
+                                    hit.block().pos().z())))
+                    .orElse(null);
+        }
+
+        /** The aimed entity handle, or {@code undefined} on block hits or misses.
+         * @zh 指向的实体句柄；指向方块或未命中时为 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public EntityApi.Entity getEntity() {
+            return pick()
+                    .filter(hit -> hit.entity() != null)
+                    .map(hit -> new EntityApi.Entity(hit.entity().uuid()))
+                    .orElse(null);
+        }
+
+        /**
+         * The aimed block face name ({@code up}, {@code north}, ...), or
+         * {@code undefined} on entity hits or misses.
+         *
+         * @zh 指向的方块面名（{@code up}、{@code north} 等）；指向实体或未命中时为 undefined。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getFace() {
+            return pick()
+                    .map(hit -> hit.block() != null ? hit.block().face() : null)
+                    .orElse(null);
+        }
+
+        /** The exact hit position, or {@code undefined} on a miss.
+         * @zh 精确命中位置；未命中时为 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.Pos3D getPos() {
+            return pick()
+                    .map(hit -> new ink.tuanzi.neomacros.core.api.types.Pos3D(
+                            hit.pos().x(), hit.pos().y(), hit.pos().z()))
+                    .orElse(null);
+        }
+
+        /** The eye-to-hit distance in blocks ({@code 0} on a miss).
+         * @zh 眼睛到命中点的距离（格）；未命中时为 0。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public double getDistance() {
+            return pick().map(RayHit::distance).orElse(0.0);
+        }
+
+        /** Whether the crosshair is on anything at all.
+         * @zh 准星是否指向了任何目标。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public boolean isHit() {
+            return pick()
+                    .map(hit -> hit.block() != null || hit.entity() != null)
+                    .orElse(false);
         }
     }
 
@@ -2317,6 +2911,35 @@ public final class PlayerApi {
     @ApiMC("*")
     @ApiLoader("*")
     public record XpInfo(int level, double progress, int total) {
+    }
+
+    /**
+     * One non-zero statistic entry: the stat type id ({@code category},
+     * e.g. {@code minecraft:mined}), the entry id ({@code key}), and the
+     * value.
+     *
+     * @zh 一条非零统计：统计类型 id（{@code category}，如 {@code minecraft:mined}）、条目 id（{@code key}）与数值。
+     */
+    @ApiClass(name = "StatisticsEntry", kind = ApiClassKind.DATA)
+    @ApiSince("0.3.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record StatisticsEntry(String category, String key, int value) {
+    }
+
+    /**
+     * The client-known progress of one advancement: whether it is done,
+     * which criteria are obtained, and which are still open.
+     *
+     * @zh 一个进度的客户端已知进度：是否完成、已获得的判据与尚未获得的判据。
+     */
+    @ApiClass(name = "AdvancementProgress", kind = ApiClassKind.DATA)
+    @ApiSince("0.3.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record AdvancementProgress(boolean done,
+            java.util.List<String> obtained,
+            java.util.List<String> remaining) {
     }
 
     /**

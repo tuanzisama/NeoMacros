@@ -28,6 +28,7 @@ public final class ScriptTask {
     private volatile Status status = Status.RUNNING;
     private volatile long endedAtMs;
     private final java.util.concurrent.atomic.AtomicLong triggerCount = new java.util.concurrent.atomic.AtomicLong();
+    private volatile long memBytes = -1;
 
     ScriptTask(long taskId, String macro, ScriptCategory category, String startedBy,
                long startedAtMs, String playerUuid, String playerName, String gameType,
@@ -120,18 +121,33 @@ public final class ScriptTask {
         this.endedAtMs = atMs;
     }
 
+    /** The last-known memory estimate in bytes; -1 when never sampled. */
+    public long memBytes() {
+        return memBytes;
+    }
+
+    /** Updates the last-known memory estimate (memory sampler, registry-internal). */
+    void updateMemory(long bytes) {
+        if (bytes < 0) {
+            return;
+        }
+        this.memBytes = bytes;
+    }
+
     /** An immutable point-in-time snapshot handed to dispatchers and DTOs. */
     public record Snapshot(long taskId, String macro, ScriptCategory category, Status status,
                            String startedBy, long startedAtMs, long endedAtMs, long triggerCount,
                            String playerUuid, String playerName, String gameType,
-                           String serverAddress, String mcVersion) {
+                           String serverAddress, String mcVersion,
+                           Long memBytes) {
 
         /** Captures the current state of the task. */
         public static Snapshot of(ScriptTask task) {
             return new Snapshot(task.taskId, task.macro, task.category, task.status,
                     task.startedBy, task.startedAtMs, task.endedAtMs, task.triggerCount.get(),
                     task.playerUuid, task.playerName, task.gameType, task.serverAddress,
-                    task.mcVersion);
+                    task.mcVersion,
+                    task.memBytes < 0 ? null : task.memBytes);
         }
     }
 }

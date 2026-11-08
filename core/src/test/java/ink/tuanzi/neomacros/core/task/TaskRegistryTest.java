@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Task lifecycle: ids, trigger counting, history bounds, dispatchers. */
@@ -99,6 +100,35 @@ class TaskRegistryTest {
         ScriptTask fallback = registry.start("meta2", ScriptCategory.EVENT, "manual");
         assertEquals("", fallback.playerUuid());
         assertEquals("", fallback.serverAddress());
+    }
+
+    @Test
+    void memoryUpdatesStayOutOfDispatch() {
+        TaskRegistry registry = new TaskRegistry();
+        List<String> events = new ArrayList<>();
+        registry.onTaskEvent((event, snapshot) -> events.add(event.name()));
+        ScriptTask task = registry.start("mem", ScriptCategory.EVENT, "manual");
+
+        assertEquals(-1, task.memBytes());
+        assertNull(ScriptTask.Snapshot.of(task).memBytes());
+
+        registry.updateTaskMemory(task.taskId(), 4096);
+        registry.updateTaskMemory(task.taskId(), 1024);
+        assertEquals(1024, task.memBytes());
+        // Negative estimates mean "unknown" and must not clobber the last value.
+        registry.updateTaskMemory(task.taskId(), -1);
+        assertEquals(1024, task.memBytes());
+
+        ScriptTask.Snapshot snapshot = ScriptTask.Snapshot.of(task);
+        assertEquals(1024L, snapshot.memBytes());
+
+        // Sampling never floods the task event stream (the value rides
+        // the memory:sample SSE event instead).
+        assertEquals(List.of("STARTED"), events);
+
+        registry.stop(task.taskId());
+        ScriptTask stopped = registry.task(task.taskId()).orElseThrow();
+        assertEquals(1024, stopped.memBytes());
     }
 
     @Test

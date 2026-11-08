@@ -1,0 +1,117 @@
+name: release
+
+# Channel publishing (docs/releasing.md):
+#   - pushing a v* tag builds and publishes the release channel (clean
+#     version, e.g. neomacros-26.3-fabric-0.1.0.jar);
+#   - workflow_dispatch builds canary or dev and rolls the matching
+#     prerelease tag ("canary" / "dev") so its URL stays a stable download
+#     entry. Each publish dispatches `update-manifest` to
+#     tuanzisama/NeoMacros-Docs, which regenerates the update-check
+#     manifest served at neomacros.tuanzi.ink.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Channel to publish (release is tag-driven only)"
+        type: choice
+        required: true
+        default: canary
+        options:
+          - canary
+          - dev
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: build and publish (${{ github.event_name == 'push' && 'release' || inputs.channel }})
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_CHANNEL: ${{ github.event_name == 'push' && 'release' || inputs.channel }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      GIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # Toolchains for the version-independent modules (Java 17) and every
+      # product node (Java 21 for the 1.21.6 node, Java 25 for 26.x).
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: |
+            17
+            21
+            25
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      # A release tag must match the base version in gradle.properties, or
+      # the clean-named jars would lie about what they contain.
+      - name: Assert tag matches the base version
+        if: github.event_name == 'push'
+        run: |
+          base=$(grep '^version=' gradle.properties | cut -d= -f2)
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$tag" != "$base" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match gradle.properties version ${base}"
+            exit 1
+          fi
+
+      - name: Build version-independent modules and every active product node
+        run: |
+          set -o pipefail
+          ./gradlew :doc-api:build :ports:build :core:build :engine:build :e2e:build \
+            :product:1.21.6:build :product:26.1.2:build :product:26.2:build :product:26.3:build \
+            --continue --console=plain
+
+      - name: Collect mod jars and checksums
+        run: |
+          mkdir dist
+          find product/versions -path '*/build/libs/*.jar' -exec cp {} dist/ \;
+          (cd dist && sha256sum *.jar > SHA256SUMS)
+          ls -1 dist
+
+      - name: Publish release or rolling prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$RELEASE_CHANNEL" = "release" ]; then
+            if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release upload "$GITHUB_REF_NAME" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+            else
+              gh release create "$GITHUB_REF_NAME" \
+                --title "$GITHUB_REF_NAME" \
+                --notes "NeoMacros ${GITHUB_REF_NAME#v}. User-facing notes live on the docs site." \
+                --repo "$GITHUB_REPOSITORY" \
+                dist/*
+            fi
+          else
+            gh release delete "$RELEASE_CHANNEL" --cleanup-tag -y --repo "$GITHUB_REPOSITORY" || true
+            gh release create "$RELEASE_CHANNEL" \
+              --prerelease \
+              --title "$RELEASE_CHANNEL builds" \
+              --notes "Rolling $RELEASE_CHANNEL build ${BUILD_NUMBER} of commit ${GITHUB_SHA:0:7}. Rebuilt on demand; always replace with the newest state. See docs/releasing.md for channel semantics." \
+              --repo "$GITHUB_REPOSITORY" \
+              dist/*
+          fi
+
+      - name: Dispatch update-manifest to NeoMacros-Docs
+        env:
+          DOCS_DISPATCH_TOKEN: ${{ secrets.DOCS_DISPATCH_TOKEN }}
+        if: env.DOCS_DISPATCH_TOKEN != ''
+        run: |
+          status=$(curl -sS -o /tmp/dispatch-response.txt -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $DOCS_DISPATCH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/tuanzisama/NeoMacros-Docs/dispatches \
+            -d '{"event_type":"update-manifest"}') || true
+          echo "dispatch HTTP $status"
+          cat /tmp/dispatch-response.txt
+          [ "$status" = "204" ] || exit 1

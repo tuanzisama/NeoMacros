@@ -22,12 +22,16 @@ import ink.tuanzi.neomacros.fabric.web.api.NmNullable;
  * @param gameType    single or multi, empty when unknown
  * @param server      Integrated or the server address, empty when unknown
  * @param mcVersion   the Minecraft version, empty when unknown
+ * @param memBytes    the last-known cumulative allocated bytes of the
+ *                    script's loop thread (null when never sampled or the
+ *                    platform lacks per-thread allocation counters)
  */
 public record TaskEntry(long id, String macro, String category, String status,
                         String startedBy, long startedAt, long endedAt, long triggers,
                         @NmNullable String playerUuid, @NmNullable String playerName,
                         @NmNullable String gameType, @NmNullable String server,
-                        @NmNullable String mcVersion) {
+                        @NmNullable String mcVersion,
+                        @NmNullable Long memBytes) {
 
     /** Captures one task snapshot for the wire. */
     public static TaskEntry of(ScriptTask.Snapshot snapshot) {
@@ -44,6 +48,7 @@ public record TaskEntry(long id, String macro, String category, String status,
                 snapshot.playerName(),
                 snapshot.gameType(),
                 snapshot.serverAddress(),
-                snapshot.mcVersion());
+                snapshot.mcVersion(),
+                snapshot.memBytes());
     }
 }

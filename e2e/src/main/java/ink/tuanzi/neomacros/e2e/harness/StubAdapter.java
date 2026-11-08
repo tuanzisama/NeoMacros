@@ -465,8 +465,7 @@ public final class StubAdapter implements NeomacrosAdapter {
         public Optional<ink.tuanzi.neomacros.port.model.RayHit> raycast(Pos3d origin,
                 Pos3d direction, ink.tuanzi.neomacros.port.model.RayOptions options) {
             return Optional.ofNullable(raycastHit).map(hit ->
-                    new ink.tuanzi.neomacros.port.model.RayHit(
-                            new BlockData(hit.id(), hit.pos()), null, hit.pos(), 0));
+                    new ink.tuanzi.neomacros.port.model.RayHit(hit, null, hit.pos(), 0));
         }
 
         @Override
@@ -574,18 +573,37 @@ public final class StubAdapter implements NeomacrosAdapter {
         }
 
         @Override
-        public java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target) {
-            return record("useEntity:" + target.uuid());
+        public java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target,
+                String hand) {
+            return record("useEntity:" + target.uuid() + ":" + hand);
         }
 
         @Override
-        public java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit) {
-            return record("useBlock:" + hit.pos().x() + "," + hit.pos().y() + "," + hit.pos().z());
+        public java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit,
+                String hand) {
+            return record("useBlock:" + hit.pos().x() + "," + hit.pos().y() + ","
+                    + hit.pos().z() + ":" + hit.face() + ":" + hand);
         }
 
         @Override
-        public java.util.concurrent.CompletableFuture<Void> swingHand() {
-            return record("swing");
+        public java.util.concurrent.CompletableFuture<Void> useItem(String hand) {
+            return record("useItem:" + hand);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> attackBlock(BlockInteraction hit) {
+            return record("attackBlock:" + hit.pos().x() + "," + hit.pos().y() + ","
+                    + hit.pos().z() + ":" + hit.face());
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> stopBreaking() {
+            return record("stopBreaking");
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> swingHand(String hand) {
+            return record("swing:" + hand);
         }
 
         @Override

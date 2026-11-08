@@ -15,6 +15,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.block.state.BlockState;
@@ -62,7 +63,8 @@ public final class FabricPlayerPort implements PlayerPort {
     }
 
     @Override
-    public java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target) {
+    public java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target,
+            String hand) {
         return dispatch(() -> {
             var player = Minecraft.getInstance().player;
             var entity = findEntity(target.uuid());
@@ -71,18 +73,18 @@ public final class FabricPlayerPort implements PlayerPort {
             }
             //? if <26.1 {
             /* Minecraft.getInstance().gameMode.interact(player, entity,
-                    InteractionHand.MAIN_HAND); */
+                    parseHand(hand)); */
             //?}
             //? if >=26.1 {
             Minecraft.getInstance().gameMode.interact(player, entity,
-                    new net.minecraft.world.phys.EntityHitResult(entity),
-                    net.minecraft.world.InteractionHand.MAIN_HAND);
+                    new net.minecraft.world.phys.EntityHitResult(entity), parseHand(hand));
             //?}
         });
     }
 
     @Override
-    public java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit) {
+    public java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit,
+            String hand) {
         return dispatch(() -> {
             var player = Minecraft.getInstance().player;
             if (player == null) {
@@ -92,33 +94,78 @@ public final class FabricPlayerPort implements PlayerPort {
                     (int) Math.floor(hit.pos().y()), (int) Math.floor(hit.pos().z()));
             var hitResult = new net.minecraft.world.phys.BlockHitResult(
                     net.minecraft.world.phys.Vec3.atCenterOf(pos),
-                    net.minecraft.core.Direction.UP, pos, false);
+                    parseFace(hit.face()), pos, false);
             //? if <26.1 {
             /* Minecraft.getInstance().gameMode.useItemOn(player,
-                    InteractionHand.MAIN_HAND, hitResult); */
+                    parseHand(hand), hitResult); */
             //?}
             //? if >=26.1 {
             Minecraft.getInstance().gameMode.useItemOn(player,
-                    net.minecraft.world.InteractionHand.MAIN_HAND, hitResult);
+                    parseHand(hand), hitResult);
             //?}
         });
     }
 
     @Override
-    public java.util.concurrent.CompletableFuture<Void> swingHand() {
+    public java.util.concurrent.CompletableFuture<Void> useItem(String hand) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            var gameMode = Minecraft.getInstance().gameMode;
+            if (player == null || gameMode == null) {
+                throw new IllegalStateException("no local player");
+            }
+            var used = gameMode.useItem(player, parseHand(hand));
+            if (used.consumesAction()) {
+                swing(player, parseHand(hand));
+            }
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> attackBlock(BlockInteraction hit) {
+        return dispatch(() -> {
+            var player = Minecraft.getInstance().player;
+            var gameMode = Minecraft.getInstance().gameMode;
+            if (player == null || gameMode == null) {
+                throw new IllegalStateException("no local player");
+            }
+            var pos = new BlockPos((int) Math.floor(hit.pos().x()),
+                    (int) Math.floor(hit.pos().y()), (int) Math.floor(hit.pos().z()));
+            swing(player, parseHand("main"));
+            gameMode.startDestroyBlock(pos, parseFace(hit.face()));
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> stopBreaking() {
+        return dispatch(() -> {
+            var gameMode = Minecraft.getInstance().gameMode;
+            if (gameMode != null) {
+                gameMode.stopDestroyBlock();
+            }
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> swingHand(String hand) {
         return dispatch(() -> {
             var player = Minecraft.getInstance().player;
             if (player == null) {
                 return;
             }
-            //? if <26.3 {
-            /* player.swing(InteractionHand.MAIN_HAND); */
-            //?}
-            //? if >=26.3 {
-            player.swing(net.minecraft.world.InteractionHand.MAIN_HAND,
-                    net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
-            //?}
+            swing(player, parseHand(hand));
         });
+    }
+
+    /** Swings one hand across the version-specific swing signatures. */
+    private static void swing(net.minecraft.client.player.LocalPlayer player,
+            InteractionHand hand) {
+        //? if <26.3 {
+        /* player.swing(hand); */
+        //?}
+        //? if >=26.3 {
+        player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
+        //?}
     }
 
     @Override
@@ -460,6 +507,135 @@ public final class FabricPlayerPort implements PlayerPort {
             return player != null ? player.entityInteractionRange() : 0;
         });
         return range != null ? range : 0;
+    }
+
+    @Override
+    public java.util.Optional<ink.tuanzi.neomacros.port.model.RayHit> target() {
+        return MainThread.run(() -> {
+            LocalPlayer player = Minecraft.getInstance().player;
+            var hitResult = Minecraft.getInstance().hitResult;
+            if (player == null || hitResult == null
+                    || hitResult.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+                return java.util.Optional.<ink.tuanzi.neomacros.port.model.RayHit>empty();
+            }
+            double distance = player.getEyePosition().distanceTo(hitResult.getLocation());
+            if (hitResult instanceof net.minecraft.world.phys.BlockHitResult blockHit) {
+                var world = Minecraft.getInstance().level;
+                if (world == null) {
+                    return java.util.Optional.<ink.tuanzi.neomacros.port.model.RayHit>empty();
+                }
+                var block = blockHit(world, blockHit.getBlockPos(),
+                        blockHit.getDirection().getName());
+                return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.RayHit(
+                        block, null, toPos3d(blockHit.getLocation()), distance));
+            }
+            if (hitResult instanceof net.minecraft.world.phys.EntityHitResult entityHit) {
+                return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.RayHit(
+                        null, FabricEntityPort.snapshotOf(entityHit.getEntity()),
+                        toPos3d(entityHit.getLocation()), distance));
+            }
+            return java.util.Optional.<ink.tuanzi.neomacros.port.model.RayHit>empty();
+        });
+    }
+
+    @Override
+    public java.util.List<ink.tuanzi.neomacros.port.model.AdvancementData> advancements() {
+        return MainThread.run(() -> {
+            var connection = Minecraft.getInstance().getConnection();
+            if (connection == null) {
+                return java.util.List.<ink.tuanzi.neomacros.port.model.AdvancementData>of();
+            }
+            var clientAdvancements = connection.getAdvancements();
+            var tree = ((ink.tuanzi.neomacros.adapter.mixin.ClientAdvancementsAccessor)
+                    clientAdvancements).neomacros$tree();
+            java.util.List<ink.tuanzi.neomacros.port.model.AdvancementData> out =
+                    new java.util.ArrayList<>();
+            for (net.minecraft.advancements.AdvancementNode node : tree.nodes()) {
+                var display = node.advancement().display().orElse(null);
+                if (display == null) {
+                    continue;
+                }
+                //? if <26.3 {
+                /* out.add(new ink.tuanzi.neomacros.port.model.AdvancementData(
+                        node.holder().id().toString(),
+                        node.advancement().parent().map(Object::toString).orElse(null),
+                        display.getTitle().getString(),
+                        display.getDescription().getString(),
+                        display.getType().getSerializedName(),
+                        display.isHidden())); */
+                //?}
+                //? if >=26.3 {
+                out.add(new ink.tuanzi.neomacros.port.model.AdvancementData(
+                        node.holder().id().toString(),
+                        node.advancement().parent().map(Object::toString).orElse(null),
+                        display.title().getString(),
+                        display.description().getString(),
+                        display.type().getSerializedName(),
+                        display.hidden()));
+                //?}
+            }
+            return out;
+        });
+    }
+
+    @Override
+    public java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressData>
+            advancementProgress(String id) {
+        return MainThread.run(() -> {
+            var connection = Minecraft.getInstance().getConnection();
+            Identifier parsed = id == null ? null : Identifier.tryParse(id);
+            if (connection == null || parsed == null) {
+                return java.util.Optional
+                        .<ink.tuanzi.neomacros.port.model.AdvancementProgressData>empty();
+            }
+            var clientAdvancements = connection.getAdvancements();
+            var accessor = (ink.tuanzi.neomacros.adapter.mixin.ClientAdvancementsAccessor)
+                    clientAdvancements;
+            var node = accessor.neomacros$tree().get(parsed);
+            var progress = node == null ? null
+                    : accessor.neomacros$progress().get(node.holder());
+            if (progress == null) {
+                return java.util.Optional
+                        .<ink.tuanzi.neomacros.port.model.AdvancementProgressData>empty();
+            }
+            return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.AdvancementProgressData(
+                    progress.isDone(),
+                    copyCriteria(progress.getCompletedCriteria()),
+                    copyCriteria(progress.getRemainingCriteria())));
+        });
+    }
+
+    /** Copies one criteria iterable into an ordered list. */
+    private static java.util.List<String> copyCriteria(Iterable<String> criteria) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        criteria.forEach(out::add);
+        return java.util.List.copyOf(out);
+    }
+
+    /** Maps the script hand name onto the interaction hand. */
+    private static InteractionHand parseHand(String hand) {
+        if (hand == null || "main".equals(hand)) {
+            return InteractionHand.MAIN_HAND;
+        }
+        if ("off".equals(hand)) {
+            return InteractionHand.OFF_HAND;
+        }
+        throw new IllegalArgumentException("hand must be 'main' or 'off': " + hand);
+    }
+
+    /** Maps the script face name onto the block face; unknown faces throw. */
+    private static net.minecraft.core.Direction parseFace(String face) {
+        net.minecraft.core.Direction direction =
+                face == null ? null : net.minecraft.core.Direction.byName(face);
+        if (direction == null) {
+            throw new IllegalArgumentException("unknown face: " + face);
+        }
+        return direction;
+    }
+
+    /** Lifts a world position into the neutral position type. */
+    private static ink.tuanzi.neomacros.port.model.Pos3d toPos3d(net.minecraft.world.phys.Vec3 pos) {
+        return new ink.tuanzi.neomacros.port.model.Pos3d(pos.x, pos.y, pos.z);
     }
 
     @Override

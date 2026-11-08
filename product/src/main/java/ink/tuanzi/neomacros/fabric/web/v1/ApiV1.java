@@ -23,6 +23,7 @@ import ink.tuanzi.neomacros.fabric.web.http.ApiContext;
 import ink.tuanzi.neomacros.fabric.web.http.ApiError;
 import ink.tuanzi.neomacros.fabric.web.json.Jsons;
 import ink.tuanzi.neomacros.fabric.web.log.LogRing;
+import ink.tuanzi.neomacros.fabric.web.memory.MemoryRing;
 import ink.tuanzi.neomacros.fabric.web.net.NetRing;
 import ink.tuanzi.neomacros.fabric.web.pair.PairingRequests;
 import ink.tuanzi.neomacros.fabric.web.pair.PairingService;
@@ -59,6 +60,7 @@ public final class ApiV1 {
     private final LogRing logs;
     private final ConsoleRing console;
     private final NetRing net;
+    private final MemoryRing memory;
 
     /**
      * Creates the controller. The origin predicate is the CORS allowlist
@@ -69,7 +71,7 @@ public final class ApiV1 {
                  PairingRequests pairingRequests, Predicate<String> originAllowed,
                  Consumer<PairingRequests.Request> pairRequestListener,
                  DeviceRegistry devices, SseHub sse, LogRing logs, ConsoleRing console,
-                 NetRing net) {
+                 NetRing net, MemoryRing memory) {
         this.backend = backend;
         this.game = game;
         this.pairing = pairing;
@@ -81,6 +83,7 @@ public final class ApiV1 {
         this.logs = logs;
         this.console = console;
         this.net = net;
+        this.memory = memory;
     }
 
     @NmGet("/api/v1/meta")
@@ -491,6 +494,16 @@ public final class ApiV1 {
                     + " 0 replays from the start") Long after) {
         long cursor = after == null ? 0 : after;
         return new NetworkResponse(net.after(cursor), net.lastSeq());
+    }
+
+    @NmGet("/api/v1/memory")
+    @NmApi(tag = "memory", summary = "Replay the memory sample ring (JVM heap"
+            + " and per-script allocation signals)")
+    public MemoryResponse memory(
+            @NmParam("after") @NmDesc("Return samples with a seq greater than this;"
+                    + " 0 replays from the start") Long after) {
+        long cursor = after == null ? 0 : after;
+        return new MemoryResponse(memory.after(cursor), memory.lastSeq());
     }
 
     @NmGet("/api/v1/network/{seq}/body")

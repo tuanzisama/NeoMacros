@@ -644,17 +644,34 @@ class PortEventWiringTest {
         }
 
         @Override
-        public java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target) {
+        public java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target,
+                String hand) {
             return java.util.concurrent.CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit) {
+        public java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit,
+                String hand) {
             return java.util.concurrent.CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public java.util.concurrent.CompletableFuture<Void> swingHand() {
+        public java.util.concurrent.CompletableFuture<Void> useItem(String hand) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> attackBlock(BlockInteraction hit) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> stopBreaking() {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> swingHand(String hand) {
             return java.util.concurrent.CompletableFuture.completedFuture(null);
         }
 

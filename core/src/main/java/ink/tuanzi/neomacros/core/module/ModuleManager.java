@@ -540,6 +540,11 @@ public final class ModuleManager implements AutoCloseable {
         return session;
     }
 
+    /** The DevTools REPL session's context, when the session is open. */
+    public synchronized Optional<ScriptContext> devToolsContext() {
+        return Optional.ofNullable(devToolsContext);
+    }
+
     /** Drops the DevTools console session (the next evaluation reopens it fresh). */
     public synchronized void invalidateDevToolsSession() {
         ScriptEngine.EngineSession session = devToolsSession;

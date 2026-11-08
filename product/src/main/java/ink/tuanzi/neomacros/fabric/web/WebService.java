@@ -63,6 +63,7 @@ public final class WebService {
     private final Supplier<String> panelUrl;
     private final Supplier<java.util.List<String>> extraOrigins;
     private final PanelEvents events;
+    private final ink.tuanzi.neomacros.fabric.web.memory.MemoryCenter memoryCenter;
     private volatile Consumer<PairingRequests.Request> pairRequestListener;
     private LogRing logs;
     private LogTap logTap;
@@ -70,6 +71,7 @@ public final class WebService {
     private Consumer<ScriptConsoleEvent> consoleDispatcher;
     private NetRing net;
     private Consumer<NetTraceEvent> netDispatcher;
+    private ink.tuanzi.neomacros.fabric.web.memory.MemoryRing memory;
     private SseHub sse;
     private WebServer server;
 
@@ -85,7 +87,8 @@ public final class WebService {
                       PairingService pairing, PairingRequests pairingRequests,
                       Supplier<String> listenScope, IntSupplier configuredPort,
                       Supplier<String> panelUrl,
-                      Supplier<java.util.List<String>> extraOrigins, PanelEvents events) {
+                      Supplier<java.util.List<String>> extraOrigins, PanelEvents events,
+                      ink.tuanzi.neomacros.fabric.web.memory.MemoryCenter memoryCenter) {
         this.backend = backend;
         this.game = game;
         this.devices = devices;
@@ -93,6 +96,7 @@ public final class WebService {
         this.pairingRequests = pairingRequests;
         this.listenScope = listenScope;
         this.configuredPort = configuredPort;
+        this.memoryCenter = memoryCenter;
         this.panelUrl = panelUrl;
         this.extraOrigins = extraOrigins;
         this.events = events;
@@ -122,6 +126,7 @@ public final class WebService {
         LogRing ring = new LogRing(1000);
         ConsoleRing consoleRing = new ConsoleRing(1000);
         NetRing netRing = new NetRing(500);
+        var memoryRing = new ink.tuanzi.neomacros.fabric.web.memory.MemoryRing(1800);
         SseHub hub = new SseHub(System::currentTimeMillis);
         Nm1Verifier verifier = new Nm1Verifier(devices,
                 new NonceStore(2 * Nm1Verifier.WINDOW_MILLIS), System::currentTimeMillis);
@@ -132,7 +137,7 @@ public final class WebService {
         CorsPolicy cors = new CorsPolicy(origins);
         ApiV1 controller = new ApiV1(backend, game, pairing, pairingRequests,
                 cors::allowsOrigin, pairRequestListener, devices, hub, ring,
-                consoleRing, netRing);
+                consoleRing, netRing, memoryRing);
         // The contract document is built over the live route set (the docs
         // endpoint included), then rebuilt with the bound port once known.
         var document = new java.util.concurrent.atomic.AtomicReference<
@@ -151,9 +156,18 @@ public final class WebService {
         this.logs = ring;
         this.console = consoleRing;
         this.net = netRing;
+        this.memory = memoryRing;
         this.sse = hub;
         this.server = http;
         events.attach(hub);
+        // Memory feed: sampler ticks land in the ring (replay) and the SSE
+        // memory:sample event (live tail). Sampling gates itself on hub
+        // sessions (auto mode), so an idle panel costs nothing.
+        if (memoryCenter != null) {
+            memoryCenter.start(memoryRing::append, () -> !hub.sessions().isEmpty());
+            memoryRing.addListener(entry -> events.broadcast("memory:sample",
+                    Jsons.stringify(entry)));
+        }
         ring.addListener(entry -> events.broadcast("log",
                 Jsons.stringify(new LogEntry(
                         entry.seq(), entry.ts(), entry.level(), entry.logger(),
@@ -206,11 +220,15 @@ public final class WebService {
             NetTrace.removeDispatcher(netDispatcher);
             netDispatcher = null;
         }
+        if (memoryCenter != null) {
+            memoryCenter.close();
+        }
         server = null;
         sse = null;
         logs = null;
         console = null;
         net = null;
+        memory = null;
         LOG.info("web panel stopped");
     }
 

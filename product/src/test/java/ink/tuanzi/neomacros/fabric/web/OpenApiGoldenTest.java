@@ -56,7 +56,8 @@ class OpenApiGoldenTest {
                 new ApiV1(stubBackend(), DIRECT, null, null, null, null, null,
                         null, null,
                         new ink.tuanzi.neomacros.fabric.web.console.ConsoleRing(64),
-                        new ink.tuanzi.neomacros.fabric.web.net.NetRing(64))));
+                        new ink.tuanzi.neomacros.fabric.web.net.NetRing(64),
+                        new ink.tuanzi.neomacros.fabric.web.memory.MemoryRing(64))));
         routes.addAll(ink.tuanzi.neomacros.fabric.web.http.ApiRoute.scan(
                 new DocsRoutes(() -> null)));
 

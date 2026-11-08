@@ -103,4 +103,16 @@ class ContextEventLoopTest {
             delayer.shutdownNow();
         }
     }
+
+    @Test
+    void threadIdMatchesTheLoopThread() throws Exception {
+        assertTrue(loop.threadId() > 0, "a running loop exposes its thread id");
+        AtomicReference<Long> seen = new AtomicReference<>();
+        loop.execute(() -> seen.set(Thread.currentThread().getId()));
+        long deadline = System.currentTimeMillis() + 2000;
+        while (seen.get() == null && System.currentTimeMillis() < deadline) {
+            Thread.sleep(5);
+        }
+        assertEquals(loop.threadId(), seen.get(), "the exposed id is the loop worker's id");
+    }
 }

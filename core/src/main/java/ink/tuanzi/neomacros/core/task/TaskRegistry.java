@@ -93,6 +93,19 @@ public final class TaskRegistry {
     }
 
     /**
+     * Updates the last-known memory estimate of an active task (the web
+     * memory sampler). Unknown ids are ignored; the update is deliberately
+     * not dispatched so per-second sampling never floods the SSE stream —
+     * the value rides the {@code memory:sample} event instead.
+     */
+    public void updateTaskMemory(long taskId, long bytes) {
+        ScriptTask task = active.get(taskId);
+        if (task != null) {
+            task.updateMemory(bytes);
+        }
+    }
+
+    /**
      * Marks the task stopped and moves it into the history ring. Unknown
      * task ids are ignored (double-stop safety).
      */
