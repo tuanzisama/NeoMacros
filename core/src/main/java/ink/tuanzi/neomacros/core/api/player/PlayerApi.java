@@ -26,11 +26,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The {@code neo.player} module: the local player plus the currently open
- * container screen. {@code self} is a live handle reading current state
- * through the player port; outside a world it reads back as {@code undefined}.
+ * The {@code neo.player} module: the local player, the open container
+ * ({@code inventory}), the open screen ({@code screen}), and the open
+ * dialog ({@code dialog}). {@code self} is a live handle reading current
+ * state through the player port; outside a world it reads back as
+ * {@code undefined}.
  *
- * @zh {@code neo.player}：本地玩家与当前打开的容器屏幕。{@code self} 是经玩家端口回读当前状态的活句柄；不在世界内时回读为 undefined。
+ * @zh {@code neo.player}：本地玩家、打开的容器（{@code inventory}）、当前屏幕（{@code screen}）与当前对话框（{@code dialog}）。{@code self} 是经玩家端口回读当前状态的活句柄；不在世界内时回读为 undefined。
  */
 @ApiModule(name = "player", category = "世界")
 @ApiSince("0.1.0")
@@ -72,6 +74,57 @@ public final class PlayerApi {
                 .orElseGet(PlayerInventory::new);
     }
 
+    /**
+     * The currently open screen as a {@code Screen} handle family member
+     * ({@code ChatScreen}, {@code InventoryScreen}, {@code ContainerScreen},
+     * {@code DialogScreen}, ...; every screen without a dedicated class
+     * falls back to the base {@code Screen}), or undefined when no screen is
+     * open.
+     *
+     * @zh 当前打开的屏幕句柄族成员（{@code ChatScreen}、{@code InventoryScreen}、{@code ContainerScreen}、{@code DialogScreen} 等；无专属类的屏幕回落基类 {@code Screen}）；无屏幕时为 undefined。
+     */
+    @ApiSince("0.3.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public Screen getScreen() {
+        var info = ScriptApiEnvironment.adapter().lifecycle().screenInfo().orElse(null);
+        return info == null ? null : openByScreenKind(info.kind(), info.screenClass(), info.title());
+    }
+
+    /**
+     * The currently open dialog as a {@code DialogHandle}, or undefined
+     * when no dialog screen is open.
+     *
+     * @zh 当前打开的对话框句柄；无对话框屏幕时为 undefined。
+     */
+    @ApiSince("0.3.0")
+    @ApiLoader("*")
+    @ApiMC(">=1.21.6")
+    @ApiReadOnly
+    public DialogHandle getDialog() {
+        return ScriptApiEnvironment.adapter().dialog().currentDialog()
+                .map(DialogHandle::of).orElse(null);
+    }
+
+    /**
+     * Opens a client-side dialog from a plain config map and resolves with
+     * the chosen action id once {@code player.dialog.clickAction} runs; Esc
+     * or a manual button click resolves with {@code null} when the dialog
+     * closes. Config keys: {@code type} ({@code notice},
+     * {@code confirmation}, {@code multi_action}), {@code title},
+     * {@code body} (string or string array), {@code canCloseWithEscape},
+     * {@code actions} (array of {@code {label}}).
+     *
+     * @zh 从普通配置对象打开一个客户端对话框，脚本调用 {@code player.dialog.clickAction} 后以所选动作 id 落定；按 Esc 或手动点击按钮关闭时以 null 落定。配置键：{@code type}（{@code notice}/{@code confirmation}/{@code multi_action}）、{@code title}、{@code body}（字符串或字符串数组）、{@code canCloseWithEscape}、{@code actions}（{@code {label}} 数组）。
+     */
+    @ApiSince("0.3.0")
+    @ApiLoader("*")
+    @ApiMC(">=1.21.6")
+    public CompletableFuture<String> showDialog(Map<String, Object> config) {
+        return ScriptApiEnvironment.adapter().dialog().show(config);
+    }
+
     /** The player port behind the API (single adapter access point). */
     private static ink.tuanzi.neomacros.port.PlayerPort adapter() {
         return ScriptApiEnvironment.adapter().player();
@@ -82,14 +135,48 @@ public final class PlayerApi {
         return ScriptApiEnvironment.adapter().inventory();
     }
 
+    /** The lifecycle port behind the screen face (screen reads, close). */
+    private static ink.tuanzi.neomacros.port.LifecyclePort lifecyclePort() {
+        return ScriptApiEnvironment.adapter().lifecycle();
+    }
+
+    /** The dialog port behind the dialog face (dialog reads and actions). */
+    private static ink.tuanzi.neomacros.port.DialogPort dialogPort() {
+        return ScriptApiEnvironment.adapter().dialog();
+    }
+
     /** The latest local player snapshot, or empty when not in a world. */
     static Optional<PlayerSnapshot> current() {
         return adapter().self();
     }
 
-    /** Builds the inventory handle for one open-container snapshot (screen module bridge). */
-    public static Inventory containerHandle(String title, String kind, int size) {
-        return openByKind(title, kind, size);
+    /** Resolves the handle class for one open screen kind. */
+    private static Screen openByScreenKind(String kind, String mcClass, String title) {
+        return switch (kind) {
+            case "inventory" -> new InventoryScreen(mcClass, title);
+            case "creative" -> new CreativeScreen(mcClass, title);
+            case "container", "chest", "furnace", "crafting", "anvil", "enchanting",
+                    "grindstone", "stonecutter", "smithing", "cartography", "loom",
+                    "lectern", "dispenser", "hopper", "crafter", "beacon", "brewing",
+                    "villager", "horse", "mount", "shulkerbox" ->
+                    new ContainerScreen(mcClass, title);
+            case "chat" -> new ChatScreen(mcClass, title);
+            case "title" -> new TitleScreen(mcClass, title);
+            case "pause" -> new PauseScreen(mcClass, title);
+            case "death" -> new DeathScreen(mcClass, title);
+            case "wingame" -> new WinScreen(mcClass, title);
+            case "progress", "connecting" -> new ProgressScreen(mcClass, title);
+            case "disconnected" -> new DisconnectedScreen(mcClass, title);
+            case "confirm" -> new ConfirmScreen(mcClass, title);
+            case "dialog" -> new DialogScreen(mcClass, title);
+            case "sign" -> new SignScreen(mcClass, title);
+            case "bookedit" -> new BookEditScreen(mcClass, title);
+            case "bookview" -> new BookViewScreen(mcClass, title);
+            case "commandblock" -> new CommandBlockScreen(mcClass, title);
+            case "structureblock" -> new StructureBlockScreen(mcClass, title);
+            case "jigsaw" -> new JigsawScreen(mcClass, title);
+            default -> new Screen(mcClass, kind, title);
+        };
     }
 
     /**
@@ -1734,6 +1821,479 @@ public final class PlayerApi {
         @ApiMC("*")
         public CompletableFuture<Void> close() {
             return inventoryPort().close();
+        }
+    }
+
+    /**
+     * One action button of the open dialog: the flattened click index, the
+     * visible label, and the stable id scripts match against (the id equals
+     * the index unless the dialog was opened with explicit ids).
+     *
+     * @zh 对话框的动作按钮：展平点击序号、可见标签与脚本比对的稳定 id（除非弹窗时显式给 id，id 即序号）。
+     */
+    @ApiClass(name = "DialogAction", kind = ApiClassKind.DATA)
+    @ApiSince("0.3.0")
+    @ApiMC(">=1.21.6")
+    @ApiLoader("*")
+    public record DialogAction(int index, String label, String id) {
+    }
+
+    /**
+     * One declared input control of the open dialog: the form key, the
+     * control type ({@code text}, {@code boolean}, {@code number},
+     * {@code option}), and the declared initial value.
+     *
+     * @zh 对话框声明的输入控件：表单键、控件类型（{@code text}/{@code boolean}/{@code number}/{@code option}）与声明的初始值。
+     */
+    @ApiClass(name = "DialogInput", kind = ApiClassKind.DATA)
+    @ApiSince("0.3.0")
+    @ApiMC(">=1.21.6")
+    @ApiLoader("*")
+    public record DialogInput(String key, String type, String value) {
+    }
+
+    /**
+     * Live dialog handle: reads resolve on every access, actions dispatch
+     * on the main thread.
+     *
+     * @zh 对话框句柄：读取实时解析，动作在主线程派发。
+     */
+    @ApiClass(name = "DialogHandle", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.server.dialog.Dialog")
+    public static final class DialogHandle {
+
+        private final String kind;
+        private final String title;
+        private final boolean canCloseWithEscape;
+        private final List<String> body;
+        private final List<DialogAction> actions;
+        private final List<DialogInput> inputs;
+
+        DialogHandle(String kind, String title, boolean canCloseWithEscape,
+                     List<String> body, List<DialogAction> actions,
+                     List<DialogInput> inputs) {
+            this.kind = kind;
+            this.title = title;
+            this.canCloseWithEscape = canCloseWithEscape;
+            this.body = body;
+            this.actions = actions;
+            this.inputs = inputs;
+        }
+
+        /** Builds the handle for one dialog snapshot. */
+        static DialogHandle of(ink.tuanzi.neomacros.port.DialogPort.DialogInfo info) {
+            List<DialogAction> actions = new java.util.ArrayList<>();
+            for (ink.tuanzi.neomacros.port.DialogPort.DialogActionInfo action : info.actions()) {
+                actions.add(new DialogAction(action.index(), action.label(), action.id()));
+            }
+            List<DialogInput> inputs = new java.util.ArrayList<>();
+            for (ink.tuanzi.neomacros.port.DialogPort.DialogInputInfo input : info.inputs()) {
+                inputs.add(new DialogInput(input.key(), input.type(), input.value()));
+            }
+            return new DialogHandle(info.kind(), info.title(), info.canCloseWithEscape(),
+                    List.copyOf(info.body()), List.copyOf(actions), List.copyOf(inputs));
+        }
+
+        /** The dialog kind ({@code notice}, {@code confirmation}, {@code multi_action}, ...).
+         * @zh 对话框类别（{@code notice}、{@code confirmation}、{@code multi_action} 等）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC(">=1.21.6")
+        @ApiReadOnly
+        public String getKind() {
+            return kind;
+        }
+
+        /** The dialog title.
+         * @zh 对话框标题。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC(">=1.21.6")
+        @ApiReadOnly
+        public String getTitle() {
+            return title;
+        }
+
+        /** Whether the dialog can be closed with Esc.
+         * @zh 是否可按 Esc 关闭。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC(">=1.21.6")
+        @ApiReadOnly
+        public boolean getCanCloseWithEscape() {
+            return canCloseWithEscape;
+        }
+
+        /** The dialog body texts, in order.
+         * @zh 对话框正文文本（按序）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC(">=1.21.6")
+        @ApiReadOnly
+        public List<String> getBody() {
+            return body;
+        }
+
+        /** The action buttons, in flattened click order.
+         * @zh 动作按钮（按展平点击顺序）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC(">=1.21.6")
+        @ApiReadOnly
+        public List<DialogAction> getActions() {
+            return actions;
+        }
+
+        /** The declared input controls.
+         * @zh 声明的输入控件。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC(">=1.21.6")
+        @ApiReadOnly
+        public List<DialogInput> getInputs() {
+            return inputs;
+        }
+
+        /**
+         * Clicks one action button by its flattened index (script-shown
+         * dialogs resolve their show() future with the action id).
+         *
+         * @zh 按展平序号点击动作按钮（脚本弹窗会以该动作 id 落定 showDialog 的 future）。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC(">=1.21.6")
+        public CompletableFuture<Void> clickAction(int index) {
+            return dialogPort().clickAction(index);
+        }
+
+        /** Closes the dialog (Esc path; script dialogs resolve showDialog with null).
+         * @zh 关闭对话框（Esc 路径；脚本弹窗以 null 落定 showDialog）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC(">=1.21.6")
+        public CompletableFuture<Void> close() {
+            return dialogPort().close();
+        }
+    }
+
+    /**
+     * Base handle for any open screen: the MC class name, the kind label,
+     * the title, and Esc-style close.
+     *
+     * @zh 任意打开屏幕的基础句柄：MC 类名、类别标签、标题与 Esc 式关闭。
+     */
+    @ApiClass(name = "Screen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.Screen")
+    public static class Screen {
+
+        final String mcClass;
+        final String kind;
+        final String title;
+
+        Screen(String mcClass, String kind, String title) {
+            this.mcClass = mcClass;
+            this.kind = kind;
+            this.title = title;
+        }
+
+        /** The Minecraft screen class name (e.g. {@code TitleScreen}).
+         * @zh Minecraft 屏幕类名（如 {@code TitleScreen}）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getName() {
+            return mcClass;
+        }
+
+        /** The screen kind label (e.g. {@code title}, {@code chest}).
+         * @zh 屏幕类别标签（如 {@code title}、{@code chest}）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getKind() {
+            return kind;
+        }
+
+        /** The screen title.
+         * @zh 屏幕标题。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getTitle() {
+            return title;
+        }
+
+        /** Closes the screen (the same path as pressing Esc).
+         * @zh 关闭屏幕（与按 Esc 同路）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public void close() {
+            lifecyclePort().closeScreen();
+        }
+    }
+
+    /** The player inventory screen (the E-key backpack).
+     * @zh 玩家背包界面（E 键打开的物品栏）。 */
+    @ApiClass(name = "InventoryScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.inventory.InventoryScreen")
+    public static final class InventoryScreen extends Screen {
+
+        InventoryScreen(String mcClass, String title) {
+            super(mcClass, "inventory", title);
+        }
+
+        /** The player inventory handle shown by this screen.
+         * @zh 此界面展示的玩家背包句柄。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public PlayerInventory getContainer() {
+            return new PlayerInventory();
+        }
+    }
+
+    /** Any container screen (chest, furnace, villager, mount, ...).
+     * @zh 任意容器界面（箱子、熔炉、村民、坐骑等）。 */
+    @ApiClass(name = "ContainerScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.inventory.AbstractContainerScreen")
+    public static final class ContainerScreen extends Screen {
+
+        ContainerScreen(String mcClass, String title) {
+            super(mcClass, "container", title);
+        }
+
+        /** The open container handle, or undefined outside a world.
+         * @zh 打开的容器句柄；不在世界内为 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Inventory getContainer() {
+            return inventoryPort().openedContainer()
+                    .map(info -> openByKind(info.title(), info.kind(), info.size()))
+                    .orElse(null);
+        }
+    }
+
+    /** The chat screen with the text currently being typed.
+     * @zh 聊天界面，可读当前正在输入的文本。 */
+    @ApiClass(name = "ChatScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.ChatScreen")
+    public static final class ChatScreen extends Screen {
+
+        ChatScreen(String mcClass, String title) {
+            super(mcClass, "chat", title);
+        }
+
+        /** The text currently typed into the chat input, or undefined.
+         * @zh 聊天输入框中的文本；无输入时为 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getText() {
+            return lifecyclePort().chatText().orElse(null);
+        }
+    }
+
+    /** The sign editor with the front-face text.
+     * @zh 告示牌编辑界面，可读正面文本。 */
+    @ApiClass(name = "SignScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen")
+    public static final class SignScreen extends Screen {
+
+        SignScreen(String mcClass, String title) {
+            super(mcClass, "sign", title);
+        }
+
+        /** The front-face sign text, line-joined.
+         * @zh 告示牌正面文本（按行拼接）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getText() {
+            return lifecyclePort().signText().orElse(null);
+        }
+    }
+
+    /** The book editor with the page text under edit.
+     * @zh 成书编辑界面，可读正在编辑的页文本。 */
+    @ApiClass(name = "BookEditScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.inventory.BookEditScreen")
+    public static final class BookEditScreen extends Screen {
+
+        BookEditScreen(String mcClass, String title) {
+            super(mcClass, "bookedit", title);
+        }
+
+        /** The text of the page under edit, or undefined.
+         * @zh 正在编辑的页文本；无则 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getText() {
+            return lifecyclePort().bookEditPage().orElse(null);
+        }
+    }
+
+    /** The dialog screen (server dialogs and script-shown dialogs).
+     * @zh 对话框界面（服务端对话框与脚本弹窗）。 */
+    @ApiClass(name = "DialogScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.dialog.DialogScreen")
+    public static final class DialogScreen extends Screen {
+
+        DialogScreen(String mcClass, String title) {
+            super(mcClass, "dialog", title);
+        }
+
+        /** The open dialog handle, or undefined when none.
+         * @zh 打开的对话框句柄；无则 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC(">=1.21.6")
+        @ApiReadOnly
+        public DialogHandle getDialog() {
+            return dialogPort().currentDialog().map(DialogHandle::of).orElse(null);
+        }
+    }
+
+    /** The title screen.
+     * @zh 主菜单界面。 */
+    @ApiClass(name = "TitleScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.TitleScreen")
+    public static final class TitleScreen extends Screen {
+
+        TitleScreen(String mcClass, String title) {
+            super(mcClass, "title", title);
+        }
+    }
+
+    /** The pause screen.
+     * @zh 暂停菜单界面。 */
+    @ApiClass(name = "PauseScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.PauseScreen")
+    public static final class PauseScreen extends Screen {
+
+        PauseScreen(String mcClass, String title) {
+            super(mcClass, "pause", title);
+        }
+    }
+
+    /** The death screen.
+     * @zh 死亡界面。 */
+    @ApiClass(name = "DeathScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.DeathScreen")
+    public static final class DeathScreen extends Screen {
+
+        DeathScreen(String mcClass, String title) {
+            super(mcClass, "death", title);
+        }
+    }
+
+    /** The creative inventory screen.
+     * @zh 创造模式物品栏界面。 */
+    @ApiClass(name = "CreativeScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen")
+    public static final class CreativeScreen extends Screen {
+
+        CreativeScreen(String mcClass, String title) {
+            super(mcClass, "creative", title);
+        }
+    }
+
+    /** A loading or progress screen.
+     * @zh 加载或进度界面。 */
+    @ApiClass(name = "ProgressScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.ProgressScreen")
+    public static final class ProgressScreen extends Screen {
+
+        ProgressScreen(String mcClass, String title) {
+            super(mcClass, "progress", title);
+        }
+    }
+
+    /** The disconnect notice screen.
+     * @zh 断开连接提示界面。 */
+    @ApiClass(name = "DisconnectedScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.DisconnectedScreen")
+    public static final class DisconnectedScreen extends Screen {
+
+        DisconnectedScreen(String mcClass, String title) {
+            super(mcClass, "disconnected", title);
+        }
+    }
+
+    /** The end-poem (credits) screen.
+     * @zh 终局诗（制作名单）界面。 */
+    @ApiClass(name = "WinScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.WinScreen")
+    public static final class WinScreen extends Screen {
+
+        WinScreen(String mcClass, String title) {
+            super(mcClass, "wingame", title);
+        }
+    }
+
+    /** A yes/no confirmation screen.
+     * @zh 是/否确认界面。 */
+    @ApiClass(name = "ConfirmScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.ConfirmScreen")
+    public static final class ConfirmScreen extends Screen {
+
+        ConfirmScreen(String mcClass, String title) {
+            super(mcClass, "confirm", title);
+        }
+    }
+
+    /** The book view screen.
+     * @zh 成书阅读界面。 */
+    @ApiClass(name = "BookViewScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.inventory.BookViewScreen")
+    public static final class BookViewScreen extends Screen {
+
+        BookViewScreen(String mcClass, String title) {
+            super(mcClass, "bookview", title);
+        }
+    }
+
+    /** A command block editor screen.
+     * @zh 命令方块编辑界面。 */
+    @ApiClass(name = "CommandBlockScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.inventory.AbstractCommandBlockEditScreen")
+    public static final class CommandBlockScreen extends Screen {
+
+        CommandBlockScreen(String mcClass, String title) {
+            super(mcClass, "commandblock", title);
+        }
+    }
+
+    /** The structure block editor screen.
+     * @zh 结构方块编辑界面。 */
+    @ApiClass(name = "StructureBlockScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.inventory.StructureBlockEditScreen")
+    public static final class StructureBlockScreen extends Screen {
+
+        StructureBlockScreen(String mcClass, String title) {
+            super(mcClass, "structureblock", title);
+        }
+    }
+
+    /** The jigsaw block editor screen.
+     * @zh 拼图方块编辑界面。 */
+    @ApiClass(name = "JigsawScreen", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.inventory.JigsawBlockEditScreen")
+    public static final class JigsawScreen extends Screen {
+
+        JigsawScreen(String mcClass, String title) {
+            super(mcClass, "jigsaw", title);
         }
     }
 }

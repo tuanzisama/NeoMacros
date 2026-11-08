@@ -368,8 +368,14 @@ public final class PortEventWiring {
                 return;
             }
             if (info != null) {
+                java.util.List<ink.tuanzi.neomacros.core.api.player.PlayerApi.DialogAction> actions =
+                        new java.util.ArrayList<>();
+                for (ink.tuanzi.neomacros.port.DialogPort.DialogActionInfo action : info.actions()) {
+                    actions.add(new ink.tuanzi.neomacros.core.api.player.PlayerApi.DialogAction(
+                            action.index(), action.label(), action.id()));
+                }
                 bus.publish("dialog:open", new ink.tuanzi.neomacros.core.event.def.dialog.DialogOpenEvent(
-                        info.kind(), info.title(), info.canCloseWithEscape(), info.actions()));
+                        info.kind(), info.title(), info.canCloseWithEscape(), actions));
             } else if (lastDialogKind != null) {
                 bus.publish("dialog:close", new ink.tuanzi.neomacros.core.event.def.dialog.DialogCloseEvent(
                         lastDialogKind));

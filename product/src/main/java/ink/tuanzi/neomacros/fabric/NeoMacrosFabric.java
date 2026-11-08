@@ -132,9 +132,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 EventsApi.class, ThreadApi.class, ChatApi.class, StorageApi.class,
                 PerformanceApi.class,
                 WorldApi.class, EntityApi.class, PlayerApi.class,
-                ink.tuanzi.neomacros.core.api.client.ClientApi.class,
-                ink.tuanzi.neomacros.core.api.screen.ScreenApi.class,
-                ink.tuanzi.neomacros.core.api.dialog.DialogApi.class));
+                ink.tuanzi.neomacros.core.api.client.ClientApi.class));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.reflect.ReflectApi(
                 ink.tuanzi.neomacros.adapter.FabricClassResolver::resolve));
         registry.registerInstance(
@@ -250,26 +248,26 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("TextBuilder", ink.tuanzi.neomacros.core.api.types.TextBuilder.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
         registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
-        registry.registerGuestType("Screen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.Screen.class);
-        registry.registerGuestType("InventoryScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.InventoryScreen.class);
-        registry.registerGuestType("ContainerScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.ContainerScreen.class);
-        registry.registerGuestType("ChatScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.ChatScreen.class);
-        registry.registerGuestType("SignScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.SignScreen.class);
-        registry.registerGuestType("BookEditScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.BookEditScreen.class);
-        registry.registerGuestType("BookViewScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.BookViewScreen.class);
-        registry.registerGuestType("DialogScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.DialogScreen.class);
-        registry.registerGuestType("TitleScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.TitleScreen.class);
-        registry.registerGuestType("PauseScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.PauseScreen.class);
-        registry.registerGuestType("DeathScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.DeathScreen.class);
-        registry.registerGuestType("CreativeScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.CreativeScreen.class);
-        registry.registerGuestType("ProgressScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.ProgressScreen.class);
-        registry.registerGuestType("DisconnectedScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.DisconnectedScreen.class);
-        registry.registerGuestType("WinScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.WinScreen.class);
-        registry.registerGuestType("ConfirmScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.ConfirmScreen.class);
-        registry.registerGuestType("CommandBlockScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.CommandBlockScreen.class);
-        registry.registerGuestType("StructureBlockScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.StructureBlockScreen.class);
-        registry.registerGuestType("JigsawScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.JigsawScreen.class);
-        registry.registerGuestType("DialogHandle", ink.tuanzi.neomacros.core.api.dialog.DialogApi.DialogHandle.class);
+        registry.registerGuestType("Screen", ink.tuanzi.neomacros.core.api.player.PlayerApi.Screen.class);
+        registry.registerGuestType("InventoryScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.InventoryScreen.class);
+        registry.registerGuestType("ContainerScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.ContainerScreen.class);
+        registry.registerGuestType("ChatScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.ChatScreen.class);
+        registry.registerGuestType("SignScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.SignScreen.class);
+        registry.registerGuestType("BookEditScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.BookEditScreen.class);
+        registry.registerGuestType("BookViewScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.BookViewScreen.class);
+        registry.registerGuestType("DialogScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.DialogScreen.class);
+        registry.registerGuestType("TitleScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.TitleScreen.class);
+        registry.registerGuestType("PauseScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.PauseScreen.class);
+        registry.registerGuestType("DeathScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.DeathScreen.class);
+        registry.registerGuestType("CreativeScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.CreativeScreen.class);
+        registry.registerGuestType("ProgressScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.ProgressScreen.class);
+        registry.registerGuestType("DisconnectedScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.DisconnectedScreen.class);
+        registry.registerGuestType("WinScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.WinScreen.class);
+        registry.registerGuestType("ConfirmScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.ConfirmScreen.class);
+        registry.registerGuestType("CommandBlockScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.CommandBlockScreen.class);
+        registry.registerGuestType("StructureBlockScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.StructureBlockScreen.class);
+        registry.registerGuestType("JigsawScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.JigsawScreen.class);
+        registry.registerGuestType("DialogHandle", ink.tuanzi.neomacros.core.api.player.PlayerApi.DialogHandle.class);
         registry.registerGuestType("ItemEntity", EntityApi.ItemEntity.class);
         registry.registerGuestType("LivingEntity", EntityApi.LivingEntity.class);
         registry.registerInstance(new FsApi(new GameDirFsBridge(), ioExecutor));

@@ -51,8 +51,7 @@ final class ApiCompletenessSurface {
             PerformanceApi.class,
             WorldApi.class, EntityApi.class, PlayerApi.class, ClientApi.class,
             JavaApi.class, ReflectApi.class, FsApi.class, NetApi.class,
-            InputApi.class, CommandApi.class, HudApi.class, RenderApi.class,
-            ink.tuanzi.neomacros.core.api.screen.ScreenApi.class);
+            InputApi.class, CommandApi.class, HudApi.class, RenderApi.class);
 
     /** Script-facing class types ({@code @ApiClass}). */
     static final List<Class<?>> CLASSES = List.of(
@@ -107,6 +106,18 @@ final class ApiCompletenessSurface {
             PlayerApi.TradeOffer.class, PlayerApi.HorseInventory.class,
             PlayerApi.Abilities.class,
             Text.class, TextBuilder.class,
+            PlayerApi.Screen.class, PlayerApi.InventoryScreen.class,
+            PlayerApi.ContainerScreen.class, PlayerApi.ChatScreen.class,
+            PlayerApi.SignScreen.class, PlayerApi.BookEditScreen.class,
+            PlayerApi.BookViewScreen.class, PlayerApi.DialogScreen.class,
+            PlayerApi.TitleScreen.class, PlayerApi.PauseScreen.class,
+            PlayerApi.DeathScreen.class, PlayerApi.CreativeScreen.class,
+            PlayerApi.ProgressScreen.class, PlayerApi.DisconnectedScreen.class,
+            PlayerApi.WinScreen.class, PlayerApi.ConfirmScreen.class,
+            PlayerApi.CommandBlockScreen.class, PlayerApi.StructureBlockScreen.class,
+            PlayerApi.JigsawScreen.class,
+            PlayerApi.DialogHandle.class, PlayerApi.DialogAction.class,
+            PlayerApi.DialogInput.class,
             TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */

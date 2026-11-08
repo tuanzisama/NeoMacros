@@ -1,5 +1,6 @@
 package ink.tuanzi.neomacros.core.event.def.dialog;
 
+import ink.tuanzi.neomacros.core.api.player.PlayerApi;
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
@@ -20,5 +21,5 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiLoader("*")
 @ApiEvent(name = "dialog:open")
 public record DialogOpenEvent(String kind, String title, boolean canCloseWithEscape,
-                              java.util.List<ink.tuanzi.neomacros.port.DialogPort.DialogActionInfo> actions) {
+                              java.util.List<PlayerApi.DialogAction> actions) {
 }

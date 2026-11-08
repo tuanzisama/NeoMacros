@@ -27,8 +27,8 @@ function start() {
   const moveSub = neo.input.movement({ forward: true });
   moveSub.cancel();
   check('input.movement-subscription', typeof moveSub.cancel === 'function');
-  check('screen.opened-null-or-object',
-      neo.screen.opened === null || typeof neo.screen.opened === 'object');
+  check('player.screen-null-or-object',
+      neo.player.screen === null || typeof neo.player.screen === 'object');
   check('chat.getWidth', typeof neo.chat.getWidth('hello') === 'number');
   const self = neo.player.self;
   check('player.self-null-or-handle', self === undefined || typeof self === 'object');
