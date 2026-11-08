@@ -27,7 +27,16 @@ public final class LogTap {
      * {@link #remove()} to detach, e.g. at server stop).
      */
     public static LogTap install(String loggerPrefix, LogRing ring) {
-        RingAppender appender = new RingAppender(loggerPrefix, ring);
+        return install("neomacros-web-log-ring", loggerPrefix, ring);
+    }
+
+    /**
+     * Installs a named tap (each consumer needs its own appender name so
+     * removal cannot detach a sibling). A blank prefix accepts every
+     * logger, which is how the full-game capture mode records vanilla lines.
+     */
+    public static LogTap install(String appenderName, String loggerPrefix, LogRing ring) {
+        RingAppender appender = new RingAppender(appenderName, loggerPrefix, ring);
         appender.start();
         LoggerContext context = (LoggerContext) LogManager.getContext(false);
         LoggerConfig root = context.getConfiguration().getRootLogger();
@@ -50,8 +59,8 @@ public final class LogTap {
         private final String prefix;
         private final LogRing ring;
 
-        private RingAppender(String prefix, LogRing ring) {
-            super("neomacros-web-log-ring", null, null, true,
+        private RingAppender(String name, String prefix, LogRing ring) {
+            super(name, null, null, true,
                     org.apache.logging.log4j.core.config.Property.EMPTY_ARRAY);
             this.prefix = prefix;
             this.ring = ring;
@@ -60,7 +69,11 @@ public final class LogTap {
         @Override
         public void append(LogEvent event) {
             String logger = event.getLoggerName();
-            if (logger == null || !(logger.equals(prefix) || logger.startsWith(prefix + "."))) {
+            if (logger == null) {
+                return;
+            }
+            if (!prefix.isBlank()
+                    && !(logger.equals(prefix) || logger.startsWith(prefix + "."))) {
                 return;
             }
             Throwable thrown = event.getThrown();

@@ -6,6 +6,23 @@ ECMAScript scripting for the Minecraft client, Fabric only. Scripts can hook cha
 
 Multiple Minecraft versions are built from one codebase with [Stonecutter](https://stonecutter.kikugie.dev/) — one virtual node per target version (`1.21.6`, `26.1.2`, `26.2`, `26.3`).
 
+## MCP agent server
+
+An embedded MCP (Model Context Protocol) server lets AI agents read logs and game state or drive the client over Streamable HTTP. It is off by default; start it in-game and print the connection details:
+
+```
+/neomacros mcp start
+```
+
+Then register it with your agent, e.g. Claude Code:
+
+```bash
+claude mcp add --transport http neomacros http://127.0.0.1:30637/mcp \
+  --header "Authorization: Bearer <token from the command>"
+```
+
+Tools cover logs and diagnostics, game state (player, inventory, screen, world), control (script start/stop, chat, commands, keys), and a JavaScript eval. The server binds the loopback, authenticates with a bearer token, and every tool group can be disabled in the config — see the [MCP guide](https://neomacros.tuanzi.ink/en/guide/mcp-server).
+
 ## Layout
 
 | Module | Purpose |

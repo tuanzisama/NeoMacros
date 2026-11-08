@@ -79,6 +79,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     private static boolean quitOnDone;
     private static ink.tuanzi.neomacros.core.task.TaskRegistry tasks;
     private static ink.tuanzi.neomacros.fabric.web.WebService webService;
+    private static ink.tuanzi.neomacros.fabric.mcp.McpService mcpService;
     private static ink.tuanzi.neomacros.fabric.web.WebRuntime webRuntime;
 
     @Override
@@ -460,6 +461,16 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 sendPairRequestCard(request));
         webRuntime.serverInfo(() -> new ink.tuanzi.neomacros.fabric.web.v1.ServerInfo(
                 webService.port(), webService.status().uptimeMs(), options.web.listen));
+        // The MCP agent server reads the same rings' data through its own
+        // instances and shares the backend/command registry; a generated
+        // token lands in the config with everything else.
+        mcpService = new ink.tuanzi.neomacros.fabric.mcp.McpService(
+                webRuntime, webRuntime, adapter, commandPort,
+                () -> options.mcp, () -> NeoMacros.VERSION,
+                token -> {
+                    options.mcp.token = token;
+                    configManager.save();
+                });
         // Error presentation chain: script failures become a throttled
         // clickable chat line pointing at the recent-errors viewer screen.
         var errorPresenter = new ink.tuanzi.neomacros.core.runtime.ErrorPresenter(
@@ -480,6 +491,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         adapter.lifecycle().onGameStart(() ->
                 LOGGER.info("NeoMacros: {} scripts loaded", modules.loaded().size()));
         adapter.lifecycle().onGameQuit(() -> {
+            mcpService.stop();
             webService.stop();
             webService.saveDevices();
             configManager.save();
@@ -501,11 +513,20 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 LOGGER.warn("neomacros: web panel auto-start failed: {}", e.getMessage());
             }
         }
+        if (options.mcp.autoStart || options.mcp.enabled) {
+            try {
+                int port = mcpService.start();
+                LOGGER.info("neomacros: mcp server auto-started on port {}", port);
+            } catch (java.io.IOException e) {
+                LOGGER.warn("neomacros: mcp server auto-start failed: {}", e.getMessage());
+            }
+        }
         if (quitOnDone) {
             adapter.lifecycle().onTick(tick -> {
                 if (tick % 100 == 0 && tick > 0
                         && Files.exists(configDir.resolve("storage").resolve("e2e-suite.json"))) {
                     LOGGER.info("NeoMacros E2E results present; shutting down client");
+                    mcpService.stop();
                     webService.stop();
                     webService.saveDevices();
                     configManager.save();
@@ -847,12 +868,12 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         adapter.chat().log(Msg.line(message));
     }
 
-    /** Registers the root {@code /neomacros} command and its subcommands. */
+    /** Registers the root {@code /neomacros} command, its subcommands and the {@code /nm} alias. */
     private static void registerCommands(TrustManager trustManager,
             ink.tuanzi.neomacros.core.runtime.ErrorPresenter errorPresenter,
             java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts) {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            dispatcher.register(literal("neomacros")
+            var root = dispatcher.register(literal("neomacros")
                     .executes(ctx -> {
                         feedbackText(ctx, Msg.dim(UiText.tr("neomacros.cmd.help")));
                         return Command.SINGLE_SUCCESS;
@@ -1006,7 +1027,9 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                         : String.join("\n\n", lines));
                         return Command.SINGLE_SUCCESS;
                     }))
-                    .then(WebCommands.subtree(webContext())));
+                    .then(WebCommands.subtree(webContext()))
+                    .then(McpCommands.subtree(mcpContext())));
+            dispatcher.register(literal("nm").redirect(root));
         });
     }
 
@@ -1036,6 +1059,11 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                     .toString();
         };
         return new WebCommands.Context(webService, links, adapter.chat());
+    }
+
+    /** The mcp commands' collaborators over the live runtime. */
+    private static McpCommands.Context mcpContext() {
+        return new McpCommands.Context(mcpService, adapter.chat());
     }
 
     /**
@@ -1152,6 +1180,23 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             webService.start();
         } catch (java.io.IOException e) {
             LOGGER.warn("neomacros: web panel restart failed: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Applies changed mcp settings to a running server by restarting it;
+     * a bind failure (e.g. the new port is taken) stays a log line and the
+     * server stays stopped.
+     */
+    static void restartMcpIfRunning() {
+        if (mcpService == null || !mcpService.running()) {
+            return;
+        }
+        mcpService.stop();
+        try {
+            mcpService.start();
+        } catch (java.io.IOException e) {
+            LOGGER.warn("neomacros: mcp server restart failed: {}", e.getMessage());
         }
     }
 

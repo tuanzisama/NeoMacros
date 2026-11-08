@@ -44,6 +44,9 @@ public final class Jsons {
         if (value instanceof Character c) {
             return new JsonPrimitive(c.toString());
         }
+        if (value instanceof java.util.UUID uuid) {
+            return new JsonPrimitive(uuid.toString());
+        }
         if (value instanceof Enum<?> e) {
             return new JsonPrimitive(e.name());
         }

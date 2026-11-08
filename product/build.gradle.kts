@@ -27,4 +27,6 @@ dependencies {
     add("modImplementation", "com.terraformersmc:modmenu:${prop("mod_menu_version")}")
     // Cloth Config: compile-only settings screen, optional in production
     add("modImplementation", "me.shedaniel.cloth:cloth-config-fabric:${prop("cloth_config_version")}")
+    // The e2e stub adapter backs the MCP integration test's game state (test-only)
+    add("testImplementation", project(":e2e"))
 }

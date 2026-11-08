@@ -6,6 +6,23 @@
 
 多个 Minecraft 版本由 [Stonecutter](https://stonecutter.kikugie.dev/) 从同一份代码构建——每个目标版本一个虚拟节点（`1.21.6`、`26.1.2`、`26.2`、`26.3`）。
 
+## MCP Agent 服务器
+
+内置 MCP（Model Context Protocol）服务器，AI Agent 可通过 Streamable HTTP 连接进来查看日志、读取游戏状态或操作客户端。默认关闭，游戏内启动并打印连接信息：
+
+```
+/neomacros mcp start
+```
+
+随后在 Agent 侧注册，例如 Claude Code：
+
+```bash
+claude mcp add --transport http neomacros http://127.0.0.1:30637/mcp \
+  --header "Authorization: Bearer <命令输出的令牌>"
+```
+
+工具覆盖日志诊断、游戏状态（玩家/物品栏/界面/世界）、操作控制（脚本启停/聊天/命令/按键）与 JavaScript eval。服务器默认绑定本机回环地址、以 Bearer 令牌认证，每个工具组均可在配置中关闭——详见 [MCP 指南](https://neomacros.tuanzi.ink/zh-cn/guide/mcp-server)。
+
 ## 模块
 
 | 模块 | 职责 |

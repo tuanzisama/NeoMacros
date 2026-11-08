@@ -62,6 +62,10 @@ public final class CoreOptions implements ConfigSection {
     @Option(description = "Web panel service settings")
     public WebSettings web = new WebSettings();
 
+    /** The nested {@code mcp} subsection (MCP agent server settings). */
+    @Option(description = "MCP agent server settings")
+    public McpSettings mcp = new McpSettings();
+
     @Override
     public String key() {
         return "core";

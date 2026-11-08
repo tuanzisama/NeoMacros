@@ -126,9 +126,108 @@ public final class NeoMacrosClothConfig {
                         })
                         .build());
 
+        builder.getOrCreateCategory(Component.translatable("neomacros.config.category.mcp"))
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.mcp.enabled"),
+                                NeoMacrosFabric.configOptions().mcp.enabled)
+                        .setDefaultValue(false)
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().mcp.enabled = value;
+                        })
+                        .build())
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.mcp.auto_start"),
+                                NeoMacrosFabric.configOptions().mcp.autoStart)
+                        .setDefaultValue(false)
+                        .setTooltip(Component.translatable(
+                                "neomacros.config.mcp.auto_start_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().mcp.autoStart = value;
+                        })
+                        .build())
+                .addEntry(entries.startIntField(
+                                Component.translatable("neomacros.config.mcp.port"),
+                                NeoMacrosFabric.configOptions().mcp.port)
+                        .setMin(0)
+                        .setMax(65535)
+                        .setDefaultValue(30637)
+                        .setTooltip(Component.translatable("neomacros.config.mcp.port_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().mcp.port = value;
+                        })
+                        .build())
+                .addEntry(entries.startStrField(
+                                Component.translatable("neomacros.config.mcp.listen"),
+                                NeoMacrosFabric.configOptions().mcp.listen)
+                        .setDefaultValue("127.0.0.1")
+                        .setErrorSupplier(value -> java.util.List
+                                .of("127.0.0.1", "0.0.0.0", "::1", "loopback", "lan")
+                                .contains(value == null ? "" : value.strip())
+                                ? java.util.Optional.<Component>empty()
+                                : java.util.Optional.of(Component.translatable(
+                                        "neomacros.config.web.listen_invalid")))
+                        .setTooltip(Component.translatable("neomacros.config.mcp.listen_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().mcp.listen = value.strip();
+                        })
+                        .build())
+                .addEntry(entries.startStrField(
+                                Component.translatable("neomacros.config.mcp.log_capture"),
+                                NeoMacrosFabric.configOptions().mcp.logCapture)
+                        .setDefaultValue("mod")
+                        .setErrorSupplier(value -> java.util.List
+                                .of("mod", "all")
+                                .contains(value == null ? "" : value.strip().toLowerCase(
+                                        java.util.Locale.ROOT))
+                                ? java.util.Optional.<Component>empty()
+                                : java.util.Optional.of(Component.translatable(
+                                        "neomacros.config.mcp.log_capture_invalid")))
+                        .setTooltip(Component.translatable(
+                                "neomacros.config.mcp.log_capture_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().mcp.logCapture =
+                                    value.strip().toLowerCase(java.util.Locale.ROOT);
+                        })
+                        .build())
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.mcp.group_logs"),
+                                NeoMacrosFabric.configOptions().mcp.groupLogs)
+                        .setDefaultValue(true)
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().mcp.groupLogs = value;
+                        })
+                        .build())
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.mcp.group_state"),
+                                NeoMacrosFabric.configOptions().mcp.groupState)
+                        .setDefaultValue(true)
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().mcp.groupState = value;
+                        })
+                        .build())
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.mcp.group_control"),
+                                NeoMacrosFabric.configOptions().mcp.groupControl)
+                        .setDefaultValue(true)
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().mcp.groupControl = value;
+                        })
+                        .build())
+                .addEntry(entries.startBooleanToggle(
+                                Component.translatable("neomacros.config.mcp.group_eval"),
+                                NeoMacrosFabric.configOptions().mcp.groupEval)
+                        .setDefaultValue(true)
+                        .setTooltip(Component.translatable(
+                                "neomacros.config.mcp.group_eval_hint"))
+                        .setSaveConsumer(value -> {
+                            NeoMacrosFabric.configOptions().mcp.groupEval = value;
+                        })
+                        .build());
+
         builder.setSavingRunnable(() -> {
             NeoMacrosFabric.saveConfig();
             NeoMacrosFabric.restartWebIfRunning();
+            NeoMacrosFabric.restartMcpIfRunning();
         });
         return builder.build();
     }

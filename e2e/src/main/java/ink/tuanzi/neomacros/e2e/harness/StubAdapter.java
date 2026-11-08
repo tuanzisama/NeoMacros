@@ -415,9 +415,9 @@ public final class StubAdapter implements NeomacrosAdapter {
 
     /** World data over canned state; tests mutate the fields directly. */
     public static final class StubWorld implements WorldPort {
-        long time;
-        String dimension = "";
-        boolean raining;
+        public long time;
+        public String dimension = "";
+        public boolean raining;
         BlockData blockAt;
         BlockInteraction raycastHit;
         String levelName = "";
