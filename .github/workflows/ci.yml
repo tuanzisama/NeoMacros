@@ -198,7 +198,7 @@ jobs:
           gh release delete dev --cleanup-tag -y --repo "$GITHUB_REPOSITORY" || true
           gh release create dev \
             --prerelease \
-            --title "NeoMacros dev · ${version}" \
+            --title "NeoMacros dev ${version}" \
             --notes-file notes.md \
             --repo "$GITHUB_REPOSITORY" \
             dist/*
