@@ -145,6 +145,10 @@ jobs:
   publish-dev:
     name: publish dev prerelease (rolling tag)
     runs-on: ubuntu-latest
+    env:
+      # Title/notes re-derive the stamped version; the jars themselves are
+      # already stamped by the compile job's env.
+      BUILD_NUMBER: ${{ github.run_number }}
     # Every green main push rolls the "dev" prerelease: delete + recreate so
     # stale assets (older MC nodes) never linger, and the tag URL
     # https://github.com/<repo>/releases/tags/dev stays a stable download
