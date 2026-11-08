@@ -53,10 +53,9 @@ jobs:
       - name: Archive built jars
         uses: actions/upload-artifact@v4
         with:
-          name: jars
+          name: NeoMacros-Artifacts
           path: |
-            **/build/libs/*.jar
-            !**/build/libs/*-sources.jar
+            product/versions/*/build/libs/*.jar
           if-no-files-found: error
           retention-days: 14
 
