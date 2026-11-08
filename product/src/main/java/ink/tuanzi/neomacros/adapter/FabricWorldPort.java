@@ -204,7 +204,7 @@ public final class FabricWorldPort implements WorldPort {
             return 0;
         }
         //? if <26.1 {
-        /* return (int) ((level.getDayTime() / 24000L % 8L + 8L) % 8L); */
+        /* return (int) ((level.getDefaultClockTime() / 24000L % 8L + 8L) % 8L); */
         //?}
         //? if >=26.1 {
         return level.environmentAttributes().getDimensionValue(

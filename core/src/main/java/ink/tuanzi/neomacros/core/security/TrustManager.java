@@ -62,9 +62,10 @@ public final class TrustManager {
      * Resolves the view for one script load: trusted content gets exactly its
      * declared capabilities; untrusted content with declared capabilities
      * fires a prompt and runs under a denying view until a decision lands;
-     * no declaration means an all-allowing view for the base surface.
+     * no declaration means an all-allowing view for the base surface. The
+     * script name rides on the prompt so the chat line can label it.
      */
-    public PermissionView viewFor(String contentHash, List<String> declared) {
+    public PermissionView viewFor(String scriptName, String contentHash, List<String> declared) {
         List<String> effective = declared == null ? List.of() : declared;
         if (effective.isEmpty()) {
             return PermissionView.ALLOW_ALL;
@@ -72,11 +73,16 @@ public final class TrustManager {
         if (isTrusted(contentHash) || sessionGrants.containsKey(contentHash)) {
             return PermissionView.of(new java.util.HashSet<>(effective));
         }
-        var prompt = new TrustPrompt(null, contentHash, List.copyOf(effective));
+        var prompt = new TrustPrompt(scriptName, contentHash, List.copyOf(effective));
         for (Consumer<TrustPrompt> listener : promptListeners) {
             listener.accept(prompt);
         }
         return PermissionView.DENY_ALL;
+    }
+
+    /** Hash-only variant for callers without a script name. */
+    public PermissionView viewFor(String contentHash, List<String> declared) {
+        return viewFor(null, contentHash, declared);
     }
 
     /** Returns whether this exact content hash has been trusted. */
@@ -106,10 +112,5 @@ public final class TrustManager {
     /** Trusted content hashes (diagnostics and the management panel). */
     public Set<String> trustedHashes() {
         return options.getTrust().keySet();
-    }
-
-    /** Fills the script name into a prompt before surfacing it. */
-    public TrustPrompt named(TrustPrompt prompt, String scriptName) {
-        return new TrustPrompt(scriptName, prompt.contentHash(), prompt.requested());
     }
 }

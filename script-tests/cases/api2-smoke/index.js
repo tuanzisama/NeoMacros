@@ -25,7 +25,8 @@ async function main() {
       && sword.id === 'minecraft:diamond_sword' && sword.isSameItem('diamond_sword');
     const timer = neo.thread.after(50, () => {});
     results['thread'] = typeof timer.cancel === 'function' && neo.thread.isMain() === false;
-    results['opened'] = neo.player.opened === undefined;
+    results['opened'] = neo.player.inventory === undefined
+      || neo.player.inventory.kind === 'player';
     await neo.thread.sleep(10);
     results['sleep'] = true;
   } catch (e) {

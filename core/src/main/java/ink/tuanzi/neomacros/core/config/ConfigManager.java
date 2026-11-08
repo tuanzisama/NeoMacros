@@ -106,7 +106,7 @@ public final class ConfigManager implements AutoCloseable {
      * Unconditional: runtime code may mutate section fields (e.g. the trust
      * table) without a dirty-flag handshake, and the write is idempotent.
      */
-    public void save() {
+    public synchronized void save() {
         JsonObject root = new JsonObject();
         root.addProperty("schema", TARGET_VERSION);
         for (ConfigSection section : sections.values()) {

@@ -2,6 +2,8 @@ package ink.tuanzi.neomacros.core.event;
 
 import ink.tuanzi.neomacros.port.ChatPort;
 import ink.tuanzi.neomacros.port.EntityPort;
+import ink.tuanzi.neomacros.port.InventoryPort;
+import ink.tuanzi.neomacros.port.InventoryPort.ContainerInfo;
 import ink.tuanzi.neomacros.port.LifecyclePort;
 import ink.tuanzi.neomacros.port.NeomacrosAdapter;
 import ink.tuanzi.neomacros.port.PlayerPort;
@@ -313,6 +315,63 @@ class PortEventWiringTest {
         runtime.close();
     }
 
+    @Test
+    void screenAndContainerTransitionsPublish() {
+        var published = new ArrayList<Published>();
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var clock = new TickClock();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-f")), clock);
+        recordAll(published, bus, catalog);
+
+        adapter.playerPort.self = snapshot(1.0);
+        fireTicks(adapter, clock, 1);
+
+        // A screen opens: screen:open and screen:change(open) fire together.
+        published.clear();
+        adapter.lifecyclePort.screen = java.util.Optional.of(
+                new LifecyclePort.ScreenInfo("ChatScreen", "chat", "Chat"));
+        fireTicks(adapter, clock, 1);
+        var open = published.stream()
+                .filter(p -> p.name().equals("screen:open")).findFirst().orElseThrow();
+        assertEquals("ChatScreen",
+                ((ink.tuanzi.neomacros.core.event.def.screen.ScreenOpenEvent) open.payload()).screen());
+        assertTrue(published.stream().anyMatch(p -> p.name().equals("screen:change")
+                && "open".equals(((ink.tuanzi.neomacros.core.event.def.screen.ScreenChangeEvent) p.payload()).phase())),
+                "events were: " + names(published));
+
+        // A container opens on top: inventory:open carries kind and menu id.
+        published.clear();
+        adapter.container = java.util.Optional.of(new ContainerInfo("Chest", "chest", 27, 1));
+        fireTicks(adapter, clock, 1);
+        var containerOpen = published.stream()
+                .filter(p -> p.name().equals("inventory:open")).findFirst().orElseThrow();
+        var openPayload = (ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent) containerOpen.payload();
+        assertEquals("chest", openPayload.kind());
+        assertEquals(1, openPayload.containerId());
+
+        // The container closes: inventory:close keeps the last kind.
+        published.clear();
+        adapter.container = java.util.Optional.empty();
+        fireTicks(adapter, clock, 1);
+        var containerClose = published.stream()
+                .filter(p -> p.name().equals("inventory:close")).findFirst().orElseThrow();
+        assertEquals("chest",
+                ((ink.tuanzi.neomacros.core.event.def.inventory.InventoryCloseEvent) containerClose.payload()).kind());
+
+        // The screen closes: screen:close and screen:change(close) fire.
+        published.clear();
+        adapter.lifecyclePort.screen = java.util.Optional.empty();
+        fireTicks(adapter, clock, 1);
+        assertTrue(published.stream().anyMatch(p -> p.name().equals("screen:close")),
+                "events were: " + names(published));
+        assertTrue(published.stream().anyMatch(p -> p.name().equals("screen:change")
+                && "close".equals(((ink.tuanzi.neomacros.core.event.def.screen.ScreenChangeEvent) p.payload()).phase())),
+                "events were: " + names(published));
+        runtime.close();
+    }
+
     private static EntitySnapshot entity(UUID uuid, double health) {
         return new EntitySnapshot(uuid, "minecraft:zombie", "Zombie",
                 new Pos3d(1, 64, 1), health);
@@ -350,6 +409,8 @@ class PortEventWiringTest {
         final StubWorld worldPort = new StubWorld();
         final StubPlayer playerPort = new StubPlayer();
         final StubEntity entityPort = new StubEntity();
+        volatile java.util.Optional<ink.tuanzi.neomacros.port.InventoryPort.ContainerInfo> container =
+                java.util.Optional.empty();
 
         @Override
         public LifecyclePort lifecycle() {
@@ -374,6 +435,11 @@ class PortEventWiringTest {
         @Override
         public ink.tuanzi.neomacros.port.InventoryPort inventory() {
             return new ink.tuanzi.neomacros.port.InventoryPort() {
+                @Override
+                public java.util.Optional<ContainerInfo> openedContainer() {
+                    return container;
+                }
+
                 @Override
                 public java.util.function.Supplier<java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData>> heldItem() {
                     return java.util.Optional::empty;
@@ -404,6 +470,12 @@ class PortEventWiringTest {
                 public String gameVersion() { return "26.3-stub"; }
 
                 public Object minecraftInstance() { return null; }
+            };
+        }
+
+        @Override
+        public ink.tuanzi.neomacros.port.DialogPort dialog() {
+            return new ink.tuanzi.neomacros.port.DialogPort() {
             };
         }
 
@@ -459,6 +531,7 @@ class PortEventWiringTest {
     private static final class StubLifecycle implements LifecyclePort {
         final List<Consumer<Long>> ticks = new CopyOnWriteArrayList<>();
         final List<Runnable> leaves = new CopyOnWriteArrayList<>();
+        volatile java.util.Optional<ScreenInfo> screen = java.util.Optional.empty();
 
         void fireTick(long tick) {
             ticks.forEach(s -> s.accept(tick));
@@ -466,6 +539,11 @@ class PortEventWiringTest {
 
         void fireWorldLeave() {
             leaves.forEach(Runnable::run);
+        }
+
+        @Override
+        public java.util.Optional<ScreenInfo> screenInfo() {
+            return screen;
         }
 
         @Override

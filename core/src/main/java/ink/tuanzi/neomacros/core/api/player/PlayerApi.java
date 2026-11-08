@@ -52,19 +52,24 @@ public final class PlayerApi {
     }
 
     /**
-     * The currently open container screen as an {@code Inventory} handle, or
-     * undefined when no container screen is open.
+     * The currently open container as an {@code Inventory} handle, or the
+     * player's own inventory when no container screen is open (the same
+     * handle shape as {@code player.self.inventory}); undefined outside a
+     * world.
      *
-     * @zh 当前打开的容器屏幕句柄；无屏幕时为 undefined。
+     * @zh 当前打开的容器句柄；未开容器屏幕时回退为玩家自己的背包（与 {@code player.self.inventory} 同形句柄）；不在世界内为 undefined。
      */
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
-    public Inventory getOpened() {
+    public Inventory getInventory() {
+        if (current().isEmpty()) {
+            return null;
+        }
         return inventoryPort().openedContainer()
                 .map(info -> openByKind(info.title(), info.kind(), info.size()))
-                .orElse(null);
+                .orElseGet(PlayerInventory::new);
     }
 
     /** The player port behind the API (single adapter access point). */
@@ -82,6 +87,11 @@ public final class PlayerApi {
         return adapter().self();
     }
 
+    /** Builds the inventory handle for one open-container snapshot (screen module bridge). */
+    public static Inventory containerHandle(String title, String kind, int size) {
+        return openByKind(title, kind, size);
+    }
+
     /**
      * Live player handle: the entity read face comes through the entity port
      * (works for remote players too); the local-only extras (hunger, air,
@@ -92,6 +102,7 @@ public final class PlayerApi {
      */
     private static Inventory openByKind(String title, String kind, int size) {
         return switch (kind) {
+            case "player", "inventory" -> new PlayerInventory();
             case "furnace" -> new FurnaceInventory(title, kind, size);
             case "chest" -> new ContainerInventory(title, kind, size);
             case "crafting" -> new CraftingInventory(title, kind, size);
@@ -632,10 +643,10 @@ public final class PlayerApi {
 
     /**
      * The local player's own inventory: the always-available inventory
-     * session (the same handle {@code player.opened} returns while the
-     * inventory screen is open).
+     * session (what {@code player.inventory} resolves to while the inventory
+     * screen is open and when no container screen is open).
      *
-     * @zh 本地玩家自己的物品栏：恒可用的物品栏会话（物品栏界面打开时 {@code player.opened} 返回的就是它）。
+     * @zh 本地玩家自己的物品栏：恒可用的物品栏会话（物品栏界面打开或未开容器时 {@code player.inventory} 解析到的句柄）。
      */
     @ApiClass(name = "PlayerInventory", kind = ApiClassKind.HANDLE)
     public static final class PlayerInventory extends Inventory {

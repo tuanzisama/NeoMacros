@@ -265,6 +265,25 @@ class WebApiIntegrationTest {
             return new PanelBackend.EvalExecution(target,
                     ink.tuanzi.neomacros.core.runtime.EvalOutcome.ofValue(node, 3));
         }
+
+        List<ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse.Entry> catalog =
+                List.of(
+                        new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse.Entry(
+                                "chat:receive", false),
+                        new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse.Entry(
+                                "key:press", true),
+                        new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse.Entry(
+                                "player:join", false),
+                        new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse.Entry(
+                                "tick", false));
+
+        @Override
+        public ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse eventCatalog() {
+            if (failure != null) {
+                throw failure;
+            }
+            return new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse(catalog);
+        }
     }
 
     /** Starts the service on an ephemeral port with a stub backend. */
@@ -874,6 +893,32 @@ class WebApiIntegrationTest {
         return Map.of("t", "num", "v", value);
     }
 
+    // ---- event catalog -------------------------------------------------------
+
+    @Test
+    void theEventCatalogListsEveryEventWithCancellation() throws Exception {
+        start(DIRECT);
+        HttpResponse<String> response = signed("GET", "/api/v1/events/catalog",
+                new byte[0]);
+        assertEquals(200, response.statusCode());
+        JsonObject body = JsonParser.parseString(response.body()).getAsJsonObject();
+        var events = body.getAsJsonArray("events");
+        assertEquals(4, events.size());
+        JsonObject first = events.get(0).getAsJsonObject();
+        assertEquals("chat:receive", first.get("name").getAsString());
+        assertFalse(first.get("cancellable").getAsBoolean());
+        JsonObject keyPress = events.get(1).getAsJsonObject();
+        assertEquals("key:press", keyPress.get("name").getAsString());
+        assertTrue(keyPress.get("cancellable").getAsBoolean());
+
+        // The catalog route is NM1-guarded like every non-stream endpoint.
+        HttpResponse<String> anonymous = send("GET", "/api/v1/events/catalog",
+                new byte[0], null);
+        assertEquals(401, anonymous.statusCode());
+        assertEquals("unauthorized", errorOf(anonymous).getAsJsonObject("error")
+                .get("code").getAsString());
+    }
+
     // ---- SSE ---------------------------------------------------------------
 
     @Test
@@ -1380,7 +1425,7 @@ class WebApiIntegrationTest {
                 "/api/v1/files/{path}", "/api/v1/files/move", "/api/v1/files/mkdir",
                 "/api/v1/files/reveal",
                 "/api/v1/devices", "/api/v1/devices/{id}",
-                "/api/v1/logs", "/api/v1/events/ticket",
+                "/api/v1/logs", "/api/v1/events/ticket", "/api/v1/events/catalog",
                 "/api/v1/events", "/api/v1/pair-request", "/api/v1/pair-request/{id}",
                 "/api-docs/openapi.json"}) {
             assertTrue(paths.has(path), "missing path " + path);

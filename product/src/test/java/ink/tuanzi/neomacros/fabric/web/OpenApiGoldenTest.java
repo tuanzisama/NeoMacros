@@ -144,6 +144,11 @@ class OpenApiGoldenTest {
                     String target, String expression) {
                 return null;
             }
+
+            @Override
+            public ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse eventCatalog() {
+                return null;
+            }
         };
     }
 

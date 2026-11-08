@@ -26,6 +26,7 @@ import ink.tuanzi.neomacros.core.event.def.player.PlayerArmorEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerGamemodeEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerHeldItemEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerRidingEvent;
+import ink.tuanzi.neomacros.core.event.def.screen.ScreenChangeEvent;
 import ink.tuanzi.neomacros.core.event.def.screen.ScreenCloseEvent;
 import ink.tuanzi.neomacros.core.event.def.screen.ScreenOpenEvent;
 import ink.tuanzi.neomacros.core.event.def.world.WorldWeatherEvent;
@@ -68,9 +69,32 @@ public final class PortEventWiring {
     private PortEventWiring() {
     }
 
+    /** One lifecycle body on the module runner, or inline when it is null. */
+    private static void phase(java.util.concurrent.Executor moduleRunner, Runnable body) {
+        if (moduleRunner == null) {
+            body.run();
+        } else {
+            moduleRunner.execute(body);
+        }
+    }
+
     /** Wires every adapter port sink onto the runtime's event bus. */
     public static void wire(NeomacrosAdapter adapter, EventBus bus,
                             ModuleManager modules, TickClock clock) {
+        wire(adapter, bus, modules, clock, null);
+    }
+
+    /**
+     * Wires every adapter port sink onto the runtime's event bus, running
+     * the lifecycle phase loads on {@code moduleRunner} when given (loading
+     * blocks its caller until every script compiles, so production hops it
+     * off the game thread; the lifecycle event publishes chain after their
+     * phase loads so freshly subscribed scripts still receive them). Null
+     * keeps the synchronous inline behavior.
+     */
+    public static void wire(NeomacrosAdapter adapter, EventBus bus,
+                            ModuleManager modules, TickClock clock,
+                            java.util.concurrent.Executor moduleRunner) {
         SelfStateTracker tracker = new SelfStateTracker(bus);
 
         adapter.lifecycle().onTick(tick -> {
@@ -78,25 +102,30 @@ public final class PortEventWiring {
             bus.publish("tick", new TickEvent(tick));
             tracker.poll(adapter);
         });
-        adapter.lifecycle().onGameStart(() -> {
-            modules.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
-            bus.publish("game:start", new GameStartEvent());
-        });
+        adapter.lifecycle().onGameStart(() ->
+                phase(moduleRunner, () -> {
+                    modules.loadPhase(ScriptMeta.Lifecycle.ALWAYS);
+                    bus.publish("game:start", new GameStartEvent());
+                }));
+        // Quit stays synchronous even with a module runner: the process is
+        // exiting, and a background unload could be cut off before storage
+        // flushes. The one-off pause is invisible here.
         adapter.lifecycle().onGameQuit(() -> {
             bus.publish("game:quit", new GameQuitEvent());
             modules.unloadPhase(ScriptMeta.Lifecycle.ALWAYS);
             ScriptApiEnvironment.closeStorages();
         });
-        adapter.lifecycle().onWorldJoin(() -> {
-            modules.loadPhase(ScriptMeta.Lifecycle.WORLD);
-            bus.publish("world:join", new WorldJoinEvent(
-                    ScriptApiEnvironment.adapter().client().serverInfo()
-                            .map(info -> info.address()).orElse(null)));
-        });
+        adapter.lifecycle().onWorldJoin(() ->
+                phase(moduleRunner, () -> {
+                    modules.loadPhase(ScriptMeta.Lifecycle.WORLD);
+                    bus.publish("world:join", new WorldJoinEvent(
+                            ScriptApiEnvironment.adapter().client().serverInfo()
+                                    .map(info -> info.address()).orElse(null)));
+                }));
         adapter.lifecycle().onWorldLeave(() -> {
             tracker.emitLeave();
             bus.publish("world:leave", new WorldLeaveEvent());
-            modules.unloadPhase(ScriptMeta.Lifecycle.WORLD);
+            phase(moduleRunner, () -> modules.unloadPhase(ScriptMeta.Lifecycle.WORLD));
         });
         adapter.chat().onChatReceive(message ->
                 bus.publish("chat:receive", new ChatReceiveEvent(message)));
@@ -119,14 +148,10 @@ public final class PortEventWiring {
         adapter.input().onScroll(amount ->
                 bus.publish("input:wheel", new InputWheelEvent(amount)));
 
-        adapter.inventory().onOpened(info ->
-                bus.publish("inventory:open", java.util.Map.of(
-                        "title", info.title(), "kind", info.kind(), "size", info.size())));
-        adapter.inventory().onUpdated(slot ->
-                bus.publish("inventory:update", java.util.Map.of("mode", "slot", "slot", slot)));
-
-        // Poll-based derived events (weather, exp, heldItem, gamemode)
-        // are wired in the SelfStateTracker's tick check.
+        // Poll-based derived events (weather, exp, heldItem, gamemode,
+        // screen/inventory/dialog transitions) are wired in the
+        // SelfStateTracker's tick check; the packet-driven inventory
+        // update/click sources ride the fabric hubs in the bootstrap.
     }
 
     /**
@@ -156,7 +181,12 @@ public final class PortEventWiring {
         private boolean weatherInitialized;
         private String lastHeldItemId;
         private boolean lastScreenOpen;
+        private String lastScreenClass;
         private String lastScreenTitle;
+        private String lastContainerKind;
+        private int lastContainerId;
+        private String lastContainerTitle;
+        private String lastDialogKind;
         private java.util.UUID lastVehicle;
         private String lastArmorSignature = "";
 
@@ -189,6 +219,8 @@ public final class PortEventWiring {
             emitRiding(adapter);
             emitArmor(adapter);
             emitScreen(adapter);
+            emitContainer(adapter);
+            emitDialog(adapter);
             emitEffectChanges(adapter);
         }
 
@@ -206,6 +238,13 @@ public final class PortEventWiring {
             effectAmplifiers.clear();
             lastVehicle = null;
             lastArmorSignature = "";
+            lastScreenOpen = false;
+            lastScreenClass = null;
+            lastScreenTitle = null;
+            lastContainerKind = null;
+            lastContainerId = 0;
+            lastContainerTitle = null;
+            lastDialogKind = null;
         }
 
         /** Diffs the mount state and publishes player:riding edges. */
@@ -265,21 +304,77 @@ public final class PortEventWiring {
             entityHealth.keySet().removeIf(uuid -> !present.contains(uuid));
         }
 
-        /** Publishes screen open/close transitions (tick-granular). */
+        /**
+         * Publishes screen transitions (tick-granular): the generic
+         * screen:change on every identity switch, plus the open/close edges
+         * enriched with the screen's MC class name.
+         */
         void emitScreen(NeomacrosAdapter adapter) {
-            boolean open = adapter.lifecycle().isScreenOpen();
-            if (open == lastScreenOpen) {
+            var info = adapter.lifecycle().screenInfo().orElse(null);
+            String screenClass = info == null ? null : info.screenClass();
+            String title = info == null ? null : info.title();
+            boolean open = info != null;
+            if (!java.util.Objects.equals(screenClass, lastScreenClass)) {
+                String phase = open && lastScreenOpen ? "switch" : (open ? "open" : "close");
+                bus.publish("screen:change", new ScreenChangeEvent(phase, screenClass,
+                        info != null ? info.kind() : "",
+                        info != null ? info.title()
+                                : (lastScreenTitle != null ? lastScreenTitle : "")));
+            }
+            if (open != lastScreenOpen) {
+                if (open) {
+                    bus.publish("screen:open", new ScreenOpenEvent(info.title(), info.kind(), info.screenClass()));
+                } else {
+                    bus.publish("screen:close", new ScreenCloseEvent(
+                            lastScreenTitle != null ? lastScreenTitle : "",
+                            lastScreenClass != null ? lastScreenClass : ""));
+                }
+            }
+            lastScreenOpen = open;
+            lastScreenClass = screenClass;
+            lastScreenTitle = title;
+        }
+
+        /**
+         * Publishes inventory:open/close from the open container diff (the
+         * player inventory screen included, kind {@code player}); direct
+         * container switches emit close then open.
+         */
+        void emitContainer(NeomacrosAdapter adapter) {
+            var info = adapter.inventory().openedContainer().orElse(null);
+            String kind = info == null ? null : info.kind();
+            int containerId = info == null ? 0 : info.containerId();
+            if (java.util.Objects.equals(kind, lastContainerKind) && containerId == lastContainerId) {
                 return;
             }
-            if (open) {
-                String title = adapter.lifecycle().screenTitle().orElse("");
-                bus.publish("screen:open", new ScreenOpenEvent(title, "screen"));
-            } else {
-                bus.publish("screen:close",
-                        new ScreenCloseEvent(lastScreenTitle != null ? lastScreenTitle : ""));
+            if (lastContainerKind != null) {
+                bus.publish("inventory:close", new ink.tuanzi.neomacros.core.event.def.inventory.InventoryCloseEvent(
+                        lastContainerKind, lastContainerTitle != null ? lastContainerTitle : ""));
             }
-            lastScreenTitle = open ? adapter.lifecycle().screenTitle().orElse(null) : null;
-            lastScreenOpen = open;
+            if (info != null) {
+                bus.publish("inventory:open", new ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent(
+                        info.title(), info.kind(), info.size(), info.containerId()));
+            }
+            lastContainerKind = kind;
+            lastContainerId = containerId;
+            lastContainerTitle = info != null ? info.title() : null;
+        }
+
+        /** Publishes dialog:open/close from the current dialog diff. */
+        void emitDialog(NeomacrosAdapter adapter) {
+            var info = adapter.dialog().currentDialog().orElse(null);
+            String kind = info == null ? null : info.kind();
+            if (java.util.Objects.equals(kind, lastDialogKind)) {
+                return;
+            }
+            if (info != null) {
+                bus.publish("dialog:open", new ink.tuanzi.neomacros.core.event.def.dialog.DialogOpenEvent(
+                        info.kind(), info.title(), info.canCloseWithEscape(), info.actions()));
+            } else if (lastDialogKind != null) {
+                bus.publish("dialog:close", new ink.tuanzi.neomacros.core.event.def.dialog.DialogCloseEvent(
+                        lastDialogKind));
+            }
+            lastDialogKind = kind;
         }
 
         /** Publishes weather, gamemode, exp, and held item changes. */

@@ -35,6 +35,15 @@ public final class ProductionEventSet {
                 ink.tuanzi.neomacros.core.event.def.world.WorldWeatherEvent.class,
                 ink.tuanzi.neomacros.core.event.def.screen.ScreenOpenEvent.class,
                 ink.tuanzi.neomacros.core.event.def.screen.ScreenCloseEvent.class,
+                ink.tuanzi.neomacros.core.event.def.screen.ScreenChangeEvent.class,
+                // inventory
+                ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent.class,
+                ink.tuanzi.neomacros.core.event.def.inventory.InventoryCloseEvent.class,
+                ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent.class,
+                ink.tuanzi.neomacros.core.event.def.inventory.InventoryClickEvent.class,
+                // dialog
+                ink.tuanzi.neomacros.core.event.def.dialog.DialogOpenEvent.class,
+                ink.tuanzi.neomacros.core.event.def.dialog.DialogCloseEvent.class,
                 // lifecycle
                 ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent.class,
                 ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent.class,

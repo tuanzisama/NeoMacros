@@ -17,6 +17,12 @@
     ,"TabListMixin"
     ,"TimeUpdateMixin"
     ,"ServerStorageAccessor"
+    ,"ContainerSyncMixin"
+    ,"InventoryClickMixin"
+    ,"DialogScreenAccessor"
+    ,"ChatScreenAccessor"
+    ,"BookEditScreenAccessor"
+    ,"AbstractSignEditScreenAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

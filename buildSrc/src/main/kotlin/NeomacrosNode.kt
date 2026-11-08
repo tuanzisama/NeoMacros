@@ -97,6 +97,9 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
         replace("gui.hud.clearTitles()", "gui.clearTitles()")
         replace("gui.hud.resetTitleTimes()", "gui.resetTitleTimes()")
         replace("gui.toastManager()", "getToastManager()")
+        // The screen setter moved onto the Gui panel in 26.2; the reader
+        // keeps its own //? guard (the getter name survives both sides).
+        replace("gui.setScreen(", "setScreen(")
         // The main framebuffer accessor moved onto the game renderer.
         replace("gameRenderer.mainRenderTarget()", "getMainRenderTarget()")
     }

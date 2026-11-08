@@ -34,6 +34,9 @@ public interface NeomacrosAdapter {
     /** Returns the inventory query port. */
     InventoryPort inventory();
 
+    /** Returns the dialog port (dialog reads, actions, script dialogs). */
+    DialogPort dialog();
+
     /** Returns the HUD overlay render port. */
     RenderPort render();
 

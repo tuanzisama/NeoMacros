@@ -39,8 +39,8 @@ public interface InventoryPort {
     record IndexedStack(int slot, ItemStackData stack) {
     }
 
-    /** Metadata of the currently open container screen. */
-    record ContainerInfo(String title, String kind, int size) {
+    /** Metadata of the currently open container screen (menu id 0 is the player inventory). */
+    record ContainerInfo(String title, String kind, int size, int containerId) {
     }
 
     /** The currently open container, or empty when no screen is open. */
@@ -89,13 +89,5 @@ public interface InventoryPort {
     /** Closes the currently open container screen. */
     default java.util.concurrent.CompletableFuture<Void> close() {
         throw new UnsupportedOperationException("inventory actions");
-    }
-
-    /** Registers a sink for container open events (main thread). */
-    default void onOpened(java.util.function.Consumer<ContainerInfo> sink) {
-    }
-
-    /** Registers a sink for container content updates (main thread). */
-    default void onUpdated(java.util.function.Consumer<Integer> sink) {
     }
 }

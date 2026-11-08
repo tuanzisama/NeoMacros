@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.fabric.web;
 
 import ink.tuanzi.neomacros.core.runtime.EvalOutcome;
+import ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse;
 import ink.tuanzi.neomacros.fabric.web.v1.FilesResponse;
 import ink.tuanzi.neomacros.fabric.web.v1.MacroView;
 import ink.tuanzi.neomacros.fabric.web.v1.Meta;
@@ -127,4 +128,9 @@ public interface PanelBackend {
      * engine funnels the work onto the target context loop itself.
      */
     EvalExecution evaluateConsole(String target, String expression);
+
+    /**
+     * The subscribable event catalog; plain thread-safe (catalog reads only).
+     */
+    EventsCatalogResponse eventCatalog();
 }

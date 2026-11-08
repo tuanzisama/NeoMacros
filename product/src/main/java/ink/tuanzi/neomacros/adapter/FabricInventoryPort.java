@@ -22,6 +22,12 @@ public final class FabricInventoryPort implements InventoryPort {
         return Minecraft.getInstance().player;
     }
 
+    /** The menu currently open on the local player, or null. */
+    public static net.minecraft.world.inventory.AbstractContainerMenu openMenu() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        return player != null ? player.containerMenu : null;
+    }
+
     @Override
     public Supplier<Optional<ItemStackData>> heldItem() {
         return () -> {
@@ -104,11 +110,82 @@ public final class FabricInventoryPort implements InventoryPort {
             if (menu == null) {
                 return java.util.Optional.empty();
             }
-            String kind = menu.getClass().getSimpleName()
-                    .replace("Menu", "").toLowerCase(java.util.Locale.ROOT);
-            return java.util.Optional.of(new ContainerInfo(kind, kind,
-                    menu.getItems().size()));
+            return java.util.Optional.of(new ContainerInfo(
+                    screenTitle(), menuKind(menu), menu.getItems().size(), menu.containerId));
         });
+    }
+
+    /** The title of the screen above the open menu, or an empty string. */
+    static String screenTitle() {
+        var screen = FabricLifecyclePort.currentScreen();
+        return screen != null && screen.getTitle() != null ? screen.getTitle().getString() : "";
+    }
+
+    /** Maps one open menu to its inventory kind label. */
+    public static String menuKind(net.minecraft.world.inventory.AbstractContainerMenu menu) {
+        if (menu instanceof net.minecraft.world.inventory.InventoryMenu) {
+            return "player";
+        }
+        if (menu instanceof net.minecraft.world.inventory.FurnaceMenu
+                || menu instanceof net.minecraft.world.inventory.BlastFurnaceMenu
+                || menu instanceof net.minecraft.world.inventory.SmokerMenu) {
+            return "furnace";
+        }
+        if (menu instanceof net.minecraft.world.inventory.ChestMenu) {
+            return "chest";
+        }
+        if (menu instanceof net.minecraft.world.inventory.ShulkerBoxMenu) {
+            return "shulkerbox";
+        }
+        if (menu instanceof net.minecraft.world.inventory.CraftingMenu) {
+            return "crafting";
+        }
+        if (menu instanceof net.minecraft.world.inventory.AnvilMenu) {
+            return "anvil";
+        }
+        if (menu instanceof net.minecraft.world.inventory.EnchantmentMenu) {
+            return "enchanting";
+        }
+        if (menu instanceof net.minecraft.world.inventory.GrindstoneMenu) {
+            return "grindstone";
+        }
+        if (menu instanceof net.minecraft.world.inventory.StonecutterMenu) {
+            return "stonecutter";
+        }
+        if (menu instanceof net.minecraft.world.inventory.SmithingMenu) {
+            return "smithing";
+        }
+        if (menu instanceof net.minecraft.world.inventory.CartographyTableMenu) {
+            return "cartography";
+        }
+        if (menu instanceof net.minecraft.world.inventory.LoomMenu) {
+            return "loom";
+        }
+        if (menu instanceof net.minecraft.world.inventory.LecternMenu) {
+            return "lectern";
+        }
+        if (menu instanceof net.minecraft.world.inventory.DispenserMenu) {
+            return "dispenser";
+        }
+        if (menu instanceof net.minecraft.world.inventory.HopperMenu) {
+            return "hopper";
+        }
+        if (menu instanceof net.minecraft.world.inventory.CrafterMenu) {
+            return "crafter";
+        }
+        if (menu instanceof net.minecraft.world.inventory.BeaconMenu) {
+            return "beacon";
+        }
+        if (menu instanceof net.minecraft.world.inventory.BrewingStandMenu) {
+            return "brewing";
+        }
+        if (menu instanceof net.minecraft.world.inventory.MerchantMenu) {
+            return "villager";
+        }
+        if (menu instanceof net.minecraft.world.inventory.HorseInventoryMenu) {
+            return "horse";
+        }
+        return "container";
     }
 
     @Override

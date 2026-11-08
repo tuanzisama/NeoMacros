@@ -47,6 +47,35 @@ public interface LifecyclePort {
         return java.util.Optional.empty();
     }
 
+    /** One neutral snapshot of the currently open screen (MC class name, kind label, title). */
+    record ScreenInfo(String screenClass, String kind, String title) {
+    }
+
+    /** The currently open screen snapshot, or empty when no screen is open. */
+    default java.util.Optional<ScreenInfo> screenInfo() {
+        return java.util.Optional.empty();
+    }
+
+    /** The text currently typed into an open chat screen, or empty. */
+    default java.util.Optional<String> chatText() {
+        return java.util.Optional.empty();
+    }
+
+    /** The front-face text of an open sign editor, or empty. */
+    default java.util.Optional<String> signText() {
+        return java.util.Optional.empty();
+    }
+
+    /** The page text currently edited in an open book editor, or empty. */
+    default java.util.Optional<String> bookEditPage() {
+        return java.util.Optional.empty();
+    }
+
+    /** Closes the currently open screen (the same path as pressing Esc). */
+    default void closeScreen() {
+        throw new UnsupportedPortFeature("closeScreen");
+    }
+
     default void requestShutdown() {
         throw new UnsupportedPortFeature("shutdown");
     }

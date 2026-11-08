@@ -67,7 +67,9 @@ public final class E2ERuntime implements AutoCloseable {
                 StorageApi.class, ink.tuanzi.neomacros.core.api.PerformanceApi.class,
                 TestBridge.class, WorldApi.class, EntityApi.class, PlayerApi.class,
                 ink.tuanzi.neomacros.core.api.java.JavaApi.class,
-                ink.tuanzi.neomacros.core.api.client.ClientApi.class));
+                ink.tuanzi.neomacros.core.api.client.ClientApi.class,
+                ink.tuanzi.neomacros.core.api.screen.ScreenApi.class,
+                ink.tuanzi.neomacros.core.api.dialog.DialogApi.class));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.reflect.ReflectApi());
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
@@ -87,6 +89,12 @@ public final class E2ERuntime implements AutoCloseable {
         registry.registerGuestType("ItemStackBuilder", ink.tuanzi.neomacros.core.api.types.ItemStackBuilder.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
         registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
+        registry.registerGuestType("Screen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.Screen.class);
+        registry.registerGuestType("InventoryScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.InventoryScreen.class);
+        registry.registerGuestType("ContainerScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.ContainerScreen.class);
+        registry.registerGuestType("ChatScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.ChatScreen.class);
+        registry.registerGuestType("DialogScreen", ink.tuanzi.neomacros.core.api.screen.ScreenApi.DialogScreen.class);
+        registry.registerGuestType("DialogHandle", ink.tuanzi.neomacros.core.api.dialog.DialogApi.DialogHandle.class);
         registry.registerGuestType("ItemEntity", EntityApi.ItemEntity.class);
         registry.registerGuestType("LivingEntity", EntityApi.LivingEntity.class);
                 registry.registerGuestType("VillagerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.VillagerInventory.class);

@@ -32,7 +32,7 @@ public final class ScriptScreen extends Screen {
         Component heading = Component.translatable("neomacros.ui.viewer.title", title);
         //? if <1.21.11 {
         /*
-        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(
+        Minecraft.getInstance().execute(() -> Minecraft.getInstance().gui.setScreen(
                 new ScriptScreen(heading, content)));
         */
         //?}

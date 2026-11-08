@@ -49,10 +49,11 @@ import java.util.stream.Stream;
 /**
  * The fabric-side {@link PanelBackend}: builds the state snapshot, runs
  * macro actions, and serves the file editor API over the module manager,
- * core options, and the macros root. Mutation methods run on the game main
- * thread (the {@link GameRunner} queue with its five-second budget);
- * {@link #readFile} is pure file IO and safe on any thread. Load and
- * runtime script errors are tracked per module so the panel's
+ * core options, and the macros root. Mutation methods run on the shared
+ * module worker (the {@link GameRunner} call with its five-second budget),
+ * serializing with every other module operation and keeping the game main
+ * thread free; {@link #readFile} is pure file IO and safe on any thread.
+ * Load and runtime script errors are tracked per module so the panel's
  * {@code error} field stays current, and state changes are broadcast to
  * connected panels through {@link PanelEvents}.
  */
@@ -296,6 +297,19 @@ public final class WebRuntime implements PanelBackend, GameRunner {
             throw ApiError.conflict("task " + taskId + " is already stopped");
         }
         modules.unload(task.macro());
+    }
+
+    @Override
+    public ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse eventCatalog() {
+        var catalog = modules.eventCatalog();
+        if (catalog == null) {
+            return new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse(List.of());
+        }
+        return new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse(
+                catalog.all().stream()
+                        .map(d -> new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse
+                                .Entry(d.name(), d.cancellable()))
+                        .toList());
     }
 
     /** The pseudo macro name the shared devtools session reports. */
@@ -995,9 +1009,11 @@ public final class WebRuntime implements PanelBackend, GameRunner {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T call(Supplier<T> task) {
+        // Module mutations serialize on the shared module worker, so a panel
+        // write never blocks the game main thread; the caller (HTTP thread)
+        // still waits within the same budget.
         try {
-            return (T) mainThread.submit(task::get)
-                    .get(GameRunner.TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+            return (T) ink.tuanzi.neomacros.fabric.ModuleWorker.submit(task::get);
         } catch (TimeoutException e) {
             throw ApiError.gameThreadTimeout();
         } catch (InterruptedException e) {
@@ -1009,7 +1025,7 @@ public final class WebRuntime implements PanelBackend, GameRunner {
                 throw apiError;
             }
             throw new ApiError(500, ApiError.INTERNAL,
-                    cause == null ? "main-thread task failed" : cause.toString());
+                    cause == null ? "module worker task failed" : cause.toString());
         }
     }
 

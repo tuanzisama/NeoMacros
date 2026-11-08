@@ -51,8 +51,10 @@ public final class ModuleManager implements AutoCloseable {
     private final java.util.function.BiFunction<String, List<String>, PermissionView> viewResolver;
     private final Path macrosRoot;
     private final Consumer<String> warn;
-    private final Map<String, LoadedModule> loaded = new LinkedHashMap<>();
-    private final Map<Path, Map<String, Long>> watchedFolders = new LinkedHashMap<>();
+    // Concurrent maps: mutations serialize on one caller thread, but the
+    // game main thread reads them between frames while that thread works.
+    private final Map<String, LoadedModule> loaded = new ConcurrentHashMap<>();
+    private final Map<Path, Map<String, Long>> watchedFolders = new ConcurrentHashMap<>();
     private volatile ink.tuanzi.neomacros.core.event.EventCatalog eventCatalog;
     private volatile ink.tuanzi.neomacros.core.task.TaskRegistry taskRegistry;
     private Predicate<String> autoloadFilter = name -> true;
@@ -102,6 +104,11 @@ public final class ModuleManager implements AutoCloseable {
     public ModuleManager withEventCatalog(ink.tuanzi.neomacros.core.event.EventCatalog catalog) {
         this.eventCatalog = catalog;
         return this;
+    }
+
+    /** The installed event catalog, or null when none was installed. */
+    public ink.tuanzi.neomacros.core.event.EventCatalog eventCatalog() {
+        return eventCatalog;
     }
 
     /** Installs the task registry receiving one task per macro activation. */
@@ -234,7 +241,7 @@ public final class ModuleManager implements AutoCloseable {
     }
 
     /** Loads one discovered entry; returns the loaded module. */
-    public LoadedModule load(ScriptEntry entry) throws ScriptError {
+    public synchronized LoadedModule load(ScriptEntry entry) throws ScriptError {
         return load(entry, "manual");
     }
 
@@ -293,7 +300,7 @@ public final class ModuleManager implements AutoCloseable {
     }
 
     /** Loads every discovered, enabled script whose lifecycle matches the phase. */
-    public List<LoadedModule> loadPhase(ScriptMeta.Lifecycle phase) {
+    public synchronized List<LoadedModule> loadPhase(ScriptMeta.Lifecycle phase) {
         List<LoadedModule> result = new ArrayList<>();
         for (ScriptEntry entry : discover()) {
             if (loaded.containsKey(entry.name()) || !autoloadFilter.test(entry.name())) {
@@ -321,7 +328,7 @@ public final class ModuleManager implements AutoCloseable {
      * start / explicit start). Refuses scripts disabled in the autoload
      * table; returns empty when no such entry exists.
      */
-    public Optional<LoadedModule> loadByName(String name) {
+    public synchronized Optional<LoadedModule> loadByName(String name) {
         if (loaded.containsKey(name)) {
             return Optional.of(loaded.get(name));
         }
@@ -431,7 +438,7 @@ public final class ModuleManager implements AutoCloseable {
     }
 
     /** Unloads one module by manifest name; no-op when absent. */
-    public void unload(String name) {
+    public synchronized void unload(String name) {
         LoadedModule module = loaded.remove(name);
         if (module != null) {
             for (Consumer<LoadedModule> listener : unloadListeners) {
@@ -445,7 +452,7 @@ public final class ModuleManager implements AutoCloseable {
     }
 
     /** Unloads every module whose lifecycle matches the phase. */
-    public void unloadPhase(ScriptMeta.Lifecycle phase) {
+    public synchronized void unloadPhase(ScriptMeta.Lifecycle phase) {
         for (String name : List.copyOf(loaded.keySet())) {
             LoadedModule module = loaded.get(name);
             if (module.meta().lifecycle() == phase) {
@@ -455,7 +462,7 @@ public final class ModuleManager implements AutoCloseable {
     }
 
     /** Unloads everything and reloads the automatic phases from a fresh discovery. */
-    public void reloadAll() {
+    public synchronized void reloadAll() {
         for (String name : List.copyOf(loaded.keySet())) {
             unload(name);
         }
@@ -466,7 +473,7 @@ public final class ModuleManager implements AutoCloseable {
     }
 
     /** Reloads one module by manifest name from its current folder. */
-    public void reload(String name) {
+    public synchronized void reload(String name) {
         Optional<ScriptEntry> entry = discover().stream()
                 .filter(e -> e.name().equals(name))
                 .findFirst();
@@ -554,7 +561,7 @@ public final class ModuleManager implements AutoCloseable {
 
     /** Closes every module. */
     @Override
-    public void close() {
+    public synchronized void close() {
         for (String name : List.copyOf(loaded.keySet())) {
             unload(name);
         }
@@ -586,7 +593,7 @@ public final class ModuleManager implements AutoCloseable {
      * scheduler); scan state is kept across calls so the first scan only
      * registers what it saw.
      */
-    public void checkForChanges() {
+    public synchronized void checkForChanges() {
         List<ScriptEntry> entries = discover();
         var seen = new HashSet<Path>();
         for (ScriptEntry entry : entries) {

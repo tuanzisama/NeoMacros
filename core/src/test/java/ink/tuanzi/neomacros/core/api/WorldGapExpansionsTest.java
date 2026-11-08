@@ -335,6 +335,11 @@ class WorldGapExpansionsTest {
         }
 
         @Override
+        public ink.tuanzi.neomacros.port.DialogPort dialog() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public RenderPort render() {
             throw new UnsupportedOperationException();
         }

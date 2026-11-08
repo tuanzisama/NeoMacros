@@ -31,7 +31,8 @@ public final class EventBus {
 
     /** High-traffic events excluded from wildcard dispatch by default (config-adjustable). */
     public static final Set<String> DEFAULT_WILDCARD_IGNORES =
-            Set.of("tick", "sound:*", "packet:*", "world:blockUpdate", "entity:metadata");
+            Set.of("tick", "sound:*", "packet:*", "world:blockUpdate", "entity:metadata",
+                    "inventory:update", "inventory:click");
 
     private static final AtomicLong SEQUENCE = new AtomicLong();
 

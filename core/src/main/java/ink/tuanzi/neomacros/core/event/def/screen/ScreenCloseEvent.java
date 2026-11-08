@@ -10,10 +10,11 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  *
  * @zh 屏幕关闭事件载荷。
  * @zh-param title 关闭的屏幕标题
+ * @zh-param screen 关闭的屏幕 MC 类名
  */
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
 @ApiEvent(name = "screen:close")
-public record ScreenCloseEvent(String title) {
+public record ScreenCloseEvent(String title, String screen) {
 }

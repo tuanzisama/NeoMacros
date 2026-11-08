@@ -198,6 +198,12 @@ public final class StubAdapter implements NeomacrosAdapter {
         return inventory;
     }
 
+    @Override
+    public ink.tuanzi.neomacros.port.DialogPort dialog() {
+        return new ink.tuanzi.neomacros.port.DialogPort() {
+        };
+    }
+
     /** The test-facing inventory port: reads canned data, records actions. */
     public ink.tuanzi.neomacros.port.InventoryPort inventoryPort() {
         return inventory;

@@ -618,6 +618,15 @@ public final class ApiV1 {
         return node;
     }
 
+    @NmGet("/api/v1/events/catalog")
+    @NmApi(tag = "events", summary = "The subscribable event catalog"
+            + " (panel config-dialog dropdown)")
+    @NmError(status = 401, code = "unauthorized",
+            desc = "Request unsigned or signature verification failed")
+    public EventsCatalogResponse eventCatalog() {
+        return backend.eventCatalog();
+    }
+
     @NmPost("/api/v1/events/ticket")
     @NmApi(tag = "events", summary = "Exchange a signature for a one-time SSE ticket")
     public TicketResponse ticket() {

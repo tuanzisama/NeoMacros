@@ -111,7 +111,7 @@ public final class FabricLifecyclePort implements LifecyclePort {
     }
 
     /** The current screen accessor moved onto Gui in 26.2 (same guard as the key hook). */
-    private static net.minecraft.client.gui.screens.Screen currentScreen() {
+    static net.minecraft.client.gui.screens.Screen currentScreen() {
         //? if >=26.2 {
         return Minecraft.getInstance().gui.screen();
         //?} else {
@@ -134,5 +134,146 @@ public final class FabricLifecyclePort implements LifecyclePort {
         }
         return java.util.Optional.ofNullable(screen.getTitle() == null
                 ? null : screen.getTitle().getString());
+    }
+
+    @Override
+    public java.util.Optional<ScreenInfo> screenInfo() {
+        var screen = currentScreen();
+        if (screen == null) {
+            return java.util.Optional.empty();
+        }
+        String title = screen.getTitle() != null ? screen.getTitle().getString() : "";
+        return java.util.Optional.of(new ScreenInfo(
+                screen.getClass().getSimpleName(), screenKind(screen), title));
+    }
+
+    /** Maps one open screen to its kind label (specific classes first, then containers). */
+    private static String screenKind(net.minecraft.client.gui.screens.Screen screen) {
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen) {
+            return "inventory";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen) {
+            return "creative";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.ChatScreen
+                || screen instanceof net.minecraft.client.gui.screens.InBedChatScreen) {
+            return "chat";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.TitleScreen) {
+            return "title";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.PauseScreen) {
+            return "pause";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.DeathScreen) {
+            return "death";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.WinScreen) {
+            return "wingame";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.ProgressScreen
+                || screen instanceof net.minecraft.client.gui.screens.LevelLoadingScreen
+                //? if <26.1 {
+                /*|| screen instanceof net.minecraft.client.gui.screens.ReceivingLevelScreen*/
+                //?}
+                || screen instanceof net.minecraft.client.gui.screens.GenericMessageScreen) {
+            return "progress";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.DisconnectedScreen) {
+            return "disconnected";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.ConnectScreen) {
+            return "connecting";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.ConfirmScreen
+                || screen instanceof net.minecraft.client.gui.screens.AlertScreen) {
+            return "confirm";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.dialog.DialogScreen<?>) {
+            return "dialog";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen) {
+            return "sign";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.BookEditScreen) {
+            return "bookedit";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.BookViewScreen) {
+            return "bookview";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractCommandBlockEditScreen) {
+            return "commandblock";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.StructureBlockEditScreen) {
+            return "structureblock";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.JigsawBlockEditScreen) {
+            return "jigsaw";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.HorseInventoryScreen) {
+            return "mount";
+        }
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>) {
+            var menu = ((net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>) screen).getMenu();
+            return menu != null ? FabricInventoryPort.menuKind(menu) : "container";
+        }
+        return "screen";
+    }
+
+    @Override
+    public java.util.Optional<String> chatText() {
+        var screen = currentScreen();
+        if (screen instanceof net.minecraft.client.gui.screens.ChatScreen chat) {
+            var input = ((ink.tuanzi.neomacros.adapter.mixin.ChatScreenAccessor) chat).neomacros$input();
+            return java.util.Optional.ofNullable(input != null ? input.getValue() : null);
+        }
+        return java.util.Optional.empty();
+    }
+
+    @Override
+    public java.util.Optional<String> signText() {
+        var screen = currentScreen();
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen sign) {
+            var entity = ((ink.tuanzi.neomacros.adapter.mixin.AbstractSignEditScreenAccessor) sign).neomacros$sign();
+            if (entity == null) {
+                return java.util.Optional.empty();
+            }
+            //? if >=26.3 {
+            var messages = entity.getText(net.minecraft.world.level.block.entity.SignTextSlot.FRONT)
+                    .getMessages(false);
+            //?} else {
+            /*
+            var messages = entity.getFrontText().getMessages(false);
+            */
+            //?}
+            StringBuilder text = new StringBuilder();
+            for (var message : messages) {
+                if (!text.isEmpty()) {
+                    text.append('\n');
+                }
+                text.append(message.getString());
+            }
+            return java.util.Optional.of(text.toString());
+        }
+        return java.util.Optional.empty();
+    }
+
+    @Override
+    public java.util.Optional<String> bookEditPage() {
+        var screen = currentScreen();
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.BookEditScreen book) {
+            var pages = ((ink.tuanzi.neomacros.adapter.mixin.BookEditScreenAccessor) book).neomacros$pages();
+            int page = ((ink.tuanzi.neomacros.adapter.mixin.BookEditScreenAccessor) book).neomacros$currentPage();
+            if (pages == null || page < 0 || page >= pages.size()) {
+                return java.util.Optional.empty();
+            }
+            return java.util.Optional.ofNullable(pages.get(page));
+        }
+        return java.util.Optional.empty();
+    }
+
+    @Override
+    public void closeScreen() {
+        MainThread.run(() -> Minecraft.getInstance().gui.setScreen(null));
     }
 }
