@@ -20,6 +20,8 @@ public final class ContextEventLoop implements Executor, AutoCloseable {
     private final Consumer<Throwable> onError;
     private volatile Thread worker;
     private volatile boolean closed;
+    /** Set by the worker while a task is executing; lets awaitIdle cover the last task. */
+    private volatile boolean executing;
 
     /** Creates and starts the loop thread named {@code neomacros-ctx-<name>}. */
     public ContextEventLoop(String name, ScheduledExecutorService delayer) {
@@ -65,10 +67,14 @@ public final class ContextEventLoop implements Executor, AutoCloseable {
         }, delayMillis, TimeUnit.MILLISECONDS);
     }
 
-    /** Waits until the queue is drained (test and shutdown support). */
+    /**
+     * Waits until the queue is drained and the worker is not mid-task —
+     * an empty queue alone does not mean the last task has finished
+     * (test and shutdown support).
+     */
     public boolean awaitIdle(long timeoutMillis) throws InterruptedException {
         long deadline = System.currentTimeMillis() + timeoutMillis;
-        while (!queue.isEmpty()) {
+        while (!queue.isEmpty() || executing) {
             if (System.currentTimeMillis() > deadline) {
                 return false;
             }
@@ -118,6 +124,7 @@ public final class ContextEventLoop implements Executor, AutoCloseable {
             try {
                 Runnable task = queue.poll(50, TimeUnit.MILLISECONDS);
                 if (task != null) {
+                    executing = true;
                     try {
                         task.run();
                     } catch (Throwable t) {
@@ -128,6 +135,8 @@ public final class ContextEventLoop implements Executor, AutoCloseable {
                         } catch (RuntimeException ignored) {
                             // Error reporting must never take the loop down.
                         }
+                    } finally {
+                        executing = false;
                     }
                 }
             } catch (InterruptedException e) {

@@ -73,7 +73,7 @@ jobs:
         if: failure()
         run: |
           python3 - <<'EOF'
-          import re
+          import glob, re
           txt = open('build-output.log', encoding='utf-8', errors='replace').read()
           lines = txt.splitlines()
           shown = 0
@@ -89,6 +89,17 @@ jobs:
           if shown == 0:
               tail = ' | '.join(l.strip() for l in lines[-25:] if l.strip())
               print(f'::error title=build tail::{tail[:800]}')
+          # A failing build usually died inside a test task; the test report
+          # names the case (the console log does not). Product nodes keep
+          # their results one level deeper (product/versions/<mc>/build).
+          reports = sorted(glob.glob('*/build/test-results/test/TEST-*.xml'))
+          reports += sorted(glob.glob('product/versions/*/build/test-results/test/TEST-*.xml'))
+          for f in reports:
+              data = open(f, encoding='utf-8', errors='replace').read()
+              for m in re.finditer(r'<testcase name="([^"]+)" classname="([^"]+)"[^>]*>\s*'
+                                   r'<(?:failure|error)[^>]*message="([^"]*)"', data):
+                  print(f"::error title=test::{m.group(2)}.{m.group(1)}::{m.group(3)[:180]}")
+                  break  # first failing case per class is enough
           EOF
 
   unit:
