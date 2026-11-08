@@ -82,22 +82,57 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          base=$(grep '^version=' gradle.properties | cut -d= -f2)
+          mc_list=$(find dist -name 'neomacros-*-fabric-*.jar' \
+            | sed -E 's/.*neomacros-(.+)-fabric-.+\.jar/\1/' \
+            | sort -uV | paste -sd, - | sed 's/,/ · /g')
+
           if [ "$RELEASE_CHANNEL" = "release" ]; then
-            if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              gh release upload "$GITHUB_REF_NAME" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+            version="$base"
+            tag="$GITHUB_REF_NAME"
+            title="NeoMacros ${GITHUB_REF_NAME} · Minecraft ${mc_list}"
+            channel_line="**Channel \`release\`** — the stable build for tag ${GITHUB_REF_NAME}. Pick the file whose Minecraft version matches your game."
+          else
+            version="${base}-${RELEASE_CHANNEL}.${BUILD_NUMBER}+${GITHUB_SHA:0:7}"
+            tag="$RELEASE_CHANNEL"
+            title="NeoMacros ${RELEASE_CHANNEL} · ${version} · Minecraft ${mc_list}"
+            if [ "$RELEASE_CHANNEL" = "canary" ]; then
+              channel_line="**Channel \`canary\`** — on-demand experimental builds; expect instability. Pick the file whose Minecraft version matches your game."
             else
-              gh release create "$GITHUB_REF_NAME" \
-                --title "$GITHUB_REF_NAME" \
-                --notes "NeoMacros ${GITHUB_REF_NAME#v}. User-facing notes live on the docs site." \
+              channel_line="**Channel \`dev\`** — built from main; always the newest CI-verified state. Pick the file whose Minecraft version matches your game."
+            fi
+          fi
+
+          {
+            echo "${channel_line}"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Version | \`${version}\` |"
+            echo "| Commit | [\`${GITHUB_SHA:0:7}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}) |"
+            echo "| Workflow run | [#${BUILD_NUMBER}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) |"
+            echo "| Minecraft | ${mc_list} |"
+            echo
+            echo "Verify downloads with the attached \`SHA256SUMS\`. The in-game update checker reads the same data from <https://neomacros.tuanzi.ink/update/updates.json>; channel semantics: <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/main/docs/releasing.md>"
+          } > notes.md
+
+          if [ "$RELEASE_CHANNEL" = "release" ]; then
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release upload "$tag" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+              gh release edit "$tag" --title "$title" --notes-file notes.md --repo "$GITHUB_REPOSITORY"
+            else
+              gh release create "$tag" \
+                --title "$title" \
+                --notes-file notes.md \
                 --repo "$GITHUB_REPOSITORY" \
                 dist/*
             fi
           else
-            gh release delete "$RELEASE_CHANNEL" --cleanup-tag -y --repo "$GITHUB_REPOSITORY" || true
-            gh release create "$RELEASE_CHANNEL" \
+            gh release delete "$tag" --cleanup-tag -y --repo "$GITHUB_REPOSITORY" || true
+            gh release create "$tag" \
               --prerelease \
-              --title "$RELEASE_CHANNEL builds" \
-              --notes "Rolling $RELEASE_CHANNEL build ${BUILD_NUMBER} of commit ${GITHUB_SHA:0:7}. Rebuilt on demand; always replace with the newest state. See docs/releasing.md for channel semantics." \
+              --title "$title" \
+              --notes-file notes.md \
               --repo "$GITHUB_REPOSITORY" \
               dist/*
           fi

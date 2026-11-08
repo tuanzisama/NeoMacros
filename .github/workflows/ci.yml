@@ -174,11 +174,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          base=$(grep '^version=' gradle.properties | cut -d= -f2)
+          mc_list=$(find dist -name 'neomacros-*-fabric-*.jar' \
+            | sed -E 's/.*neomacros-(.+)-fabric-.+\.jar/\1/' \
+            | sort -uV | paste -sd, - | sed 's/,/ · /g')
+          version="${base}-dev.${BUILD_NUMBER}+${GITHUB_SHA:0:7}"
+          {
+            echo "**Channel \`dev\`** — built from main on every green push; always the newest CI-verified state. Pick the file whose Minecraft version matches your game."
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Version | \`${version}\` |"
+            echo "| Commit | [\`${GITHUB_SHA:0:7}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}) |"
+            echo "| Workflow run | [#${BUILD_NUMBER}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) |"
+            echo "| Minecraft | ${mc_list} |"
+            echo
+            echo "Verify downloads with the attached \`SHA256SUMS\`. The in-game update checker reads the same data from <https://neomacros.tuanzi.ink/update/updates.json>; channel semantics: <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/main/docs/releasing.md>"
+          } > notes.md
           gh release delete dev --cleanup-tag -y --repo "$GITHUB_REPOSITORY" || true
           gh release create dev \
             --prerelease \
-            --title "dev builds" \
-            --notes "Rolling dev builds from \`main\` (build ${BUILD_NUMBER}, commit ${GITHUB_SHA:0:7}). Rebuilt on every push; always the newest passing state. See docs/releasing.md for channel semantics." \
+            --title "NeoMacros dev · ${version} · Minecraft ${mc_list}" \
+            --notes-file notes.md \
             --repo "$GITHUB_REPOSITORY" \
             dist/*
 
