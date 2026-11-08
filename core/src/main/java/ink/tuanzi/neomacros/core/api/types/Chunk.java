@@ -8,6 +8,7 @@ import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 
@@ -217,7 +218,12 @@ public final class Chunk implements ScriptHandle {
                 .orElse(null);
     }
 
-    /** Plain-object rendering used by {@code JSON.stringify}. */
+    /** Plain-object rendering used by {@code JSON.stringify}.
+     * @zh {@code JSON.stringify} 的纯对象渲染。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("ChunkJson")
     public Map<String, Object> toJSON() {
         Map<String, Object> view = new LinkedHashMap<>();
         view.put("chunkX", chunkX);
@@ -229,5 +235,18 @@ public final class Chunk implements ScriptHandle {
     @Override
     public String toString() {
         return "Chunk(" + chunkX + ", " + chunkZ + ")";
+    }
+
+    /**
+     * The JSON form of one chunk handle: the chunk coordinates and whether
+     * the chunk is currently loaded.
+     *
+     * @zh 区块句柄的 JSON 形式：区块坐标与当前是否已加载。
+     */
+    @ApiClass(name = "ChunkJson", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record ChunkJson(int chunkX, int chunkZ, boolean loaded) {
     }
 }

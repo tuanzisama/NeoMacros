@@ -3,8 +3,10 @@ package ink.tuanzi.neomacros.core.api.reflect;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -60,7 +62,9 @@ public final class ReflectApi {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public Object method(Object target, String name, Object paramTypes) {
+    @ApiType("JavaObject")
+    public Object method(@ApiType("JavaObject | JavaClass") Object target, String name,
+            @ApiType("Array<string | JavaClass>") Object paramTypes) {
         Class<?> owner = ownerOf(target);
         List<Class<?>> signature = signatureOf(paramTypes);
         for (Class<?> type = owner; type != null; type = type.getSuperclass()) {
@@ -89,7 +93,8 @@ public final class ReflectApi {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public Object field(Object target, String name) {
+    @ApiType("JavaObject")
+    public Object field(@ApiType("JavaObject | JavaClass") Object target, String name) {
         Class<?> owner = ownerOf(target);
         for (Class<?> type = owner; type != null; type = type.getSuperclass()) {
             try {
@@ -116,7 +121,10 @@ public final class ReflectApi {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public Object invoke(Object method, Object target, Object args) throws Exception {
+    @ApiType("JsonValue | JavaObject")
+    public Object invoke(@ApiType("JavaObject") Object method,
+            @ApiOptional @ApiType("JavaObject") Object target,
+            @ApiOptional @ApiType("Array<JsonValue | JavaObject>") Object args) throws Exception {
         if (!(method instanceof Method handle)) {
             throw new IllegalArgumentException("method must come from reflect.method()");
         }
@@ -139,7 +147,9 @@ public final class ReflectApi {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public Object newInstance(Object cls, Object args) throws Exception {
+    @ApiType("JavaObject")
+    public Object newInstance(@ApiType("JavaClass | string") Object cls,
+            @ApiOptional @ApiType("Array<JsonValue | JavaObject>") Object args) throws Exception {
         Class<?> type = classOf(cls);
         Object[] argv = positional(args, -1);
         for (Constructor<?> candidate : type.getDeclaredConstructors()) {
@@ -174,7 +184,7 @@ public final class ReflectApi {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public String className(Object value) {
+    public String className(@ApiType("JsonValue | JavaObject") Object value) {
         return value == null ? null : value.getClass().getName();
     }
 

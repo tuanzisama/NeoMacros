@@ -1,8 +1,11 @@
 package ink.tuanzi.neomacros.core.api;
 
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
@@ -105,7 +108,7 @@ public final class InputApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void unregister(Object handle) {
+    public void unregister(@ApiType("InputSubscription") Object handle) {
         if (handle instanceof Subscription subscription) {
             subscription.cancel();
             return;
@@ -183,15 +186,8 @@ public final class InputApi {
     @ApiMC("*")
     @ApiLoader("*")
     @ApiReadOnly
-    public java.util.List<java.util.Map<String, Object>> getKeybinds() {
-        java.util.List<java.util.Map<String, Object>> rows = new java.util.ArrayList<>();
-        for (ink.tuanzi.neomacros.port.model.KeybindData bind : bridge.keybinds()) {
-            java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
-            row.put("name", bind.name());
-            row.put("key", bind.key());
-            rows.add(row);
-        }
-        return rows;
+    public java.util.List<ink.tuanzi.neomacros.port.model.KeybindData> getKeybinds() {
+        return bridge.keybinds();
     }
 
     /**
@@ -240,7 +236,7 @@ public final class InputApi {
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public Subscription movement(java.util.Map<String, Object> spec) {
+    public Subscription movement(@ApiType("MovementSpec") java.util.Map<String, Object> spec) {
         if (spec == null) {
             throw new IllegalArgumentException("movement spec is required");
         }
@@ -293,7 +289,32 @@ public final class InputApi {
             "sneak", "key.sneak",
             "sprint", "key.sprint");
 
-    /** A live registration that can be cancelled. */
+    /**
+     * One movement-hold spec: each key maps to whether the bind stays held
+     * until the subscription is cancelled.
+     *
+     * @zh 一次按住移动键位的规格：每个键表示对应绑定是否按住到订阅取消。
+     */
+    @ApiClass(name = "MovementSpec", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record MovementSpec(
+            @ApiOptional Boolean forward,
+            @ApiOptional Boolean backward,
+            @ApiOptional Boolean left,
+            @ApiOptional Boolean right,
+            @ApiOptional Boolean jump,
+            @ApiOptional Boolean sneak,
+            @ApiOptional Boolean sprint) {
+    }
+
+    /** A live registration that can be cancelled.
+     * @zh 一条可取消的实时注册。 */
+    @ApiClass(name = "InputSubscription", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public static final class Subscription implements ScriptHandle {
 
         private final Runnable cancel;
@@ -302,7 +323,11 @@ public final class InputApi {
             this.cancel = cancel;
         }
 
-        /** Cancels the registration (unbinds / detaches). */
+        /** Cancels the registration (unbinds / detaches).
+         * @zh 取消注册（解绑/分离）。 */
+        @ApiSince("0.1.0")
+        @ApiMC("*")
+        @ApiLoader("*")
         public void cancel() {
             cancel.run();
         }

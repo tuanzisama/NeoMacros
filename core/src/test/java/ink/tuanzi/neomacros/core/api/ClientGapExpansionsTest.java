@@ -85,15 +85,15 @@ class ClientGapExpansionsTest {
 
     @Test
     void modsRenderShape() {
-        List<Map<String, Object>> mods = api.getMods();
+        List<ModData> mods = api.getMods();
         assertEquals(2, mods.size());
-        assertEquals("neomacros", mods.get(0).get("id"));
-        assertEquals("1.0.0", mods.get(0).get("version"));
-        assertEquals(List.of("author"), mods.get(0).get("authors"));
+        assertEquals("neomacros", mods.get(0).id());
+        assertEquals("1.0.0", mods.get(0).version());
+        assertEquals(List.of("author"), mods.get(0).authors());
         assertTrue(api.isModLoaded("neomacros"));
         assertFalse(api.isModLoaded("absent"));
-        Map<String, Object> one = api.getMod("other");
-        assertEquals("other", one.get("id"));
+        ModData one = api.getMod("other");
+        assertEquals("other", one.id());
         assertNull(api.getMod("absent"));
     }
 
@@ -103,25 +103,25 @@ class ClientGapExpansionsTest {
         assertNull(api.getServerInfo());
         client.connected = true;
         assertEquals(42, api.getPing());
-        assertEquals("Server", api.getServerInfo().get("name"));
-        assertEquals("host:25565", api.getServerInfo().get("address"));
+        assertEquals("Server", api.getServerInfo().name());
+        assertEquals("host:25565", api.getServerInfo().address());
     }
 
     @Test
     void windowMouseAndOptionsRenderShape() {
-        Map<String, Object> window = api.getWindow();
-        assertEquals(1920, window.get("width"));
-        assertEquals(1080, window.get("height"));
-        assertEquals(640, window.get("scaledWidth"));
-        assertEquals(360, window.get("scaledHeight"));
-        Map<String, Object> mouse = api.getMouse();
-        assertEquals(12.5, mouse.get("x"));
-        assertEquals(3.25, mouse.get("y"));
-        Map<String, Object> options = api.getOptions();
-        assertEquals(90, options.get("fov"));
-        assertEquals(1.0, options.get("gamma"));
-        assertEquals(2, options.get("guiScale"));
-        assertEquals(12, options.get("renderDistance"));
+        WindowData window = api.getWindow();
+        assertEquals(1920, window.width());
+        assertEquals(1080, window.height());
+        assertEquals(640, window.scaledWidth());
+        assertEquals(360, window.scaledHeight());
+        ClientApi.MousePos mouse = api.getMouse();
+        assertEquals(12.5, mouse.x());
+        assertEquals(3.25, mouse.y());
+        OptionsData options = api.getOptions();
+        assertEquals(90, options.fov());
+        assertEquals(1.0, options.gamma());
+        assertEquals(2, options.guiScale());
+        assertEquals(12, options.renderDistance());
     }
 
     @Test

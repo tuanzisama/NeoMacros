@@ -1,10 +1,12 @@
 package ink.tuanzi.neomacros.core.api.java;
 
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Proxy;
@@ -73,7 +75,8 @@ public final class JavaApi {
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public Object wrap(Object raw) {
+    @ApiType("object")
+    public Object wrap(@ApiType("JavaObject") Object raw) {
         if (raw == null || wrapper == null) {
             return null;
         }
@@ -159,7 +162,9 @@ public final class JavaApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public Object proxy(Object interfaces, Object handlers) throws ClassNotFoundException {
+    @ApiType("JavaObject")
+    public Object proxy(@ApiType("Array<string> | string") Object interfaces,
+            @ApiType("Record<string, Function>") Object handlers) throws ClassNotFoundException {
         List<String> names = new ArrayList<>();
         if (interfaces instanceof List<?> list) {
             for (Object entry : list) {
@@ -228,7 +233,8 @@ public final class JavaApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public Object toList(Object scriptArray) {
+    @ApiType("JavaObject")
+    public Object toList(@ApiType("Array<JsonValue | JavaObject>") Object scriptArray) {
         if (scriptArray instanceof List<?> list) {
             return JavaInterop.wrap(new ArrayList<>(list));
         }
@@ -244,7 +250,8 @@ public final class JavaApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public Object fromList(Object javaCollection) {
+    @ApiType("Array<JsonValue | JavaObject>")
+    public Object fromList(@ApiType("JavaObject") Object javaCollection) {
         if (javaCollection instanceof java.util.Collection<?> collection) {
             return new ArrayList<>(collection);
         }
@@ -261,7 +268,9 @@ public final class JavaApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public Object toArray(Object scriptArray, String componentTypeName)
+    @ApiType("JavaObject")
+    public Object toArray(@ApiType("Array<JsonValue | JavaObject>") Object scriptArray,
+            String componentTypeName)
             throws ClassNotFoundException {
         if (!(scriptArray instanceof List<?> list)) {
             throw new IllegalArgumentException("toArray expects an array");

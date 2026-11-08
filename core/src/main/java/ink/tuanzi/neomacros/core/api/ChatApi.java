@@ -1,10 +1,14 @@
 package ink.tuanzi.neomacros.core.api;
 
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 
 /**
  * The {@code neo.chat} module: chat output services. Sending targets the
@@ -67,7 +71,7 @@ public final class ChatApi {
     @ApiMC("*")
     @ApiLoader("*")
     public ink.tuanzi.neomacros.core.api.types.TextBuilder text(String text,
-            java.util.Map<String, Object> style) {
+            @ApiOptional @ApiType("TextStyle") java.util.Map<String, Object> style) {
         return new ink.tuanzi.neomacros.core.api.types.TextBuilder(
                 text == null ? "" : text, style);
     }
@@ -157,5 +161,29 @@ public final class ChatApi {
     @ApiLoader("*")
     public int getWidth(String text) {
         return ScriptApiEnvironment.adapter().chat().textWidth(text);
+    }
+
+    /**
+     * One text style map accepted by {@code chat.text} and
+     * {@code append}: every key is optional and missing keys inherit the
+     * segment's previous style.
+     *
+     * @zh {@code chat.text} 与 {@code append} 接受的样式表：每个键均可省略，缺省键沿用分段已有样式。
+     */
+    @ApiClass(name = "TextStyle", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record TextStyle(
+            @ApiOptional String color,
+            @ApiOptional Boolean bold,
+            @ApiOptional Boolean italic,
+            @ApiOptional Boolean underlined,
+            @ApiOptional Boolean strikethrough,
+            @ApiOptional Boolean obfuscated,
+            @ApiOptional String hoverText,
+            @ApiOptional String hoverItem,
+            @ApiOptional String clickCommand,
+            @ApiOptional String clickUrl) {
     }
 }

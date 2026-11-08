@@ -88,8 +88,8 @@ public final class ThreadApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    @ApiType("Promise<object>")
-    public CompletableFuture<Object> runOnMain(Callable<Object> task) {
+    @ApiType("Promise<any>")
+    public CompletableFuture<Object> runOnMain(@ApiType("() => any") Callable<Object> task) {
         return primitives().runOnMain(task);
     }
 

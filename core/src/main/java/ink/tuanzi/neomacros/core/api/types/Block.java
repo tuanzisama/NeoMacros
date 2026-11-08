@@ -9,6 +9,7 @@ import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 
 import java.util.Optional;
 
@@ -58,6 +59,7 @@ public final class Block implements ScriptHandle {
     @ApiMC("*")
     @ApiLoader("*")
     @ApiPermission("java")
+    @ApiType("JavaObject")
     public Object getRaw() {
         return ScriptApiEnvironment.adapter().world().rawByPos(
                 new ink.tuanzi.neomacros.port.model.Pos3d(

@@ -6,8 +6,10 @@ import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.model.ItemStackData;
 
 import java.util.ArrayList;
@@ -33,13 +35,13 @@ public final class ItemStack implements ScriptHandle {
     private final int damage;
     private final int maxDamage;
     private final List<String> lore;
-    private final List<Enchantment> enchantments;
+    private final List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchantments;
     private final boolean unbreakable;
     private final Map<String, Object> extras;
 
     ItemStack(String id, int count, String name, int damage, int maxDamage,
-            List<String> lore, List<Enchantment> enchantments, boolean unbreakable,
-            Map<String, Object> extras) {
+            List<String> lore, List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchantments,
+            boolean unbreakable, Map<String, Object> extras) {
         this.id = namespaced(id);
         this.count = count;
         this.name = name;
@@ -54,9 +56,10 @@ public final class ItemStack implements ScriptHandle {
     /** Builds the script stack from one neutral port snapshot.
      * @zh 由中立端口快照构建脚本物品堆。 */
     public static ItemStack of(ItemStackData data) {
-        List<Enchantment> enchants = new ArrayList<>();
+        List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchants = new ArrayList<>();
         for (ink.tuanzi.neomacros.port.model.EnchantmentData entry : data.enchantments()) {
-            enchants.add(new Enchantment(namespaced(entry.id()), entry.level()));
+            enchants.add(new ink.tuanzi.neomacros.port.model.EnchantmentData(
+                    namespaced(entry.id()), entry.level()));
         }
         return new ItemStack(data.id(), data.count(), data.name(), data.damage(),
                 data.maxDamage(), data.lore(), enchants, false, data.extras());
@@ -72,11 +75,7 @@ public final class ItemStack implements ScriptHandle {
      * @zh 本物品堆的中立端口快照。 */
     @ApiInternal
     public ItemStackData toData() {
-        List<ink.tuanzi.neomacros.port.model.EnchantmentData> entries = new ArrayList<>();
-        for (Enchantment entry : enchantments) {
-            entries.add(new ink.tuanzi.neomacros.port.model.EnchantmentData(entry.id(), entry.level()));
-        }
-        return new ItemStackData(id, count, name, damage, maxDamage, lore, entries);
+        return new ItemStackData(id, count, name, damage, maxDamage, lore, enchantments);
     }
 
     /** Appends the namespace to a bare identifier ({@code minecraft:} default).
@@ -217,15 +216,8 @@ public final class ItemStack implements ScriptHandle {
     @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
-    public List<Map<String, Object>> getEnchantments() {
-        List<Map<String, Object>> out = new ArrayList<>();
-        for (Enchantment entry : enchantments) {
-            Map<String, Object> view = new LinkedHashMap<>();
-            view.put("id", entry.id());
-            view.put("level", entry.level());
-            out.add(view);
-        }
-        return out;
+    public List<ink.tuanzi.neomacros.port.model.EnchantmentData> getEnchantments() {
+        return enchantments;
     }
 
     /** Whether the stack represents nothing (air or a zero count).
@@ -252,7 +244,7 @@ public final class ItemStack implements ScriptHandle {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public boolean isSameItem(Object other) {
+    public boolean isSameItem(@ApiType("ItemStack") Object other) {
         String otherId = itemIdOf(other);
         return otherId != null && id.equals(otherId);
     }
@@ -262,7 +254,7 @@ public final class ItemStack implements ScriptHandle {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public boolean same(Object other) {
+    public boolean same(@ApiType("ItemStack") Object other) {
         return equals(other);
     }
 
@@ -271,6 +263,7 @@ public final class ItemStack implements ScriptHandle {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
+    @ApiType("ItemStackJson")
     public Map<String, Object> toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", id);
@@ -319,23 +312,24 @@ public final class ItemStack implements ScriptHandle {
         return null;
     }
 
-    /** One enchantment entry of the stack. */
-    static final class Enchantment {
-
-        private final String id;
-        private final int level;
-
-        Enchantment(String id, int level) {
-            this.id = id;
-            this.level = level;
-        }
-
-        String id() {
-            return id;
-        }
-
-        int level() {
-            return level;
-        }
+    /**
+     * The JSON form of one item stack: the always-present id, count, and
+     * name; the durability, lore, and enchantment fields appear only when
+     * they carry content.
+     *
+     * @zh 物品堆的 JSON 形式：id/count/name 恒在；耐久、lore 与附魔字段仅在存在时出现。
+     */
+    @ApiClass(name = "ItemStackJson", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record ItemStackJson(
+            String id,
+            int count,
+            String name,
+            @ApiOptional Integer damage,
+            @ApiOptional Integer maxDamage,
+            @ApiOptional List<String> lore,
+            @ApiOptional List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchantments) {
     }
 }

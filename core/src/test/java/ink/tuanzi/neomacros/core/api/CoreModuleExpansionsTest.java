@@ -95,11 +95,10 @@ class CoreModuleExpansionsTest {
         assertEquals(3, bytes.length);
         assertEquals(254, bytes[2] & 0xFF);
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> stat = (Map<String, Object>) join(api.stat("data/blob.bin"));
-        assertEquals(3L, stat.get("size"));
-        assertEquals(Boolean.TRUE, stat.get("isFile"));
-        assertEquals(Boolean.FALSE, stat.get("isDir"));
+        FsApi.FileStat stat = join(api.stat("data/blob.bin"));
+        assertEquals(3L, stat.size());
+        assertEquals(Boolean.TRUE, stat.isFile());
+        assertEquals(Boolean.FALSE, stat.isDir());
 
         join(api.copy("data/blob.bin", "data/blob-copy.bin"));
         assertTrue((Boolean) join(api.exists("data/blob-copy.bin")));

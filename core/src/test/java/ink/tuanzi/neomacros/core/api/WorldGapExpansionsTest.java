@@ -68,11 +68,11 @@ class WorldGapExpansionsTest {
     @Test
     void tpsRendersWindowShape() {
         world.tps = new TpsData(19.8, 19.5, 19.9, 20.0);
-        Map<String, Object> view = api.getTps();
-        assertEquals(19.8, view.get("instant"));
-        assertEquals(19.5, view.get("m1"));
-        assertEquals(19.9, view.get("m5"));
-        assertEquals(20.0, view.get("m15"));
+        TpsData view = api.getTps();
+        assertEquals(19.8, view.instant());
+        assertEquals(19.5, view.m1());
+        assertEquals(19.9, view.m5());
+        assertEquals(20.0, view.m15());
     }
 
     @Test
@@ -86,30 +86,29 @@ class WorldGapExpansionsTest {
         world.tabList = new TabListData("header", "footer", List.of(
                 new TabListData.TabListEntry("u-1", "Alice", 42, "survival", "Al"),
                 new TabListData.TabListEntry("u-2", "Bob", 7, "creative", null)));
-        Map<String, Object> view = api.getTabList();
-        assertEquals("header", view.get("header"));
-        assertEquals("footer", view.get("footer"));
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> entries = (List<Map<String, Object>>) view.get("entries");
+        TabListData view = api.getTabList();
+        assertEquals("header", view.header());
+        assertEquals("footer", view.footer());
+        List<TabListData.TabListEntry> entries = view.entries();
         assertEquals(2, entries.size());
-        assertEquals("u-1", entries.get(0).get("uuid"));
-        assertEquals("Alice", entries.get(0).get("name"));
-        assertEquals(42, entries.get(0).get("latency"));
-        assertEquals("survival", entries.get(0).get("gamemode"));
-        assertEquals("Al", entries.get(0).get("displayName"));
-        assertNull(entries.get(1).get("displayName"));
+        assertEquals("u-1", entries.get(0).uuid());
+        assertEquals("Alice", entries.get(0).name());
+        assertEquals(42, entries.get(0).latency());
+        assertEquals("survival", entries.get(0).gamemode());
+        assertEquals("Al", entries.get(0).displayName());
+        assertNull(entries.get(1).displayName());
     }
 
     @Test
     void bossBarsRenderShapeAndStayEmptyByDefault() {
         assertTrue(api.getBossBars().isEmpty());
         world.bossBars.add(new BossBarSnapshot("b-1", "Ender Dragon", 0.5f, "purple"));
-        List<Map<String, Object>> bars = api.getBossBars();
+        List<BossBarSnapshot> bars = api.getBossBars();
         assertEquals(1, bars.size());
-        assertEquals("b-1", bars.get(0).get("uuid"));
-        assertEquals("Ender Dragon", bars.get(0).get("name"));
-        assertEquals(0.5f, bars.get(0).get("progress"));
-        assertEquals("purple", bars.get(0).get("color"));
+        assertEquals("b-1", bars.get(0).uuid());
+        assertEquals("Ender Dragon", bars.get(0).name());
+        assertEquals(0.5f, bars.get(0).progress());
+        assertEquals("purple", bars.get(0).color());
     }
 
     @Test
@@ -118,18 +117,15 @@ class WorldGapExpansionsTest {
                 List.of(new ScoreboardData.ObjectiveData("kills", "Kills",
                         "playerKillCount", "integer")),
                 List.of(new ScoreboardData.ScoreEntryData("kills", "Alice", 12)));
-        Map<String, Object> view = api.getScoreboards();
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> objectives =
-                (List<Map<String, Object>>) view.get("objectives");
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> scores = (List<Map<String, Object>>) view.get("scores");
+        ScoreboardData view = api.getScoreboards();
+        List<ScoreboardData.ObjectiveData> objectives = view.objectives();
+        List<ScoreboardData.ScoreEntryData> scores = view.scores();
         assertEquals(1, objectives.size());
-        assertEquals("kills", objectives.get(0).get("name"));
-        assertEquals("playerKillCount", objectives.get(0).get("criteria"));
-        assertEquals("integer", objectives.get(0).get("renderType"));
-        assertEquals(12, scores.get(0).get("value"));
-        assertEquals("Alice", scores.get(0).get("owner"));
+        assertEquals("kills", objectives.get(0).name());
+        assertEquals("playerKillCount", objectives.get(0).criteria());
+        assertEquals("integer", objectives.get(0).renderType());
+        assertEquals(12, scores.get(0).value());
+        assertEquals("Alice", scores.get(0).owner());
     }
 
     @Test

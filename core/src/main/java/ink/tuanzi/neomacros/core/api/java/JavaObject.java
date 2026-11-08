@@ -19,11 +19,22 @@ public final class JavaObject implements JavaInterop {
         this.raw = raw;
     }
 
-    /** The wrapped host object (interop argument adaptation unwraps it). */
+    /** The wrapped host object (interop argument adaptation unwraps it).
+     * @zh 被包装的宿主对象（interop 参数适配会解包它）。 */
+    @ink.tuanzi.neomacros.doc.api.ApiSince("0.2.0")
+    @ink.tuanzi.neomacros.doc.api.ApiMC("*")
+    @ink.tuanzi.neomacros.doc.api.ApiLoader("*")
+    @ink.tuanzi.neomacros.doc.api.ApiType("JavaObject")
     public Object raw() {
         return raw;
     }
 
+    /** The raw host value behind this proxy.
+     * @zh 代理背后的原始宿主值。 */
+    @ink.tuanzi.neomacros.doc.api.ApiSince("0.2.0")
+    @ink.tuanzi.neomacros.doc.api.ApiMC("*")
+    @ink.tuanzi.neomacros.doc.api.ApiLoader("*")
+    @ink.tuanzi.neomacros.doc.api.ApiType("JavaObject")
     @Override
     public Object rawValue() {
         return raw;
@@ -49,6 +60,12 @@ public final class JavaObject implements JavaInterop {
         return args -> JavaInteropResolver.dispatch(methods, raw, args);
     }
 
+    /** Reads a plain-value member (fields only), or null when absent.
+     * @zh 读取纯值成员（仅字段）；缺失为 null。 */
+    @ink.tuanzi.neomacros.doc.api.ApiSince("0.2.0")
+    @ink.tuanzi.neomacros.doc.api.ApiMC("*")
+    @ink.tuanzi.neomacros.doc.api.ApiLoader("*")
+    @ink.tuanzi.neomacros.doc.api.ApiType("JsonValue | JavaObject")
     @Override
     public Object readValue(String name) {
         List<Field> fields = JavaInteropResolver.fields(raw.getClass(), name, false);
@@ -62,14 +79,25 @@ public final class JavaObject implements JavaInterop {
         }
     }
 
+    @ink.tuanzi.neomacros.doc.api.ApiSince("0.2.0")
+    @ink.tuanzi.neomacros.doc.api.ApiMC("*")
+    @ink.tuanzi.neomacros.doc.api.ApiLoader("*")
+    @ink.tuanzi.neomacros.doc.api.ApiType("JsonValue | JavaObject")
     @Override
-    public Object invoke(String name, Object[] args) {
+    public Object invoke(String name,
+            @ink.tuanzi.neomacros.doc.api.ApiType("Array<JsonValue | JavaObject>") Object[] args) {
         return JavaInteropResolver.dispatch(JavaInteropResolver.methods(raw.getClass(), name, false),
                 raw, args);
     }
 
+    /** Writes a public field; throws when no writable field carries the name.
+     * @zh 写公共字段；无可写字段时抛错。 */
+    @ink.tuanzi.neomacros.doc.api.ApiSince("0.2.0")
+    @ink.tuanzi.neomacros.doc.api.ApiMC("*")
+    @ink.tuanzi.neomacros.doc.api.ApiLoader("*")
     @Override
-    public void write(String name, Object value) {
+    public void write(String name,
+            @ink.tuanzi.neomacros.doc.api.ApiType("JsonValue | JavaObject") Object value) {
         List<Field> fields = JavaInteropResolver.fields(raw.getClass(), name, false);
         if (fields.isEmpty()) {
             throw new IllegalStateException("no writable field: " + name);

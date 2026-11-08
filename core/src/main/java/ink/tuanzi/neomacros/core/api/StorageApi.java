@@ -5,7 +5,9 @@ import ink.tuanzi.neomacros.core.module.LoadedModule;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 
 /**
  * The {@code neo.storage} module: persistent per-script key-value storage.
@@ -29,6 +31,7 @@ public final class StorageApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
+    @ApiType("JsonValue")
     public Object get(String key) {
         return storage().get(key);
     }
@@ -41,7 +44,7 @@ public final class StorageApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void put(String key, Object value) {
+    public void put(String key, @ApiOptional @ApiType("JsonValue") Object value) {
         storage().put(key, value);
     }
 

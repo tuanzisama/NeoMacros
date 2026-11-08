@@ -5,8 +5,10 @@ import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -104,6 +106,7 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
+    @ApiType("Pos2DJson")
     public Map<String, Object> toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("x", x);
@@ -130,6 +133,7 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     }
 
     @Override
+    @ApiInternal
     public Object construct(Object[] args) {
         if (args != null && args.length == 1 && args[0] instanceof Pos2D point) {
             return point;
@@ -144,5 +148,17 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
     public int compare(Pos2D other) {
         int byX = Double.compare(x, other.x);
         return byX != 0 ? byX : Double.compare(y, other.y);
+    }
+
+    /**
+     * The JSON form of one 2D point ({@code {x, y}}).
+     *
+     * @zh 二维坐标的 JSON 形式（{@code {x, y}}）。
+     */
+    @ApiClass(name = "Pos2DJson", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record Pos2DJson(double x, double y) {
     }
 }

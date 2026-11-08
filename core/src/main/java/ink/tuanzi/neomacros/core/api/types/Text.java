@@ -5,8 +5,10 @@ import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.model.TextSegmentData;
 
 import java.util.ArrayList;
@@ -99,6 +101,10 @@ public final class Text implements ScriptHandle {
 
     /** Plain-object rendering used by {@code JSON.stringify}.
      * @zh {@code JSON.stringify} 的纯对象渲染。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Array<TextSegmentJson>")
     public List<Map<String, Object>> toJSON() {
         List<Map<String, Object>> out = new ArrayList<>();
         for (TextSegmentData segment : segments) {
@@ -142,5 +148,29 @@ public final class Text implements ScriptHandle {
     @Override
     public String toString() {
         return "Text(" + getPlain() + ")";
+    }
+
+    /**
+     * One styled segment of the JSON form: the literal text plus the style
+     * keys that carry content.
+     *
+     * @zh JSON 形式的一个样式分段：字面文本加有内容的样式键。
+     */
+    @ApiClass(name = "TextSegmentJson", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record TextSegmentJson(
+            String text,
+            @ApiOptional String color,
+            @ApiOptional Boolean bold,
+            @ApiOptional Boolean italic,
+            @ApiOptional Boolean underlined,
+            @ApiOptional Boolean strikethrough,
+            @ApiOptional Boolean obfuscated,
+            @ApiOptional String hoverText,
+            @ApiOptional String hoverItem,
+            @ApiOptional String clickCommand,
+            @ApiOptional String clickUrl) {
     }
 }

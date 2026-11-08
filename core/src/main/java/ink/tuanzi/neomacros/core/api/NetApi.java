@@ -11,6 +11,7 @@ import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
@@ -81,7 +82,8 @@ public final class NetApi {
     @ApiLoader("*")
     @ApiType("Promise<Response>")
     @ApiPermission("net")
-    public CompletableFuture<Response> fetch(String url, Object init) {
+    public CompletableFuture<Response> fetch(String url,
+            @ApiOptional @ApiType("RequestInit") Object init) {
         Map<?, ?> options = init instanceof Map<?, ?> map ? map : Map.of();
         Object methodValue = options.get("method");
         String method = String.valueOf(methodValue != null ? methodValue : "GET")
@@ -325,7 +327,13 @@ public final class NetApi {
     /**
      * Live HTTP response: status/header properties plus async body readers
      * ({@code text()}, {@code json()}, {@code bytes()}).
+     *
+     * @zh 活的 HTTP 响应：状态/响应头属性加异步 body 读取器（{@code text()}、{@code json()}、{@code bytes()}）。
      */
+    @ApiClass(name = "Response", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public static final class Response implements ScriptHandle {
 
         private final int status;
@@ -341,22 +349,38 @@ public final class NetApi {
             this.body = response.body() != null ? response.body() : new byte[0];
         }
 
-        /** The HTTP status code. */
+        /** The HTTP status code.
+         * @zh HTTP 状态码。 */
+        @ApiSince("0.1.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
         public int getStatus() {
             return status;
         }
 
-        /** Whether the status is in the 2xx range. */
+        /** Whether the status is in the 2xx range.
+         * @zh 状态码是否在 2xx 区间。 */
+        @ApiSince("0.1.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
         public boolean getOk() {
             return status >= 200 && status < 300;
         }
 
-        /** Response headers, keyed by lower-cased name. */
+        /** Response headers, keyed by lower-cased name.
+         * @zh 响应头（键为小写名）。 */
+        @ApiSince("0.1.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
         public Map<String, String> getHeaders() {
             return headers;
         }
 
-        /** Reads the body as UTF-8 text. */
+        /** Reads the body as UTF-8 text.
+         * @zh 以 UTF-8 文本读取 body。 */
         @ApiSince("0.1.0")
         @ApiMC("*")
         @ApiLoader("*")
@@ -366,11 +390,12 @@ public final class NetApi {
                     new String(body, StandardCharsets.UTF_8));
         }
 
-        /** Parses the body as JSON; rejects when the body is not valid JSON. */
+        /** Parses the body as JSON; rejects when the body is not valid JSON.
+         * @zh 把 body 解析为 JSON；非法 JSON 时 reject。 */
         @ApiSince("0.1.0")
         @ApiMC("*")
         @ApiLoader("*")
-        @ApiType("Promise<any>")
+        @ApiType("Promise<JsonValue>")
         public CompletableFuture<Object> json() {
             try {
                 return CompletableFuture.completedFuture(
@@ -383,7 +408,8 @@ public final class NetApi {
             }
         }
 
-        /** Reads the body as raw bytes (rendered as a Uint8Array). */
+        /** Reads the body as raw bytes (rendered as a Uint8Array).
+         * @zh 按原始字节读取 body（渲染为 Uint8Array）。 */
         @ApiSince("0.1.0")
         @ApiMC("*")
         @ApiLoader("*")
@@ -475,7 +501,9 @@ public final class NetApi {
         @ApiSince("0.2.0")
         @ApiMC("*")
         @ApiLoader("*")
-        public void on(String name, java.util.function.Consumer<Object> handler) {
+        public void on(String name,
+                @ApiType("(payload: string | undefined) => void")
+                        java.util.function.Consumer<Object> handler) {
             if (!java.util.Set.of("open", "message", "close", "error").contains(name)) {
                 throw new IllegalArgumentException("unknown websocket event: " + name);
             }
@@ -578,5 +606,21 @@ public final class NetApi {
                 }
             };
         }
+    }
+
+    /**
+     * One fetch request init object: the HTTP method (default GET), the
+     * request headers, and the string body.
+     *
+     * @zh fetch 请求初始化对象：HTTP 方法（默认 GET）、请求头与字符串 body。
+     */
+    @ApiClass(name = "RequestInit", kind = ApiClassKind.DATA)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record RequestInit(
+            @ApiOptional String method,
+            @ApiOptional Map<String, String> headers,
+            @ApiOptional String body) {
     }
 }

@@ -204,6 +204,7 @@ public final class BlockPos extends Pos3D {
     }
 
     @Override
+    @ApiInternal
     public Object construct(Object[] args) {
         if (args != null && args.length == 1 && args[0] instanceof BlockPos pos) {
             return pos;

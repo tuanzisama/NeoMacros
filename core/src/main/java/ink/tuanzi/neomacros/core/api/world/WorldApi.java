@@ -2,11 +2,15 @@ package ink.tuanzi.neomacros.core.api.world;
 
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.SnapshotViews;
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
@@ -254,9 +258,8 @@ public final class WorldApi {
     @ApiMC("*")
     @ApiLoader("*")
     @ApiReadOnly
-    public java.util.Map<String, Object> getTps() {
-        return ScriptApiEnvironment.adapter().world().tps()
-                .map(WorldApi::tpsView).orElse(null);
+    public TpsData getTps() {
+        return ScriptApiEnvironment.adapter().world().tps().orElse(null);
     }
 
     /**
@@ -270,9 +273,8 @@ public final class WorldApi {
     @ApiMC("*")
     @ApiLoader("*")
     @ApiReadOnly
-    public java.util.Map<String, Object> getTabList() {
-        return ScriptApiEnvironment.adapter().world().tabList()
-                .map(WorldApi::tabListView).orElse(null);
+    public TabListData getTabList() {
+        return ScriptApiEnvironment.adapter().world().tabList().orElse(null);
     }
 
     /**
@@ -285,9 +287,8 @@ public final class WorldApi {
     @ApiMC("*")
     @ApiLoader("*")
     @ApiReadOnly
-    public java.util.List<java.util.Map<String, Object>> getBossBars() {
-        return ScriptApiEnvironment.adapter().world().bossBars().stream()
-                .map(WorldApi::bossBarView).toList();
+    public java.util.List<BossBarSnapshot> getBossBars() {
+        return ScriptApiEnvironment.adapter().world().bossBars();
     }
 
     /**
@@ -301,9 +302,8 @@ public final class WorldApi {
     @ApiMC("*")
     @ApiLoader("*")
     @ApiReadOnly
-    public java.util.Map<String, Object> getScoreboards() {
-        return ScriptApiEnvironment.adapter().world().scoreboards()
-                .map(WorldApi::scoreboardView).orElse(null);
+    public ScoreboardData getScoreboards() {
+        return ScriptApiEnvironment.adapter().world().scoreboards().orElse(null);
     }
 
     /**
@@ -386,7 +386,7 @@ public final class WorldApi {
     @ApiMC("*")
     @ApiLoader("*")
     public java.util.List<ink.tuanzi.neomacros.core.api.types.Block> findBlocks(
-            java.util.Map<String, Object> options) {
+            @ApiType("FindBlocksOptions") java.util.Map<String, Object> options) {
         if (options == null) {
             throw new IllegalArgumentException("findBlocks options are required");
         }
@@ -429,67 +429,20 @@ public final class WorldApi {
         return value instanceof Number number ? number.doubleValue() : fallback;
     }
 
-    /** Renders the tick rate estimate as the script-facing shape. */
-    private static java.util.Map<String, Object> tpsView(TpsData tps) {
-        java.util.Map<String, Object> view = new LinkedHashMap<>();
-        view.put("instant", tps.instant());
-        view.put("m1", tps.m1());
-        view.put("m5", tps.m5());
-        view.put("m15", tps.m15());
-        return view;
-    }
-
-    /** Renders the tab list snapshot as the script-facing shape. */
-    private static java.util.Map<String, Object> tabListView(TabListData data) {
-        java.util.Map<String, Object> view = new LinkedHashMap<>();
-        view.put("header", data.header());
-        view.put("footer", data.footer());
-        java.util.List<java.util.Map<String, Object>> entries = new java.util.ArrayList<>();
-        for (TabListData.TabListEntry entry : data.entries()) {
-            java.util.Map<String, Object> row = new LinkedHashMap<>();
-            row.put("uuid", entry.uuid());
-            row.put("name", entry.name());
-            row.put("latency", entry.latency());
-            row.put("gamemode", entry.gamemode());
-            row.put("displayName", entry.displayName());
-            entries.add(row);
-        }
-        view.put("entries", entries);
-        return view;
-    }
-
-    /** Renders one boss bar snapshot as the script-facing shape. */
-    private static java.util.Map<String, Object> bossBarView(BossBarSnapshot bar) {
-        java.util.Map<String, Object> view = new LinkedHashMap<>();
-        view.put("uuid", bar.uuid());
-        view.put("name", bar.name());
-        view.put("progress", bar.progress());
-        view.put("color", bar.color());
-        return view;
-    }
-
-    /** Renders the scoreboard snapshot as the script-facing shape. */
-    private static java.util.Map<String, Object> scoreboardView(ScoreboardData data) {
-        java.util.List<java.util.Map<String, Object>> objectives = new java.util.ArrayList<>();
-        for (ScoreboardData.ObjectiveData objective : data.objectives()) {
-            java.util.Map<String, Object> row = new LinkedHashMap<>();
-            row.put("name", objective.name());
-            row.put("displayName", objective.displayName());
-            row.put("criteria", objective.criteria());
-            row.put("renderType", objective.renderType());
-            objectives.add(row);
-        }
-        java.util.List<java.util.Map<String, Object>> scores = new java.util.ArrayList<>();
-        for (ScoreboardData.ScoreEntryData score : data.scores()) {
-            java.util.Map<String, Object> row = new LinkedHashMap<>();
-            row.put("objective", score.objective());
-            row.put("owner", score.owner());
-            row.put("value", score.value());
-            scores.add(row);
-        }
-        java.util.Map<String, Object> view = new LinkedHashMap<>();
-        view.put("objectives", objectives);
-        view.put("scores", scores);
-        return view;
+    /**
+     * One findBlocks scan: the block ids (string or string array), the
+     * center position, the scan range, and the result cap.
+     *
+     * @zh 一次 findBlocks 扫描：方块 id（字符串或字符串数组）、中心坐标、扫描半径与结果上限。
+     */
+    @ApiClass(name = "FindBlocksOptions", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record FindBlocksOptions(
+            @ApiType("string | Array<string>") Object types,
+            @ApiType("{ x: number; y: number; z: number }") Object center,
+            @ApiOptional Double range,
+            @ApiOptional Integer limit) {
     }
 }

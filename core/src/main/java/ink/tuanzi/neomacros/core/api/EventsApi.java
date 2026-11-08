@@ -7,6 +7,7 @@ import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -29,16 +30,16 @@ public final class EventsApi {
      * Subscribes asynchronously; the handler runs on the script context's
      * event loop. Wildcard patterns ({@code domain:*}, {@code *}) are allowed.
      *
-     * @return an opaque subscription handle passed back to {@link #off(Object)}
+     * @return the subscription handle passed back to {@link #off(Object)}
      * @zh 异步订阅事件；处理器在脚本上下文的事件循环线程上执行。
      * @zh-param name 事件名，支持 {@code domain:*} 与 {@code *} 通配
      * @zh-param handler 事件载荷处理器
-     * @zh-return 传回 {@link #off} 的不透明订阅句柄
+     * @zh-return 传回 {@link #off} 的订阅句柄
      */
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public Object on(String name, Consumer<Object> handler) {
+    public ink.tuanzi.neomacros.core.event.Subscription on(String name, Consumer<Object> handler) {
         LoadedModule owner = LoadTracker.current();
         var subscription = owner != null
                 ? ScriptApiEnvironment.bus().on(name, owner.context().loop(), handler)
@@ -52,13 +53,14 @@ public final class EventsApi {
     /**
      * Subscribes for exactly one firing; the subscription auto-unsubscribes.
      *
-     * @return an opaque subscription handle
+     * @return the subscription handle
      * @zh 订阅一次触发后自动注销的事件。
+     * @zh-return 订阅句柄
      */
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public Object once(String name, Consumer<Object> handler) {
+    public ink.tuanzi.neomacros.core.event.Subscription once(String name, Consumer<Object> handler) {
         LoadedModule owner = LoadTracker.current();
         var subscription = owner != null
                 ? ScriptApiEnvironment.bus().once(name, handler)
@@ -94,7 +96,7 @@ public final class EventsApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void emit(String name, Object payload) {
+    public void emit(String name, @ApiType("Record<string, JsonValue>") Object payload) {
         if (ScriptApiEnvironment.catalog().descriptor(name).isEmpty()) {
             throw new IllegalArgumentException(
                     "unknown event '" + name + "': register it with events.register first");
@@ -124,7 +126,7 @@ public final class EventsApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void off(Object handleOrName) {
+    public void off(@ApiType("Subscription | string") Object handleOrName) {
         if (handleOrName instanceof String name) {
             ScriptApiEnvironment.bus().off(name);
         } else if (handleOrName instanceof ink.tuanzi.neomacros.core.event.Subscription subscription) {
@@ -171,7 +173,7 @@ public final class EventsApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    @ink.tuanzi.neomacros.doc.api.ApiType("Promise<object>")
+    @ApiType("Promise<BaseEvent>")
     public CompletableFuture<Object> waitFor(String name) {
         return ScriptApiEnvironment.bus().waitFor(name);
     }
@@ -186,7 +188,7 @@ public final class EventsApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    @ink.tuanzi.neomacros.doc.api.ApiType("Promise<object>")
+    @ApiType("Promise<BaseEvent>")
     public CompletableFuture<Object> waitForUntil(String name, Predicate<Object> filter, long timeoutMillis) {
         return ScriptApiEnvironment.bus().waitFor(name, filter, timeoutMillis);
     }

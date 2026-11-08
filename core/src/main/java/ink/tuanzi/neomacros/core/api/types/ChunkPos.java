@@ -5,7 +5,9 @@ import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 import java.util.LinkedHashMap;
@@ -119,6 +121,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
+    @ApiType("ChunkPosJson")
     public Map<String, Object> toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("x", x);
@@ -142,6 +145,7 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
     }
 
     @Override
+    @ApiInternal
     public Object construct(Object[] args) {
         if (args != null && args.length == 1 && args[0] instanceof BlockPos pos) {
             return new ChunkPos(pos);
@@ -157,5 +161,17 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
             return number.intValue();
         }
         return 0;
+    }
+
+    /**
+     * The JSON form of one chunk coordinate ({@code {x, z}}).
+     *
+     * @zh 区块坐标的 JSON 形式（{@code {x, z}}）。
+     */
+    @ApiClass(name = "ChunkPosJson", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record ChunkPosJson(int x, int z) {
     }
 }

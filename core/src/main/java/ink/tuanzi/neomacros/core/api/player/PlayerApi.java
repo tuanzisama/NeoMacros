@@ -11,6 +11,7 @@ import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
@@ -121,7 +122,8 @@ public final class PlayerApi {
     @ApiSince("0.3.0")
     @ApiLoader("*")
     @ApiMC(">=1.21.6")
-    public CompletableFuture<String> showDialog(Map<String, Object> config) {
+    public CompletableFuture<String> showDialog(
+            @ApiType("DialogConfig") Map<String, Object> config) {
         return ScriptApiEnvironment.adapter().dialog().show(config);
     }
 
@@ -207,6 +209,14 @@ public final class PlayerApi {
         };
     }
 
+    /**
+     * Player handle: the entity read face comes through the entity port
+     * (works for remote players too); the local-only extras (hunger, air,
+     * gamemode, xp) read through the player port and are undefined for
+     * remote players.
+     *
+     * @zh 玩家句柄：实体读面经实体端口（远端玩家同样可用）；饥饿/氧气/游戏模式/经验等本地字段经玩家端口，远端玩家读为 undefined。
+     */
     @ApiClass(name = "Player", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.player.Player")
     public static class Player extends EntityApi.LivingEntity {
@@ -299,15 +309,12 @@ public final class PlayerApi {
         @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
-        public Map<String, Object> getXp() {
+        public XpInfo getXp() {
             if (!isSelf()) {
                 return null;
             }
-            Map<String, Object> view = new LinkedHashMap<>();
-            view.put("level", adapter().expLevel());
-            view.put("progress", (double) adapter().expProgress());
-            view.put("total", adapter().expTotal());
-            return view;
+            return new XpInfo(adapter().expLevel(), (double) adapter().expProgress(),
+                    adapter().expTotal());
         }
 
         /**
@@ -341,6 +348,7 @@ public final class PlayerApi {
         @ApiSince("0.1.0")
         @ApiLoader("*")
         @ApiMC("*")
+        @ApiType("PlayerJson")
         public Map<String, Object> toJSON() {
             Optional<PlayerSnapshot> self = local();
             return self.map(SnapshotViews::player)
@@ -1724,6 +1732,7 @@ public final class PlayerApi {
         @ApiSince("0.1.0")
         @ApiLoader("*")
         @ApiMC("*")
+        @ApiType("Array<SlotItem>")
         public List<Map<String, Object>> getItems() {
             return inventoryPort().allItems().get().stream()
                     .map(entry -> {
@@ -2295,5 +2304,90 @@ public final class PlayerApi {
         JigsawScreen(String mcClass, String title) {
             super(mcClass, "jigsaw", title);
         }
+    }
+
+    /**
+     * The local player's experience: the level, the progress into the
+     * current level (0-1), and the total collected points.
+     *
+     * @zh 本地玩家经验：等级、当前等级内进度（0-1）与累计总点数。
+     */
+    @ApiClass(name = "XpInfo", kind = ApiClassKind.DATA)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record XpInfo(int level, double progress, int total) {
+    }
+
+    /**
+     * One non-empty inventory slot view: the stack's plain fields plus its
+     * slot index.
+     *
+     * @zh 一个非空槽位视图：物品堆纯字段加槽位号。
+     */
+    @ApiClass(name = "SlotItem", kind = ApiClassKind.DATA)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record SlotItem(
+            String id,
+            int count,
+            String name,
+            @ApiOptional Integer damage,
+            @ApiOptional Integer maxDamage,
+            @ApiOptional java.util.List<String> lore,
+            @ApiOptional java.util.List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchantments,
+            int slot) {
+    }
+
+    /**
+     * One script-shown dialog action button spec: the visible label and the
+     * optional stable id (defaults to the flattened index).
+     *
+     * @zh 脚本弹窗动作按钮规格：可见标签与可选稳定 id（缺省为展平序号）。
+     */
+    @ApiClass(name = "DialogActionSpec", kind = ApiClassKind.DATA)
+    @ApiSince("0.3.0")
+    @ApiMC(">=1.21.6")
+    @ApiLoader("*")
+    public record DialogActionSpec(
+            @ApiOptional String id,
+            @ApiOptional String label) {
+    }
+
+    /**
+     * One script-shown dialog config: the kind, the title, the body lines
+     * (string or string array), the Esc behavior, the action buttons, and
+     * the action column count.
+     *
+     * @zh 脚本弹窗配置：类别、标题、正文（字符串或字符串数组）、Esc 行为、动作按钮与动作列数。
+     */
+    @ApiClass(name = "DialogConfig", kind = ApiClassKind.DATA)
+    @ApiSince("0.3.0")
+    @ApiMC(">=1.21.6")
+    @ApiLoader("*")
+    public record DialogConfig(
+            @ApiOptional String type,
+            @ApiOptional String title,
+            @ApiOptional @ApiType("string | Array<string>") Object body,
+            @ApiOptional Boolean canCloseWithEscape,
+            @ApiOptional java.util.List<DialogActionSpec> actions,
+            @ApiOptional Integer columns) {
+    }
+
+    /**
+     * The JSON form of one player snapshot ({@code Player.toJSON()}): the
+     * entity fields plus the look direction, hunger, and air.
+     *
+     * @zh 玩家快照的 JSON 形式（{@code Player.toJSON()}）：实体字段加视线方向、饥饿与氧气。
+     */
+    @ApiClass(name = "PlayerJson", kind = ApiClassKind.DATA)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record PlayerJson(String uuid, @ApiOptional String type, String name,
+            ink.tuanzi.neomacros.core.api.entity.EntityApi.JsonPos pos,
+            ink.tuanzi.neomacros.core.api.entity.EntityApi.JsonLook look,
+            double health, Integer hunger, Integer air) {
     }
 }

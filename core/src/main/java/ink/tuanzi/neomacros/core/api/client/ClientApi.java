@@ -1,20 +1,21 @@
 package ink.tuanzi.neomacros.core.api.client;
 
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.model.ModData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
 import ink.tuanzi.neomacros.port.model.ServerInfoData;
 import ink.tuanzi.neomacros.port.model.WindowData;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -67,6 +68,7 @@ public final class ClientApi {
     @ApiLoader("*")
     @ApiMC("*")
     @ApiPermission("java")
+    @ApiType("JavaObject")
     public Object getMinecraft() {
         return adapter().minecraftInstance();
     }
@@ -160,8 +162,8 @@ public final class ClientApi {
     @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
-    public List<Map<String, Object>> getMods() {
-        return adapter().mods().stream().map(ClientApi::modView).toList();
+    public List<ModData> getMods() {
+        return adapter().mods();
     }
 
     /**
@@ -187,10 +189,10 @@ public final class ClientApi {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public Map<String, Object> getMod(String id) {
+    public ModData getMod(String id) {
         return adapter().mods().stream()
                 .filter(mod -> mod.id().equals(id))
-                .map(ClientApi::modView).findFirst().orElse(null);
+                .findFirst().orElse(null);
     }
 
     /**
@@ -264,8 +266,8 @@ public final class ClientApi {
     @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
-    public Map<String, Object> getWindow() {
-        return adapter().window().map(ClientApi::windowView).orElse(null);
+    public WindowData getWindow() {
+        return adapter().window().orElse(null);
     }
 
     /**
@@ -277,26 +279,23 @@ public final class ClientApi {
     @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
-    public Map<String, Object> getMouse() {
+    public MousePos getMouse() {
         var pos = adapter().mouse();
-        Map<String, Object> view = new LinkedHashMap<>();
-        view.put("x", pos.x());
-        view.put("y", pos.y());
-        return view;
+        return new MousePos(pos.x(), pos.y());
     }
 
     /**
-     * The connected server entry as {@code {name, address}}, or {@code null}
-     * in singleplayer.
+     * The connected server entry as {@code {name, address, ping}}, or
+     * {@code null} in singleplayer.
      *
-     * @zh 当前服务器条目 {@code {name, address}}；单人世界为 null。
+     * @zh 当前服务器条目 {@code {name, address, ping}}；单人世界为 null。
      */
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
-    public Map<String, Object> getServerInfo() {
-        return adapter().serverInfo().map(ClientApi::serverInfoView).orElse(null);
+    public ServerInfoData getServerInfo() {
+        return adapter().serverInfo().orElse(null);
     }
 
     /**
@@ -309,8 +308,8 @@ public final class ClientApi {
     @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
-    public Map<String, Object> getOptions() {
-        return adapter().options().map(ClientApi::optionsView).orElse(null);
+    public OptionsData getOptions() {
+        return adapter().options().orElse(null);
     }
 
     /**
@@ -324,6 +323,7 @@ public final class ClientApi {
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
+    @ApiType("boolean | number | string")
     public Object option(String name) {
         return adapter().optionValue(name).orElse(null);
     }
@@ -373,43 +373,16 @@ public final class ClientApi {
                         data.width(), data.height(), data.bytes()));
     }
 
-    /** Renders one mod as the script-facing shape. */
-    private static Map<String, Object> modView(ModData mod) {
-        Map<String, Object> view = new LinkedHashMap<>();
-        view.put("id", mod.id());
-        view.put("name", mod.name());
-        view.put("version", mod.version());
-        view.put("authors", mod.authors());
-        return view;
-    }
-
-    /** Renders the window metrics as the script-facing shape. */
-    private static Map<String, Object> windowView(WindowData data) {
-        Map<String, Object> view = new LinkedHashMap<>();
-        view.put("width", data.width());
-        view.put("height", data.height());
-        view.put("scaledWidth", data.scaledWidth());
-        view.put("scaledHeight", data.scaledHeight());
-        return view;
-    }
-
-    /** Renders the server entry as the script-facing shape. */
-    private static Map<String, Object> serverInfoView(ServerInfoData data) {
-        Map<String, Object> view = new LinkedHashMap<>();
-        view.put("name", data.name());
-        view.put("address", data.address());
-        view.put("ping", data.ping());
-        return view;
-    }
-
-    /** Renders the options slice as the script-facing shape. */
-    private static Map<String, Object> optionsView(OptionsData data) {
-        Map<String, Object> view = new LinkedHashMap<>();
-        view.put("fov", data.fov());
-        view.put("gamma", data.gamma());
-        view.put("guiScale", data.guiScale());
-        view.put("renderDistance", data.renderDistance());
-        return view;
+    /**
+     * The cursor position in window pixels.
+     *
+     * @zh 鼠标位置（窗口像素）。
+     */
+    @ApiClass(name = "MousePos", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record MousePos(double x, double y) {
     }
 
     /** The client port behind the API (single adapter access point). */

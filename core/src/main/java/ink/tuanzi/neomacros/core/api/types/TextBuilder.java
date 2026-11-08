@@ -5,8 +5,10 @@ import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.model.TextSegmentData;
 
 import java.util.ArrayList;
@@ -192,7 +194,8 @@ public final class TextBuilder implements ScriptHandle {
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public TextBuilder append(String text, Map<String, Object> style) {
+    public TextBuilder append(String text,
+            @ApiOptional @ApiType("TextStyle") Map<String, Object> style) {
         segments.add(styled(new TextSegmentData(text, null, null, null,
                 null, null, null, null, null, null), style));
         return this;

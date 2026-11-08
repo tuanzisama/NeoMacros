@@ -1,5 +1,14 @@
 package ink.tuanzi.neomacros.core.api;
 
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
+import ink.tuanzi.neomacros.doc.api.ApiInternal;
+import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
+import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,7 +21,13 @@ import java.util.Map;
  * string() greedy() player() pos()}) and chain {@code optional()} and
  * {@code default(v)}. Parsing walks slots in declaration order against the
  * raw remainder; {@code greedy} consumes everything that is left.
+ *
+ * @zh 注册命令的一个类型化参数槽。槽位经动态 {@code command.arg} 工厂构建（{@code int() float() bool() word() string() greedy() player() pos()}），可链式 {@code optional()} 与 {@code default(v)}。解析按声明顺序对原始余串进行；{@code greedy} 吞掉剩余全部。
  */
+@ApiClass(name = "CommandArg", kind = ApiClassKind.HANDLE)
+@ApiSince("0.1.0")
+@ApiMC("*")
+@ApiLoader("*")
 public final class CommandArg {
 
     /** The supported slot shapes. */
@@ -35,6 +50,7 @@ public final class CommandArg {
     }
 
     /** Builds one slot from a factory member name; unknown names raise. */
+    @ApiInternal
     public static CommandArg of(String memberName) {
         Kind kind = switch (memberName.toLowerCase(Locale.ROOT)) {
             case "int" -> Kind.INT;
@@ -51,17 +67,26 @@ public final class CommandArg {
         return new CommandArg(kind, false, null);
     }
 
-    /** Marks the slot optional (missing input falls back, never raises). */
+    /** Marks the slot optional (missing input falls back, never raises).
+     * @zh 将槽位标记为可选（输入缺失时回退，不抛错）。 */
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public CommandArg optional() {
         return new CommandArg(kind, true, fallback);
     }
 
-    /** Supplies the fallback value for an optional slot. */
-    public CommandArg defaultTo(Object value) {
+    /** Supplies the fallback value for an optional slot.
+     * @zh 为可选槽位提供回退值。 */
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public CommandArg defaultTo(@ApiType("number | string | boolean") Object value) {
         return new CommandArg(kind, true, value);
     }
 
     /** Extracts the slot map from a raw binding value (engine-unwrapped). */
+    @ApiInternal
     public static Map<String, CommandArg> slotsFrom(Object raw) {
         if (!(raw instanceof Map<?, ?> map)) {
             return Map.of();
@@ -81,6 +106,7 @@ public final class CommandArg {
      * Parses the raw remainder against the slot map, in order. Raises for
      * missing required slots and malformed values; greedy consumes the rest.
      */
+    @ApiInternal
     public static Map<String, Object> parseAll(Map<String, CommandArg> slots,
                                                String remainder) {
         List<String> tokens = remainder == null || remainder.isBlank()

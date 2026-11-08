@@ -7,6 +7,7 @@ import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 
 /**
  * Immutable raster image: dimensions plus PNG-encoded bytes, produced by
@@ -63,7 +64,12 @@ public final class Image implements ScriptHandle {
         return bytes.clone();
     }
 
-    /** Plain-object rendering used by {@code JSON.stringify}. */
+    /** Plain-object rendering used by {@code JSON.stringify}.
+     * @zh {@code JSON.stringify} 的纯对象渲染。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("ImageJson")
     public java.util.Map<String, Object> toJSON() {
         java.util.Map<String, Object> view = new java.util.LinkedHashMap<>();
         view.put("width", width);
@@ -75,5 +81,18 @@ public final class Image implements ScriptHandle {
     @Override
     public String toString() {
         return "Image(" + width + "x" + height + ")";
+    }
+
+    /**
+     * The JSON form of one image: the pixel size and the byte-size summary
+     * string.
+     *
+     * @zh 图片的 JSON 形式：像素尺寸与字节规模摘要串。
+     */
+    @ApiClass(name = "ImageJson", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record ImageJson(int width, int height, String bytes) {
     }
 }

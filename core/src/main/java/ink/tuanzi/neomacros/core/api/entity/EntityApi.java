@@ -15,6 +15,8 @@ import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.EntityPort;
 import ink.tuanzi.neomacros.port.model.AabbData;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
@@ -414,17 +416,16 @@ public final class EntityApi {
         @ApiLoader("*")
         @ApiMC("*")
         @ApiReadOnly
-        public Map<String, Object> getBoundingBox() {
+        public BoundingBox getBoundingBox() {
             return current()
-                    .<Map<String, Object>>map(s -> {
+                    .<BoundingBox>map(s -> {
                         AabbData box = s.boundingBox();
                         if (box == null) {
                             return null;
                         }
-                        Map<String, Object> view = new LinkedHashMap<>();
-                        view.put("min", new Pos3D(box.min().x(), box.min().y(), box.min().z()));
-                        view.put("max", new Pos3D(box.max().x(), box.max().y(), box.max().z()));
-                        return view;
+                        return new BoundingBox(
+                                new Pos3D(box.min().x(), box.min().y(), box.min().z()),
+                                new Pos3D(box.max().x(), box.max().y(), box.max().z()));
                     })
                     .orElse(null);
         }
@@ -616,7 +617,7 @@ public final class EntityApi {
         @ApiSince("0.1.0")
         @ApiLoader("*")
         @ApiMC("*")
-        public double distanceTo(Object target) {
+        public double distanceTo(@ApiType("Entity | Pos3D") Object target) {
             Pos3d from = current().map(EntitySnapshot::pos).orElse(null);
             if (from == null) {
                 throw new IllegalStateException("handle no longer valid");
@@ -639,6 +640,7 @@ public final class EntityApi {
         @ApiLoader("*")
         @ApiMC("*")
         @ApiPermission("java")
+        @ApiType("JavaObject")
         public Object getRaw() {
             var raw = adapter().rawByUuid(uuid);
             return raw.orElse(null);
@@ -666,6 +668,7 @@ public final class EntityApi {
         @ApiSince("0.1.0")
         @ApiLoader("*")
         @ApiMC("*")
+        @ApiType("EntityJson")
         public Map<String, Object> toJSON() {
             return SnapshotViews.entity(current().orElse(null));
         }
@@ -818,17 +821,19 @@ public final class EntityApi {
         @ApiMC("*")
         @ApiLoader("*")
         @ApiReadOnly
-        public java.util.List<Map<String, Object>> getEffects() {
+        public java.util.List<StatusEffectData> getEffects() {
             Object value = livingExtras().get("effects");
             if (!(value instanceof java.util.List<?> list)) {
                 return java.util.List.of();
             }
-            java.util.List<Map<String, Object>> effects = new java.util.ArrayList<>();
+            java.util.List<StatusEffectData> effects = new java.util.ArrayList<>();
             for (Object entry : list) {
                 if (entry instanceof Map<?, ?> map) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> typed = (Map<String, Object>) map;
-                    effects.add(typed);
+                    effects.add(new StatusEffectData(
+                            map.get("id") instanceof String id ? id : null,
+                            map.get("duration") instanceof Number n ? n.intValue() : null,
+                            map.get("amplifier") instanceof Number n ? n.intValue() : null,
+                            map.get("infinite") instanceof Boolean b ? b : null));
                 }
             }
             return effects;
@@ -1034,5 +1039,69 @@ public final class EntityApi {
         static String of(String itemId) {
             return itemId == null ? "" : ItemStack.namespaced(itemId);
         }
+    }
+
+    /**
+     * One axis-aligned bounding box: its min and max corners.
+     *
+     * @zh 一个轴对齐包围盒：最小与最大角点。
+     */
+    @ApiClass(name = "BoundingBox", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record BoundingBox(Pos3D min, Pos3D max) {
+    }
+
+    /**
+     * One active status effect: the effect id, remaining duration ticks,
+     * amplifier level, and whether the duration is infinite.
+     *
+     * @zh 一条生效中的状态效果：效果 id、剩余时长 tick、增幅等级与是否无限时长。
+     */
+    @ApiClass(name = "StatusEffectData", kind = ApiClassKind.DATA)
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record StatusEffectData(String id, Integer duration, Integer amplifier,
+            Boolean infinite) {
+    }
+
+    /**
+     * One world position as a plain object ({@code {x, y, z}}).
+     *
+     * @zh 普通对象形式的世界坐标（{@code {x, y, z}}）。
+     */
+    @ApiClass(name = "JsonPos", kind = ApiClassKind.DATA)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record JsonPos(double x, double y, double z) {
+    }
+
+    /**
+     * One look direction as a plain object ({@code {yaw, pitch}}, degrees).
+     *
+     * @zh 普通对象形式的视线方向（{@code {yaw, pitch}}，角度）。
+     */
+    @ApiClass(name = "JsonLook", kind = ApiClassKind.DATA)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record JsonLook(float yaw, float pitch) {
+    }
+
+    /**
+     * The JSON form of one entity snapshot ({@code Entity.toJSON()}): uuid,
+     * type, name, position, and health.
+     *
+     * @zh 实体快照的 JSON 形式（{@code Entity.toJSON()}）：uuid、类型、名称、位置与生命。
+     */
+    @ApiClass(name = "EntityJson", kind = ApiClassKind.DATA)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record EntityJson(String uuid, @ApiOptional String type, String name,
+            JsonPos pos, double health) {
     }
 }

@@ -1,7 +1,10 @@
 package ink.tuanzi.neomacros.core.runtime;
 
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 import java.util.concurrent.ScheduledFuture;
@@ -12,6 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * module; cancelling stops the schedule (idempotent).
  * @zh thread 定时器句柄；cancel 停止调度（幂等）。
  */
+@ApiClass(name = "TimerHandle", kind = ApiClassKind.HANDLE)
 @ApiSince("0.2.0")
 @ApiLoader("*")
 @ApiMC("*")
@@ -28,6 +32,9 @@ public final class TimerHandle {
 
     /** Cancels the timer; later fires never run.
      * @zh 取消定时器；之后的触发不再执行。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
     public void cancel() {
         if (cancelled.compareAndSet(false, true)) {
             if (scheduled != null) {
@@ -41,6 +48,10 @@ public final class TimerHandle {
 
     /** Whether the timer is still scheduled (or mid-fire).
      * @zh 定时器是否仍处于调度中。 */
+    @ApiSince("0.2.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
     public boolean isActive() {
         return !cancelled.get()
                 && (scheduled == null || !scheduled.isDone());

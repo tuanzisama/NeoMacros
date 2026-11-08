@@ -43,6 +43,12 @@ public final class JavaClass implements JavaInterop {
         return args -> JavaInteropResolver.dispatch(methods, null, args);
     }
 
+    /** Reads a plain-value member (fields only), or null when absent.
+     * @zh 读取纯值成员（仅字段）；缺失为 null。 */
+    @ink.tuanzi.neomacros.doc.api.ApiSince("0.2.0")
+    @ink.tuanzi.neomacros.doc.api.ApiMC("*")
+    @ink.tuanzi.neomacros.doc.api.ApiLoader("*")
+    @ink.tuanzi.neomacros.doc.api.ApiType("JsonValue | JavaObject")
     @Override
     public Object readValue(String name) {
         List<Field> fields = JavaInteropResolver.fields(target, name, true);
@@ -56,14 +62,25 @@ public final class JavaClass implements JavaInterop {
         }
     }
 
+    @ink.tuanzi.neomacros.doc.api.ApiSince("0.2.0")
+    @ink.tuanzi.neomacros.doc.api.ApiMC("*")
+    @ink.tuanzi.neomacros.doc.api.ApiLoader("*")
+    @ink.tuanzi.neomacros.doc.api.ApiType("JsonValue | JavaObject")
     @Override
-    public Object invoke(String name, Object[] args) {
+    public Object invoke(String name,
+            @ink.tuanzi.neomacros.doc.api.ApiType("Array<JsonValue | JavaObject>") Object[] args) {
         return JavaInteropResolver.dispatch(JavaInteropResolver.methods(target, name, true),
                 null, args);
     }
 
+    /** Writes a public field; throws when no writable field carries the name.
+     * @zh 写公共字段；无可写字段时抛错。 */
+    @ink.tuanzi.neomacros.doc.api.ApiSince("0.2.0")
+    @ink.tuanzi.neomacros.doc.api.ApiMC("*")
+    @ink.tuanzi.neomacros.doc.api.ApiLoader("*")
     @Override
-    public void write(String name, Object value) {
+    public void write(String name,
+            @ink.tuanzi.neomacros.doc.api.ApiType("JsonValue | JavaObject") Object value) {
         List<Field> fields = JavaInteropResolver.fields(target, name, true);
         if (fields.isEmpty()) {
             throw new IllegalStateException("no writable static field: " + name);
@@ -127,6 +144,12 @@ public final class JavaClass implements JavaInterop {
         return target;
     }
 
+    /** The raw host value behind this proxy.
+     * @zh 代理背后的原始宿主值。 */
+    @ink.tuanzi.neomacros.doc.api.ApiSince("0.2.0")
+    @ink.tuanzi.neomacros.doc.api.ApiMC("*")
+    @ink.tuanzi.neomacros.doc.api.ApiLoader("*")
+    @ink.tuanzi.neomacros.doc.api.ApiType("JavaObject")
     @Override
     public Object rawValue() {
         return target;

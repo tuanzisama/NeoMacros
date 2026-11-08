@@ -5,6 +5,7 @@ import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
+import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
@@ -26,7 +27,7 @@ import java.util.Map;
 public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
 
     private final String id;
-    private final List<ItemStack.Enchantment> enchantments = new ArrayList<>();
+    private final List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchantments = new ArrayList<>();
     private final List<String> lore = new ArrayList<>();
     private int count = 1;
     private String name;
@@ -123,7 +124,8 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     @ApiLoader("*")
     @ApiMC("*")
     public ItemStackBuilder enchant(String enchantId, int level) {
-        this.enchantments.add(new ItemStack.Enchantment(ItemStack.namespaced(enchantId), level));
+        this.enchantments.add(new ink.tuanzi.neomacros.port.model.EnchantmentData(
+                ItemStack.namespaced(enchantId), level));
         return this;
     }
 
@@ -164,11 +166,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
         this.lore.clear();
         this.lore.addAll(stack.getLore());
         this.enchantments.clear();
-        for (Map<String, Object> entry : stack.getEnchantments()) {
-            this.enchantments.add(new ItemStack.Enchantment(
-                    String.valueOf(entry.get("id")),
-                    entry.get("level") instanceof Number n ? n.intValue() : 0));
-        }
+        this.enchantments.addAll(stack.getEnchantments());
         return this;
     }
 
@@ -191,6 +189,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     }
 
     @Override
+    @ApiInternal
     public Object construct(Object[] args) {
         String itemId = args != null && args.length > 0 && args[0] != null
                 ? args[0].toString() : null;

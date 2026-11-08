@@ -1,11 +1,14 @@
 package ink.tuanzi.neomacros.core.api;
 
 import ink.tuanzi.neomacros.core.api.java.JavaInterop;
+import ink.tuanzi.neomacros.doc.api.ApiClass;
+import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
@@ -46,6 +49,8 @@ public final class CommandApi {
     @ApiMC("*")
     @ApiLoader("*")
     @ApiReadOnly
+    @ApiType("Record<\"int\" | \"float\" | \"bool\" | \"word\" | \"string\" | \"greedy\""
+            + " | \"player\" | \"pos\", () => CommandArg>")
     public CommandArgFactory getArg() {
         return argFactory;
     }
@@ -107,15 +112,16 @@ public final class CommandApi {
      * {@code description}, optional {@code args} slots and the
      * {@code handler} receiving the parsed context.
      *
-     * @return an opaque registration handle (unregister via {@link #unregister})
+     * @return the command name (the key for {@link #unregister})
      * @zh 注册一个客户端命令；spec 携带 name/description/args 槽位与 handler（收到解析后的上下文）。
-     * @zh-return 注销用的不透明句柄
+     * @zh-return 命令名（即 {@link #unregister} 的注销键）
      */
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
     @ApiPermission("command")
-    public Object register(Map<String, Object> spec) {
+    @ApiType("string")
+    public Object register(@ApiType("CommandSpec") Map<String, Object> spec) {
         Map<String, Object> prepared = new LinkedHashMap<>(spec);
         Map<String, CommandArg> slots = CommandArg.slotsFrom(spec.get("args"));
         if (spec.get("handler") instanceof Consumer<?> consumer) {
@@ -131,15 +137,14 @@ public final class CommandApi {
     }
 
     /**
-     * Unregisters by the handle returned from {@link #register}, or by
-     * command name when a string is given.
+     * Unregisters by the command name returned from {@link #register}.
      *
-     * @zh 按句柄或命令名注销。
+     * @zh 按 {@link #register} 返回的命令名注销。
      */
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void unregister(Object handleOrName) {
+    public void unregister(@ApiType("string") Object handleOrName) {
         if (handleOrName instanceof String name) {
             registry.unregister(name);
         }
@@ -168,5 +173,24 @@ public final class CommandApi {
     @ApiLoader("*")
     public static List<String> argKindNames() {
         return new ArrayList<>(CommandArg.KIND_NAMES);
+    }
+
+    /**
+     * One client command registration spec: the command name, an optional
+     * description, optional typed argument slots, and the handler receiving
+     * the parsed context.
+     *
+     * @zh 一条客户端命令注册规格：命令名、可选描述、可选类型化参数槽与接收解析上下文的处理器。
+     */
+    @ApiClass(name = "CommandSpec", kind = ApiClassKind.DATA)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record CommandSpec(
+            String name,
+            @ApiOptional String description,
+            @ApiOptional List<CommandArg> args,
+            @ApiOptional @ApiType("(ctx: CommandContext) => void")
+                    java.util.function.Consumer<Object[]> handler) {
     }
 }

@@ -157,7 +157,7 @@ public final class FsApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    @ApiType("Promise<any>")
+    @ApiType("Promise<JsonValue>")
     @ApiPermission("fs")
     public CompletableFuture<Object> readJSON(String path) {
         return supply(() -> JsonLite.parse(
@@ -174,7 +174,8 @@ public final class FsApi {
     @ApiLoader("*")
     @ApiType("Promise<void>")
     @ApiPermission("fs")
-    public CompletableFuture<Void> writeJSON(String path, Object value) {
+    public CompletableFuture<Void> writeJSON(String path,
+            @ApiType("JsonValue") Object value) {
         return run(() -> {
             Path target = bridge.resolve(path);
             Files.createDirectories(target.getParent());
@@ -208,7 +209,8 @@ public final class FsApi {
     @ApiLoader("*")
     @ApiType("Promise<void>")
     @ApiPermission("fs")
-    public CompletableFuture<Void> writeBytes(String path, Object data) {
+    public CompletableFuture<Void> writeBytes(String path,
+            @ApiType("Array<number> | string") Object data) {
         return run(() -> {
             Path target = bridge.resolve(path);
             Files.createDirectories(target.getParent());
@@ -225,18 +227,14 @@ public final class FsApi {
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    @ApiType("Promise<object>")
     @ApiPermission("fs")
-    public CompletableFuture<Map<String, Object>> stat(String path) {
+    public CompletableFuture<FileStat> stat(String path) {
         return supply(() -> {
             Path target = bridge.resolve(path);
             var attributes = Files.readAttributes(target, java.nio.file.attribute.BasicFileAttributes.class);
-            Map<String, Object> out = new LinkedHashMap<>();
-            out.put("size", attributes.size());
-            out.put("mtimeMs", attributes.lastModifiedTime().toMillis());
-            out.put("isDir", attributes.isDirectory());
-            out.put("isFile", attributes.isRegularFile());
-            return out;
+            return new FileStat(attributes.size(),
+                    attributes.lastModifiedTime().toMillis(),
+                    attributes.isDirectory(), attributes.isRegularFile());
         });
     }
 
@@ -412,16 +410,12 @@ public final class FsApi {
         @ApiMC("*")
         @ApiLoader("*")
         @ApiReadOnly
-        public Map<String, Object> getAttributes() {
+        public FileStat getAttributes() {
             try {
                 var view = java.nio.file.Files.readAttributes(path,
                         java.nio.file.attribute.BasicFileAttributes.class);
-                Map<String, Object> out = new LinkedHashMap<>();
-                out.put("size", view.size());
-                out.put("mtimeMs", view.lastModifiedTime().toMillis());
-                out.put("isDir", view.isDirectory());
-                out.put("isFile", view.isRegularFile());
-                return out;
+                return new FileStat(view.size(), view.lastModifiedTime().toMillis(),
+                        view.isDirectory(), view.isRegularFile());
             } catch (java.io.IOException e) {
                 throw new IllegalStateException("cannot stat: " + path, e);
             }
@@ -437,6 +431,7 @@ public final class FsApi {
         @ApiMC("*")
         @ApiLoader("*")
         @ApiPermission("java")
+        @ApiType("JavaObject")
         public Object getRaw() {
             return path;
         }
@@ -445,5 +440,18 @@ public final class FsApi {
         public String toString() {
             return "FileHandle(" + path + ")";
         }
+    }
+
+    /**
+     * One file's metadata snapshot: byte size, last-modified epoch millis,
+     * and directory / regular-file flags.
+     *
+     * @zh 单个文件的元信息快照：字节大小、最后修改epoch毫秒与目录/常规文件标记。
+     */
+    @ApiClass(name = "FileStat", kind = ApiClassKind.DATA)
+    @ApiSince("0.1.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record FileStat(long size, long mtimeMs, boolean isDir, boolean isFile) {
     }
 }
