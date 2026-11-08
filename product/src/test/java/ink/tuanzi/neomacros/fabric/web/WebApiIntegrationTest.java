@@ -631,7 +631,7 @@ class WebApiIntegrationTest {
                 service.console().append(consoleEvent("warn", "index.js", 7,
                         List.of(strNode("careful")))));
         append.get(5, TimeUnit.SECONDS);
-        String frame = readUntil(input, "\n\n");
+        String frame = awaitEventFrame(input, "console");
         assertTrue(frame.contains("event: console"), frame);
         assertTrue(frame.contains("\"macro\":\"event/auto-welcome\""), frame);
         assertTrue(frame.contains("\"kind\":\"warn\""), frame);
@@ -879,12 +879,7 @@ class WebApiIntegrationTest {
 
         backend.tasks.start("auto-welcome",
                 ink.tuanzi.neomacros.core.module.manifest.ScriptCategory.EVENT, "manual");
-        // Heartbeats interleave with the frames; read until the task frame shows up.
-        String frame = "";
-        long deadline = System.currentTimeMillis() + 5000;
-        while (!frame.contains("event: task:state") && System.currentTimeMillis() < deadline) {
-            frame = readUntil(input, "\n\n");
-        }
+        String frame = awaitEventFrame(input, "task:state");
         assertTrue(frame.contains("event: task:state"), frame);
         assertTrue(frame.contains("\"macro\":\"auto-welcome\""), frame);
         assertTrue(frame.contains("\"status\":\"running\""), frame);
@@ -946,7 +941,7 @@ class WebApiIntegrationTest {
         CompletableFuture<Void> broadcast = CompletableFuture.runAsync(() ->
                 service.sse().broadcast("log", "{\"seq\":7,\"line\":\"hello\"}"));
         broadcast.get(5, TimeUnit.SECONDS);
-        String frame = readUntil(input, "\n\n");
+        String frame = awaitEventFrame(input, "log");
         assertTrue(frame.contains("event: log"), frame);
         assertTrue(frame.contains("\"seq\":7"), frame);
         input.close();
@@ -991,10 +986,24 @@ class WebApiIntegrationTest {
                                 + "\"latest\":\"0.1.0-dev.10+bbb2222\","
                                 + "\"notes\":\"https://example.com/releases/tag/dev\",\"date\":\"\"}"));
         broadcast.get(5, TimeUnit.SECONDS);
-        String frame = readUntil(input, "\n\n");
+        String frame = awaitEventFrame(input, "update:available");
         assertTrue(frame.contains("event: update:available"), frame);
         assertTrue(frame.contains("\"latest\":\"0.1.0-dev.10+bbb2222\""), frame);
         input.close();
+    }
+
+    /**
+     * Reads frames until one carrying the given SSE event arrives; heartbeat
+     * comment frames ({@code : hb}) can interleave with broadcasts under
+     * load, so callers must not assert on the first frame blindly.
+     */
+    private static String awaitEventFrame(InputStream input, String event) throws IOException {
+        String frame = "";
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (!frame.contains("event: " + event) && System.currentTimeMillis() < deadline) {
+            frame = readUntil(input, "\n\n");
+        }
+        return frame;
     }
 
     /** Reads from the stream until the delimiter passes; returns the chunk. */
