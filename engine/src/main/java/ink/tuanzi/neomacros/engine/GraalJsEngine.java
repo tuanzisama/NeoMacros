@@ -296,8 +296,16 @@ public final class GraalJsEngine implements ScriptEngine {
                         // constructor re-defines it with the real value. The
                         // factory name is the defining closure name so user
                         // subclasses build the inherited cell type.
+                        // Self-constructing classes: a single object argument
+                        // is the engine re-rendering an existing handle
+                        // (asGuestValue hands the cell back for chaining) —
+                        // reuse it; scalar arguments are a script-side
+                        // construction and route to the host factory.
                         var cell = selfConstructing
-                            ? __neoMakeCell(name, ctorArgs)
+                            ? (ctorArgs.length === 1 && ctorArgs[0] !== null
+                                && typeof ctorArgs[0] === 'object'
+                                ? ctorArgs[0]
+                                : __neoMakeCell(name, ctorArgs))
                             : ctorArgs[0];
                         Object.defineProperty(this, '__cell', {
                             value: cell,
@@ -1344,18 +1352,9 @@ public final class GraalJsEngine implements ScriptEngine {
 
         /** Converts one guest value to the declared parameter type (cells via probe). */
         private Object convertArgument(Value argument, Class<?> type) {
-            try {
-                if (argument.hasMember("__neoCell")) {
-                    Value cell = argument.getMember("__neoCell");
-                    if (cell != null && !cell.isNull()) {
-                        Object host = cell.isHostObject() ? cell.asHostObject() : null;
-                        if (type.isInstance(host)) {
-                            return host;
-                        }
-                    }
-                }
-            } catch (RuntimeException ignored) {
-                // guest objects without the probe fall through to scalar mapping
+            Object host = hostCellOf(argument);
+            if (host != null && type.isInstance(host)) {
+                return host;
             }
             if (type == String.class) {
                 return argument.asString();
@@ -1472,9 +1471,24 @@ public final class GraalJsEngine implements ScriptEngine {
                 if (factory == null) {
                     throw new IllegalStateException("no self-constructing cell: " + name);
                 }
-                Object[] converted = new Object[arguments.length - 1];
-                for (int i = 1; i < arguments.length; i++) {
-                    Value argument = arguments[i];
+                // The glue calls __neoBuildCell(name, ctorArgsArray): flatten
+                // the tail array into the argument list (a direct spread form
+                // stays supported).
+                List<Value> call = new ArrayList<>();
+                call.add(arguments.length > 0 ? arguments[0] : null);
+                if (arguments.length == 2 && arguments[1] != null && arguments[1].hasArrayElements()) {
+                    long size = arguments[1].getArraySize();
+                    for (long i = 0; i < size; i++) {
+                        call.add(arguments[1].getArrayElement(i));
+                    }
+                } else {
+                    for (int i = 1; i < arguments.length; i++) {
+                        call.add(arguments[i]);
+                    }
+                }
+                Object[] converted = new Object[call.size() - 1];
+                for (int i = 1; i < call.size(); i++) {
+                    Value argument = call.get(i);
                     if (argument == null || argument.isNull()) {
                         converted[i - 1] = null;
                     } else if (argument.isNumber()) {
@@ -1553,7 +1567,9 @@ public final class GraalJsEngine implements ScriptEngine {
 
                 @Override
                 public boolean hasMember(String name) {
-                    return shape.members().containsKey(name);
+                    // "__neoCell" answers through getMember for host-side
+                    // conversion probes; it stays hidden from getMemberKeys.
+                    return name.equals("__neoCell") || shape.members().containsKey(name);
                 }
 
                 @Override
@@ -1720,8 +1736,63 @@ public final class GraalJsEngine implements ScriptEngine {
             return out;
         }
 
+        /**
+         * Unwraps a guest handle to its host cell: raw handle proxies answer
+         * the {@code __neoCell} probe directly, while guest class instances
+         * carry the member proxy under {@code __cell} — that proxy answers
+         * {@code __neoCell} with the raw handle, so unwrap one extra level.
+         * Returns null for plain guest values.
+         */
+        private Object hostCellOf(Value value) {
+            try {
+                Value level1 = probeValue(value);
+                if (level1 == null) {
+                    return null;
+                }
+                if (level1.isHostObject()) {
+                    Object host = level1.asHostObject();
+                    if (host != null && !(host instanceof org.graalvm.polyglot.proxy.Proxy)) {
+                        return host;
+                    }
+                }
+                // The probe returned the member proxy itself (guest-instance
+                // path): ask the proxy for its raw cell one level down.
+                Value level2 = probeValue(level1);
+                if (level2 != null && level2.isHostObject()) {
+                    Object host = level2.asHostObject();
+                    if (host != null && !(host instanceof org.graalvm.polyglot.proxy.Proxy)) {
+                        return host;
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                // plain guest values without the probe
+            }
+            return null;
+        }
+
+        /** The value under the first present cell probe, or null. */
+        private Value probeValue(Value value) {
+            for (String probe : new String[]{"__neoCell", "__cell"}) {
+                if (value.hasMember(probe)) {
+                    Value cell = value.getMember(probe);
+                    if (cell != null && !cell.isNull()) {
+                        return cell;
+                    }
+                }
+            }
+            return null;
+        }
+
         /** Converts one guest value to the declared Java type. */
         private Object asJava(Value value, Class<?> type) {
+            // Handles (guest class instances / member proxies) unwrap to
+            // their host cell first: @ApiClass-typed and union Object
+            // parameters receive the live Java value instead of failing
+            // scalar conversion.
+            Object host = hostCellOf(value);
+            if (host != null && (type == Object.class || type.isInstance(host))) {
+                return host;
+            }
             if (type == String.class) {
                 return value.asString();
             }

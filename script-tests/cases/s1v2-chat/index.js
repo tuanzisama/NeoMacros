@@ -10,8 +10,10 @@ async function main() {
   results['log'] = true;
   neo.chat.log('[E2E] chat-log-ok');
   neo.chat.actionbar('[E2E] chat-actionbar-ok');
-  const t = neo.chat.text('hello').color('red').append(' world').build();
-  results['text-build'] = typeof t.plain === 'string';
+  const comp = new neo.Component('hello').color('red').append(' world').build();
+  results['component-build'] = comp instanceof neo.TextComponent && comp.plain === 'hello world';
+  neo.chat.log(comp);
+  neo.chat.say('plain-string-still-works');
   } catch (e) {
     neo.chat.log('[E2E] ERROR: ' + e);
   }

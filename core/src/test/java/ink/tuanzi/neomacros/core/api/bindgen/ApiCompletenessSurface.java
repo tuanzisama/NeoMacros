@@ -23,8 +23,8 @@ import ink.tuanzi.neomacros.core.api.types.BlockPos;
 import ink.tuanzi.neomacros.core.api.types.BlockState;
 import ink.tuanzi.neomacros.core.api.types.ChunkPos;
 import ink.tuanzi.neomacros.core.api.types.Chunk;
-import ink.tuanzi.neomacros.core.api.types.Text;
-import ink.tuanzi.neomacros.core.api.types.TextBuilder;
+import ink.tuanzi.neomacros.core.api.types.Component;
+import ink.tuanzi.neomacros.core.api.types.TextComponent;
 import ink.tuanzi.neomacros.core.api.types.ItemStack;
 import ink.tuanzi.neomacros.core.api.types.ItemStackBuilder;
 import ink.tuanzi.neomacros.core.api.types.Pos2D;
@@ -105,7 +105,7 @@ final class ApiCompletenessSurface {
             PlayerApi.VillagerInventory.class,
             PlayerApi.TradeOffer.class, PlayerApi.HorseInventory.class,
             PlayerApi.Abilities.class,
-            Text.class, TextBuilder.class,
+            Component.class, TextComponent.class,
             PlayerApi.Screen.class, PlayerApi.InventoryScreen.class,
             PlayerApi.ContainerScreen.class, PlayerApi.ChatScreen.class,
             PlayerApi.SignScreen.class, PlayerApi.BookEditScreen.class,

@@ -4,8 +4,12 @@ import java.util.Objects;
 
 /**
  * One styled text segment: literal text plus optional color, decorations,
- * hover content, and click action. Neutral value object; color is a named
- * formatting color or {@code #rrggbb}.
+ * hover content, and click action. Neutral render instruction consumed by
+ * the chat port; color is a named formatting color or {@code #rrggbb}.
+ *
+ * <p>{@code clickAction} uses the vanilla action vocabulary
+ * ({@code run_command}, {@code open_url}, {@code suggest_command},
+ * {@code copy_to_clipboard}); {@code clickValue} carries its target.</p>
  *
  * @param text          literal content
  * @param color         named color or {@code #rrggbb}, null for inherited
@@ -16,22 +20,14 @@ import java.util.Objects;
  * @param obfuscated    obfuscation flag, null for inherited
  * @param hoverText     show-text hover content, null when absent
  * @param hoverItem     show-item hover content, null when absent
- * @param clickCommand  run-command action, null when absent
- * @param clickUrl      open-url action, null when absent
+ * @param clickAction   vanilla click action name, null when absent
+ * @param clickValue    click action target, null when absent
  */
 public record TextSegmentData(String text, String color, Boolean bold, Boolean italic,
         Boolean underlined, Boolean strikethrough, Boolean obfuscated,
-        String hoverText, ItemStackData hoverItem, String clickCommand, String clickUrl) {
+        String hoverText, ItemStackData hoverItem, String clickAction, String clickValue) {
 
     public TextSegmentData {
         Objects.requireNonNull(text, "text cannot be null");
-    }
-
-    /** Convenience constructor for segments without an item hover. */
-    public TextSegmentData(String text, String color, Boolean bold, Boolean italic,
-            Boolean underlined, Boolean strikethrough, Boolean obfuscated,
-            String hoverText, String clickCommand, String clickUrl) {
-        this(text, color, bold, italic, underlined, strikethrough, obfuscated,
-                hoverText, null, clickCommand, clickUrl);
     }
 }

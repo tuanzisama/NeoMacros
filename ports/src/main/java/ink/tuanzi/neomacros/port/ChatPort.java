@@ -34,8 +34,24 @@ public interface ChatPort {
             Integer fadeOut) {
     }
 
+    /**
+     * Shows a title/subtitle overlay from styled segment lines: a null list
+     * skips that line, non-null durations override the vanilla fade timings
+     * in ticks.
+     */
+    default void titleRich(java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> title,
+            java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> subtitle,
+            Integer fadeIn, Integer stay, Integer fadeOut) {
+    }
+
     /** Shows a system toast notification in the screen corner. */
     default void toast(String title, String message) {
+    }
+
+    /** Shows a system toast notification from styled segment lines; a null
+     * list renders an empty line. */
+    default void toastRich(java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> title,
+            java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> message) {
     }
 
     /**

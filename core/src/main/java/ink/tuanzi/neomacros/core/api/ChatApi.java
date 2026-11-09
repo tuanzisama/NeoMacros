@@ -1,20 +1,23 @@
 package ink.tuanzi.neomacros.core.api;
 
-import ink.tuanzi.neomacros.doc.api.ApiClass;
-import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiOptional;
-import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
+import ink.tuanzi.neomacros.core.api.types.TextComponent;
+import ink.tuanzi.neomacros.port.model.TextSegmentData;
+
+import java.util.List;
 
 /**
  * The {@code neo.chat} module: chat output services. Sending targets the
- * connected server; log and actionbar render locally only.
+ * connected server; log and actionbar render locally only. Text-taking
+ * members accept a {@code TextComponent | string}: components render with
+ * their full styling where the surface supports it, strings render plain.
  *
- * @zh {@code neo.chat}：聊天输出服务。say 发往所连服务器；log 与 actionbar 仅本地渲染。
+ * @zh {@code neo.chat}：聊天输出服务。say 发往所连服务器；log 与 actionbar 仅本地渲染。文本类成员接受 {@code TextComponent | string}：组件在其表面支持处按完整样式渲染，字符串按纯文本渲染。
  */
 @ApiModule(name = "chat", category = "界面")
 @ApiSince("0.1.0")
@@ -24,104 +27,64 @@ public final class ChatApi {
 
     /**
      * Sends the message to the connected server as if typed by the player.
+     * A component rides its plain form (the server chat is text-only).
      *
-     * @zh 以玩家身份向服务器发送聊天消息。
+     * @zh 以玩家身份向服务器发送聊天消息。组件按纯文本形态发送（服务器聊天是纯文本）。
+     * @zh-param message 消息文本或组件
      */
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void say(String message) {
-        ScriptApiEnvironment.adapter().chat().say(message);
+    public void say(@ApiType("TextComponent | string") Object message) {
+        TextComponent component = componentOf(message, "say");
+        ScriptApiEnvironment.adapter().chat().say(
+                component != null ? component.getPlain() : requireText(message, "say"));
     }
 
     /**
-     * Prints the message to the local chat HUD only.
+     * Prints the message to the local chat HUD only; components render with
+     * full color/decoration/hover/click.
      *
-     * @zh 仅在本地聊天栏打印消息。
+     * @zh 仅在本地聊天栏打印消息；组件按完整颜色/装饰/悬停/点击渲染。
+     * @zh-param message 消息文本或组件
      */
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void log(String message) {
-        ScriptApiEnvironment.adapter().chat().log(message);
+    public void log(@ApiType("TextComponent | string") Object message) {
+        TextComponent component = componentOf(message, "log");
+        if (component != null) {
+            ScriptApiEnvironment.adapter().chat().renderRichText(component.flatten(), false);
+            return;
+        }
+        ScriptApiEnvironment.adapter().chat().log(requireText(message, "log"));
     }
 
     /**
-     * Renders the message on the action bar above the hotbar.
+     * Renders the message on the action bar above the hotbar; components
+     * render with full styling.
      *
-     * @zh 在快捷栏上方的动作条显示消息。
+     * @zh 在快捷栏上方的动作条显示消息；组件按完整样式渲染。
+     * @zh-param message 消息文本或组件
      */
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void actionbar(String message) {
-        ScriptApiEnvironment.adapter().chat().actionbar(message);
-    }
-
-    /**
-     * Starts a styled text builder from one literal segment, optionally
-     * styled ({@code {color, bold, italic, underlined, strikethrough,
-     * obfuscated, hoverText, clickCommand, clickUrl}}).
-     *
-     * @zh 从一个字面分段开始富文本构建器；可选样式（{@code {color, bold, italic, underlined, strikethrough, obfuscated, hoverText, clickCommand, clickUrl}}）。
-     * @zh-param text 字面内容
-     * @zh-param style 初始样式（可省略）
-     */
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public ink.tuanzi.neomacros.core.api.types.TextBuilder text(String text,
-            @ApiOptional @ApiType("TextStyle") java.util.Map<String, Object> style) {
-        return new ink.tuanzi.neomacros.core.api.types.TextBuilder(
-                text == null ? "" : text, style);
-    }
-
-    /**
-     * The plain concatenation of a styled text value.
-     *
-     * @zh 富文本的纯文本拼接。
-     * @zh-param text 富文本
-     */
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    @ApiReadOnly
-    public String getPlain(ink.tuanzi.neomacros.core.api.types.Text text) {
-        return text.getPlain();
-    }
-
-    /**
-     * Logs one styled text locally with full color/decoration/hover/click
-     * rendering.
-     *
-     * @zh 以完整颜色/装饰/悬停/点击渲染在本地聊天栏打印富文本。
-     * @zh-param text 富文本
-     */
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public void logText(ink.tuanzi.neomacros.core.api.types.Text text) {
-        ScriptApiEnvironment.adapter().chat().renderRichText(text.getSegments(), false);
-    }
-
-    /**
-     * Renders one styled text on the action bar.
-     *
-     * @zh 在动作条上渲染富文本。
-     * @zh-param text 富文本
-     */
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public void actionbarText(ink.tuanzi.neomacros.core.api.types.Text text) {
-        ScriptApiEnvironment.adapter().chat().renderRichText(text.getSegments(), true);
+    public void actionbar(@ApiType("TextComponent | string") Object message) {
+        TextComponent component = componentOf(message, "actionbar");
+        if (component != null) {
+            ScriptApiEnvironment.adapter().chat().renderRichText(component.flatten(), true);
+            return;
+        }
+        ScriptApiEnvironment.adapter().chat().actionbar(requireText(message, "actionbar"));
     }
 
     /**
      * Shows a title (and optional subtitle) overlay; null lines are skipped
      * and non-null durations override the vanilla fade timings in ticks.
+     * Lines may be components or strings.
      *
-     * @zh 显示标题（与可选副标题）覆盖层；null 行跳过，非 null 时长（tick）覆盖原版渐变时间。
+     * @zh 显示标题（与可选副标题）覆盖层；null 行跳过，非 null 时长（tick）覆盖原版渐变时间。行可为组件或字符串。
      * @zh-param title 主标题（可省）
      * @zh-param subtitle 副标题（可省）
      * @zh-param fadeIn 淡入 tick（可省）
@@ -131,23 +94,42 @@ public final class ChatApi {
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void title(String title, String subtitle, Integer fadeIn, Integer stay,
-            Integer fadeOut) {
-        ScriptApiEnvironment.adapter().chat().title(title, subtitle, fadeIn, stay, fadeOut);
+    public void title(@ApiOptional @ApiType("TextComponent | string") Object title,
+            @ApiOptional @ApiType("TextComponent | string") Object subtitle,
+            @ApiOptional Integer fadeIn, @ApiOptional Integer stay,
+            @ApiOptional Integer fadeOut) {
+        if (title instanceof TextComponent || subtitle instanceof TextComponent) {
+            ScriptApiEnvironment.adapter().chat().titleRich(
+                    segmentsOf(title), segmentsOf(subtitle), fadeIn, stay, fadeOut);
+            return;
+        }
+        ScriptApiEnvironment.adapter().chat().title(
+                title == null ? null : String.valueOf(title),
+                subtitle == null ? null : String.valueOf(subtitle),
+                fadeIn, stay, fadeOut);
     }
 
     /**
-     * Shows a system toast notification in the screen corner.
+     * Shows a system toast notification in the screen corner; lines may be
+     * components or strings.
      *
-     * @zh 在屏幕角落显示系统 toast 通知。
+     * @zh 在屏幕角落显示系统 toast 通知；行可为组件或字符串。
      * @zh-param title 标题
      * @zh-param message 正文
      */
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void toast(String title, String message) {
-        ScriptApiEnvironment.adapter().chat().toast(title, message);
+    public void toast(@ApiOptional @ApiType("TextComponent | string") Object title,
+            @ApiOptional @ApiType("TextComponent | string") Object message) {
+        if (title instanceof TextComponent || message instanceof TextComponent) {
+            ScriptApiEnvironment.adapter().chat().toastRich(
+                    segmentsOf(title), segmentsOf(message));
+            return;
+        }
+        ScriptApiEnvironment.adapter().chat().toast(
+                title == null ? null : String.valueOf(title),
+                message == null ? null : String.valueOf(message));
     }
 
     /**
@@ -163,27 +145,33 @@ public final class ChatApi {
         return ScriptApiEnvironment.adapter().chat().textWidth(text);
     }
 
-    /**
-     * One text style map accepted by {@code chat.text} and
-     * {@code append}: every key is optional and missing keys inherit the
-     * segment's previous style.
-     *
-     * @zh {@code chat.text} 与 {@code append} 接受的样式表：每个键均可省略，缺省键沿用分段已有样式。
-     */
-    @ApiClass(name = "TextStyle", kind = ApiClassKind.DATA)
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record TextStyle(
-            @ApiOptional String color,
-            @ApiOptional Boolean bold,
-            @ApiOptional Boolean italic,
-            @ApiOptional Boolean underlined,
-            @ApiOptional Boolean strikethrough,
-            @ApiOptional Boolean obfuscated,
-            @ApiOptional String hoverText,
-            @ApiOptional String hoverItem,
-            @ApiOptional String clickCommand,
-            @ApiOptional String clickUrl) {
+    /** The union argument as a built value, or null when absent/not one. */
+    private static TextComponent componentOf(Object message, String member) {
+        if (message == null) {
+            throw new IllegalArgumentException(member + ": message is required");
+        }
+        return message instanceof TextComponent component ? component : null;
+    }
+
+    /** The union argument as a plain string, rejecting absent values. */
+    private static String requireText(Object message, String member) {
+        if (message == null) {
+            throw new IllegalArgumentException(member + ": message is required");
+        }
+        return String.valueOf(message);
+    }
+
+    /** One union argument as a render line: a component flattens to its
+     * styled segments, a string becomes a single literal line, null stays
+     * null (skipped line). */
+    private static List<TextSegmentData> segmentsOf(Object message) {
+        if (message == null) {
+            return null;
+        }
+        if (message instanceof TextComponent component) {
+            return component.flatten();
+        }
+        return List.of(new TextSegmentData(String.valueOf(message), null, null,
+                null, null, null, null, null, null, null, null));
     }
 }

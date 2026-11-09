@@ -258,8 +258,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("FallingBlockEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.FallingBlockEntity.class);
         registry.registerGuestType("ItemFrameEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.ItemFrameEntity.class);
         registry.registerGuestType("AreaEffectCloudEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.AreaEffectCloudEntity.class);
-        registry.registerGuestType("Text", ink.tuanzi.neomacros.core.api.types.Text.class);
-        registry.registerGuestType("TextBuilder", ink.tuanzi.neomacros.core.api.types.TextBuilder.class);
+        registry.registerGuestType("Component", ink.tuanzi.neomacros.core.api.types.Component.class);
+        registry.registerGuestType("TextComponent", ink.tuanzi.neomacros.core.api.types.TextComponent.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
         registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
         registry.registerGuestType("Screen", ink.tuanzi.neomacros.core.api.player.PlayerApi.Screen.class);

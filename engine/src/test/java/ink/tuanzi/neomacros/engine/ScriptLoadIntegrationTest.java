@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.engine;
 
 import ink.tuanzi.neomacros.core.api.ChatApi;
+import ink.tuanzi.neomacros.port.model.TextSegmentData;
 import ink.tuanzi.neomacros.core.api.ThreadApi;
 import ink.tuanzi.neomacros.core.api.EventsApi;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
@@ -74,6 +75,14 @@ class ScriptLoadIntegrationTest {
                     @Override
                     public void actionbar(String message) {
                         chatLines.add("bar:" + message);
+                    }
+
+                    @Override
+                    public void renderRichText(java.util.List<TextSegmentData> segments,
+                            boolean actionBar) {
+                        String plain = segments.stream().map(TextSegmentData::text)
+                                .collect(java.util.stream.Collectors.joining());
+                        chatLines.add("rich:" + plain + ":" + actionBar + ":" + segments.size());
                     }
 
                     @Override

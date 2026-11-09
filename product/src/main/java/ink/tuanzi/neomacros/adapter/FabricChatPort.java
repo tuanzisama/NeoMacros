@@ -94,59 +94,7 @@ public final class FabricChatPort implements ChatPort {
     public void renderRichText(java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> segments,
             boolean actionBar) {
         runOnMain(() -> {
-            net.minecraft.network.chat.MutableComponent out =
-                    net.minecraft.network.chat.Component.literal("");
-            for (ink.tuanzi.neomacros.port.model.TextSegmentData segment : segments) {
-                net.minecraft.network.chat.MutableComponent part =
-                        net.minecraft.network.chat.Component.literal(segment.text());
-                net.minecraft.network.chat.Style style = net.minecraft.network.chat.Style.EMPTY;
-                if (segment.color() != null) {
-                    style = withColor(style, segment.color());
-                }
-                if (Boolean.TRUE.equals(segment.bold())) {
-                    style = style.withBold(true);
-                }
-                if (Boolean.TRUE.equals(segment.italic())) {
-                    style = style.withItalic(true);
-                }
-                if (Boolean.TRUE.equals(segment.underlined())) {
-                    style = style.withUnderlined(true);
-                }
-                if (Boolean.TRUE.equals(segment.strikethrough())) {
-                    style = style.withStrikethrough(true);
-                }
-                if (Boolean.TRUE.equals(segment.obfuscated())) {
-                    style = style.withObfuscated(true);
-                }
-                if (segment.hoverText() != null) {
-                    // 26.x made HoverEvent an interface; ShowText is the record impl
-                    style = style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
-                            net.minecraft.network.chat.Component.literal(segment.hoverText())));
-                }
-                //? if <26.1 {
-                /*
-                if (segment.hoverItem() != null) {
-                    style = style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowItem(
-                            showItemPayload(segment.hoverItem())));
-                }
-                */
-                //?}
-                //? if >=26.1 {
-                if (segment.hoverItem() != null) {
-                    style = style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowItem(
-                            showItemPayload(segment.hoverItem())));
-                }
-                //?}
-                if (segment.clickCommand() != null) {
-                    style = style.withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(
-                            segment.clickCommand()));
-                }
-                if (segment.clickUrl() != null) {
-                    style = style.withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(
-                            java.net.URI.create(segment.clickUrl())));
-                }
-                out.append(part.withStyle(style));
-            }
+            net.minecraft.network.chat.Component out = componentFrom(segments);
             if (actionBar) {
                 Minecraft.getInstance().gui.hud.setOverlayMessage(out, false);
             } else {
@@ -160,6 +108,78 @@ public final class FabricChatPort implements ChatPort {
                 //?}
             }
         });
+    }
+
+    /**
+     * Builds one vanilla component from neutral segments; unset decorations
+     * inherit, explicit on/off values apply as-is (an explicit false
+     * overrides the surface default, e.g. italic chat text).
+     */
+    private static net.minecraft.network.chat.Component componentFrom(
+            java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> segments) {
+        net.minecraft.network.chat.MutableComponent out =
+                net.minecraft.network.chat.Component.literal("");
+        for (ink.tuanzi.neomacros.port.model.TextSegmentData segment : segments) {
+            net.minecraft.network.chat.MutableComponent part =
+                    net.minecraft.network.chat.Component.literal(segment.text());
+            net.minecraft.network.chat.Style style = net.minecraft.network.chat.Style.EMPTY;
+            if (segment.color() != null) {
+                style = withColor(style, segment.color());
+            }
+            // Tri-state: null inherits the surface default; true/false force
+            // the decoration either way.
+            if (segment.bold() != null) {
+                style = style.withBold(segment.bold());
+            }
+            if (segment.italic() != null) {
+                style = style.withItalic(segment.italic());
+            }
+            if (segment.underlined() != null) {
+                style = style.withUnderlined(segment.underlined());
+            }
+            if (segment.strikethrough() != null) {
+                style = style.withStrikethrough(segment.strikethrough());
+            }
+            if (segment.obfuscated() != null) {
+                style = style.withObfuscated(segment.obfuscated());
+            }
+            if (segment.hoverText() != null) {
+                // 26.x made HoverEvent an interface; ShowText is the record impl
+                style = style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
+                        net.minecraft.network.chat.Component.literal(segment.hoverText())));
+            }
+            //? if <26.1 {
+            /*
+            if (segment.hoverItem() != null) {
+                style = style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowItem(
+                        showItemPayload(segment.hoverItem())));
+            }
+            */
+            //?}
+            //? if >=26.1 {
+            if (segment.hoverItem() != null) {
+                style = style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowItem(
+                        showItemPayload(segment.hoverItem())));
+            }
+            //?}
+            if (segment.clickAction() != null) {
+                style = style.withClickEvent(clickEvent(segment.clickAction(), segment.clickValue()));
+            }
+            out.append(part.withStyle(style));
+        }
+        return out;
+    }
+
+    /** Maps one vanilla click action name to its sealed ClickEvent record. */
+    private static net.minecraft.network.chat.ClickEvent clickEvent(String action, String value) {
+        return switch (action) {
+            case "run_command" -> new net.minecraft.network.chat.ClickEvent.RunCommand(value);
+            case "open_url" -> new net.minecraft.network.chat.ClickEvent.OpenUrl(
+                    java.net.URI.create(value));
+            case "suggest_command" -> new net.minecraft.network.chat.ClickEvent.SuggestCommand(value);
+            case "copy_to_clipboard" -> new net.minecraft.network.chat.ClickEvent.CopyToClipboard(value);
+            default -> throw new IllegalArgumentException("unknown click action: " + action);
+        };
     }
 
     /** Rebuilds the show-item hover payload from one neutral snapshot. */
@@ -223,10 +243,31 @@ public final class FabricChatPort implements ChatPort {
     }
 
     @Override
-    public void toast(String title, String message) {
+    public void titleRich(java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> title,
+            java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> subtitle,
+            Integer fadeIn, Integer stay, Integer fadeOut) {
         runOnMain(() -> {
-            Component heading = Component.literal(title == null ? "" : title);
-            Component body = Component.literal(message == null ? "" : message);
+            Minecraft.getInstance().gui.hud.clearTitles();
+            if (title != null) {
+                Minecraft.getInstance().gui.hud.setTitle(componentFrom(title));
+            }
+            if (subtitle != null) {
+                Minecraft.getInstance().gui.hud.setSubtitle(componentFrom(subtitle));
+            }
+            if (fadeIn != null && stay != null && fadeOut != null) {
+                Minecraft.getInstance().gui.hud.setTimes(fadeIn, stay, fadeOut);
+            }
+        });
+    }
+
+    @Override
+    public void toastRich(java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> title,
+            java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> message) {
+        runOnMain(() -> {
+            Component heading = title != null ? componentFrom(title)
+                    : Component.literal("");
+            Component body = message != null ? componentFrom(message)
+                    : Component.literal("");
             var toast = new net.minecraft.client.gui.components.toasts.SystemToast(
                     net.minecraft.client.gui.components.toasts.SystemToast.SystemToastId
                             .PERIODIC_NOTIFICATION, heading, body);

@@ -46,9 +46,9 @@ public final class Payloads {
             return ItemStack.of(stack);
         }
         if (value instanceof ink.tuanzi.neomacros.port.model.ChatComponent component) {
-            // Received chat crosses as the Text face: plain-object via
-            // toJSON, with the full styled-segment behavior available.
-            return ink.tuanzi.neomacros.core.api.types.Text.from(component);
+            // Received chat crosses as the TextComponent face: the neutral
+            // tree maps directly, JSON.stringify renders the vanilla tree.
+            return ink.tuanzi.neomacros.core.api.types.TextComponent.from(component);
         }
         if (value instanceof BoundingBoxData box) {
             Map<String, Object> view = new LinkedHashMap<>();
