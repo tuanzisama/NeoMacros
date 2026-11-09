@@ -55,6 +55,7 @@ public final class ItemStack implements ScriptHandle {
 
     /** Builds the script stack from one neutral port snapshot.
      * @zh 由中立端口快照构建脚本物品堆。 */
+    @ApiInternal
     public static ItemStack of(ItemStackData data) {
         List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchants = new ArrayList<>();
         for (ink.tuanzi.neomacros.port.model.EnchantmentData entry : data.enchantments()) {
@@ -258,13 +259,12 @@ public final class ItemStack implements ScriptHandle {
         return equals(other);
     }
 
-    /** JSON form so {@code JSON.stringify} renders the stack directly.
-     * @zh JSON 形式，使 {@code JSON.stringify} 直接输出物品堆。 */
-    @ApiSince("0.2.0")
+    /** JSON string so {@code JSON.stringify} renders the stack directly.
+     * @zh JSON 字符串，使 {@code JSON.stringify} 直接输出物品堆。 */
+    @ApiSince("0.3.0")
     @ApiLoader("*")
     @ApiMC("*")
-    @ApiType("ItemStackJson")
-    public Map<String, Object> toJSON() {
+    public String toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", id);
         out.put("count", count);
@@ -277,9 +277,16 @@ public final class ItemStack implements ScriptHandle {
             out.put("lore", lore);
         }
         if (!enchantments.isEmpty()) {
-            out.put("enchantments", getEnchantments());
+            List<Map<String, Object>> entries = new ArrayList<>();
+            for (ink.tuanzi.neomacros.port.model.EnchantmentData entry : enchantments) {
+                Map<String, Object> view = new LinkedHashMap<>();
+                view.put("id", entry.id());
+                view.put("level", entry.level());
+                entries.add(view);
+            }
+            out.put("enchantments", entries);
         }
-        return out;
+        return ink.tuanzi.neomacros.core.util.JsonLite.write(out);
     }
 
     @Override
@@ -310,26 +317,5 @@ public final class ItemStack implements ScriptHandle {
             return stack.id;
         }
         return null;
-    }
-
-    /**
-     * The JSON form of one item stack: the always-present id, count, and
-     * name; the durability, lore, and enchantment fields appear only when
-     * they carry content.
-     *
-     * @zh 物品堆的 JSON 形式：id/count/name 恒在；耐久、lore 与附魔字段仅在存在时出现。
-     */
-    @ApiClass(name = "ItemStackJson", kind = ApiClassKind.DATA)
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record ItemStackJson(
-            String id,
-            int count,
-            String name,
-            @ApiOptional Integer damage,
-            @ApiOptional Integer maxDamage,
-            @ApiOptional List<String> lore,
-            @ApiOptional List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchantments) {
     }
 }

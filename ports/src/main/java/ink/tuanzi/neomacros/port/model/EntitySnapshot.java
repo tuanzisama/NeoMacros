@@ -18,7 +18,7 @@ public record EntitySnapshot(UUID uuid, String type, String name, Pos3d pos, dou
         double maxHealth, Pos3d velocity, Pos3d direction, Rot2d rotation, double eyeHeight,
         boolean onGround, boolean sneaking, boolean sprinting, boolean swimming, boolean gliding,
         boolean inWater, boolean inLava, boolean onFire, String pose, String facing,
-        String dimension, AabbData boundingBox, List<UUID> passengers, UUID vehicle,
+        String dimension, BoundingBoxData boundingBox, List<UUID> passengers, UUID vehicle,
         ItemStackData heldItem, ItemStackData offhandItem, boolean living) {
 
     public EntitySnapshot {

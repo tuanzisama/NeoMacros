@@ -74,9 +74,9 @@ class ClassTreeIntegrationTest {
             return "green";
         }
 
-        /** JSON form so {@code JSON.stringify} renders the handle directly. */
-        public Map<String, Object> toJSON() {
-            return Map.of("color", "green");
+        /** JSON string so {@code JSON.stringify} renders the handle directly. */
+        public String toJSON() {
+            return "{\"color\":\"green\"}";
         }
     }
 
@@ -181,6 +181,7 @@ class ClassTreeIntegrationTest {
             "  zeroArgMethod: leaf.label() === 'node-label',",
             "  toStringTag: Object.prototype.toString.call(leaf) === '[object Leaf]',",
             "  jsonSnapshot: JSON.parse(JSON.stringify(leaf)).color === 'green',",
+            "  toJSONString: typeof leaf.toJSON() === 'string',",
             "  userSubclass: wrapped instanceof TreeNodeCtor && wrapped.shout() === 'leaf:node'",
             "    && wrapped.color === 'green',",
             "  readOnlyProps: (() => { try { leaf.color = 'red'; return false; } catch (e) { return true; } })(),",

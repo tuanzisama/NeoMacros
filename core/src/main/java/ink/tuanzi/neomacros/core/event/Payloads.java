@@ -3,7 +3,7 @@ package ink.tuanzi.neomacros.core.event;
 import ink.tuanzi.neomacros.core.api.types.ItemStack;
 import ink.tuanzi.neomacros.core.api.types.Pos2D;
 import ink.tuanzi.neomacros.core.api.types.Pos3D;
-import ink.tuanzi.neomacros.port.model.AabbData;
+import ink.tuanzi.neomacros.port.model.BoundingBoxData;
 import ink.tuanzi.neomacros.port.model.EnchantmentData;
 import ink.tuanzi.neomacros.port.model.ItemStackData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
@@ -50,7 +50,7 @@ public final class Payloads {
             // toJSON, with the full styled-segment behavior available.
             return ink.tuanzi.neomacros.core.api.types.Text.from(component);
         }
-        if (value instanceof AabbData box) {
+        if (value instanceof BoundingBoxData box) {
             Map<String, Object> view = new LinkedHashMap<>();
             view.put("min", snapshot(box.min()));
             view.put("max", snapshot(box.max()));

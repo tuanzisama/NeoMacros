@@ -2,7 +2,7 @@ package ink.tuanzi.neomacros.adapter;
 
 import ink.tuanzi.neomacros.port.EntityPort;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
-import ink.tuanzi.neomacros.port.model.AabbData;
+import ink.tuanzi.neomacros.port.model.BoundingBoxData;
 import ink.tuanzi.neomacros.port.model.ItemStackData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.Rot2d;
@@ -115,7 +115,7 @@ public final class FabricEntityPort implements EntityPort {
                 facingOf(entity),
                 entity.level() != null ? entity.level().dimension().toString() : "",
                 // 26.x official names: AABB exposes public final fields
-                new AabbData(new Pos3d(bb.minX, bb.minY, bb.minZ),
+                new BoundingBoxData(new Pos3d(bb.minX, bb.minY, bb.minZ),
                         new Pos3d(bb.maxX, bb.maxY, bb.maxZ)),
                 List.copyOf(passengers),
                 vehicle != null ? vehicle.getUUID() : null,

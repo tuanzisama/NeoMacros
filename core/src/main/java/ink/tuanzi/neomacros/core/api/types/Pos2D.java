@@ -103,15 +103,14 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
 
     /** JSON form so {@code JSON.stringify} renders the point directly.
      * @zh JSON 形式，使 {@code JSON.stringify} 直接输出坐标。 */
-    @ApiSince("0.2.0")
+    @ApiSince("0.3.0")
     @ApiLoader("*")
     @ApiMC("*")
-    @ApiType("Pos2DJson")
-    public Map<String, Object> toJSON() {
+    public String toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("x", x);
         out.put("y", y);
-        return out;
+        return ink.tuanzi.neomacros.core.util.JsonLite.write(out);
     }
 
     @Override
@@ -150,15 +149,4 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
         return byX != 0 ? byX : Double.compare(y, other.y);
     }
 
-    /**
-     * The JSON form of one 2D point ({@code {x, y}}).
-     *
-     * @zh 二维坐标的 JSON 形式（{@code {x, y}}）。
-     */
-    @ApiClass(name = "Pos2DJson", kind = ApiClassKind.DATA)
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record Pos2DJson(double x, double y) {
-    }
 }

@@ -47,7 +47,11 @@ class TextGapTest {
         Text text = builder.build();
         assertEquals("gold", text.getSegments().get(0).color());
         assertEquals(Boolean.TRUE, text.getSegments().get(0).bold());
-        assertTrue(text.toJSON().get(0).containsKey("text"));
+        assertTrue(ink.tuanzi.neomacros.core.util.JsonLite.parse(text.toJSON())
+                instanceof java.util.List<?> segments
+                && !segments.isEmpty()
+                && segments.get(0) instanceof java.util.Map<?, ?> segment
+                && segment.containsKey("text"));
     }
 
     @Test

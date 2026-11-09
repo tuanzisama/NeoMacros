@@ -6,9 +6,9 @@ package ink.tuanzi.neomacros.port.model;
  * <p>Neutral value object carried across port signatures and event payloads;
  * never a live game reference.</p>
  */
-public record AabbData(Pos3d min, Pos3d max) {
+public record BoundingBoxData(Pos3d min, Pos3d max) {
 
-    public AabbData {
+    public BoundingBoxData {
         if (min == null) {
             min = new Pos3d(0, 0, 0);
         }

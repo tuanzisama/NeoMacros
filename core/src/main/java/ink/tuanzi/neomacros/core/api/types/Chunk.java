@@ -220,16 +220,15 @@ public final class Chunk implements ScriptHandle {
 
     /** Plain-object rendering used by {@code JSON.stringify}.
      * @zh {@code JSON.stringify} 的纯对象渲染。 */
-    @ApiSince("0.2.0")
+    @ApiSince("0.3.0")
     @ApiMC("*")
     @ApiLoader("*")
-    @ApiType("ChunkJson")
-    public Map<String, Object> toJSON() {
+    public String toJSON() {
         Map<String, Object> view = new LinkedHashMap<>();
         view.put("chunkX", chunkX);
         view.put("chunkZ", chunkZ);
         view.put("loaded", current() != null);
-        return view;
+        return ink.tuanzi.neomacros.core.util.JsonLite.write(view);
     }
 
     @Override
@@ -237,16 +236,4 @@ public final class Chunk implements ScriptHandle {
         return "Chunk(" + chunkX + ", " + chunkZ + ")";
     }
 
-    /**
-     * The JSON form of one chunk handle: the chunk coordinates and whether
-     * the chunk is currently loaded.
-     *
-     * @zh 区块句柄的 JSON 形式：区块坐标与当前是否已加载。
-     */
-    @ApiClass(name = "ChunkJson", kind = ApiClassKind.DATA)
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record ChunkJson(int chunkX, int chunkZ, boolean loaded) {
-    }
 }

@@ -235,16 +235,15 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
 
     /** JSON form so {@code JSON.stringify} renders the point directly.
      * @zh JSON 形式，使 {@code JSON.stringify} 直接输出坐标。 */
-    @ApiSince("0.1.0")
+    @ApiSince("0.3.0")
     @ApiLoader("*")
     @ApiMC("*")
-    @ApiType("Pos3DJson")
-    public Map<String, Object> toJSON() {
+    public String toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("x", x);
         out.put("y", y);
         out.put("z", z);
-        return out;
+        return ink.tuanzi.neomacros.core.util.JsonLite.write(out);
     }
 
     @Override
@@ -283,15 +282,4 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
         return 0;
     }
 
-    /**
-     * The JSON form of one 3D point ({@code {x, y, z}}).
-     *
-     * @zh 三维坐标的 JSON 形式（{@code {x, y, z}}）。
-     */
-    @ApiClass(name = "Pos3DJson", kind = ApiClassKind.DATA)
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record Pos3DJson(double x, double y, double z) {
-    }
 }

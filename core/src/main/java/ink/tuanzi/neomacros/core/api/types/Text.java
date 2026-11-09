@@ -101,11 +101,10 @@ public final class Text implements ScriptHandle {
 
     /** Plain-object rendering used by {@code JSON.stringify}.
      * @zh {@code JSON.stringify} 的纯对象渲染。 */
-    @ApiSince("0.2.0")
+    @ApiSince("0.3.0")
     @ApiMC("*")
     @ApiLoader("*")
-    @ApiType("Array<TextSegmentJson>")
-    public List<Map<String, Object>> toJSON() {
+    public String toJSON() {
         List<Map<String, Object>> out = new ArrayList<>();
         for (TextSegmentData segment : segments) {
             Map<String, Object> view = new LinkedHashMap<>();
@@ -142,7 +141,7 @@ public final class Text implements ScriptHandle {
             }
             out.add(view);
         }
-        return out;
+        return ink.tuanzi.neomacros.core.util.JsonLite.write(out);
     }
 
     @Override
@@ -150,27 +149,4 @@ public final class Text implements ScriptHandle {
         return "Text(" + getPlain() + ")";
     }
 
-    /**
-     * One styled segment of the JSON form: the literal text plus the style
-     * keys that carry content.
-     *
-     * @zh JSON 形式的一个样式分段：字面文本加有内容的样式键。
-     */
-    @ApiClass(name = "TextSegmentJson", kind = ApiClassKind.DATA)
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record TextSegmentJson(
-            String text,
-            @ApiOptional String color,
-            @ApiOptional Boolean bold,
-            @ApiOptional Boolean italic,
-            @ApiOptional Boolean underlined,
-            @ApiOptional Boolean strikethrough,
-            @ApiOptional Boolean obfuscated,
-            @ApiOptional String hoverText,
-            @ApiOptional String hoverItem,
-            @ApiOptional String clickCommand,
-            @ApiOptional String clickUrl) {
-    }
 }

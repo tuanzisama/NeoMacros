@@ -323,6 +323,16 @@ public final class GraalJsEngine implements ScriptEngine {
                     });
                 }
                 for (const method of methods) {
+                    if (method === 'toJSON') {
+                        // Cell toJSON hands back a JSON string; parse it so
+                        // JSON.stringify renders the plain value (a raw
+                        // string would be double-encoded).
+                        C.prototype[method] = function (...args) {
+                            const value = readCell(this)[method](...args);
+                            return typeof value === 'string' ? JSON.parse(value) : value;
+                        };
+                        continue;
+                    }
                     C.prototype[method] = function (...args) {
                         return readCell(this)[method](...args);
                     };

@@ -368,16 +368,17 @@ public final class PlayerApi {
             return current().orElse(null);
         }
 
-        /** JSON form; the local player renders through the player view.
-         * @zh JSON 形式；本地玩家经玩家视图输出。 */
-        @ApiSince("0.1.0")
+        /** JSON string; the local player renders through the player view.
+         * @zh JSON 字符串；本地玩家经玩家视图输出。 */
+        @ApiSince("0.3.0")
         @ApiLoader("*")
         @ApiMC("*")
-        @ApiType("PlayerJson")
-        public Map<String, Object> toJSON() {
+        public String toJSON() {
             Optional<PlayerSnapshot> self = local();
-            return self.map(SnapshotViews::player)
+            var view = self.map(SnapshotViews::player)
                     .orElseGet(() -> SnapshotViews.entity(current().orElse(null)));
+            return view == null ? null
+                    : ink.tuanzi.neomacros.core.util.JsonLite.write(view);
         }
 
         /** Human-readable form.
@@ -2321,20 +2322,18 @@ public final class PlayerApi {
                     .orElse(null);
         }
 
-        /** All non-empty stacks with their slot indices.
-         * @zh 全部非空物品及其槽位号。 */
-        @ApiSince("0.1.0")
+        /** All non-empty stacks keyed by their slot index; every value is a
+         * full {@code ItemStack} handle, the same type {@code slot()} returns.
+         * @zh 全部非空物品，按槽位号键控；每个值都是完整的 {@code ItemStack} 句柄，与 {@code slot()} 返回值同类型。 */
+        @ApiSince("0.3.0")
         @ApiLoader("*")
         @ApiMC("*")
-        @ApiType("Array<SlotItem>")
-        public List<Map<String, Object>> getItems() {
-            return inventoryPort().allItems().get().stream()
-                    .map(entry -> {
-                        Map<String, Object> view = ItemStack.of(entry.stack()).toJSON();
-                        view.put("slot", entry.slot());
-                        return view;
-                    })
-                    .toList();
+        public Map<Integer, ItemStack> getItems() {
+            Map<Integer, ItemStack> out = new java.util.LinkedHashMap<>();
+            for (var entry : inventoryPort().allItems().get()) {
+                out.put(entry.slot(), ItemStack.of(entry.stack()));
+            }
+            return out;
         }
 
         /** Slot indices holding the given item id, in order.
@@ -2943,27 +2942,6 @@ public final class PlayerApi {
     }
 
     /**
-     * One non-empty inventory slot view: the stack's plain fields plus its
-     * slot index.
-     *
-     * @zh 一个非空槽位视图：物品堆纯字段加槽位号。
-     */
-    @ApiClass(name = "SlotItem", kind = ApiClassKind.DATA)
-    @ApiSince("0.1.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record SlotItem(
-            String id,
-            int count,
-            String name,
-            @ApiOptional Integer damage,
-            @ApiOptional Integer maxDamage,
-            @ApiOptional java.util.List<String> lore,
-            @ApiOptional java.util.List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchantments,
-            int slot) {
-    }
-
-    /**
      * One script-shown dialog action button spec: the visible label and the
      * optional stable id (defaults to the flattened index).
      *
@@ -2996,21 +2974,5 @@ public final class PlayerApi {
             @ApiOptional Boolean canCloseWithEscape,
             @ApiOptional java.util.List<DialogActionSpec> actions,
             @ApiOptional Integer columns) {
-    }
-
-    /**
-     * The JSON form of one player snapshot ({@code Player.toJSON()}): the
-     * entity fields plus the look direction, hunger, and air.
-     *
-     * @zh 玩家快照的 JSON 形式（{@code Player.toJSON()}）：实体字段加视线方向、饥饿与氧气。
-     */
-    @ApiClass(name = "PlayerJson", kind = ApiClassKind.DATA)
-    @ApiSince("0.1.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record PlayerJson(String uuid, @ApiOptional String type, String name,
-            ink.tuanzi.neomacros.core.api.entity.EntityApi.JsonPos pos,
-            ink.tuanzi.neomacros.core.api.entity.EntityApi.JsonLook look,
-            double health, Integer hunger, Integer air) {
     }
 }

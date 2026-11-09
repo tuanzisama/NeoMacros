@@ -18,7 +18,7 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.EntityPort;
-import ink.tuanzi.neomacros.port.model.AabbData;
+import ink.tuanzi.neomacros.port.model.BoundingBoxData;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.ItemStackData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
@@ -419,7 +419,7 @@ public final class EntityApi {
         public BoundingBox getBoundingBox() {
             return current()
                     .<BoundingBox>map(s -> {
-                        AabbData box = s.boundingBox();
+                        BoundingBoxData box = s.boundingBox();
                         if (box == null) {
                             return null;
                         }
@@ -660,17 +660,18 @@ public final class EntityApi {
         }
 
         /**
-         * JSON form of {@link #snapshot}; lets JSON.stringify render the
-         * handle directly.
+         * JSON string of the point-in-time snapshot; {@code JSON.stringify}
+         * renders the handle through it.
          *
-         * @zh 等价 snapshot 的 JSON 形式；JSON.stringify 可直接序列化句柄。
+         * @zh 时点快照的 JSON 字符串；{@code JSON.stringify} 经此渲染句柄。
          */
-        @ApiSince("0.1.0")
+        @ApiSince("0.3.0")
         @ApiLoader("*")
         @ApiMC("*")
-        @ApiType("EntityJson")
-        public Map<String, Object> toJSON() {
-            return SnapshotViews.entity(current().orElse(null));
+        public String toJSON() {
+            var view = SnapshotViews.entity(current().orElse(null));
+            return view == null ? null
+                    : ink.tuanzi.neomacros.core.util.JsonLite.write(view);
         }
 
         /** Human-readable form.
@@ -1068,41 +1069,4 @@ public final class EntityApi {
             Boolean infinite) {
     }
 
-    /**
-     * One world position as a plain object ({@code {x, y, z}}).
-     *
-     * @zh 普通对象形式的世界坐标（{@code {x, y, z}}）。
-     */
-    @ApiClass(name = "JsonPos", kind = ApiClassKind.DATA)
-    @ApiSince("0.1.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record JsonPos(double x, double y, double z) {
-    }
-
-    /**
-     * One look direction as a plain object ({@code {yaw, pitch}}, degrees).
-     *
-     * @zh 普通对象形式的视线方向（{@code {yaw, pitch}}，角度）。
-     */
-    @ApiClass(name = "JsonLook", kind = ApiClassKind.DATA)
-    @ApiSince("0.1.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record JsonLook(float yaw, float pitch) {
-    }
-
-    /**
-     * The JSON form of one entity snapshot ({@code Entity.toJSON()}): uuid,
-     * type, name, position, and health.
-     *
-     * @zh 实体快照的 JSON 形式（{@code Entity.toJSON()}）：uuid、类型、名称、位置与生命。
-     */
-    @ApiClass(name = "EntityJson", kind = ApiClassKind.DATA)
-    @ApiSince("0.1.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record EntityJson(String uuid, @ApiOptional String type, String name,
-            JsonPos pos, double health) {
-    }
 }

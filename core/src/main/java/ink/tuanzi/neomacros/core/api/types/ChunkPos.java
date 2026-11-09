@@ -118,15 +118,14 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
 
     /** JSON form so {@code JSON.stringify} renders the chunk directly.
      * @zh JSON 形式，使 {@code JSON.stringify} 直接输出区块坐标。 */
-    @ApiSince("0.2.0")
+    @ApiSince("0.3.0")
     @ApiLoader("*")
     @ApiMC("*")
-    @ApiType("ChunkPosJson")
-    public Map<String, Object> toJSON() {
+    public String toJSON() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("x", x);
         out.put("z", z);
-        return out;
+        return ink.tuanzi.neomacros.core.util.JsonLite.write(out);
     }
 
     @Override
@@ -163,15 +162,4 @@ public final class ChunkPos implements ScriptHandle, SelfConstructing {
         return 0;
     }
 
-    /**
-     * The JSON form of one chunk coordinate ({@code {x, z}}).
-     *
-     * @zh 区块坐标的 JSON 形式（{@code {x, z}}）。
-     */
-    @ApiClass(name = "ChunkPosJson", kind = ApiClassKind.DATA)
-    @ApiSince("0.2.0")
-    @ApiMC("*")
-    @ApiLoader("*")
-    public record ChunkPosJson(int x, int z) {
-    }
 }
