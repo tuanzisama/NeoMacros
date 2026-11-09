@@ -2380,8 +2380,81 @@ public final class PlayerApi {
             return inventoryPort().countOf(item);
         }
 
-        /** Clicks a slot (button 0 = left, 1 = right; shift = quick move).
-         * @zh 点击槽位（button 0 = 左键，1 = 右键；shift = 快速移动）。 */
+        /** Total item count per item id across the inventory.
+         * @zh 物品栏内按物品 id 聚合的总数量。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Map<String, Integer> getItemCount() {
+            Map<String, Integer> out = new LinkedHashMap<>();
+            for (var entry : inventoryPort().allItems().get()) {
+                out.merge(entry.stack().id(), entry.stack().count(), Integer::sum);
+            }
+            return out;
+        }
+
+        /** The stack held on the mouse cursor over the open menu, or undefined.
+         * @zh 光标抓取中的物品堆；无则 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public ItemStack getCarried() {
+            return inventoryPort().carriedItem()
+                    .map(ItemStack::of)
+                    .orElse(null);
+        }
+
+        /** The selected hotbar slot (0-8), or undefined.
+         * @zh 当前选中的快捷栏槽位（0-8）；无则 undefined。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getSelectedHotbarSlot() {
+            return inventoryPort().selectedHotbarSlot();
+        }
+
+        /** First empty hotbar slot (0-8), or undefined when full. Reads the
+         * player's own inventory, no GUI needed.
+         * @zh 第一个空的快捷栏槽位（0-8）；全满为 undefined。读取玩家自身物品栏，无需打开界面。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer findFreeHotbarSlot() {
+            return findFreeSlotIn(0, 9);
+        }
+
+        /** First empty main-inventory slot (9-35), or undefined when full.
+         * Reads the player's own inventory, no GUI needed.
+         * @zh 主背包（9-35）第一个空槽；全满为 undefined。读取玩家自身物品栏，无需打开界面。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer findFreeInventorySlot() {
+            return findFreeSlotIn(9, 36);
+        }
+
+        /** First absent slot index in {@code [from, to)} over the live item map. */
+        private Integer findFreeSlotIn(int from, int to) {
+            java.util.Set<Integer> filled = new java.util.HashSet<>();
+            for (var entry : inventoryPort().allItems().get()) {
+                filled.add(entry.slot());
+            }
+            for (int i = from; i < to; i++) {
+                if (!filled.contains(i)) {
+                    return i;
+                }
+            }
+            return null;
+        }
+
+        /** Clicks a slot (button 0 = left, 1 = right, 2 = middle-click clone
+         * in creative; shift = quick move).
+         * @zh 点击槽位（button 0 = 左键，1 = 右键，2 = 中键克隆（创造）；shift = 快速移动）。 */
         @ApiSince("0.1.0")
         @ApiLoader("*")
         @ApiMC("*")
@@ -2407,8 +2480,9 @@ public final class PlayerApi {
             return inventoryPort().drop(slot, all);
         }
 
-        /** Swaps a container slot with a hotbar slot (0..8).
-         * @zh 将容器槽位与快捷栏槽位交换（0..8）。 */
+        /** Swaps a container slot with a hotbar slot (0..8, or 40 for the
+         * offhand).
+         * @zh 将容器槽位与快捷栏槽位交换（0..8，或 40 = 副手）。 */
         @ApiSince("0.1.0")
         @ApiLoader("*")
         @ApiMC("*")
@@ -2423,6 +2497,92 @@ public final class PlayerApi {
         @ApiMC("*")
         public CompletableFuture<Void> close() {
             return inventoryPort().close();
+        }
+
+        /** Selects the active hotbar slot (0-8).
+         * @zh 将快捷栏选中位切到指定槽（0-8）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setSelectedHotbarSlot(int index) {
+            return inventoryPort().setSelectedHotbarSlot(index);
+        }
+
+        /** Picks the slot up, then gathers every matching stack onto the
+         * cursor (the double-click collect semantics).
+         * @zh 拿起槽位物品，再把所有可合并堆聚拢到光标（双击聚拢语义）。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> grabAll(int slot) {
+            return inventoryPort().grabAll(slot);
+        }
+
+        /**
+         * Places the cursor stack split across two empty slots: one item
+         * into the first, the rest into the second. Both slots must be empty
+         * and distinct; the server arbitrates violations.
+         *
+         * @zh 将光标上的堆拆放到两个空槽：第一槽放 1 个，其余放第二槽。两槽需为空且不同；违例由服务端裁决。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> split(int slot1, int slot2) {
+            return inventoryPort().split(slot1, slot2);
+        }
+
+        /**
+         * Drag-distributes the cursor stack over the given menu slots
+         * (button 0 = even split, other = greedy fill).
+         *
+         * @zh 将光标堆拖拽分发到给定槽位（button 0 = 均分，其他 = 贪心填满）。
+         * @zh-param slots 菜单槽位号数组
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> dragClick(
+                @ApiType("Array<number>") Object slots, int button) {
+            return inventoryPort().dragClick(slotList(slots), button);
+        }
+
+        /**
+         * Quick-moves every slot that can merge with the given slot's stack
+         * (same backing container). Returns the moved item count.
+         *
+         * @zh 快速移动所有可与指定槽位物品合并的槽（同一背后容器）。返回移动的物品总数。
+         */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Integer> quickAll(int slot,
+                @ApiOptional Integer button) {
+            return inventoryPort().quickAll(slot, button != null ? button : 0);
+        }
+
+        /** Drops the cursor-held stack (if any) and closes the open screen.
+         * @zh 丢弃光标上的堆（如有）并关闭当前界面。 */
+        @ApiSince("0.3.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> closeAndDrop() {
+            return inventoryPort().closeAndDrop();
+        }
+
+        /** Coerces a guest slot array into a list of ints (numbers only). */
+        private static List<Integer> slotList(Object slots) {
+            if (!(slots instanceof List<?> list)) {
+                throw new IllegalArgumentException("slots must be a number array");
+            }
+            List<Integer> out = new java.util.ArrayList<>();
+            for (Object item : list) {
+                if (!(item instanceof Number number)) {
+                    throw new IllegalArgumentException("slots must be a number array");
+                }
+                out.add(number.intValue());
+            }
+            return out;
         }
     }
 

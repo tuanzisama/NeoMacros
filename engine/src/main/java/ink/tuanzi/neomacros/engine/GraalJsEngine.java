@@ -1538,7 +1538,15 @@ public final class GraalJsEngine implements ScriptEngine {
                     }
                     // Action/method: cross as a callable so the guest invokes
                     // it explicitly; arguments convert via declared types.
+                    // Futures settle as guest Promises (the same wrapper the
+                    // module bindings use).
                     Class<?>[] parameterTypes = method.getParameterTypes();
+                    if (java.util.concurrent.CompletableFuture.class
+                            .isAssignableFrom(method.getReturnType())) {
+                        return glueMember("__neoMakeAsync").execute(executable(
+                                arguments -> invokeHandleAsync(handle, method, name,
+                                        parameterTypes, arguments)));
+                    }
                     return executable(arguments -> invokeHandleMember(handle, method, name,
                             convertArguments(arguments, parameterTypes)));
                 }
@@ -1596,6 +1604,44 @@ public final class GraalJsEngine implements ScriptEngine {
             } catch (IllegalAccessException e) {
                 throw new IllegalStateException("handle member not accessible: " + name, e);
             }
+        }
+
+        /** Invokes one async handle member and settles the promise on the loop. */
+        private Object invokeHandleAsync(Object handle, java.lang.reflect.Method method,
+                String name, Class<?>[] parameterTypes, Value[] arguments) {
+            // arguments = [jsArgsArray, resolve, reject]; only [0] carries method params.
+            Value jsArgs = arguments[0];
+            Value resolve = arguments[1];
+            Value reject = arguments[2];
+            Value[] unpacked = new Value[(int) jsArgs.getArraySize()];
+            for (int i = 0; i < unpacked.length; i++) {
+                unpacked[i] = jsArgs.getArrayElement(i);
+            }
+            CompletableFuture<?> future;
+            try {
+                future = (CompletableFuture<?>) method.invoke(handle,
+                        convertArguments(unpacked, parameterTypes));
+            } catch (PolyglotException e) {
+                throw e;
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                Throwable cause = e.getCause();
+                reject.execute(newGuestErrorHere(String.valueOf(
+                        cause != null ? cause.getMessage() : "handle member failed: " + name)));
+                return null;
+            } catch (Throwable t) {
+                reject.execute(newGuestErrorHere(String.valueOf(t.getMessage())));
+                return null;
+            }
+            future.whenComplete((value, failure) -> owner.loop().execute(() -> {
+                if (failure != null) {
+                    reject.execute(newGuestErrorHere(String.valueOf(failure)));
+                } else if (value == null) {
+                    resolve.execute();
+                } else {
+                    resolve.execute(guestReadable(value));
+                }
+            }));
+            return null;
         }
 
         /** Declared script surface of one handle class: member lookup plus the property/method split. */

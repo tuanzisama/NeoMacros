@@ -205,32 +205,119 @@ public final class StubAdapter implements NeomacrosAdapter {
     }
 
     /** The test-facing inventory port: reads canned data, records actions. */
-    public ink.tuanzi.neomacros.port.InventoryPort inventoryPort() {
+    public StubInventory inventoryPort() {
         return inventory;
     }
 
     private final StubInventory inventory = new StubInventory();
 
-    /** Inventory port stub serving canned hotbar/main data. */
+    /** Inventory port stub serving canned hotbar/main data and recording actions. */
     public static final class StubInventory implements ink.tuanzi.neomacros.port.InventoryPort {
+
+        /** Canned slot data served to reads: slot index → stack data. */
+        public final java.util.Map<Integer, ink.tuanzi.neomacros.port.model.ItemStackData> slots =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        /** The canned selected hotbar slot ({@code null} = unknown). */
+        public volatile Integer selectedSlot = 0;
+        /** The canned cursor stack ({@code null} = empty cursor). */
+        public volatile ink.tuanzi.neomacros.port.model.ItemStackData carried = null;
+        final List<String> actions = new CopyOnWriteArrayList<>();
+
+        /** Records one script-driven action. */
+        private java.util.concurrent.CompletableFuture<Void> record(String what) {
+            actions.add(what);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        /** The recorded script-driven action log (test assertions). */
+        public List<String> actions() {
+            return actions;
+        }
+
         @Override
         public java.util.function.Supplier<java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData>> heldItem() {
-            return () -> java.util.Optional.empty();
+            return () -> selectedSlot == null
+                    ? java.util.Optional.empty()
+                    : java.util.Optional.ofNullable(slots.get(selectedSlot));
         }
 
         @Override
         public java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> slot(int index) {
-            return java.util.Optional.empty();
+            return java.util.Optional.ofNullable(slots.get(index));
         }
 
         @Override
         public java.util.function.Supplier<List<IndexedStack>> allItems() {
-            return List::of;
+            return () -> slots.entrySet().stream()
+                    .map(entry -> new IndexedStack(entry.getKey(), entry.getValue()))
+                    .toList();
         }
 
         @Override
         public int countOf(String item) {
-            return 0;
+            int count = 0;
+            for (ink.tuanzi.neomacros.port.model.ItemStackData stack : slots.values()) {
+                if (stack.id().equals(item)) {
+                    count += stack.count();
+                }
+            }
+            return count;
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> carriedItem() {
+            return java.util.Optional.ofNullable(carried);
+        }
+
+        @Override
+        public Integer selectedHotbarSlot() {
+            return selectedSlot;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setSelectedHotbarSlot(int index) {
+            return record("selectHotbar:" + index);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> click(int slot, int button, boolean shift) {
+            return record("click:" + slot + ":" + button + (shift ? ":shift" : ""));
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> pickupAll(int slot) {
+            return record("pickupAll:" + slot);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> dragClick(List<Integer> slotList, int button) {
+            return record("dragClick:" + slotList + ":" + button);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Integer> quickAll(int slot, int button) {
+            actions.add("quickAll:" + slot + ":" + button);
+            return java.util.concurrent.CompletableFuture.completedFuture(slots.size());
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> closeAndDrop() {
+            return record("closeAndDrop");
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> drop(int slot, boolean all) {
+            return record("drop:" + slot + ":" + all);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> swapHotbar(int slot, int hotbarIndex) {
+            return record("swapHotbar:" + slot + ":" + hotbarIndex);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> close() {
+            return record("close");
         }
     }
 

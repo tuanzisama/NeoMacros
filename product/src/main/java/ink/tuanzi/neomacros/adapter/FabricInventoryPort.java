@@ -276,4 +276,210 @@ public final class FabricInventoryPort implements InventoryPort {
             return java.util.Map.of();
         });
     }
+
+    @Override
+    public Optional<ItemStackData> carriedItem() {
+        return MainThread.run(() -> {
+            var menu = openMenu();
+            if (menu == null || menu.getCarried().isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(stackDataOf(menu.getCarried()));
+        });
+    }
+
+    @Override
+    public Integer selectedHotbarSlot() {
+        LocalPlayer player = player();
+        return player != null ? player.getInventory().getSelectedSlot() : null;
+    }
+
+    // === actions ===
+
+    /** Dispatches one action on the main thread; failures settle the future. */
+    private java.util.concurrent.CompletableFuture<Void> dispatch(Runnable action) {
+        java.util.concurrent.CompletableFuture<Void> future = new java.util.concurrent.CompletableFuture<>();
+        Minecraft.getInstance().execute(() -> {
+            try {
+                action.run();
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    /** Dispatches one computing action on the main thread. */
+    private <T> java.util.concurrent.CompletableFuture<T> dispatchValue(
+            Supplier<T> action) {
+        java.util.concurrent.CompletableFuture<T> future = new java.util.concurrent.CompletableFuture<>();
+        Minecraft.getInstance().execute(() -> {
+            try {
+                future.complete(action.get());
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    /**
+     * Performs one container click with the named action on the open menu
+     * (the game-mode path, which both predicts locally and sends the packet;
+     * script-issued clicks surface in the inventory click source).
+     */
+    private void clickContainer(int slot, int button, String action) {
+        LocalPlayer player = player();
+        var gameMode = Minecraft.getInstance().gameMode;
+        var menu = openMenu();
+        if (player == null || gameMode == null || menu == null) {
+            throw new IllegalStateException("no open container");
+        }
+        //? if >=26.1 {
+        gameMode.handleContainerInput(menu.containerId, slot, button,
+                switch (action) {
+                    case "quickMove" -> net.minecraft.world.inventory.ContainerInput.QUICK_MOVE;
+                    case "clone" -> net.minecraft.world.inventory.ContainerInput.CLONE;
+                    case "throw" -> net.minecraft.world.inventory.ContainerInput.THROW;
+                    case "swap" -> net.minecraft.world.inventory.ContainerInput.SWAP;
+                    case "pickupAll" -> net.minecraft.world.inventory.ContainerInput.PICKUP_ALL;
+                    case "quickCraft" -> net.minecraft.world.inventory.ContainerInput.QUICK_CRAFT;
+                    default -> net.minecraft.world.inventory.ContainerInput.PICKUP;
+                }, player);
+        //?} else {
+        /* gameMode.handleInventoryMouseClick(menu.containerId, slot, button,
+                switch (action) {
+                    case "quickMove" -> net.minecraft.world.inventory.ClickType.QUICK_MOVE;
+                    case "clone" -> net.minecraft.world.inventory.ClickType.CLONE;
+                    case "throw" -> net.minecraft.world.inventory.ClickType.THROW;
+                    case "swap" -> net.minecraft.world.inventory.ClickType.SWAP;
+                    case "pickupAll" -> net.minecraft.world.inventory.ClickType.PICKUP_ALL;
+                    case "quickCraft" -> net.minecraft.world.inventory.ClickType.QUICK_CRAFT;
+                    default -> net.minecraft.world.inventory.ClickType.PICKUP;
+                }, player); */
+        //?}
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> click(int slot, int button, boolean shift) {
+        return dispatch(() -> clickContainer(slot, button,
+                shift ? "quickMove" : button == 2 ? "clone" : "pickup"));
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> drop(int slot, boolean all) {
+        return dispatch(() -> clickContainer(slot, all ? 1 : 0, "throw"));
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> swapHotbar(int slot, int hotbarIndex) {
+        return dispatch(() -> {
+            if (hotbarIndex != 40 && (hotbarIndex < 0 || hotbarIndex > 8)) {
+                throw new IllegalArgumentException(
+                        "hotbar index must be 0-8 or 40 (offhand)");
+            }
+            clickContainer(slot, hotbarIndex, "swap");
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> close() {
+        return dispatch(() -> {
+            LocalPlayer player = player();
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            player.closeContainer();
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> closeAndDrop() {
+        return dispatch(() -> {
+            LocalPlayer player = player();
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            var menu = openMenu();
+            if (menu != null && !menu.getCarried().isEmpty()) {
+                // clicking outside the screen drops the cursor-held stack
+                clickContainer(net.minecraft.world.inventory.AbstractContainerMenu.SLOT_CLICKED_OUTSIDE,
+                        0, "pickup");
+            }
+            player.closeContainer();
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setSelectedHotbarSlot(int index) {
+        return dispatch(() -> {
+            if (!net.minecraft.world.entity.player.Inventory.isHotbarSlot(index)) {
+                throw new IllegalArgumentException("hotbar index must be 0-8");
+            }
+            LocalPlayer player = player();
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            player.getInventory().setSelectedSlot(index);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> pickupAll(int slot) {
+        return dispatch(() -> clickContainer(slot, 0, "pickupAll"));
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> dragClick(List<Integer> slots, int button) {
+        return dispatch(() -> {
+            if (slots == null || slots.isEmpty()) {
+                throw new IllegalArgumentException("dragClick needs at least one slot");
+            }
+            int type = button == 0
+                    ? net.minecraft.world.inventory.AbstractContainerMenu.QUICKCRAFT_TYPE_CHARITABLE
+                    : net.minecraft.world.inventory.AbstractContainerMenu.QUICKCRAFT_TYPE_GREEDY;
+            clickContainer(net.minecraft.world.inventory.AbstractContainerMenu.SLOT_CLICKED_OUTSIDE,
+                    net.minecraft.world.inventory.AbstractContainerMenu.getQuickcraftMask(
+                            net.minecraft.world.inventory.AbstractContainerMenu.QUICKCRAFT_HEADER_START, type),
+                    "quickCraft");
+            for (int slot : slots) {
+                clickContainer(slot,
+                        net.minecraft.world.inventory.AbstractContainerMenu.getQuickcraftMask(
+                                net.minecraft.world.inventory.AbstractContainerMenu.QUICKCRAFT_HEADER_CONTINUE, type),
+                        "quickCraft");
+            }
+            clickContainer(net.minecraft.world.inventory.AbstractContainerMenu.SLOT_CLICKED_OUTSIDE,
+                    net.minecraft.world.inventory.AbstractContainerMenu.getQuickcraftMask(
+                            net.minecraft.world.inventory.AbstractContainerMenu.QUICKCRAFT_HEADER_END, type),
+                    "quickCraft");
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Integer> quickAll(int slot, int button) {
+        return dispatchValue(() -> {
+            LocalPlayer player = player();
+            var menu = openMenu();
+            if (player == null || menu == null) {
+                throw new IllegalStateException("no open container");
+            }
+            if (slot < 0 || slot >= menu.slots.size()) {
+                throw new IllegalArgumentException("slot out of range: " + slot);
+            }
+            var reference = menu.slots.get(slot);
+            var cursor = reference.getItem().copy();
+            int count = 0;
+            for (net.minecraft.world.inventory.Slot candidate : menu.slots) {
+                if (candidate.mayPickup(player) && candidate.hasItem()
+                        && candidate.container == reference.container
+                        && net.minecraft.world.inventory.AbstractContainerMenu.canItemQuickReplace(
+                                candidate, cursor, true)) {
+                    count += candidate.getItem().getCount();
+                    clickContainer(candidate.index, button, "quickMove");
+                }
+            }
+            return count;
+        });
+    }
 }
