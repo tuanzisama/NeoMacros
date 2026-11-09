@@ -18,6 +18,9 @@ import java.util.Map;
  * new instance. The script-facing workhorse for positions, directions, and
  * offsets; {@code JSON.stringify} renders it as {@code {"x":…,"y":…,"z":…}}.
  * @zh 不可变三维点/向量：所有运算都返回新实例。位置、方向与偏移的脚本端主力类型；{@code JSON.stringify} 直接输出 {@code {"x":…,"y":…,"z":…}}。
+ * @zh-example const a = new Pos3D(0, 64, 0);
+ * const b = a.add(new Pos3D(3, 0, 4)); // (3, 64, 4)
+ * const d = b.sub(a).length(); // 5
  */
 @ApiClass(name = "Pos3D", kind = ApiClassKind.DATA)
 @ApiSince("0.2.0")

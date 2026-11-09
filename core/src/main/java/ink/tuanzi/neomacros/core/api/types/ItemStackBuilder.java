@@ -19,6 +19,12 @@ import java.util.Map;
  * through privileged writes (creative inventory) or stays comparison/display
  * data — survival mode has no "materialize items" path (server authority).
  * @zh 本地 {@link ItemStack} 的构建器；脚本造物的唯一构造路径。产物是本地数据——进入世界只能靠特权写（创造物品栏）或仅作比较/展示——生存模式没有"凭空给物品"的路径（服务器权威）。
+ * @zh-example const stack = new ItemStackBuilder("diamond_sword")
+ *   .name("Excalibur")
+ *   .enchant("minecraft:sharpness", 5)
+ *   .unbreakable()
+ *   .count(1)
+ *   .build();
  */
 @ApiClass(name = "ItemStackBuilder", kind = ApiClassKind.DATA)
 @ApiSince("0.2.0")

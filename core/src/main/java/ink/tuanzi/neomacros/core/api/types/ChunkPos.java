@@ -18,6 +18,8 @@ import java.util.Map;
  * chunk coordinates and block coordinates are different spaces and every
  * conversion between them is explicit ({@code x = blockX >> 4}).
  * @zh 不可变区块坐标。刻意不与 {@link Pos3D} 发生继承关系：区块坐标与方块坐标分属两套坐标系，相互换算必须显式（{@code x = blockX >> 4}）。
+ * @zh-example const here = new ChunkPos(3, -2);
+ * const east = here.offset(1, 0); // 区块 (4, -2)
  */
 @ApiClass(name = "ChunkPos", kind = ApiClassKind.DATA)
 @ApiSince("0.2.0")

@@ -11,6 +11,8 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
  * Immutable block-grid position: an integer {@link Pos3D} with directional
  * offsets. {@code new BlockPos(10.7, 64.2, 200.9)} floors onto the grid.
  * @zh 不可变的方块网格坐标：整数化的 {@link Pos3D}，带六个方向的偏移方法。{@code new BlockPos(10.7, 64.2, 200.9)} 会向下取整到网格。
+ * @zh-example const base = new BlockPos(10, 64, 200);
+ * const above = base.up(2); // (10, 66, 200)
  */
 @ApiClass(name = "BlockPos", kind = ApiClassKind.DATA)
 @ApiSince("0.2.0")

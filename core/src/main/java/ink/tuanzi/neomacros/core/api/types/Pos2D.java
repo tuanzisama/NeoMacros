@@ -17,6 +17,8 @@ import java.util.Map;
  * Immutable two-dimensional point: rotations (yaw, pitch) and screen
  * coordinates. Every operation returns a new instance.
  * @zh 不可变二维点：旋转（yaw, pitch）与屏幕坐标。所有运算都返回新实例。
+ * @zh-example const rot = new Pos2D(90, 0); // yaw 90°, pitch 0°
+ * const steeper = rot.add(new Pos2D(0, 45)); // pitch 抬到 45°
  */
 @ApiClass(name = "Pos2D", kind = ApiClassKind.DATA)
 @ApiSince("0.2.0")
