@@ -31,22 +31,21 @@ class EventBusSyncTest {
     @Test
     void onSyncRequiresKnownCancellableEvent() {
         // Unknown event.
-        assertThrows(IllegalStateException.class, () -> bus.onSync("custom:nope", (p, f) -> {
-        }));
+        assertThrows(IllegalStateException.class, () -> bus.onSync("custom:nope", (p, f) -> null));
         // Known but non-cancellable.
-        assertThrows(IllegalStateException.class, () -> bus.onSync("tick", (p, f) -> {
-        }));
+        assertThrows(IllegalStateException.class, () -> bus.onSync("tick", (p, f) -> null));
         // Wildcards never allowed on the sync channel.
-        assertThrows(IllegalArgumentException.class, () -> bus.onSync("chat:*", (p, f) -> {
-        }));
+        assertThrows(IllegalArgumentException.class, () -> bus.onSync("chat:*", (p, f) -> null));
         // The legal case subscribes.
-        assertTrue(bus.onSync("chat:send", (p, f) -> {
-        }).isActive());
+        assertTrue(bus.onSync("chat:send", (p, f) -> null).isActive());
     }
 
     @Test
     void cancellationPropagatesToPublishResult() {
-        bus.onSync("chat:send", (payload, flag) -> flag.cancel());
+        bus.onSync("chat:send", (payload, flag) -> {
+            flag.cancel();
+            return null;
+        });
 
         EventBus.PublishResult result = bus.publish("chat:send", new ChatSendEvent("hi"));
         assertTrue(result.canceled());
@@ -57,6 +56,7 @@ class EventBusSyncTest {
         bus.onSync("chat:send", (payload, flag) -> {
             // Reads the flag without canceling.
             assertFalse(flag.isCanceled());
+            return null;
         });
 
         assertFalse(bus.publish("chat:send", new ChatSendEvent("hi")).canceled());
@@ -67,7 +67,10 @@ class EventBusSyncTest {
         List<String> order = new java.util.ArrayList<>();
         bus.onSync("chat:send", (payload, flag) -> order.add("first"));
         bus.onSync("chat:send", (payload, flag) -> order.add("second"));
-        bus.onSync("chat:send", (payload, flag) -> flag.cancel());
+        bus.onSync("chat:send", (payload, flag) -> {
+            flag.cancel();
+            return null;
+        });
 
         EventBus.PublishResult result = bus.publish("chat:send", new ChatSendEvent("hi"));
         assertEquals(java.util.List.of("first", "second"), order);
@@ -90,6 +93,61 @@ class EventBusSyncTest {
         bus.onSync("chat:send", (payload, flag) -> received[0] = unwrap(payload));
         bus.publish("chat:send", event);
         assertEquals(event, received[0]);
+    }
+
+    @Test
+    void structuredVerdictReachesPublishResult() {
+        bus.onSync("chat:send", (payload, flag) -> java.util.Map.of("text", "replaced"));
+
+        EventBus.PublishResult result = bus.publish("chat:send", new ChatSendEvent("hi"));
+        assertFalse(result.canceled());
+        assertEquals(java.util.Map.of("text", "replaced"), result.verdict());
+    }
+
+    @Test
+    void structuredVerdictMayCancelToo() {
+        bus.onSync("chat:send", (payload, flag) -> {
+            flag.cancel();
+            return java.util.Map.of("cancel", true, "text", "x");
+        });
+
+        EventBus.PublishResult result = bus.publish("chat:send", new ChatSendEvent("hi"));
+        assertTrue(result.canceled());
+        assertEquals(java.util.Map.of("cancel", true, "text", "x"), result.verdict());
+    }
+
+    @Test
+    void lastSyncCallbackVerdictWins() {
+        bus.onSync("chat:send", (payload, flag) -> java.util.Map.of("text", "first"));
+        bus.onSync("chat:send", (payload, flag) -> java.util.Map.of("text", "second"));
+
+        EventBus.PublishResult result = bus.publish("chat:send", new ChatSendEvent("hi"));
+        assertEquals(java.util.Map.of("text", "second"), result.verdict());
+    }
+
+    @Test
+    void nonNullScalarReturnsPassThroughVerbatim() {
+        // The bus treats any non-null return as the verdict; the truthiness
+        // translation lives in the script surface (EventsApi.onSync).
+        bus.onSync("chat:send", (payload, flag) -> {
+            flag.cancel();
+            return null;
+        });
+        bus.onSync("chat:send", (payload, flag) -> Boolean.TRUE);
+
+        EventBus.PublishResult result = bus.publish("chat:send", new ChatSendEvent("hi"));
+        assertTrue(result.canceled());
+        assertEquals(Boolean.TRUE, result.verdict());
+    }
+
+    @Test
+    void nonCancellablePublishCarriesNoVerdict() {
+        bus.on("tick", payload -> {
+        });
+
+        EventBus.PublishResult result = bus.publish("tick", new TickEvent(1));
+        assertFalse(result.canceled());
+        assertEquals(null, result.verdict());
     }
 
     /** Unwraps the bus transport envelope so assertions see the raw payload. */

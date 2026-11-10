@@ -138,30 +138,60 @@ public final class EventsApi {
      * Subscribes synchronously on the dispatch thread; only cancellable
      * events accept sync subscriptions. The callback receives the payload and
      * returns a truthy value to cancel the event (filter-style, like
-     * {@code Array.filter}). Sync callbacks must stay short; they block the
-     * dispatch thread.
+     * {@code Array.filter}), or a plain object carrying modification fields
+     * for the event (a truthy {@code cancel} key cancels; event-specific keys
+     * such as {@code text} or {@code lines} travel back to the publisher).
+     * Sync callbacks must stay short; they block the dispatch thread.
      *
-     * @zh 在分发线程上同步订阅；仅可取消事件可用。回调返回 truthy 即取消该事件。
+     * @zh 在分发线程上同步订阅；仅可取消事件可用。回调返回 truthy 即取消该事件；返回普通对象则携带修改字段（truthy 的 {@code cancel} 键取消，事件特定键如 {@code text}、{@code lines} 回传发布方）。
      * @zh-param name 事件名（仅可取消事件）
-     * @zh-param handler 判定回调：返回 truthy 取消事件；须短小
+     * @zh-param handler 判定回调：返回 truthy 取消事件，或返回修改对象；须短小
      */
     @ApiSince("0.1.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void onSync(String name, java.util.function.Predicate<Object> handler) {
+    public void onSync(String name, java.util.function.Function<Object, Object> handler) {
         var subscription = ScriptApiEnvironment.bus().onSync(name,
                 (payload, cancel) -> {
                     Object source = payload instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope
                             ? envelope.payload() : payload;
-                    Object verdict = ScriptApiEnvironment.guestView(Payloads.snapshot(source));
-                    if (Boolean.TRUE.equals(handler.test(verdict))) {
+                    Object view = ScriptApiEnvironment.guestView(Payloads.snapshot(source));
+                    Object returned = handler.apply(view);
+                    if (returned instanceof java.util.Map<?, ?> verdict) {
+                        // Structured verdict: a truthy "cancel" field cancels;
+                        // the remaining fields travel back to the publisher
+                        // (chat:title text, screen:signEdit lines/closeScreen).
+                        if (truthy(verdict.get("cancel"))) {
+                            cancel.cancel();
+                        }
+                        return verdict;
+                    }
+                    if (truthy(returned)) {
                         cancel.cancel();
                     }
+                    return null;
                 });
         LoadedModule owner = LoadTracker.current();
         if (owner != null) {
             owner.trackSync(subscription);
         }
+    }
+
+    /** JS-style truthiness for sync-verdict values. */
+    private static boolean truthy(Object value) {
+        if (value == null || Boolean.FALSE.equals(value)) {
+            return false;
+        }
+        if (value instanceof Boolean flag) {
+            return flag;
+        }
+        if (value instanceof String text) {
+            return !text.isEmpty();
+        }
+        if (value instanceof Number number) {
+            return number.doubleValue() != 0.0d;
+        }
+        return true;
     }
 
     /**

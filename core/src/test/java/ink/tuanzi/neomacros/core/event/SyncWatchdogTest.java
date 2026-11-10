@@ -37,8 +37,7 @@ class SyncWatchdogTest {
             EventCatalog catalog = new EventCatalog();
             catalog.register(ChatSendEvent.class);
             EventBus bus = new EventBus(catalog, Runnable::run, watchdog);
-            Subscription sub = bus.onSync("chat:send", (payload, flag) -> {
-            });
+            Subscription sub = bus.onSync("chat:send", (payload, flag) -> null);
 
             bus.publish("chat:send", new ChatSendEvent("hi"));
             assertTrue(sub.isActive());
@@ -59,6 +58,7 @@ class SyncWatchdogTest {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
+                return null;
             });
 
             bus.publish("chat:send", new ChatSendEvent("hi"));
@@ -94,9 +94,9 @@ class SyncWatchdogTest {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
+                return null;
             });
-            Subscription fast = bus.onSync("chat:send", (payload, flag) -> {
-            });
+            Subscription fast = bus.onSync("chat:send", (payload, flag) -> null);
 
             bus.publish("chat:send", new ChatSendEvent("hi"));
             long deadline = System.currentTimeMillis() + 2000;

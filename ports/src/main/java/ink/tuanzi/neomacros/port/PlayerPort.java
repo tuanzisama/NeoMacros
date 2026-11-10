@@ -4,6 +4,8 @@ import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.EffectSnapshot;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
+import ink.tuanzi.neomacros.port.model.SignEditData;
+import ink.tuanzi.neomacros.port.model.SignEditVerdict;
 
 import java.util.List;
 import java.util.Optional;
@@ -55,6 +57,15 @@ public interface PlayerPort {
      * cancellation rules as {@link #onAttackBlock}.
      */
     void onInteractEntity(Function<EntitySnapshot, Boolean> sink);
+
+    /**
+     * Registers a sink invoked when the sign-edit editor is about to open
+     * (the server sign-editor packet); the sink verdict skips opening the
+     * editor (submitting the possibly replaced text directly) or replaces
+     * the lines. Sinks run on the game main thread in registration order.
+     */
+    default void onSignEdit(Function<SignEditData, SignEditVerdict> sink) {
+    }
 
     /** Returns the current gamemode identifier (survival/creative/adventure/spectator). */
     default String gamemode() {

@@ -24,6 +24,9 @@
     ,"BookEditScreenAccessor"
     ,"AbstractSignEditScreenAccessor"
     ,"ClientAdvancementsAccessor"
+    ,"ClientPacketListenerMixin"
+    ,"ChatListenerMixin"
+    ,"LocalPlayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

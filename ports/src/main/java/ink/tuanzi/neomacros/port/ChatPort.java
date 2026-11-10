@@ -1,8 +1,12 @@
 package ink.tuanzi.neomacros.port;
 
+import ink.tuanzi.neomacros.port.model.ActionbarDisplayData;
 import ink.tuanzi.neomacros.port.model.ChatComponent;
+import ink.tuanzi.neomacros.port.model.TextVerdict;
+import ink.tuanzi.neomacros.port.model.TitleDisplayData;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Chat output services and the incoming-message source.
@@ -25,6 +29,23 @@ public interface ChatPort {
 
     /** Registers a sink invoked for every chat message the client displays. */
     void onChatReceive(Consumer<ChatComponent> sink);
+
+    /**
+     * Registers a sink invoked for every title/subtitle display (the server
+     * title packets); the sink verdict suppresses the display or replaces the
+     * text. Sinks run on the game main thread in registration order.
+     */
+    default void onTitle(Function<TitleDisplayData, TextVerdict> sink) {
+    }
+
+    /**
+     * Registers a sink invoked for every action-bar message (the server
+     * action-bar packet and locally produced overlays); the sink verdict
+     * suppresses the message or replaces the text. Sinks run on the game
+     * main thread in registration order.
+     */
+    default void onActionbar(Function<ActionbarDisplayData, TextVerdict> sink) {
+    }
 
     /**
      * Shows a title/subtitle overlay; nullable arguments skip that line and

@@ -22,6 +22,8 @@ public final class ProductionEventSet {
                 // chat
                 ink.tuanzi.neomacros.core.event.def.chat.ChatSendEvent.class,
                 ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent.class,
+                ink.tuanzi.neomacros.core.event.def.chat.ChatTitleEvent.class,
+                ink.tuanzi.neomacros.core.event.def.chat.ChatActionbarEvent.class,
                 ink.tuanzi.neomacros.core.event.def.input.KeyPressEvent.class,
                 ink.tuanzi.neomacros.core.event.def.input.InputWheelEvent.class,
                 ink.tuanzi.neomacros.core.event.def.player.PlayerExpEvent.class,
@@ -36,6 +38,7 @@ public final class ProductionEventSet {
                 ink.tuanzi.neomacros.core.event.def.screen.ScreenOpenEvent.class,
                 ink.tuanzi.neomacros.core.event.def.screen.ScreenCloseEvent.class,
                 ink.tuanzi.neomacros.core.event.def.screen.ScreenChangeEvent.class,
+                ink.tuanzi.neomacros.core.event.def.screen.ScreenSignEditEvent.class,
                 // inventory
                 ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent.class,
                 ink.tuanzi.neomacros.core.event.def.inventory.InventoryCloseEvent.class,

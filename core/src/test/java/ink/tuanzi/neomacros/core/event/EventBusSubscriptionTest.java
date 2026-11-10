@@ -128,7 +128,10 @@ class EventBusSubscriptionTest {
         EventBus cancellableBus = new EventBus(catalog, Runnable::run, null);
         List<Object> asyncReceived = new ArrayList<>();
         AtomicReference<String> threadName = new AtomicReference<>();
-        cancellableBus.onSync("chat:send", (payload, flag) -> threadName.set(Thread.currentThread().getName()));
+        cancellableBus.onSync("chat:send", (payload, flag) -> {
+            threadName.set(Thread.currentThread().getName());
+            return null;
+        });
 
         EventBus.PublishResult result = cancellableBus.publish("chat:send", "msg");
         assertEquals(1, result.notified());

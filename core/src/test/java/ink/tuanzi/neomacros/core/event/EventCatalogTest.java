@@ -106,7 +106,7 @@ class EventCatalogTest {
         catalog.scanPackage("ink.tuanzi.neomacros.core.event.def.chat");
         int second = catalog.scanPackage("ink.tuanzi.neomacros.core.event.def.chat");
         assertEquals(0, second);
-        assertEquals(2, catalog.all().size());
+        assertEquals(4, catalog.all().size());
     }
 
     @Test

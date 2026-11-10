@@ -97,6 +97,22 @@ public final class TextComponent implements ScriptHandle {
                 null, null, null, null, mapped);
     }
 
+    /**
+     * The neutral port-model face of this component (the sync-verdict return
+     * path); hover and click content is dropped like in {@link #from}.
+     *
+     * @zh 本组件的中立端口模型（同步 verdict 回传用）；悬停与点击内容同样丢弃。
+     */
+    @ApiInternal
+    public ink.tuanzi.neomacros.port.model.ChatComponent toChatModel() {
+        List<ink.tuanzi.neomacros.port.model.ChatComponent> mapped = new ArrayList<>();
+        for (TextComponent child : children) {
+            mapped.add(child.toChatModel());
+        }
+        return new ink.tuanzi.neomacros.port.model.ChatComponent(content, color,
+                bold, italic, underlined, strikethrough, obfuscated, mapped);
+    }
+
     /** The literal content of this node.
      * @zh 本节点的字面内容。 */
     @ApiSince("0.4.0")

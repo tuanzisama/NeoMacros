@@ -430,6 +430,12 @@ public final class FabricPlayerPort implements PlayerPort {
         interactEntitySinks.add(sink);
     }
 
+    @Override
+    public void onSignEdit(java.util.function.Function<ink.tuanzi.neomacros.port.model.SignEditData,
+            ink.tuanzi.neomacros.port.model.SignEditVerdict> sink) {
+        SignEditHub.register(sink);
+    }
+
     /** Builds the neutral block hit for one world position. */
     private static BlockInteraction blockHit(net.minecraft.world.level.Level world, BlockPos pos,
             String face) {

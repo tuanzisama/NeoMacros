@@ -1,7 +1,10 @@
 package ink.tuanzi.neomacros.core.event;
 
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
+import ink.tuanzi.neomacros.core.api.types.TextComponent;
+import ink.tuanzi.neomacros.core.event.def.chat.ChatActionbarEvent;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent;
+import ink.tuanzi.neomacros.core.event.def.chat.ChatTitleEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldJoinEvent;
@@ -29,6 +32,7 @@ import ink.tuanzi.neomacros.core.event.def.player.PlayerRidingEvent;
 import ink.tuanzi.neomacros.core.event.def.screen.ScreenChangeEvent;
 import ink.tuanzi.neomacros.core.event.def.screen.ScreenCloseEvent;
 import ink.tuanzi.neomacros.core.event.def.screen.ScreenOpenEvent;
+import ink.tuanzi.neomacros.core.event.def.screen.ScreenSignEditEvent;
 import ink.tuanzi.neomacros.core.event.def.world.WorldWeatherEvent;
 import ink.tuanzi.neomacros.core.event.def.input.KeyPressEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerJoinEvent;
@@ -64,6 +68,62 @@ public final class PortEventWiring {
                 new ink.tuanzi.neomacros.core.api.types.BlockPos(
                         Math.floor(hit.pos().x()), Math.floor(hit.pos().y()),
                         Math.floor(hit.pos().z())));
+    }
+
+    /**
+     * Reads the replacement text ({@code {text: "..."}} or a TextComponent)
+     * from one sync verdict; null keeps the original text.
+     */
+    private static ink.tuanzi.neomacros.port.model.ChatComponent replacementText(Object verdict) {
+        if (!(verdict instanceof java.util.Map<?, ?> map)) {
+            return null;
+        }
+        Object text = map.get("text");
+        if (text instanceof String plain) {
+            return ink.tuanzi.neomacros.port.model.ChatComponent.plain(plain);
+        }
+        if (text instanceof TextComponent component) {
+            return component.toChatModel();
+        }
+        return null;
+    }
+
+    /**
+     * Reads the sign-edit verdict ({@code {lines: [...], closeScreen}}) from
+     * one sync verdict; null lines keep the original text.
+     */
+    private static ink.tuanzi.neomacros.port.model.SignEditVerdict signEditVerdict(
+            boolean canceled, Object verdict) {
+        if (!(verdict instanceof java.util.Map<?, ?> map)) {
+            return new ink.tuanzi.neomacros.port.model.SignEditVerdict(canceled, null, false);
+        }
+        java.util.List<String> lines = null;
+        if (map.get("lines") instanceof java.util.List<?> raw) {
+            java.util.List<String> parsed = new java.util.ArrayList<>(raw.size());
+            for (Object line : raw) {
+                parsed.add(line == null ? "" : String.valueOf(line));
+            }
+            lines = parsed;
+        }
+        boolean closeScreen = truthy(map.get("closeScreen"));
+        return new ink.tuanzi.neomacros.port.model.SignEditVerdict(canceled, lines, closeScreen);
+    }
+
+    /** JS-style truthiness for structured verdict fields. */
+    private static boolean truthy(Object value) {
+        if (value == null || Boolean.FALSE.equals(value)) {
+            return false;
+        }
+        if (value instanceof Boolean flag) {
+            return flag;
+        }
+        if (value instanceof String text) {
+            return !text.isEmpty();
+        }
+        if (value instanceof Number number) {
+            return number.doubleValue() != 0.0d;
+        }
+        return true;
     }
 
     private PortEventWiring() {
@@ -129,6 +189,24 @@ public final class PortEventWiring {
         });
         adapter.chat().onChatReceive(message ->
                 bus.publish("chat:receive", new ChatReceiveEvent(message)));
+        adapter.chat().onTitle(display -> {
+            var result = bus.publish("chat:title",
+                    new ChatTitleEvent(display.kind(), display.text()));
+            return new ink.tuanzi.neomacros.port.model.TextVerdict(
+                    result.canceled(), replacementText(result.verdict()));
+        });
+        adapter.chat().onActionbar(display -> {
+            var result = bus.publish("chat:actionbar",
+                    new ChatActionbarEvent(display.text(), display.source()));
+            return new ink.tuanzi.neomacros.port.model.TextVerdict(
+                    result.canceled(), replacementText(result.verdict()));
+        });
+        adapter.player().onSignEdit(data -> {
+            var result = bus.publish("screen:signEdit",
+                    new ScreenSignEditEvent(data.x(), data.y(), data.z(),
+                            data.front(), data.lines()));
+            return signEditVerdict(result.canceled(), result.verdict());
+        });
 
         adapter.player().onAttackBlock(hit ->
                 bus.publish("player:attackBlock", new PlayerAttackBlockEvent(

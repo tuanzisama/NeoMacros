@@ -8,6 +8,11 @@ package ink.tuanzi.neomacros.core.event;
 @FunctionalInterface
 public interface SyncEventCallback {
 
-    /** Handles the event payload; call {@code cancelFlag.cancel()} to cancel the event. */
-    void invoke(Object payload, CancelFlag cancelFlag);
+    /**
+     * Handles the event payload; call {@code cancelFlag.cancel()} to cancel
+     * the event. Returning a non-null object hands a structured verdict back
+     * to the publisher (available on {@code PublishResult.verdict()}); when
+     * several sync callbacks return verdicts, the last one wins.
+     */
+    Object invoke(Object payload, CancelFlag cancelFlag);
 }

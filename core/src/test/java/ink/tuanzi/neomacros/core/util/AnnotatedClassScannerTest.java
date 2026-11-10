@@ -22,9 +22,11 @@ class AnnotatedClassScannerTest {
     void findsAnnotatedRecordsInPackage() {
         List<Class<?>> found = AnnotatedClassScanner.scan(CHAT_PACKAGE, ApiEvent.class,
                 AnnotatedClassScannerTest.class.getClassLoader());
-        assertEquals(2, found.size());
+        assertEquals(4, found.size());
         assertTrue(found.stream().anyMatch(t -> t.getSimpleName().equals("ChatReceiveEvent")));
         assertTrue(found.stream().anyMatch(t -> t.getSimpleName().equals("ChatSendEvent")));
+        assertTrue(found.stream().anyMatch(t -> t.getSimpleName().equals("ChatTitleEvent")));
+        assertTrue(found.stream().anyMatch(t -> t.getSimpleName().equals("ChatActionbarEvent")));
     }
 
     @Test

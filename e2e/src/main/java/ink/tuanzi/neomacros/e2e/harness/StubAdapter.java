@@ -465,6 +465,10 @@ public final class StubAdapter implements NeomacrosAdapter {
     public static final class StubChat implements ChatPort {
         final List<String> output = new ArrayList<>();
         final List<Consumer<ChatComponent>> receiveSinks = new CopyOnWriteArrayList<>();
+        final List<Function<ink.tuanzi.neomacros.port.model.TitleDisplayData,
+                ink.tuanzi.neomacros.port.model.TextVerdict>> titleSinks = new CopyOnWriteArrayList<>();
+        final List<Function<ink.tuanzi.neomacros.port.model.ActionbarDisplayData,
+                ink.tuanzi.neomacros.port.model.TextVerdict>> actionbarSinks = new CopyOnWriteArrayList<>();
 
         /** Delivers one displayed message to the receive sinks. */
         public void fireReceive(String text) {
@@ -472,6 +476,49 @@ public final class StubAdapter implements NeomacrosAdapter {
             for (Consumer<ChatComponent> sink : receiveSinks) {
                 sink.accept(message);
             }
+        }
+
+        /**
+         * Fires one title/subtitle display; returns the combined verdict
+         * (cancel OR across sinks, last replacement text wins).
+         */
+        public ink.tuanzi.neomacros.port.model.TextVerdict fireTitle(String kind, String text) {
+            ink.tuanzi.neomacros.port.model.TitleDisplayData display =
+                    new ink.tuanzi.neomacros.port.model.TitleDisplayData(kind, ChatComponent.plain(text));
+            boolean canceled = false;
+            ChatComponent replaced = null;
+            for (Function<ink.tuanzi.neomacros.port.model.TitleDisplayData,
+                    ink.tuanzi.neomacros.port.model.TextVerdict> sink : titleSinks) {
+                var verdict = sink.apply(display);
+                if (verdict == null) {
+                    continue;
+                }
+                canceled |= verdict.canceled();
+                if (verdict.text() != null) {
+                    replaced = verdict.text();
+                }
+            }
+            return new ink.tuanzi.neomacros.port.model.TextVerdict(canceled, replaced);
+        }
+
+        /** Fires one action-bar display; returns the combined verdict. */
+        public ink.tuanzi.neomacros.port.model.TextVerdict fireActionbar(String source, String text) {
+            ink.tuanzi.neomacros.port.model.ActionbarDisplayData display =
+                    new ink.tuanzi.neomacros.port.model.ActionbarDisplayData(ChatComponent.plain(text), source);
+            boolean canceled = false;
+            ChatComponent replaced = null;
+            for (Function<ink.tuanzi.neomacros.port.model.ActionbarDisplayData,
+                    ink.tuanzi.neomacros.port.model.TextVerdict> sink : actionbarSinks) {
+                var verdict = sink.apply(display);
+                if (verdict == null) {
+                    continue;
+                }
+                canceled |= verdict.canceled();
+                if (verdict.text() != null) {
+                    replaced = verdict.text();
+                }
+            }
+            return new ink.tuanzi.neomacros.port.model.TextVerdict(canceled, replaced);
         }
 
         /** Recorded output lines in order (prefixed by channel). */
@@ -497,6 +544,18 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public void onChatReceive(Consumer<ChatComponent> sink) {
             receiveSinks.add(sink);
+        }
+
+        @Override
+        public void onTitle(Function<ink.tuanzi.neomacros.port.model.TitleDisplayData,
+                ink.tuanzi.neomacros.port.model.TextVerdict> sink) {
+            titleSinks.add(sink);
+        }
+
+        @Override
+        public void onActionbar(Function<ink.tuanzi.neomacros.port.model.ActionbarDisplayData,
+                ink.tuanzi.neomacros.port.model.TextVerdict> sink) {
+            actionbarSinks.add(sink);
         }
     }
 
@@ -636,6 +695,8 @@ public final class StubAdapter implements NeomacrosAdapter {
         final List<Function<EntitySnapshot, Boolean>> attackEntitySinks = new CopyOnWriteArrayList<>();
         final List<Function<BlockInteraction, Boolean>> interactBlockSinks = new CopyOnWriteArrayList<>();
         final List<Function<EntitySnapshot, Boolean>> interactEntitySinks = new CopyOnWriteArrayList<>();
+        final List<Function<ink.tuanzi.neomacros.port.model.SignEditData,
+                ink.tuanzi.neomacros.port.model.SignEditVerdict>> signEditSinks = new CopyOnWriteArrayList<>();
         final List<String> actions = new java.util.concurrent.CopyOnWriteArrayList<>();
 
         /** Sets the local player snapshot (null = not in a world). */
@@ -723,6 +784,27 @@ public final class StubAdapter implements NeomacrosAdapter {
             return fireAll(interactEntitySinks, target);
         }
 
+        /** Fires the sign-edit open; returns the combined verdict. */
+        public ink.tuanzi.neomacros.port.model.SignEditVerdict fireSignEdit(
+                ink.tuanzi.neomacros.port.model.SignEditData data) {
+            boolean canceled = false;
+            boolean closeScreen = false;
+            List<String> replaced = null;
+            for (Function<ink.tuanzi.neomacros.port.model.SignEditData,
+                    ink.tuanzi.neomacros.port.model.SignEditVerdict> sink : signEditSinks) {
+                var verdict = sink.apply(data);
+                if (verdict == null) {
+                    continue;
+                }
+                canceled |= verdict.canceled();
+                closeScreen |= verdict.closeScreen();
+                if (verdict.lines() != null) {
+                    replaced = verdict.lines();
+                }
+            }
+            return new ink.tuanzi.neomacros.port.model.SignEditVerdict(canceled, replaced, closeScreen);
+        }
+
         @Override
         public Optional<PlayerSnapshot> self() {
             return Optional.ofNullable(self);
@@ -751,6 +833,12 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public void onInteractEntity(Function<EntitySnapshot, Boolean> sink) {
             interactEntitySinks.add(sink);
+        }
+
+        @Override
+        public void onSignEdit(Function<ink.tuanzi.neomacros.port.model.SignEditData,
+                ink.tuanzi.neomacros.port.model.SignEditVerdict> sink) {
+            signEditSinks.add(sink);
         }
 
         /** Runs every sink; true when any sink cancels. */

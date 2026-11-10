@@ -226,6 +226,18 @@ public final class FabricChatPort implements ChatPort {
     }
 
     @Override
+    public void onTitle(java.util.function.Function<ink.tuanzi.neomacros.port.model.TitleDisplayData,
+            ink.tuanzi.neomacros.port.model.TextVerdict> sink) {
+        DisplayHub.registerTitle(sink);
+    }
+
+    @Override
+    public void onActionbar(java.util.function.Function<ink.tuanzi.neomacros.port.model.ActionbarDisplayData,
+            ink.tuanzi.neomacros.port.model.TextVerdict> sink) {
+        DisplayHub.registerActionbar(sink);
+    }
+
+    @Override
     public void title(String title, String subtitle, Integer fadeIn, Integer stay,
             Integer fadeOut) {
         runOnMain(() -> {

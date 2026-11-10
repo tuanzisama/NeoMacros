@@ -25,8 +25,13 @@ import java.util.function.Consumer;
  */
 public final class EventBus {
 
-    /** Outcome of one publish: whether any sync callback canceled the event, and dispatch count. */
-    public record PublishResult(boolean canceled, int notified) {
+    /**
+     * Outcome of one publish: whether any sync callback canceled the event,
+     * the dispatch count, and the structured verdict returned by the sync
+     * callbacks ({@code null} when none of them returned a verdict object;
+     * when several do, the last non-null one wins).
+     */
+    public record PublishResult(boolean canceled, int notified, Object verdict) {
     }
 
     /** High-traffic events excluded from wildcard dispatch by default (config-adjustable). */
@@ -160,6 +165,7 @@ public final class EventBus {
     public PublishResult publish(String name, Object payload) {
         CancelFlag cancelFlag = new CancelFlag();
         int notified = 0;
+        Object verdict = null;
         // Every dispatched payload pairs with its concrete name so the engine
         // boundary can attach the event class prototype (BaseEvent chain).
         EventPayloadEnvelope envelope = new EventPayloadEnvelope(name,
@@ -169,10 +175,18 @@ public final class EventBus {
             for (Subscription sub : snapshot(exactSubscriptions.get(name))) {
                 if (sub.isActive() && sub.isSync()) {
                     notified++;
+                    java.util.concurrent.atomic.AtomicReference<Object> returned =
+                            new java.util.concurrent.atomic.AtomicReference<>();
                     if (watchdog != null) {
-                        watchdog.guard(sub, name, () -> sub.syncCallback().invoke(envelope, cancelFlag));
+                        watchdog.guard(sub, name, () ->
+                                returned.set(sub.syncCallback().invoke(envelope, cancelFlag)));
                     } else {
-                        sub.syncCallback().invoke(envelope, cancelFlag);
+                        returned.set(sub.syncCallback().invoke(envelope, cancelFlag));
+                    }
+                    // Structured verdicts chain by registration order: the
+                    // last callback returning an object wins the verdict.
+                    if (returned.get() != null) {
+                        verdict = returned.get();
                     }
                 }
             }
@@ -182,7 +196,7 @@ public final class EventBus {
         if (!isWildcardIgnored(name)) {
             notified += dispatchAsync(List.copyOf(wildcardSubscriptions), name, payload);
         }
-        return new PublishResult(cancelFlag.isCanceled(), notified);
+        return new PublishResult(cancelFlag.isCanceled(), notified, verdict);
     }
 
     /** Replaces the wildcard ignore list (patterns: exact names or {@code domain:*}). */

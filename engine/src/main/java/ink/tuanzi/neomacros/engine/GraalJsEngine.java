@@ -1828,8 +1828,9 @@ public final class GraalJsEngine implements ScriptEngine {
         /**
          * Adapts a guest function to a host functional interface: invoking the
          * proxy re-enters the context loop and executes the guest value.
-         * Supported return types are void, boolean, and object (mapped to a
-         * neutral map).
+         * Supported return types are void, boolean, and object (neutralized:
+         * scalars pass through, plain objects become maps, script-type
+         * proxies surface their host object).
          */
         private Object adaptFunction(Value function, Class<?> type) {
             ClassLoader loader = type.getClassLoader() != null
@@ -1849,7 +1850,7 @@ public final class GraalJsEngine implements ScriptEngine {
                             // reads as false (no cancel / no match).
                             return result.isBoolean() && result.asBoolean();
                         }
-                        return result.as(Map.class);
+                        return snapshotValue(asNeutral(result));
                     });
         }
 

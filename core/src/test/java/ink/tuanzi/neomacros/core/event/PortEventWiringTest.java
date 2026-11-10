@@ -33,6 +33,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -196,7 +197,10 @@ class PortEventWiringTest {
         var runtime = runtime(adapter, bus);
         PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-c")), new TickClock());
 
-        var subscription = bus.onSync("player:attackBlock", (payload, flag) -> flag.cancel());
+        var subscription = bus.onSync("player:attackBlock", (payload, flag) -> {
+            flag.cancel();
+            return null;
+        });
         try {
             boolean canceled = adapter.playerPort.fireAttackBlock(
                     new BlockInteraction("minecraft:stone", new Pos3d(1, 2, 3)));
@@ -209,6 +213,87 @@ class PortEventWiringTest {
         boolean canceled2 = adapter.playerPort.fireAttackBlock(
                 new BlockInteraction("minecraft:dirt", new Pos3d(4, 5, 6)));
         assertEquals(false, canceled2);
+        runtime.close();
+    }
+
+    @Test
+    void titleDisplayPublishesAndCarriesTextVerdict() {
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-title")), new TickClock());
+        var published = new ArrayList<Published>();
+        recordAll(published, bus, catalog);
+
+        bus.onSync("chat:title", (payload, flag) -> java.util.Map.of("text", "replaced"));
+        var verdict = adapter.chatPort.fireTitle("subtitle", "original");
+        assertFalse(verdict.canceled());
+        assertEquals("replaced", verdict.text().text());
+        assertEquals("chat:title", published.get(0).name());
+        var payload = (ink.tuanzi.neomacros.core.event.def.chat.ChatTitleEvent) published.get(0).payload();
+        assertEquals("subtitle", payload.kind());
+        assertEquals("original", payload.text().text());
+        runtime.close();
+    }
+
+    @Test
+    void actionbarVerdictCancelsAndKeepsSource() {
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-bar")), new TickClock());
+        var published = new ArrayList<Published>();
+        recordAll(published, bus, catalog);
+
+        bus.onSync("chat:actionbar", (payload, flag) -> {
+            flag.cancel();
+            return null;
+        });
+        var verdict = adapter.chatPort.fireActionbar("local", "hello");
+        assertTrue(verdict.canceled());
+        assertEquals("chat:actionbar", published.get(0).name());
+        var payload = (ink.tuanzi.neomacros.core.event.def.chat.ChatActionbarEvent) published.get(0).payload();
+        assertEquals("local", payload.source());
+        assertEquals("hello", payload.text().text());
+        runtime.close();
+    }
+
+    @Test
+    void signEditVerdictReplacesLinesAndClosesScreen() {
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-sign")), new TickClock());
+        var published = new ArrayList<Published>();
+        recordAll(published, bus, catalog);
+
+        bus.onSync("screen:signEdit", (payload, flag) -> java.util.Map.of(
+                "lines", java.util.List.of("a", "b", "", ""),
+                "closeScreen", true));
+        var verdict = adapter.playerPort.fireSignEdit(new ink.tuanzi.neomacros.port.model.SignEditData(
+                1, 64, 2, true, java.util.List.of("", "", "", "")));
+        assertFalse(verdict.canceled());
+        assertTrue(verdict.closeScreen());
+        assertEquals(java.util.List.of("a", "b", "", ""), verdict.lines());
+        assertEquals("screen:signEdit", published.get(0).name());
+        var payload = (ink.tuanzi.neomacros.core.event.def.screen.ScreenSignEditEvent) published.get(0).payload();
+        assertEquals(1, payload.x());
+        assertTrue(payload.front());
+        runtime.close();
+    }
+
+    @Test
+    void signEditWithoutSubscriberStaysPassThrough() {
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-sign2")), new TickClock());
+
+        var verdict = adapter.playerPort.fireSignEdit(new ink.tuanzi.neomacros.port.model.SignEditData(
+                0, 0, 0, false, java.util.List.of("keep", "", "", "")));
+        assertFalse(verdict.canceled());
+        assertFalse(verdict.closeScreen());
+        assertEquals(null, verdict.lines());
         runtime.close();
     }
 
@@ -408,6 +493,7 @@ class PortEventWiringTest {
         final StubLifecycle lifecyclePort = new StubLifecycle();
         final StubWorld worldPort = new StubWorld();
         final StubPlayer playerPort = new StubPlayer();
+        final StubChat chatPort = new StubChat();
         final StubEntity entityPort = new StubEntity();
         volatile java.util.Optional<ink.tuanzi.neomacros.port.InventoryPort.ContainerInfo> container =
                 java.util.Optional.empty();
@@ -419,7 +505,7 @@ class PortEventWiringTest {
 
         @Override
         public ChatPort chat() {
-            return new StubChat();
+            return chatPort;
         }
 
         @Override
@@ -575,6 +661,11 @@ class PortEventWiringTest {
     }
 
     private static final class StubChat implements ChatPort {
+        final List<Function<ink.tuanzi.neomacros.port.model.TitleDisplayData,
+                ink.tuanzi.neomacros.port.model.TextVerdict>> titleSinks = new CopyOnWriteArrayList<>();
+        final List<Function<ink.tuanzi.neomacros.port.model.ActionbarDisplayData,
+                ink.tuanzi.neomacros.port.model.TextVerdict>> actionbarSinks = new CopyOnWriteArrayList<>();
+
         @Override
         public void say(String message) {
         }
@@ -589,6 +680,56 @@ class PortEventWiringTest {
 
         @Override
         public void onChatReceive(Consumer<ChatComponent> sink) {
+        }
+
+        @Override
+        public void onTitle(Function<ink.tuanzi.neomacros.port.model.TitleDisplayData,
+                ink.tuanzi.neomacros.port.model.TextVerdict> sink) {
+            titleSinks.add(sink);
+        }
+
+        @Override
+        public void onActionbar(Function<ink.tuanzi.neomacros.port.model.ActionbarDisplayData,
+                ink.tuanzi.neomacros.port.model.TextVerdict> sink) {
+            actionbarSinks.add(sink);
+        }
+
+        /** Fires one title/subtitle display; returns the combined verdict. */
+        ink.tuanzi.neomacros.port.model.TextVerdict fireTitle(String kind, String text) {
+            var display = new ink.tuanzi.neomacros.port.model.TitleDisplayData(
+                    kind, ChatComponent.plain(text));
+            boolean canceled = false;
+            ChatComponent replaced = null;
+            for (var sink : titleSinks) {
+                var verdict = sink.apply(display);
+                if (verdict == null) {
+                    continue;
+                }
+                canceled |= verdict.canceled();
+                if (verdict.text() != null) {
+                    replaced = verdict.text();
+                }
+            }
+            return new ink.tuanzi.neomacros.port.model.TextVerdict(canceled, replaced);
+        }
+
+        /** Fires one action-bar display; returns the combined verdict. */
+        ink.tuanzi.neomacros.port.model.TextVerdict fireActionbar(String source, String text) {
+            var display = new ink.tuanzi.neomacros.port.model.ActionbarDisplayData(
+                    ChatComponent.plain(text), source);
+            boolean canceled = false;
+            ChatComponent replaced = null;
+            for (var sink : actionbarSinks) {
+                var verdict = sink.apply(display);
+                if (verdict == null) {
+                    continue;
+                }
+                canceled |= verdict.canceled();
+                if (verdict.text() != null) {
+                    replaced = verdict.text();
+                }
+            }
+            return new ink.tuanzi.neomacros.port.model.TextVerdict(canceled, replaced);
         }
     }
 
@@ -686,6 +827,8 @@ class PortEventWiringTest {
         final List<Function<EntitySnapshot, Boolean>> attackEntities = new CopyOnWriteArrayList<>();
         final List<Function<BlockInteraction, Boolean>> interactBlocks = new CopyOnWriteArrayList<>();
         final List<Function<EntitySnapshot, Boolean>> interactEntities = new CopyOnWriteArrayList<>();
+        final List<Function<ink.tuanzi.neomacros.port.model.SignEditData,
+                ink.tuanzi.neomacros.port.model.SignEditVerdict>> signEditSinks = new CopyOnWriteArrayList<>();
 
         @Override
         public Optional<PlayerSnapshot> self() {
@@ -717,8 +860,34 @@ class PortEventWiringTest {
             interactEntities.add(sink);
         }
 
+        @Override
+        public void onSignEdit(Function<ink.tuanzi.neomacros.port.model.SignEditData,
+                ink.tuanzi.neomacros.port.model.SignEditVerdict> sink) {
+            signEditSinks.add(sink);
+        }
+
         boolean fireAttackBlock(BlockInteraction hit) {
             return attackBlocks.stream().anyMatch(s -> Boolean.TRUE.equals(s.apply(hit)));
+        }
+
+        /** Fires the sign-edit open; returns the combined verdict. */
+        ink.tuanzi.neomacros.port.model.SignEditVerdict fireSignEdit(
+                ink.tuanzi.neomacros.port.model.SignEditData data) {
+            boolean canceled = false;
+            boolean closeScreen = false;
+            List<String> replaced = null;
+            for (var sink : signEditSinks) {
+                var verdict = sink.apply(data);
+                if (verdict == null) {
+                    continue;
+                }
+                canceled |= verdict.canceled();
+                closeScreen |= verdict.closeScreen();
+                if (verdict.lines() != null) {
+                    replaced = verdict.lines();
+                }
+            }
+            return new ink.tuanzi.neomacros.port.model.SignEditVerdict(canceled, replaced, closeScreen);
         }
     }
 }

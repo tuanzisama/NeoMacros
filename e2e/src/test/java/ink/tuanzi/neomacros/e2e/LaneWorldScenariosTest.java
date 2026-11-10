@@ -86,6 +86,45 @@ class LaneWorldScenariosTest {
     }
 
     @Test
+    void displaySyncVerdictsReachAdapter() throws Exception {
+        try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
+            fixture(dir.resolve("scripts"), "display.js", String.join("\n",
+                    "neo.events.onSync('chat:title', (ev) => {",
+                    "  if (ev.kind === 'subtitle' && ev.text.plain === 'bad') return true;",
+                    "  if (ev.kind === 'title') return { text: 'swapped:' + ev.text.plain };",
+                    "  return undefined;",
+                    "});",
+                    "neo.events.onSync('chat:actionbar', (ev) => ev.source === 'local');",
+                    "neo.events.onSync('screen:signEdit', (ev) =>",
+                    "  ({ lines: ['a', 'b', '', ''], closeScreen: true }));",
+                    ""));
+            e2e.loadScript(dir.resolve("scripts").resolve("display.js"));
+
+            var adapter = e2e.adapter();
+
+            // Title: the subtitle cancel and the title text replacement.
+            assertTrue(adapter.chatPort().fireTitle("subtitle", "bad").canceled(),
+                    "bad subtitle must be canceled by the sync subscriber");
+            var swapped = adapter.chatPort().fireTitle("title", "orig");
+            assertFalse(swapped.canceled());
+            assertEquals("swapped:orig", swapped.text().text());
+
+            // Actionbar: the local overlay cancels, the server packet passes.
+            assertTrue(adapter.chatPort().fireActionbar("local", "hint").canceled(),
+                    "local overlay must be canceled by the sync subscriber");
+            assertFalse(adapter.chatPort().fireActionbar("server", "msg").canceled(),
+                    "server actionbar passes through");
+
+            // Sign edit: replace lines and skip the editor (auto-sign).
+            var sign = adapter.playerPort().fireSignEdit(new ink.tuanzi.neomacros.port.model.SignEditData(
+                    1, 64, 2, true, List.of("", "", "", "")));
+            assertFalse(sign.canceled());
+            assertTrue(sign.closeScreen());
+            assertEquals(List.of("a", "b", "", ""), sign.lines());
+        }
+    }
+
+    @Test
     void interactionSyncCancelReachesAdapter() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "guard.js", String.join("\n",
