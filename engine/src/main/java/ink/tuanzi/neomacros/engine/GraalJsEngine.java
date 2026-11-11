@@ -2005,6 +2005,30 @@ public final class GraalJsEngine implements ScriptEngine {
             if (type == java.util.UUID.class) {
                 return java.util.UUID.fromString(value.asString());
             }
+            if (java.util.Map.class.isAssignableFrom(type)
+                    && value.hasMembers() && !value.canExecute()) {
+                // Options objects: guest object literals become neutral maps
+                // (nested objects lists, scalars by identity).
+                java.util.Map<String, Object> converted = new java.util.LinkedHashMap<>();
+                for (String key : value.getMemberKeys()) {
+                    Value member = value.getMember(key);
+                    if (member != null && !member.isNull()) {
+                        converted.put(key, snapshotValue(asNeutral(member)));
+                    }
+                }
+                return converted;
+            }
+            if (java.util.List.class.isAssignableFrom(type) && value.hasArrayElements()) {
+                java.util.List<Object> converted = new java.util.ArrayList<>();
+                long size = value.getArraySize();
+                for (long i = 0; i < size; i++) {
+                    Value member = value.getArrayElement(i);
+                    if (member != null && !member.isNull()) {
+                        converted.add(snapshotValue(asNeutral(member)));
+                    }
+                }
+                return converted;
+            }
             if (type.isInterface() && value.canExecute()) {
                 return adaptFunction(value, type);
             }
@@ -2070,7 +2094,9 @@ public final class GraalJsEngine implements ScriptEngine {
                 } else if (value == null) {
                     resolve.execute();
                 } else {
-                    resolve.execute(value);
+                    // Same guest-facing rendering as synchronous returns:
+                    // lists become guest arrays and handles stay guest classes.
+                    resolve.execute(guestReadable(value));
                 }
             }));
             return null;
