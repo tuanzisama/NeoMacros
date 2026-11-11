@@ -19,6 +19,7 @@
     ,"ServerStorageAccessor"
     ,"ContainerSyncMixin"
     ,"InventoryClickMixin"
+    ,"DropPacketMixin"
     ,"DialogScreenAccessor"
     ,"ChatScreenAccessor"
     ,"BookEditScreenAccessor"

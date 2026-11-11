@@ -235,8 +235,34 @@ public final class PortEventWiring {
         adapter.input().onScroll(amount ->
                 bus.publish("input:wheel", new InputWheelEvent(amount)));
 
-        // Poll-based derived events (weather, exp, heldItem, gamemode,
-        // screen/inventory/dialog transitions) are wired in the
+        // Inventory event family: the click and drop sources are pre-action
+        // and cancellable (a cancelled click/drop never sends its packet);
+        // the slot/cursor syncs and pickups are observations.
+        adapter.inventory().onClickSlot(click ->
+                bus.publish("inventory:click",
+                        new ink.tuanzi.neomacros.core.event.def.inventory.InventoryClickEvent(
+                                click.containerId(), click.kind(), click.slot(),
+                                click.button(), click.mode(), click.shift())).canceled());
+        adapter.inventory().onDropSlot(drop ->
+                bus.publish("inventory:dropSlot",
+                        new ink.tuanzi.neomacros.core.event.def.inventory.InventoryDropSlotEvent(
+                                drop.kind(), drop.slot(), drop.all())).canceled());
+        adapter.inventory().onSlotUpdate(update ->
+                bus.publish("inventory:update",
+                        new ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent(
+                                update.full() ? "all" : "slot", update.containerId(),
+                                update.kind(), update.slot(),
+                                update.oldStack(), update.newStack())));
+        adapter.inventory().onHeldUpdate(update ->
+                bus.publish("inventory:update",
+                        new ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent(
+                                "held", update.containerId(), update.kind(), -1,
+                                null, update.stack())));
+        adapter.inventory().onItemPickup(pickup ->
+                bus.publish("item:pickup",
+                        new ink.tuanzi.neomacros.core.event.def.inventory.ItemPickupEvent(
+                                pickup.item(), pickup.amount())));
+
         // SelfStateTracker's tick check; the packet-driven inventory
         // update/click sources ride the fabric hubs in the bootstrap.
     }
@@ -273,9 +299,13 @@ public final class PortEventWiring {
         private String lastContainerKind;
         private int lastContainerId;
         private String lastContainerTitle;
+        private String dismissedContainerKey;
         private String lastDialogKind;
         private java.util.UUID lastVehicle;
         private String lastArmorSignature = "";
+        private final java.util.Map<String, String> lastDurabilityIds = new java.util.HashMap<>();
+        private final java.util.Map<String, Integer> lastDurabilityValues =
+                new java.util.HashMap<>();
 
         SelfStateTracker(EventBus bus) {
             this.bus = bus;
@@ -305,6 +335,7 @@ public final class PortEventWiring {
             emitDerived(adapter, now);
             emitRiding(adapter);
             emitArmor(adapter);
+            emitDurability(adapter);
             emitScreen(adapter);
             emitContainer(adapter);
             emitDialog(adapter);
@@ -325,12 +356,15 @@ public final class PortEventWiring {
             effectAmplifiers.clear();
             lastVehicle = null;
             lastArmorSignature = "";
+            lastDurabilityIds.clear();
+            lastDurabilityValues.clear();
             lastScreenOpen = false;
             lastScreenClass = null;
             lastScreenTitle = null;
             lastContainerKind = null;
             lastContainerId = 0;
             lastContainerTitle = null;
+            dismissedContainerKey = null;
             lastDialogKind = null;
         }
 
@@ -359,6 +393,44 @@ public final class PortEventWiring {
             }
             lastArmorSignature = signature.toString();
             bus.publish("player:armor", new PlayerArmorEvent(armor));
+        }
+
+        /**
+         * Diffs the held stack and the four armor slots on the durability
+         * axis: the same item id with a different damage value publishes
+         * item:damage (current durability, not the delta). Other stack
+         * changes stay with player:heldItem / player:armor.
+         */
+        private void emitDurability(NeomacrosAdapter adapter) {
+            java.util.Map<String, ink.tuanzi.neomacros.port.model.ItemStackData> slots =
+                    new java.util.LinkedHashMap<>();
+            adapter.inventory().heldItem().get()
+                    .ifPresent(stack -> slots.put("main", stack));
+            java.util.List<ink.tuanzi.neomacros.port.model.ItemStackData> armor =
+                    adapter.player().armorSlots();
+            String[] labels = {"feet", "legs", "chest", "head"};
+            for (int i = 0; i < labels.length && i < armor.size(); i++) {
+                if (armor.get(i) != null) {
+                    slots.put(labels[i], armor.get(i));
+                }
+            }
+            for (java.util.Map.Entry<String, ink.tuanzi.neomacros.port.model.ItemStackData> entry
+                    : slots.entrySet()) {
+                String slot = entry.getKey();
+                var stack = entry.getValue();
+                Integer previousDamage = lastDurabilityValues.get(slot);
+                String previousId = lastDurabilityIds.get(slot);
+                lastDurabilityIds.put(slot, stack.id());
+                lastDurabilityValues.put(slot, stack.damage());
+                if (previousDamage == null || previousId == null) {
+                    continue;
+                }
+                if (previousId.equals(stack.id()) && previousDamage != stack.damage()
+                        && stack.maxDamage() > 0 && !stack.id().equals("minecraft:air")) {
+                    bus.publish("item:damage", new ink.tuanzi.neomacros.core.event.def.inventory.ItemDamageEvent(
+                            slot, stack, stack.damage()));
+                }
+            }
         }
 
         /**
@@ -425,12 +497,21 @@ public final class PortEventWiring {
         /**
          * Publishes inventory:open/close from the open container diff (the
          * player inventory screen included, kind {@code player}); direct
-         * container switches emit close then open.
+         * container switches emit close then open. A cancelled open closes
+         * the container right away (the server stays authoritative) and
+         * records nothing, so no unmatched close follows.
          */
         void emitContainer(NeomacrosAdapter adapter) {
             var info = adapter.inventory().openedContainer().orElse(null);
             String kind = info == null ? null : info.kind();
             int containerId = info == null ? 0 : info.containerId();
+            if (info == null) {
+                dismissedContainerKey = null;
+            } else if (java.util.Objects.equals(dismissedContainerKey, kind + ":" + containerId)) {
+                // This container was cancelled once already; keep ignoring it
+                // until the open identity changes or it closes.
+                return;
+            }
             if (java.util.Objects.equals(kind, lastContainerKind) && containerId == lastContainerId) {
                 return;
             }
@@ -439,8 +520,22 @@ public final class PortEventWiring {
                         lastContainerKind, lastContainerTitle != null ? lastContainerTitle : ""));
             }
             if (info != null) {
-                bus.publish("inventory:open", new ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent(
-                        info.title(), info.kind(), info.size(), info.containerId()));
+                var result = bus.publish("inventory:open",
+                        new ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent(
+                                info.title(), info.kind(), info.size(), info.containerId()));
+                if (result.canceled()) {
+                    try {
+                        adapter.inventory().close();
+                    } catch (UnsupportedOperationException ignored) {
+                        // Ports without inventory actions cannot close; the
+                        // cancel then only skips the event bookkeeping.
+                    }
+                    dismissedContainerKey = kind + ":" + containerId;
+                    lastContainerKind = null;
+                    lastContainerId = 0;
+                    lastContainerTitle = null;
+                    return;
+                }
             }
             lastContainerKind = kind;
             lastContainerId = containerId;

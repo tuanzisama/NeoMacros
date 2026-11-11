@@ -77,6 +77,42 @@ class SyncVerdictIntegrationTest {
     }
 
     @Test
+    void inventoryClickAndOpenCancelThroughScripts() throws Exception {
+        load("inv-cancel", String.join("\n",
+                "neo.events.onSync('inventory:click', (e) => {",
+                "  if (e.slot === 5 && e.mode === 'throw') { e.cancel(); }",
+                "});",
+                "neo.events.onSync('inventory:open', (e) => {",
+                "  if (e.kind === 'chest') { e.cancel(); }",
+                "});",
+                "neo.chat.log('INV-READY');",
+                "export function startup() {}",
+                ""));
+
+        assertTrue(chatLines.contains("log:INV-READY"), "chat lines were: " + chatLines);
+
+        var click = bus.publish("inventory:click",
+                new ink.tuanzi.neomacros.core.event.def.inventory.InventoryClickEvent(
+                        1, "chest", 5, 1, "throw", false));
+        assertTrue(click.canceled(), "a throw click on slot 5 is cancelled");
+
+        var pickupClick = bus.publish("inventory:click",
+                new ink.tuanzi.neomacros.core.event.def.inventory.InventoryClickEvent(
+                        1, "chest", 6, 0, "pickup", false));
+        assertFalse(pickupClick.canceled(), "other clicks pass");
+
+        var open = bus.publish("inventory:open",
+                new ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent(
+                        "Chest", "chest", 27, 1));
+        assertTrue(open.canceled(), "chest opens are cancelled");
+
+        var playerOpen = bus.publish("inventory:open",
+                new ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent(
+                        "Inventory", "player", 46, 0));
+        assertFalse(playerOpen.canceled(), "other containers pass");
+    }
+
+    @Test
     void mutableWritesAndCancelReachThePublishResult() throws Exception {
         load("mutator", String.join("\n",
                 "neo.events.onSync('chat:title', (e) => {",

@@ -623,15 +623,9 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 bus.publish("world:bossbar",
                         new ink.tuanzi.neomacros.core.event.def.world.WorldBossbarEvent(
                                 data.uuid(), data.action(), data.name(), data.progress())));
-        ink.tuanzi.neomacros.adapter.InventoryUpdateHub.register(update ->
-                bus.publish("inventory:update",
-                        new ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent(
-                                update.mode(), update.containerId(), update.kind(), update.slot())));
-        ink.tuanzi.neomacros.adapter.InventoryClickHub.register(click ->
-                bus.publish("inventory:click",
-                        new ink.tuanzi.neomacros.core.event.def.inventory.InventoryClickEvent(
-                                click.containerId(), click.kind(), click.slot(),
-                                click.button(), click.shift())));
+
+        // The inventory event family is wired through the port sinks in
+        // PortEventWiring, so the e2e harness observes the same publishes.
 
         ClientTickEvents.START_CLIENT_TICK.register(mc -> {
             runtime.mainThread().runQueuedTasks();

@@ -221,7 +221,14 @@ public final class StubAdapter implements NeomacrosAdapter {
         public volatile Integer selectedSlot = 0;
         /** The canned cursor stack ({@code null} = empty cursor). */
         public volatile ink.tuanzi.neomacros.port.model.ItemStackData carried = null;
+        /** The canned open container ({@code empty} = no container screen). */
+        public volatile java.util.Optional<ContainerInfo> opened = java.util.Optional.empty();
         final List<String> actions = new CopyOnWriteArrayList<>();
+
+        @Override
+        public java.util.Optional<ContainerInfo> openedContainer() {
+            return opened;
+        }
 
         /** Records one script-driven action. */
         private java.util.concurrent.CompletableFuture<Void> record(String what) {
@@ -318,6 +325,100 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public java.util.concurrent.CompletableFuture<Void> close() {
             return record("close");
+        }
+
+        /** Registered click interceptors (script-facing cancellable click). */
+        final List<java.util.function.Function<
+                ink.tuanzi.neomacros.port.InventoryPort.ClickSlotInfo, Boolean>> clickSinks =
+                new CopyOnWriteArrayList<>();
+        /** Registered drop interceptors. */
+        final List<java.util.function.Function<
+                ink.tuanzi.neomacros.port.InventoryPort.DropSlotInfo, Boolean>> dropSinks =
+                new CopyOnWriteArrayList<>();
+        /** Registered slot-sync observers. */
+        final List<java.util.function.Consumer<
+                ink.tuanzi.neomacros.port.InventoryPort.SlotUpdateInfo>> slotSinks =
+                new CopyOnWriteArrayList<>();
+        /** Registered cursor-sync observers. */
+        final List<java.util.function.Consumer<
+                ink.tuanzi.neomacros.port.InventoryPort.HeldUpdateInfo>> heldSinks =
+                new CopyOnWriteArrayList<>();
+        /** Registered pickup observers. */
+        final List<java.util.function.Consumer<
+                ink.tuanzi.neomacros.port.InventoryPort.ItemPickupInfo>> pickupSinks =
+                new CopyOnWriteArrayList<>();
+
+        @Override
+        public void onClickSlot(java.util.function.Function<
+                ink.tuanzi.neomacros.port.InventoryPort.ClickSlotInfo, Boolean> sink) {
+            clickSinks.add(sink);
+        }
+
+        @Override
+        public void onDropSlot(java.util.function.Function<
+                ink.tuanzi.neomacros.port.InventoryPort.DropSlotInfo, Boolean> sink) {
+            dropSinks.add(sink);
+        }
+
+        @Override
+        public void onSlotUpdate(java.util.function.Consumer<
+                ink.tuanzi.neomacros.port.InventoryPort.SlotUpdateInfo> sink) {
+            slotSinks.add(sink);
+        }
+
+        @Override
+        public void onHeldUpdate(java.util.function.Consumer<
+                ink.tuanzi.neomacros.port.InventoryPort.HeldUpdateInfo> sink) {
+            heldSinks.add(sink);
+        }
+
+        @Override
+        public void onItemPickup(java.util.function.Consumer<
+                ink.tuanzi.neomacros.port.InventoryPort.ItemPickupInfo> sink) {
+            pickupSinks.add(sink);
+        }
+
+        /** Fires one click through the interceptors; returns whether it was cancelled. */
+        public boolean fireClickSlot(ink.tuanzi.neomacros.port.InventoryPort.ClickSlotInfo click) {
+            boolean canceled = false;
+            for (var sink : clickSinks) {
+                if (Boolean.TRUE.equals(sink.apply(click))) {
+                    canceled = true;
+                }
+            }
+            return canceled;
+        }
+
+        /** Fires one drop through the interceptors; returns whether it was cancelled. */
+        public boolean fireDropSlot(ink.tuanzi.neomacros.port.InventoryPort.DropSlotInfo drop) {
+            boolean canceled = false;
+            for (var sink : dropSinks) {
+                if (Boolean.TRUE.equals(sink.apply(drop))) {
+                    canceled = true;
+                }
+            }
+            return canceled;
+        }
+
+        /** Fires one slot sync at the observers. */
+        public void fireSlotUpdate(ink.tuanzi.neomacros.port.InventoryPort.SlotUpdateInfo update) {
+            for (var sink : slotSinks) {
+                sink.accept(update);
+            }
+        }
+
+        /** Fires one cursor sync at the observers. */
+        public void fireHeldUpdate(ink.tuanzi.neomacros.port.InventoryPort.HeldUpdateInfo update) {
+            for (var sink : heldSinks) {
+                sink.accept(update);
+            }
+        }
+
+        /** Fires one pickup at the observers. */
+        public void fireItemPickup(ink.tuanzi.neomacros.port.InventoryPort.ItemPickupInfo pickup) {
+            for (var sink : pickupSinks) {
+                sink.accept(pickup);
+            }
         }
     }
 

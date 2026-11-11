@@ -84,7 +84,7 @@ public final class FabricInventoryPort implements InventoryPort {
         return count;
     }
 
-    static ItemStackData stackDataOf(ItemStack stack) {
+    public static ItemStackData stackDataOf(ItemStack stack) {
         java.util.Map<String, Object> extras = new java.util.LinkedHashMap<>();
         extras.put("maxStackSize", stack.getItem().getDefaultMaxStackSize());
         extras.put("damageable", stack.isDamageableItem());
@@ -93,9 +93,15 @@ public final class FabricInventoryPort implements InventoryPort {
         extras.put("edible", stack.get(net.minecraft.core.component.DataComponents.FOOD) != null);
         Integer repairCost = stack.get(net.minecraft.core.component.DataComponents.REPAIR_COST);
         extras.put("repairCost", repairCost != null ? repairCost : 0);
+        // Real durability values: item:damage diffs these, and scripts read
+        // them as ItemStack.damage/maxDamage (previously hardcoded to 0).
+        Integer damage = stack.get(net.minecraft.core.component.DataComponents.DAMAGE);
+        Integer maxDamage = stack.get(net.minecraft.core.component.DataComponents.MAX_DAMAGE);
         return new ItemStackData(idOf(stack), stack.getCount(),
-                stack.getItemName().getString(), 0, 0, java.util.List.of(),
-                java.util.List.of(), extras);
+                stack.getItemName().getString(),
+                damage != null ? damage : 0,
+                maxDamage != null ? maxDamage : 0,
+                java.util.List.of(), java.util.List.of(), extras);
     }
 
     private static String idOf(ItemStack stack) {
@@ -481,5 +487,30 @@ public final class FabricInventoryPort implements InventoryPort {
             }
             return count;
         });
+    }
+
+    @Override
+    public void onClickSlot(java.util.function.Function<ClickSlotInfo, Boolean> sink) {
+        InventoryClickHub.register(sink);
+    }
+
+    @Override
+    public void onSlotUpdate(java.util.function.Consumer<SlotUpdateInfo> sink) {
+        InventoryEventHubs.onSlotUpdate(sink);
+    }
+
+    @Override
+    public void onHeldUpdate(java.util.function.Consumer<HeldUpdateInfo> sink) {
+        InventoryEventHubs.onHeldUpdate(sink);
+    }
+
+    @Override
+    public void onDropSlot(java.util.function.Function<DropSlotInfo, Boolean> sink) {
+        InventoryEventHubs.onDrop(sink);
+    }
+
+    @Override
+    public void onItemPickup(java.util.function.Consumer<ItemPickupInfo> sink) {
+        InventoryEventHubs.onPickup(sink);
     }
 }

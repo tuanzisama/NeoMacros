@@ -44,6 +44,9 @@ public final class ProductionEventSet {
                 ink.tuanzi.neomacros.core.event.def.inventory.InventoryCloseEvent.class,
                 ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent.class,
                 ink.tuanzi.neomacros.core.event.def.inventory.InventoryClickEvent.class,
+                ink.tuanzi.neomacros.core.event.def.inventory.InventoryDropSlotEvent.class,
+                ink.tuanzi.neomacros.core.event.def.inventory.ItemDamageEvent.class,
+                ink.tuanzi.neomacros.core.event.def.inventory.ItemPickupEvent.class,
                 // dialog
                 ink.tuanzi.neomacros.core.event.def.dialog.DialogOpenEvent.class,
                 ink.tuanzi.neomacros.core.event.def.dialog.DialogCloseEvent.class,

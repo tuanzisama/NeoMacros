@@ -98,6 +98,23 @@ class EventCatalogTest {
         assertTrue(catalog.isCancellable("player:attackBlock"));
         assertTrue(catalog.isCancellable("player:interactEntity"));
         assertFalse(catalog.isCancellable("player:health"));
+
+        // Inventory family: click/drop/open are cancellable pre-action
+        // sources; the sync observers stay non-cancellable.
+        assertTrue(catalog.descriptor("inventory:dropSlot").isPresent());
+        assertTrue(catalog.descriptor("item:damage").isPresent());
+        assertTrue(catalog.descriptor("item:pickup").isPresent());
+        assertTrue(catalog.isCancellable("inventory:click"));
+        assertTrue(catalog.isCancellable("inventory:dropSlot"));
+        assertTrue(catalog.isCancellable("inventory:open"));
+        assertFalse(catalog.isCancellable("inventory:update"));
+        assertEquals(ink.tuanzi.neomacros.doc.api.ApiEvent.Direction.C2S,
+                catalog.descriptor("inventory:click").orElseThrow().direction(),
+                "clicks are a client-to-server decision");
+        assertEquals(ink.tuanzi.neomacros.doc.api.ApiEvent.Direction.C2S,
+                catalog.descriptor("inventory:dropSlot").orElseThrow().direction());
+        assertEquals(ink.tuanzi.neomacros.doc.api.ApiEvent.Direction.LOCAL,
+                catalog.descriptor("inventory:open").orElseThrow().direction());
     }
 
     @Test

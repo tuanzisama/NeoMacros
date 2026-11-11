@@ -44,6 +44,58 @@ public interface InventoryPort {
     record ContainerInfo(String title, String kind, int size, int containerId) {
     }
 
+    /** One click about to be applied: menu id, kind, slot, button, mode, quick-move flag. */
+    record ClickSlotInfo(int containerId, String kind, int slot, int button, String mode,
+            boolean shift) {
+    }
+
+    /** One slot sync about to be applied: menu id, kind, slot, full flag, old and new stacks. */
+    record SlotUpdateInfo(int containerId, String kind, int slot, boolean full,
+            ItemStackData oldStack, ItemStackData newStack) {
+    }
+
+    /** One incoming cursor-stack sync (JsMacros HELD type): menu id, kind, new stack. */
+    record HeldUpdateInfo(int containerId, String kind, ItemStackData stack) {
+    }
+
+    /** One drop about to be applied: kind, source slot, whole-stack flag. */
+    record DropSlotInfo(String kind, int slot, boolean all) {
+    }
+
+    /** One picked-up stack: the item snapshot (count = picked amount) and that amount. */
+    record ItemPickupInfo(ItemStackData item, int amount) {
+    }
+
+    /**
+     * Registers a click interceptor; returning {@code true} cancels the click
+     * before its packet is sent. Sinks run on the game main thread in
+     * registration order.
+     */
+    default void onClickSlot(java.util.function.Function<ClickSlotInfo, Boolean> sink) {
+    }
+
+    /**
+     * Registers a slot-sync observer, called before the menu applies the
+     * incoming stack.
+     */
+    default void onSlotUpdate(java.util.function.Consumer<SlotUpdateInfo> sink) {
+    }
+
+    /** Registers a cursor-stack observer, called before the menu replaces the carried stack. */
+    default void onHeldUpdate(java.util.function.Consumer<HeldUpdateInfo> sink) {
+    }
+
+    /**
+     * Registers a drop interceptor; returning {@code true} prevents the drop
+     * (menu THROW clicks and the hotbar Q key).
+     */
+    default void onDropSlot(java.util.function.Function<DropSlotInfo, Boolean> sink) {
+    }
+
+    /** Registers a pickup observer, called while a pickup packet is processed. */
+    default void onItemPickup(java.util.function.Consumer<ItemPickupInfo> sink) {
+    }
+
     /** The currently open container, or empty when no screen is open. */
     default Optional<ContainerInfo> openedContainer() {
         return Optional.empty();

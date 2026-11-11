@@ -3,7 +3,12 @@ package ink.tuanzi.neomacros.core.event;
 import ink.tuanzi.neomacros.port.ChatPort;
 import ink.tuanzi.neomacros.port.EntityPort;
 import ink.tuanzi.neomacros.port.InventoryPort;
+import ink.tuanzi.neomacros.port.InventoryPort.ClickSlotInfo;
 import ink.tuanzi.neomacros.port.InventoryPort.ContainerInfo;
+import ink.tuanzi.neomacros.port.InventoryPort.DropSlotInfo;
+import ink.tuanzi.neomacros.port.InventoryPort.HeldUpdateInfo;
+import ink.tuanzi.neomacros.port.InventoryPort.ItemPickupInfo;
+import ink.tuanzi.neomacros.port.InventoryPort.SlotUpdateInfo;
 import ink.tuanzi.neomacros.port.LifecyclePort;
 import ink.tuanzi.neomacros.port.NeomacrosAdapter;
 import ink.tuanzi.neomacros.port.PlayerPort;
@@ -460,8 +465,159 @@ class PortEventWiringTest {
         runtime.close();
     }
 
-    private static EntitySnapshot entity(UUID uuid, double health) {
-        return new EntitySnapshot(uuid, "minecraft:zombie", "Zombie",
+    @Test
+    void inventoryClickInterceptsAndCarriesTheVerdict() {
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var clock = new TickClock();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-g")), clock);
+
+        bus.onSync("inventory:click", (payload, flag) -> {
+            var state = (java.util.Map<?, ?>) ((EventPayloadEnvelope) payload).payload();
+            if (state.get("slot").equals(5) && "throw".equals(state.get("mode"))) {
+                flag.cancel();
+            }
+        });
+
+        boolean canceled = adapter.inventorySinks.fireClick(new ClickSlotInfo(
+                1, "chest", 5, 1, "throw", false));
+        assertTrue(canceled, "a matching click should be cancelled");
+
+        boolean passes = adapter.inventorySinks.fireClick(new ClickSlotInfo(
+                1, "chest", 6, 0, "pickup", false));
+        assertFalse(passes, "a non-matching click stays confirmed");
+        runtime.close();
+    }
+
+    @Test
+    void inventoryDropInterceptsAndCarriesTheVerdict() {
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var clock = new TickClock();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-h")), clock);
+
+        bus.onSync("inventory:dropSlot", (payload, flag) -> {
+            var state = (java.util.Map<?, ?>) ((EventPayloadEnvelope) payload).payload();
+            if (Boolean.TRUE.equals(state.get("all")) && state.get("slot").equals(40)) {
+                flag.cancel();
+            }
+        });
+
+        assertTrue(adapter.inventorySinks.fireDrop(new DropSlotInfo("player", 40, true)));
+        assertFalse(adapter.inventorySinks.fireDrop(new DropSlotInfo("player", 40, false)));
+        runtime.close();
+    }
+
+    @Test
+    void inventorySyncsAndPickupPublishTheirPayloads() {
+        var published = new ArrayList<Published>();
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var clock = new TickClock();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-i")), clock);
+        recordAll(published, bus, catalog);
+
+        var oldStack = new ink.tuanzi.neomacros.port.model.ItemStackData(
+                "minecraft:diamond_pickaxe", 1, "Pickaxe", 10, 1561, List.of(), List.of(),
+                java.util.Map.of());
+        var newStack = new ink.tuanzi.neomacros.port.model.ItemStackData(
+                "minecraft:diamond_pickaxe", 1, "Pickaxe", 11, 1561, List.of(), List.of(),
+                java.util.Map.of());
+        adapter.inventorySinks.fireSlot(new SlotUpdateInfo(1, "chest", 3, false, oldStack, newStack));
+        adapter.inventorySinks.fireHeld(new HeldUpdateInfo(1, "chest", newStack));
+        adapter.inventorySinks.firePickup(new ItemPickupInfo(newStack, 3));
+
+        var slotUpdate = published.stream()
+                .filter(p -> p.name().equals("inventory:update")).toList();
+        assertEquals(2, slotUpdate.size(), "slot + held updates; events were: " + names(published));
+        var slotPayload = (ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent)
+                slotUpdate.get(0).payload();
+        assertEquals("slot", slotPayload.mode());
+        assertEquals(10, slotPayload.oldStack().damage());
+        assertEquals(11, slotPayload.newStack().damage());
+        var heldPayload = (ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent)
+                slotUpdate.get(1).payload();
+        assertEquals("held", heldPayload.mode());
+        assertEquals(-1, heldPayload.slot());
+
+        var pickup = published.stream().filter(p -> p.name().equals("item:pickup"))
+                .findFirst().orElseThrow();
+        assertEquals(3, ((ink.tuanzi.neomacros.core.event.def.inventory.ItemPickupEvent)
+                pickup.payload()).amount());
+        runtime.close();
+    }
+
+    @Test
+    void cancelledContainerOpenClosesAndKeepsBookkeepingClean() {
+        var published = new ArrayList<Published>();
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var clock = new TickClock();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-j")), clock);
+        recordAll(published, bus, catalog);
+        adapter.playerPort.self = snapshot(20.0);
+        fireTicks(adapter, clock, 1);
+
+        bus.onSync("inventory:open", (payload, flag) -> {
+            var state = (java.util.Map<?, ?>) ((EventPayloadEnvelope) payload).payload();
+            if ("chest".equals(state.get("kind"))) {
+                flag.cancel();
+            }
+        });
+        published.clear();
+        adapter.container = java.util.Optional.of(new ContainerInfo("Chest", "chest", 27, 1));
+        fireTicks(adapter, clock, 1);
+
+        assertTrue(adapter.inventorySinks.actions.contains("close"),
+                "a cancelled open closes the container; actions: " + adapter.inventorySinks.actions);
+        assertTrue(published.stream().noneMatch(p -> p.name().equals("inventory:close")),
+                "no unmatched close follows; events were: " + names(published));
+
+        // The next tick with the container gone emits nothing (bookkeeping cleared).
+        published.clear();
+        adapter.container = java.util.Optional.empty();
+        fireTicks(adapter, clock, 1);
+        assertTrue(published.stream().noneMatch(p -> p.name().startsWith("inventory:")),
+                "events were: " + names(published));
+        runtime.close();
+    }
+
+    @Test
+    void itemDamagePublishesOnDurabilityOnlyChanges() {
+        var published = new ArrayList<Published>();
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var clock = new TickClock();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-k")), clock);
+        recordAll(published, bus, catalog);
+        adapter.playerPort.self = snapshot(20.0);
+
+        var held = new ink.tuanzi.neomacros.port.model.ItemStackData(
+                "minecraft:diamond_pickaxe", 1, "Pickaxe", 0, 1561, List.of(), List.of(),
+                java.util.Map.of());
+        adapter.held = java.util.Optional.of(held);
+        fireTicks(adapter, clock, 1);
+        published.clear();
+
+        adapter.held = java.util.Optional.of(new ink.tuanzi.neomacros.port.model.ItemStackData(
+                "minecraft:diamond_pickaxe", 1, "Pickaxe", 2, 1561, List.of(), List.of(),
+                java.util.Map.of()));
+        fireTicks(adapter, clock, 1);
+        var damage = published.stream().filter(p -> p.name().equals("item:damage"))
+                .findFirst().orElseThrow();
+        var payload = (ink.tuanzi.neomacros.core.event.def.inventory.ItemDamageEvent)
+                damage.payload();
+        assertEquals("main", payload.slot());
+        assertEquals(2, payload.damage());
+        runtime.close();
+    }
+
+    private static EntitySnapshot entity(UUID uuid, double health) {        return new EntitySnapshot(uuid, "minecraft:zombie", "Zombie",
                 new Pos3d(1, 64, 1), health);
     }
 
@@ -498,6 +654,9 @@ class PortEventWiringTest {
         final StubPlayer playerPort = new StubPlayer();
         final StubChat chatPort = new StubChat();
         final StubEntity entityPort = new StubEntity();
+        final InventorySinks inventorySinks = new InventorySinks();
+        volatile java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> held =
+                java.util.Optional.empty();
         volatile java.util.Optional<ink.tuanzi.neomacros.port.InventoryPort.ContainerInfo> container =
                 java.util.Optional.empty();
 
@@ -531,7 +690,7 @@ class PortEventWiringTest {
 
                 @Override
                 public java.util.function.Supplier<java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData>> heldItem() {
-                    return java.util.Optional::empty;
+                    return () -> held;
                 }
 
                 @Override
@@ -548,7 +707,91 @@ class PortEventWiringTest {
                 public int countOf(String item) {
                     return 0;
                 }
+
+                @Override
+                public void onClickSlot(java.util.function.Function<ClickSlotInfo, Boolean> sink) {
+                    inventorySinks.click.add(sink);
+                }
+
+                @Override
+                public void onDropSlot(java.util.function.Function<DropSlotInfo, Boolean> sink) {
+                    inventorySinks.drop.add(sink);
+                }
+
+                @Override
+                public void onSlotUpdate(java.util.function.Consumer<SlotUpdateInfo> sink) {
+                    inventorySinks.slot.add(sink);
+                }
+
+                @Override
+                public void onHeldUpdate(java.util.function.Consumer<HeldUpdateInfo> sink) {
+                    inventorySinks.held.add(sink);
+                }
+
+                @Override
+                public void onItemPickup(java.util.function.Consumer<ItemPickupInfo> sink) {
+                    inventorySinks.pickup.add(sink);
+                }
+
+                @Override
+                public java.util.concurrent.CompletableFuture<Void> close() {
+                    inventorySinks.actions.add("close");
+                    return java.util.concurrent.CompletableFuture.completedFuture(null);
+                }
             };
+        }
+
+        /** Stable sink collectors the tests fire through. */
+        static final class InventorySinks {
+            final List<java.util.function.Function<ClickSlotInfo, Boolean>> click =
+                    new java.util.ArrayList<>();
+            final List<java.util.function.Function<DropSlotInfo, Boolean>> drop =
+                    new java.util.ArrayList<>();
+            final List<java.util.function.Consumer<SlotUpdateInfo>> slot =
+                    new java.util.ArrayList<>();
+            final List<java.util.function.Consumer<HeldUpdateInfo>> held =
+                    new java.util.ArrayList<>();
+            final List<java.util.function.Consumer<ItemPickupInfo>> pickup =
+                    new java.util.ArrayList<>();
+            final List<String> actions = new java.util.ArrayList<>();
+
+            boolean fireClick(ClickSlotInfo info) {
+                boolean canceled = false;
+                for (var sink : click) {
+                    if (Boolean.TRUE.equals(sink.apply(info))) {
+                        canceled = true;
+                    }
+                }
+                return canceled;
+            }
+
+            boolean fireDrop(DropSlotInfo info) {
+                boolean canceled = false;
+                for (var sink : drop) {
+                    if (Boolean.TRUE.equals(sink.apply(info))) {
+                        canceled = true;
+                    }
+                }
+                return canceled;
+            }
+
+            void fireSlot(SlotUpdateInfo info) {
+                for (var sink : slot) {
+                    sink.accept(info);
+                }
+            }
+
+            void fireHeld(HeldUpdateInfo info) {
+                for (var sink : held) {
+                    sink.accept(info);
+                }
+            }
+
+            void firePickup(ItemPickupInfo info) {
+                for (var sink : pickup) {
+                    sink.accept(info);
+                }
+            }
         }
 
         @Override
