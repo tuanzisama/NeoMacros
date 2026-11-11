@@ -14,6 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -151,6 +152,72 @@ class LaneWorldScenariosTest {
             assertFalse(adapter.playerPort().fireAttackEntity(pig),
                     "pig attack must pass through");
             assertEquals(null, e2e.bridge().get("lane-guard"));
+        }
+    }
+
+    @Test
+    void worldScanExpansionsReachThePort() throws Exception {
+        try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
+            fixture(dir.resolve("scripts"), "scan.js", String.join("\n",
+                    "let n = 0;",
+                    "neo.events.on('tick', () => {",
+                    "  if (++n !== 3) return;",
+                    "  try {",
+                    "    const exact = neo.world.findBlocks({",
+                    "      types: 'minecraft:stone',",
+                    "      states: { axis: 'y' },",
+                    "      center: { x: 1, y: 64, z: 2 },",
+                    "      range: 8, limit: 32, shape: 'sphere' });",
+                    "    const pattern = neo.world.findBlocks({",
+                    "      idPattern: 'minecraft:*_log',",
+                    "      center: { x: 1, y: 64, z: 2 } });",
+                    "    const entities = neo.entity.inRadius(1, 64, 2, 16, 'minecraft:pig');",
+                    "    const boxed = neo.entity.inBox({",
+                    "      min: { x: 0, y: 60, z: 0 }, max: { x: 4, y: 70, z: 4 },",
+                    "      types: ['minecraft:pig'] });",
+                    "    neo.world.scanBlocks({",
+                    "      types: 'minecraft:stone', center: { x: 1, y: 64, z: 2 } })",
+                    "      .then((swept) => {",
+                    "        neo.__test.report('world-scan', exact.length === 1",
+                    "            && pattern.length === 1 && swept.length === 1",
+                    "            && entities.length === 1 && boxed.length === 1,",
+                    "          JSON.stringify({ exact: exact.length, pattern: pattern.length,",
+                    "            swept: swept.length, entities: entities.length,",
+                    "            boxed: boxed.length }));",
+                    "      })",
+                    "      .catch((err) => neo.__test.report('world-scan', false,",
+                    "        'scan rejected: ' + err));",
+                    "  } catch (err) {",
+                    "    neo.__test.report('world-scan', false, 'threw: ' + err);",
+                    "  }",
+                    "});",
+                    ""));
+            e2e.loadScript(dir.resolve("scripts").resolve("scan.js"));
+
+            var adapter = e2e.adapter();
+            UUID pigId = UUID.randomUUID();
+            adapter.playerPort().setSelf(new PlayerSnapshot(UUID.randomUUID(), "tester",
+                    new Pos3d(1, 64, 2), new Rot2d(0, 0), 20, 20, 300));
+            adapter.entityPort().setEntities(List.of(new EntitySnapshot(pigId, "minecraft:pig",
+                    "pig", new Pos3d(2, 64, 2), 10)));
+            adapter.worldPort().foundBlocks.add(new Pos3d(1, 64, 3));
+            adapter.lifecyclePort().fireTick(1);
+            adapter.lifecyclePort().fireTick(2);
+            adapter.lifecyclePort().fireTick(3);
+            e2e.awaitSettle();
+
+            TestBridge.Report report = e2e.bridge().get("world-scan");
+            assertTrue(report != null && report.pass(),
+                    "world-scan report: " + (report == null ? "missing" : report.detail())
+                            + " | script errors: " + e2e.scriptErrors());
+            var requests = adapter.worldPort().scanRequests;
+            assertEquals(3, requests.size(), "two findBlocks plus one scanBlocks");
+            assertEquals("minecraft:*_log", requests.get(1).get("idPattern"));
+            assertEquals(true, requests.get(0).get("sphere"));
+            assertEquals(Map.of("axis", "y"), requests.get(0).get("states"));
+            assertEquals(32, requests.get(0).get("limit"));
+            assertEquals(true, requests.get(2).get("async"));
+            assertEquals(65536, requests.get(2).get("limit"));
         }
     }
 

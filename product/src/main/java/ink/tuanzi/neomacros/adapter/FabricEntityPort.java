@@ -78,6 +78,31 @@ public final class FabricEntityPort implements EntityPort {
         });
     }
 
+    @Override
+    public List<EntitySnapshot> inBox(Pos3d min, Pos3d max, Predicate<EntitySnapshot> filter) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return List.of();
+            }
+            List<EntitySnapshot> hits = new ArrayList<>();
+            for (Entity entity : level.entitiesForRendering()) {
+                double x = entity.getX();
+                double y = entity.getY();
+                double z = entity.getZ();
+                if (x < min.x() || x > max.x() || y < min.y() || y > max.y()
+                        || z < min.z() || z > max.z()) {
+                    continue;
+                }
+                EntitySnapshot snapshot = snapshotOf(entity);
+                if (filter.test(snapshot)) {
+                    hits.add(snapshot);
+                }
+            }
+            return List.copyOf(hits);
+        });
+    }
+
     /** Copies one entity's current state into the neutral snapshot. */
     static EntitySnapshot snapshotOf(Entity entity) {
         String typeId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
@@ -180,9 +205,28 @@ public final class FabricEntityPort implements EntityPort {
         if (entity instanceof Sheep sheep) {
             state.put("color", namespaced(sheep.getColor()));
             state.put("sheared", sheep.isSheared());
+            state.put("shearable", sheep.readyForShearing());
+            var customName = sheep.getCustomName();
+            state.put("jeb", customName != null && "jeb_".equalsIgnoreCase(customName.getString()));
         }
         if (entity instanceof Wolf wolf) {
             state.put("collarColor", namespaced(wolf.getCollarColor()));
+            //? if <26.1 {
+            /*
+            state.put("angry", wolf.getRemainingPersistentAngerTime() > 0);
+            */
+            //?} else {
+            state.put("angry", wolf.getPersistentAngerEndTime() > wolf.level().getGameTime());
+            //?}
+            state.put("wet", wolf.getWetShade(1.0F) > 0.0F);
+            state.put("armor", equipmentId(wolf.getItemBySlot(
+                    net.minecraft.world.entity.EquipmentSlot.BODY)));
+        }
+        if (entity instanceof net.minecraft.world.entity.TamableAnimal tameable) {
+            state.put("tamed", tameable.isTame());
+            state.put("sitting", tameable.isInSittingPose());
+            var ownerRef = tameable.getOwnerReference();
+            state.put("owner", ownerRef != null ? ownerRef.getUUID().toString() : null);
         }
         if (entity instanceof Cat cat) {
             state.put("collarColor", namespaced(cat.getCollarColor()));
@@ -197,6 +241,8 @@ public final class FabricEntityPort implements EntityPort {
         if (entity instanceof Creeper creeper) {
             state.put("powered", creeper.isPowered());
             state.put("ignited", creeper.isIgnited());
+            state.put("swellDir", creeper.getSwellDir());
+            state.put("swell", (double) creeper.getSwelling(1.0F));
         }
         if (entity instanceof Zombie zombie) {
             state.put("underWaterConverting", zombie.isUnderWaterConverting());
@@ -209,11 +255,13 @@ public final class FabricEntityPort implements EntityPort {
         }
         if (entity instanceof MushroomCow mooshroom) {
             state.put("variant", namespaced(mooshroom.getVariant()));
+            state.put("shearable", mooshroom.readyForShearing());
         }
         if (entity instanceof net.minecraft.world.entity.monster.Enderman enderman) {
             var carried = enderman.getCarriedBlock();
             state.put("carriedBlock", carried != null
                     ? BuiltInRegistries.BLOCK.getKey(carried.getBlock()).toString() : null);
+            state.put("screaming", enderman.isCreepy());
         }
         if (entity instanceof net.minecraft.world.entity.monster.Phantom phantom) {
             state.put("size", phantom.getPhantomSize());
@@ -226,6 +274,10 @@ public final class FabricEntityPort implements EntityPort {
             state.put("eating", horse.isEating());
             state.put("bred", horse.isBred());
             state.put("inventorySize", horse.getInventorySize());
+            state.put("saddled", !horse.getItemBySlot(
+                    net.minecraft.world.entity.EquipmentSlot.SADDLE).isEmpty());
+            var ownerRef = horse.getOwnerReference();
+            state.put("owner", ownerRef != null ? ownerRef.getUUID().toString() : null);
         }
         if (entity instanceof net.minecraft.world.entity.animal.equine.Horse horse2) {
             state.put("variant", namespaced(horse2.getVariant()));
@@ -245,12 +297,29 @@ public final class FabricEntityPort implements EntityPort {
         if (entity instanceof net.minecraft.world.entity.animal.bee.Bee bee) {
             state.put("nectar", bee.hasNectar());
             state.put("stung", bee.hasStung());
+            //? if <26.1 {
+            /*
+            state.put("angry", bee.getRemainingPersistentAngerTime() > 0);
+            */
+            //?} else {
+            state.put("angry", bee.getPersistentAngerEndTime() > bee.level().getGameTime());
+            //?}
         }
         if (entity instanceof net.minecraft.world.entity.animal.fox.Fox fox) {
             state.put("sitting", fox.isSitting());
+            state.put("variant", namespaced(fox.getVariant()));
+            state.put("pouncing", fox.isPouncing());
+            state.put("sleeping", fox.isSleeping());
+            state.put("faceplanted", fox.isFaceplanted());
+            state.put("crouching", fox.isCrouching());
         }
         if (entity instanceof net.minecraft.world.entity.animal.frog.Frog frog) {
             state.put("variant", registeredName(frog.getVariant()));
+            state.put("croaking", frog.croakAnimationState.isStarted());
+            var tongue = frog.getTongueTarget();
+            state.put("tongueTarget", tongue
+                    .map(net.minecraft.world.entity.Entity::getUUID)
+                    .map(UUID::toString).orElse(null));
         }
         if (entity instanceof net.minecraft.world.entity.animal.goat.Goat goat) {
             state.put("leftHorn", goat.hasLeftHorn());
@@ -264,21 +333,37 @@ public final class FabricEntityPort implements EntityPort {
             state.put("onBack", panda.isOnBack());
             state.put("eating", panda.isEating());
             state.put("lazy", panda.isLazy());
+            state.put("sitting", panda.isSitting());
+            state.put("worried", panda.isWorried());
+            state.put("playful", panda.isPlayful());
+            state.put("rolling", panda.isRolling());
+            state.put("brown", panda.isBrown());
+            state.put("weak", panda.isWeak());
+            state.put("scared", panda.isScared());
         }
         if (entity instanceof net.minecraft.world.entity.animal.parrot.Parrot parrot) {
             state.put("variant", serialName(parrot.getVariant()));
+            state.put("partying", parrot.isPartyParrot());
         }
         if (entity instanceof net.minecraft.world.entity.animal.polarbear.PolarBear polarBear) {
             state.put("standing", polarBear.isStanding());
         }
         if (entity instanceof net.minecraft.world.entity.monster.Shulker shulker) {
             state.put("color", namespaced(shulker.getColor()));
+            state.put("attachFace", shulker.getAttachFace().name()
+                    .toLowerCase(java.util.Locale.ROOT));
+            state.put("peek", (double) shulker.getClientPeekAmount(1.0F));
         }
         if (entity instanceof net.minecraft.world.entity.animal.golem.SnowGolem snowGolem) {
             state.put("pumpkin", snowGolem.hasPumpkin());
+            state.put("shearable", snowGolem.readyForShearing());
         }
         if (entity instanceof net.minecraft.world.entity.animal.turtle.Turtle turtle) {
             state.put("hasEgg", turtle.hasEgg());
+            //? if >=26.2 {
+            var home = turtle.getHomePos();
+            state.put("homePos", new Pos3d(home.getX(), home.getY(), home.getZ()));
+            //?}
         }
         if (entity instanceof net.minecraft.world.entity.monster.Vex vex) {
             state.put("charging", vex.isCharging());
@@ -288,6 +373,7 @@ public final class FabricEntityPort implements EntityPort {
         }
         if (entity instanceof net.minecraft.world.entity.animal.dolphin.Dolphin dolphin) {
             state.put("moistness", dolphin.getMoistnessLevel());
+            state.put("hasFish", dolphin.gotFish());
         }
         if (entity instanceof net.minecraft.world.entity.monster.warden.Warden warden) {
             state.put("angerLevel", serialName(warden.getAngerLevel()));
@@ -394,7 +480,123 @@ public final class FabricEntityPort implements EntityPort {
             state.put("radius", (double) effectCloud.getRadius());
             state.put("waiting", effectCloud.isWaiting());
             state.put("waitTime", effectCloud.getWaitTime());
+            state.put("particle", BuiltInRegistries.PARTICLE_TYPE
+                    .getKey(effectCloud.getParticle().getType()).toString());
         }
+
+        // Projectiles.
+        if (entity instanceof net.minecraft.world.entity.projectile.arrow.AbstractArrow arrow) {
+            state.put("critical", arrow.isCritArrow());
+            state.put("pierceLevel", (int) arrow.getPierceLevel());
+        }
+        if (entity instanceof net.minecraft.world.entity.projectile.arrow.Arrow tippedArrow) {
+            state.put("color", tippedArrow.getColor());
+        }
+        if (entity instanceof net.minecraft.world.entity.projectile.arrow.ThrownTrident trident) {
+            state.put("foil", trident.isFoil());
+        }
+        if (entity instanceof net.minecraft.world.entity.projectile.hurtingprojectile.WitherSkull skull) {
+            state.put("charged", skull.isDangerous());
+        }
+        if (entity instanceof net.minecraft.world.entity.projectile.FishingHook hook) {
+            var hooked = hook.getHookedIn();
+            state.put("hooked", hooked != null ? hooked.getUUID().toString() : null);
+            state.put("openWater", hook.isOpenWaterFishing());
+            var angler = hook.getPlayerOwner();
+            state.put("angler", angler != null ? angler.getUUID().toString() : null);
+        }
+
+        // Vehicles.
+        if (entity instanceof net.minecraft.world.entity.vehicle.boat.AbstractBoat boat) {
+            state.put("underWater", boat.isUnderWater());
+        }
+        if (entity instanceof net.minecraft.world.entity.vehicle.minecart.MinecartTNT tntCart) {
+            state.put("fuse", tntCart.getFuse());
+            state.put("primed", tntCart.isPrimed());
+        }
+
+        // Decorations and technical entities.
+        if (entity instanceof net.minecraft.world.entity.boss.enderdragon.EndCrystal crystal) {
+            var beam = crystal.getBeamTarget();
+            state.put("beamTarget", beam != null
+                    ? new Pos3d(beam.getX(), beam.getY(), beam.getZ()) : null);
+            state.put("showBottom", crystal.showsBottom());
+        }
+        if (entity instanceof net.minecraft.world.entity.Interaction interaction) {
+            state.put("width", (double) interaction.getWidth());
+            state.put("height", (double) interaction.getHeight());
+            state.put("response", interaction.getResponse());
+            var lastAttacker = interaction.getLastAttacker();
+            state.put("lastAttacker", lastAttacker != null
+                    ? lastAttacker.getUUID().toString() : null);
+            var lastInteracted = interaction.getTarget();
+            state.put("lastInteracted", lastInteracted != null
+                    ? lastInteracted.getUUID().toString() : null);
+        }
+        if (entity instanceof net.minecraft.world.entity.decoration.painting.Painting painting) {
+            var art = painting.getVariant();
+            state.put("artId", art.getRegisteredName());
+            state.put("width", art.value().width());
+            state.put("height", art.value().height());
+        }
+
+        // Display entities.
+        if (entity instanceof net.minecraft.world.entity.Display display) {
+            state.put("billboard", display.getBillboardConstraints().name()
+                    .toLowerCase(java.util.Locale.ROOT));
+            int packedBrightness = display.getPackedBrightnessOverride();
+            state.put("brightness", packedBrightness
+                    != net.minecraft.world.entity.Display.NO_BRIGHTNESS_OVERRIDE
+                    ? packedBrightness : null);
+            state.put("displayWidth", (double) display.getWidth());
+            state.put("displayHeight", (double) display.getHeight());
+            state.put("glowColorOverride", display.getGlowColorOverride());
+            state.put("viewRange", (double) display.getViewRange());
+            state.put("shadowRadius", (double) display.getShadowRadius());
+            state.put("shadowStrength", (double) display.getShadowStrength());
+        }
+        if (entity instanceof net.minecraft.world.entity.Display.BlockDisplay blockDisplay) {
+            state.put("block", BuiltInRegistries.BLOCK
+                    .getKey(blockDisplay.getBlockState().getBlock()).toString());
+        }
+        if (entity instanceof net.minecraft.world.entity.Display.ItemDisplay itemDisplay) {
+            state.put("item", FabricInventoryPort.stackDataOf(itemDisplay.getItemStack()));
+        }
+        if (entity instanceof net.minecraft.world.entity.Display.TextDisplay textDisplay) {
+            state.put("text", textDisplay.getText().getString());
+            state.put("backgroundColor", textDisplay.getBackgroundColor());
+        }
+
+        // Remaining mobs.
+        if (entity instanceof net.minecraft.world.entity.monster.cubemob.Slime slime) {
+            state.put("size", slime.getSize());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.Guardian guardian) {
+            var laserTarget = guardian.getActiveAttackTarget();
+            state.put("activeTarget", laserTarget != null
+                    ? laserTarget.getUUID().toString() : null);
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.illager.AbstractIllager illager) {
+            state.put("armPose", illager.getArmPose().name().toLowerCase(java.util.Locale.ROOT));
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.illager.SpellcasterIllager spellcaster) {
+            state.put("castingSpell", spellcaster.isCastingSpell());
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.Strider strider) {
+            state.put("saddled", !strider.getItemBySlot(
+                    net.minecraft.world.entity.EquipmentSlot.SADDLE).isEmpty());
+            state.put("shivering", strider.isSuffocating());
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.pig.Pig pig) {
+            state.put("saddled", !pig.getItemBySlot(
+                    net.minecraft.world.entity.EquipmentSlot.SADDLE).isEmpty());
+        }
+    }
+
+    /** The registry id of one equipment stack, or null when empty. */
+    private static String equipmentId(net.minecraft.world.item.ItemStack stack) {
+        return stack.isEmpty()
+                ? null : BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
     }
 
     /** Namespaces a serializable enum constant, e.g. {@code minecraft:white}. */

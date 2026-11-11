@@ -130,6 +130,18 @@ class ClassTreeIntegrationTest {
         ScriptApiEnvironment.install(bus, adapter);
         registry = new BindingRegistry("26.3");
         registry.registerAll(List.of(TreeApi.class, ChatApi.class));
+        registry.registerGuestType("Entity",
+                ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity.class);
+        registry.registerGuestType("ProjectileEntity",
+                ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.ProjectileEntity.class);
+        registry.registerGuestType("AbstractArrowEntity",
+                ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.AbstractArrowEntity.class);
+        registry.registerGuestType("ArrowEntity",
+                ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.ArrowEntity.class);
+        registry.registerGuestType("DisplayEntity",
+                ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.DisplayEntity.class);
+        registry.registerGuestType("TextDisplayEntity",
+                ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.TextDisplayEntity.class);
         var engine = new GraalJsEngine();
         runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, 500);
         runtime.createContext("class-tree");
@@ -155,6 +167,46 @@ class ClassTreeIntegrationTest {
                     "class-tree result '" + key + "' should hold; chat lines were: " + chatLines);
         }
     }
+
+    @Test
+    void speciesTreeRendersAsRealClasses() throws Exception {
+        var manager = new ModuleManager(runtime, registry, PermissionView.ALLOW_ALL,
+                scriptsDir, m -> { });
+        manager.load(writeEntry(manager, "species-tree", SPECIES_SCRIPT));
+
+        for (String key : List.of("arrowChain", "displayChain", "arrowTag",
+                "displayTag", "sharedRoot")) {
+            assertEventually(() -> chatLines.contains("log:SPECIES-" + key + "=true"),
+                    "species-tree result '" + key + "' should hold; chat lines were: " + chatLines);
+        }
+    }
+
+    private static final String SPECIES_SCRIPT = String.join("\n",
+            "export function startup() {",
+            "  neo.chat.log('SPECIES-STARTUP');",
+            "}",
+            "",
+            "const arrow = new neo.ArrowEntity(",
+            "  '00000000-0000-0000-0000-000000000001');",
+            "const display = new neo.TextDisplayEntity(",
+            "  '00000000-0000-0000-0000-000000000002');",
+            "const results = {",
+            "  arrowChain: arrow instanceof neo.ProjectileEntity",
+            "    && arrow instanceof neo.AbstractArrowEntity",
+            "    && arrow instanceof neo.ArrowEntity",
+            "    && arrow instanceof neo.Entity,",
+            "  displayChain: display instanceof neo.DisplayEntity",
+            "    && display instanceof neo.TextDisplayEntity",
+            "    && display instanceof neo.Entity,",
+            "  arrowTag: Object.prototype.toString.call(arrow) === '[object ArrowEntity]',",
+            "  displayTag: Object.prototype.toString.call(display) === '[object TextDisplayEntity]',",
+            "  sharedRoot: Object.getPrototypeOf(Object.getPrototypeOf(",
+            "    Object.getPrototypeOf(neo.ArrowEntity))).name === 'Entity',",
+            "};",
+            "for (const [key, value] of Object.entries(results)) {",
+            "  neo.chat.log('SPECIES-' + key + '=' + value);",
+            "}",
+            "");
 
     private static final String SCRIPT = String.join("\n",
             "export function startup() {",

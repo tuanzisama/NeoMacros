@@ -106,6 +106,39 @@ public final class SpeciesEntities {
             put(map, "minecraft:falling_block", FallingBlockEntity::new);
             put(map, "minecraft:item_frame", ItemFrameEntity::new);
             put(map, "minecraft:area_effect_cloud", AreaEffectCloudEntity::new);
+            put(map, "minecraft:pig", PigEntity::new);
+            put(map, "minecraft:arrow", ArrowEntity::new);
+            put(map, "minecraft:spectral_arrow", ArrowEntity::new);
+            put(map, "minecraft:trident", ThrownTridentEntity::new);
+            put(map, "minecraft:wither_skull", WitherSkullEntity::new);
+            put(map, "minecraft:fishing_bobber", FishingHookEntity::new);
+            put(map, "minecraft:boat", BoatEntity::new);
+            put(map, "minecraft:chest_boat", ChestBoatEntity::new);
+            for (String wood : new String[] {"oak", "spruce", "birch", "jungle", "acacia",
+                    "dark_oak", "mangrove", "cherry", "pale_oak"}) {
+                put(map, "minecraft:" + wood + "_boat", BoatEntity::new);
+                put(map, "minecraft:" + wood + "_chest_boat", ChestBoatEntity::new);
+            }
+            put(map, "minecraft:bamboo_raft", BoatEntity::new);
+            put(map, "minecraft:bamboo_chest_raft", ChestBoatEntity::new);
+            put(map, "minecraft:minecart", AbstractMinecartEntity::new);
+            put(map, "minecraft:chest_minecart", AbstractMinecartEntity::new);
+            put(map, "minecraft:hopper_minecart", AbstractMinecartEntity::new);
+            put(map, "minecraft:command_block_minecart", AbstractMinecartEntity::new);
+            put(map, "minecraft:spawner_minecart", AbstractMinecartEntity::new);
+            put(map, "minecraft:furnace_minecart", MinecartFurnaceEntity::new);
+            put(map, "minecraft:tnt_minecart", MinecartTntEntity::new);
+            put(map, "minecraft:end_crystal", EndCrystalEntity::new);
+            put(map, "minecraft:interaction", InteractionEntity::new);
+            put(map, "minecraft:painting", PaintingEntity::new);
+            put(map, "minecraft:block_display", BlockDisplayEntity::new);
+            put(map, "minecraft:item_display", ItemDisplayEntity::new);
+            put(map, "minecraft:text_display", TextDisplayEntity::new);
+            put(map, "minecraft:slime", SlimeEntity::new);
+            put(map, "minecraft:magma_cube", SlimeEntity::new);
+            put(map, "minecraft:guardian", GuardianEntity::new);
+            put(map, "minecraft:elder_guardian", GuardianEntity::new);
+            put(map, "minecraft:vindicator", VindicatorEntity::new);
             return map;
         }
 
@@ -196,6 +229,45 @@ public final class SpeciesEntities {
         public TamableAnimalEntity(UUID uuid) {
             super(uuid);
         }
+
+        /**
+         * The owning player handle, or undefined when untamed or absent.
+         *
+         * @zh 主人玩家的实体句柄；未驯服或主人不在场时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public EntityApi.Entity getOwner() {
+            return speciesEntity("owner");
+        }
+
+        /**
+         * Whether the animal has been tamed.
+         *
+         * @zh 动物是否已被驯服。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isTamed() {
+            return speciesBool("tamed");
+        }
+
+        /**
+         * Whether the animal is sitting (ordered to stay).
+         *
+         * @zh 动物是否处于坐下（原地待命）状态。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isSitting() {
+            return speciesBool("sitting");
+        }
     }
 
     /**
@@ -240,6 +312,32 @@ public final class SpeciesEntities {
         public Boolean isSheared() {
             return speciesBool("sheared");
         }
+
+        /**
+         * Whether the sheep is currently shearable (grown wool, not a baby).
+         *
+         * @zh 羊当前是否可剪（毛已长成且非幼年）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isShearable() {
+            return speciesBool("shearable");
+        }
+
+        /**
+         * Whether the sheep is a rainbow "jeb_" sheep (name-driven).
+         *
+         * @zh 羊是否为 "jeb_" 彩虹羊（由自定义名称驱动）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isJeb() {
+            return speciesBool("jeb");
+        }
     }
 
     /**
@@ -271,6 +369,45 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public String getCollarColor() {
             return speciesString("collarColor");
+        }
+
+        /**
+         * Whether the wolf is currently angry at a player.
+         *
+         * @zh 狼当前是否处于愤怒状态。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isAngry() {
+            return speciesBool("angry");
+        }
+
+        /**
+         * Whether the wolf is shaking water off (wet state).
+         *
+         * @zh 狼是否处于甩水（潮湿）状态。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isWet() {
+            return speciesBool("wet");
+        }
+
+        /**
+         * The worn wolf armor item identifier, or undefined when bare.
+         *
+         * @zh 狼所穿护甲的物品标识；未穿戴时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getArmor() {
+            return speciesString("armor");
         }
     }
 
@@ -420,6 +557,33 @@ public final class SpeciesEntities {
         public Boolean isIgnited() {
             return speciesBool("ignited");
         }
+
+        /**
+         * The swell direction: 1 while building up, -1 while easing off,
+         * 0 when idle.
+         *
+         * @zh 膨胀方向：1 为鼓起，-1 为回落，0 为空闲。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getSwellDir() {
+            return speciesInt("swellDir");
+        }
+
+        /**
+         * The current swell progress from 0 to 1 (client-side animation).
+         *
+         * @zh 当前膨胀进度（0-1，客户端动画值）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getSwell() {
+            return speciesDouble("swell");
+        }
     }
 
     /**
@@ -546,6 +710,19 @@ public final class SpeciesEntities {
         public String getVariant() {
             return speciesString("variant");
         }
+
+        /**
+         * Whether the mooshroom is currently shearable.
+         *
+         * @zh 哞菇当前是否可剪。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isShearable() {
+            return speciesBool("shearable");
+        }
     }
 
     /**
@@ -574,6 +751,16 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public String getCarriedBlock() {
             return speciesString("carriedBlock");
+        }
+
+        /** Whether the enderman is screaming (agitated state).
+         * @zh 末影人是否处于嘶鸣（被激怒）状态。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isScreaming() {
+            return speciesBool("screaming");
         }
     }
 
@@ -680,6 +867,26 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public Integer getInventorySize() {
             return speciesInt("inventorySize");
+        }
+
+        /** Whether a saddle is currently equipped.
+         * @zh 当前是否已装备鞍。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isSaddled() {
+            return speciesBool("saddled");
+        }
+
+        /** The owning player handle, or undefined when ownerless.
+         * @zh 主人玩家的实体句柄；无主时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public EntityApi.Entity getOwner() {
+            return speciesEntity("owner");
         }
     }
 
@@ -894,6 +1101,25 @@ public final class SpeciesEntities {
             super(uuid);
         }
 
+        /** Whether a saddle is currently equipped.
+         * @zh 当前是否已装备鞍。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isSaddled() {
+            return speciesBool("saddled");
+        }
+
+        /** Whether the strider is shivering outside the lava it needs.
+         * @zh 炽足兽是否因离开熔岩而颤抖。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isShivering() {
+            return speciesBool("shivering");
+        }
     }
 
     /** A wither boss: invulnerable armor phase state.
@@ -1000,10 +1226,20 @@ public final class SpeciesEntities {
         public Boolean hasStung() {
             return speciesBool("stung");
         }
+
+        /** Whether the bee is currently angry at a player.
+         * @zh 蜜蜂当前是否对玩家处于愤怒状态。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isAngry() {
+            return speciesBool("angry");
+        }
     }
 
-    /** A fox: sitting state.
-     * @zh 狐狸：坐下状态。 */
+    /** A fox: coat variant and body-language states.
+     * @zh 狐狸：毛色变体与肢体状态。 */
     @ApiClass(name = "FoxEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.fox.Fox")
     @ApiSince("0.2.0")
@@ -1024,6 +1260,56 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public Boolean isSitting() {
             return speciesBool("sitting");
+        }
+
+        /** The coat variant identifier ({@code minecraft:red} or {@code minecraft:snow}).
+         * @zh 毛色变体标识（{@code minecraft:red} 或 {@code minecraft:snow}）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getVariant() {
+            return speciesString("variant");
+        }
+
+        /** Whether the fox is pouncing (leaping at prey).
+         * @zh 狐狸是否正在扑杀（跃向猎物）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isPouncing() {
+            return speciesBool("pouncing");
+        }
+
+        /** Whether the fox is asleep curled up.
+         * @zh 狐狸是否正在蜷缩睡觉。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isAsleep() {
+            return speciesBool("sleeping");
+        }
+
+        /** Whether the fox has faceplanted while diving for prey.
+         * @zh 狐狸是否在扑猎时头朝下扎进雪里。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isFaceplanted() {
+            return speciesBool("faceplanted");
+        }
+
+        /** Whether the fox is crouching toward prey.
+         * @zh 狐狸是否正压低身子潜近猎物。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isCrouching() {
+            return speciesBool("crouching");
         }
     }
 
@@ -1049,6 +1335,26 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public String getVariant() {
             return speciesString("variant");
+        }
+
+        /** Whether the frog is currently croaking.
+         * @zh 青蛙当前是否正在鸣叫。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isCroaking() {
+            return speciesBool("croaking");
+        }
+
+        /** The entity currently targeted by the tongue, or undefined.
+         * @zh 舌头当前瞄准的实体；无目标时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public EntityApi.Entity getTongueTarget() {
+            return speciesEntity("tongueTarget");
         }
     }
 
@@ -1170,10 +1476,80 @@ public final class SpeciesEntities {
         public Boolean isLazy() {
             return speciesBool("lazy");
         }
+
+        /** Whether the panda is sitting.
+         * @zh 熊猫是否正在坐下。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isSitting() {
+            return speciesBool("sitting");
+        }
+
+        /** Whether the panda looks worried (near a thunderstorm).
+         * @zh 熊猫是否处于担忧状态（雷暴临近）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isWorried() {
+            return speciesBool("worried");
+        }
+
+        /** Whether the panda is being playful.
+         * @zh 熊猫是否处于顽皮状态。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isPlayful() {
+            return speciesBool("playful");
+        }
+
+        /** Whether the panda is rolling around.
+         * @zh 熊猫是否正在打滚。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isRolling() {
+            return speciesBool("rolling");
+        }
+
+        /** Whether the panda shows the brown (rare) look.
+         * @zh 熊猫是否为棕色（罕见）外观。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isBrown() {
+            return speciesBool("brown");
+        }
+
+        /** Whether the panda is the weak variant (lower health).
+         * @zh 熊猫是否为虚弱变体（更低生命）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isWeak() {
+            return speciesBool("weak");
+        }
+
+        /** Whether the panda is scared and hiding.
+         * @zh 熊猫是否因受惊而躲避。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isScared() {
+            return speciesBool("scared");
+        }
     }
 
-    /** A parrot: variant.
-     * @zh 鹦鹉：变体。 */
+    /** A parrot: variant and party state.
+     * @zh 鹦鹉：变体与起舞状态。 */
     @ApiClass(name = "ParrotEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.parrot.Parrot")
     @ApiSince("0.2.0")
@@ -1194,6 +1570,16 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public String getVariant() {
             return speciesString("variant");
+        }
+
+        /** Whether the parrot is dancing to a nearby jukebox.
+         * @zh 鹦鹉是否正跟着唱片机起舞。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isPartying() {
+            return speciesBool("partying");
         }
     }
 
@@ -1245,6 +1631,26 @@ public final class SpeciesEntities {
         public String getColor() {
             return speciesString("color");
         }
+
+        /** The face direction the shulker is attached to (e.g. {@code north}).
+         * @zh 潜影贝附着面朝向（如 {@code north}）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getAttachFace() {
+            return speciesString("attachFace");
+        }
+
+        /** The current shell opening amount from 0 (closed) to 1.
+         * @zh 壳当前张开程度（0 为闭合，1 为全开）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getPeek() {
+            return speciesDouble("peek");
+        }
     }
 
     /** A snow golem: pumpkin hat state.
@@ -1270,6 +1676,16 @@ public final class SpeciesEntities {
         public Boolean hasPumpkin() {
             return speciesBool("pumpkin");
         }
+
+        /** Whether the snow golem is currently shearable.
+         * @zh 雪傀儡当前是否可剪。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isShearable() {
+            return speciesBool("shearable");
+        }
     }
 
     /** A turtle: egg-laying state.
@@ -1294,6 +1710,16 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public Boolean hasEgg() {
             return speciesBool("hasEgg");
+        }
+
+        /** The home beach position the turtle returns to ({@code x, y, z}).
+         * @zh 海龟回归的家沙滩坐标（{@code x, y, z}）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Object getHomePos() {
+            return speciesState().get("homePos");
         }
     }
 
@@ -1329,7 +1755,7 @@ public final class SpeciesEntities {
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class WitchEntity extends MobEntity {
+    public static class WitchEntity extends AbstractIllagerEntity {
 
         /** Creates the handle for one witch UUID. */
         public WitchEntity(UUID uuid) {
@@ -1369,6 +1795,16 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public Integer getMoistness() {
             return speciesInt("moistness");
+        }
+
+        /** Whether the dolphin currently has a fish in its mouth.
+         * @zh 海豚当前是否叼着鱼。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasFish() {
+            return speciesBool("hasFish");
         }
     }
 
@@ -2056,7 +2492,7 @@ public final class SpeciesEntities {
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class PillagerEntity extends MobEntity {
+    public static class PillagerEntity extends AbstractIllagerEntity {
 
         /** Creates the handle for one pillager UUID. */
         public PillagerEntity(UUID uuid) {
@@ -2077,31 +2513,18 @@ public final class SpeciesEntities {
         }
     }
 
-    /** An evoker: spell casting state.
-     * @zh 唤魔者：施法状态。 */
+    /** An evoker: spell casting state (inherits the spellcaster surface).
+     * @zh 唤魔者：施法状态（继承施法者成员面）。 */
     @ApiClass(name = "EvokerEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.monster.illager.Evoker")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static class EvokerEntity extends MobEntity {
+    public static class EvokerEntity extends SpellcasterIllagerEntity {
 
         /** Creates the handle for one evoker UUID. */
         public EvokerEntity(UUID uuid) {
             super(uuid);
-        }
-
-        /**
-         * Whether the evoker is casting a spell.
-         *
-         * @zh 唤魔者是否正在施法。
-         */
-        @ApiSince("0.2.0")
-        @ApiMC("*")
-        @ApiLoader("*")
-        @ApiReadOnly
-        public Boolean isCastingSpell() {
-            return speciesBool("castingSpell");
         }
     }
 
@@ -2445,6 +2868,781 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public Integer getWaitTime() {
             return speciesInt("waitTime");
+        }
+
+        /**
+         * The cloud particle type identifier, e.g. {@code minecraft:effect}.
+         *
+         * @zh 效果云粒子类型标识，如 {@code minecraft:effect}。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getParticle() {
+            return speciesString("particle");
+        }
+    }
+
+    /** Projectile base: shared state for arrows, tridents, and skulls.
+     * @zh 弹射物基类：箭、三叉戟与凋灵之首的共享状态。 */
+    @ApiClass(name = "ProjectileEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.projectile.Projectile")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class ProjectileEntity extends EntityApi.Entity {
+
+        /** Creates the handle for one projectile UUID. */
+        public ProjectileEntity(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** Abstract arrow base: crit and piercing state.
+     * @zh 箭类基类：暴击与穿透状态。 */
+    @ApiClass(name = "AbstractArrowEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.projectile.arrow.AbstractArrow")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class AbstractArrowEntity extends ProjectileEntity {
+
+        /** Creates the handle for one arrow UUID. */
+        public AbstractArrowEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the arrow is a critical hit arrow.
+         * @zh 是否为暴击箭。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isCritical() {
+            return speciesBool("critical");
+        }
+
+        /** The piercing level (0 for non-piercing shots).
+         * @zh 穿透等级（普通射击为 0）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getPierceLevel() {
+            return speciesInt("pierceLevel");
+        }
+    }
+
+    /** An arrow: the tip potion color.
+     * @zh 箭：药水箭尖颜色。 */
+    @ApiClass(name = "ArrowEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.projectile.arrow.Arrow")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class ArrowEntity extends AbstractArrowEntity {
+
+        /** Creates the handle for one arrow UUID. */
+        public ArrowEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The potion arrow color as packed RGB, or undefined for plain arrows.
+         * @zh 药水箭颜色（RGB 打包整数）；普通箭为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getColor() {
+            return speciesInt("color");
+        }
+    }
+
+    /** A thrown trident: enchantment foil state.
+     * @zh 掷出的三叉戟：附魔光泽状态。 */
+    @ApiClass(name = "ThrownTridentEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.projectile.arrow.ThrownTrident")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class ThrownTridentEntity extends AbstractArrowEntity {
+
+        /** Creates the handle for one trident UUID. */
+        public ThrownTridentEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the trident renders with enchantment foil.
+         * @zh 三叉戟是否带附魔光泽。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isFoil() {
+            return speciesBool("foil");
+        }
+    }
+
+    /** A wither skull: charged (blue) state.
+     * @zh 凋灵之首：充能（蓝色）状态。 */
+    @ApiClass(name = "WitherSkullEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.projectile.hurtingprojectile.WitherSkull")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class WitherSkullEntity extends ProjectileEntity {
+
+        /** Creates the handle for one wither skull UUID. */
+        public WitherSkullEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether this is the charged blue skull variant.
+         * @zh 是否为充能的蓝色凋灵之首。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isCharged() {
+            return speciesBool("charged");
+        }
+    }
+
+    /** A fishing bobber: hook state and open-water flag.
+     * @zh 浮漂：钩住状态与开阔水域标记。 */
+    @ApiClass(name = "FishingHookEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.projectile.FishingHook")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class FishingHookEntity extends ProjectileEntity {
+
+        /** Creates the handle for one fishing hook UUID. */
+        public FishingHookEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The entity currently hooked on the line, or undefined.
+         * @zh 当前被钩住的实体；无钩住目标时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public EntityApi.Entity getHookedEntity() {
+            return speciesEntity("hooked");
+        }
+
+        /** Whether the bobber floats in open water.
+         * @zh 浮漂是否处于开阔水域。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isOpenWater() {
+            return speciesBool("openWater");
+        }
+
+        /** The angling player handle, or undefined.
+         * @zh 垂钓玩家的实体句柄；无主时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public EntityApi.Entity getAngler() {
+            return speciesEntity("angler");
+        }
+    }
+
+    /** A boat: submerged state.
+     * @zh 船：水下浸没状态。 */
+    @ApiClass(name = "BoatEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.vehicle.boat.AbstractBoat")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class BoatEntity extends EntityApi.Entity {
+
+        /** Creates the handle for one boat UUID. */
+        public BoatEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether the boat hull is fully under water.
+         * @zh 船体是否完全没入水下。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isUnderWater() {
+            return speciesBool("underWater");
+        }
+    }
+
+    /** A chest boat (discriminated also by the {@code chest_boat} type id).
+     * @zh 运输船（也可经 {@code chest_boat} 类型标识判别）。 */
+    @ApiClass(name = "ChestBoatEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.vehicle.boat.AbstractChestBoat")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class ChestBoatEntity extends BoatEntity {
+
+        /** Creates the handle for one chest boat UUID. */
+        public ChestBoatEntity(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** Minecart base.
+     * @zh 矿车基类。 */
+    @ApiClass(name = "AbstractMinecartEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.vehicle.minecart.AbstractMinecart")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class AbstractMinecartEntity extends EntityApi.Entity {
+
+        /** Creates the handle for one minecart UUID. */
+        public AbstractMinecartEntity(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** A furnace minecart (fuel state has no client accessor).
+     * @zh 动力矿车（燃料状态无客户端访问器）。 */
+    @ApiClass(name = "MinecartFurnaceEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.vehicle.minecart.MinecartFurnace")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class MinecartFurnaceEntity extends AbstractMinecartEntity {
+
+        /** Creates the handle for one furnace minecart UUID. */
+        public MinecartFurnaceEntity(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** A TNT minecart: fuse countdown.
+     * @zh TNT 矿车：引信倒计时。 */
+    @ApiClass(name = "MinecartTntEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.vehicle.minecart.MinecartTNT")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class MinecartTntEntity extends AbstractMinecartEntity {
+
+        /** Creates the handle for one TNT minecart UUID. */
+        public MinecartTntEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The remaining fuse ticks, or undefined when not primed.
+         * @zh 剩余引信 tick；未点燃时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getFuse() {
+            return speciesInt("fuse");
+        }
+
+        /** Whether the TNT cart is primed and about to explode.
+         * @zh TNT 矿车是否已点燃即将爆炸。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isPrimed() {
+            return speciesBool("primed");
+        }
+    }
+
+    /** An end crystal: beam target and base state.
+     * @zh 末影水晶：光束目标与底座状态。 */
+    @ApiClass(name = "EndCrystalEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.boss.enderdragon.EndCrystal")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class EndCrystalEntity extends EntityApi.Entity {
+
+        /** Creates the handle for one end crystal UUID. */
+        public EndCrystalEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The position the healing beam points at, or undefined.
+         * @zh 治愈光束指向的坐标；无目标时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Object getBeamTarget() {
+            return speciesState().get("beamTarget");
+        }
+
+        /** Whether the bedrock base is rendered.
+         * @zh 是否渲染基岩底座。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isShowingBottom() {
+            return speciesBool("showBottom");
+        }
+    }
+
+    /** An interaction entity: hitbox size and response state.
+     * @zh 交互实体：碰撞箱尺寸与响应状态。 */
+    @ApiClass(name = "InteractionEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.Interaction")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class InteractionEntity extends EntityApi.Entity {
+
+        /** Creates the handle for one interaction UUID. */
+        public InteractionEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The hitbox width in blocks.
+         * @zh 碰撞箱宽度（格）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getWidth() {
+            return speciesDouble("width");
+        }
+
+        /** The hitbox height in blocks.
+         * @zh 碰撞箱高度（格）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getHeight() {
+            return speciesDouble("height");
+        }
+
+        /** Whether the entity responds to interactions.
+         * @zh 该实体是否响应交互。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isResponsive() {
+            return speciesBool("response");
+        }
+
+        /** The last attacker entity handle, or undefined.
+         * @zh 最近攻击者的实体句柄；无记录时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public EntityApi.Entity getLastAttacker() {
+            return speciesEntity("lastAttacker");
+        }
+
+        /** The last interacting entity handle, or undefined.
+         * @zh 最近交互者的实体句柄；无记录时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public EntityApi.Entity getLastInteracted() {
+            return speciesEntity("lastInteracted");
+        }
+    }
+
+    /** Hanging decoration base (paintings, item frames).
+     * @zh 悬挂装饰基类（画与物品展示框）。 */
+    @ApiClass(name = "HangingEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.decoration.HangingEntity")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class HangingEntity extends EntityApi.Entity {
+
+        /** Creates the handle for one hanging decoration UUID. */
+        public HangingEntity(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** A painting: artwork id and dimensions.
+     * @zh 画：画作标识与尺寸。 */
+    @ApiClass(name = "PaintingEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.decoration.painting.Painting")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class PaintingEntity extends HangingEntity {
+
+        /** Creates the handle for one painting UUID. */
+        public PaintingEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The artwork identifier, e.g. {@code minecraft:wanderer}.
+         * @zh 画作标识，如 {@code minecraft:wanderer}。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getArtId() {
+            return speciesString("artId");
+        }
+
+        /** The artwork width in blocks.
+         * @zh 画作宽度（格）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getWidth() {
+            return speciesInt("width");
+        }
+
+        /** The artwork height in blocks.
+         * @zh 画作高度（格）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getHeight() {
+            return speciesInt("height");
+        }
+    }
+
+    /** Display entity base: billboard, brightness, scaling, and shadow
+     * settings shared by block/item/text displays.
+     * @zh 展示实体基类：方块/物品/文本展示共享的公告板、亮度、缩放与阴影设置。 */
+    @ApiClass(name = "DisplayEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.Display")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class DisplayEntity extends EntityApi.Entity {
+
+        /** Creates the handle for one display UUID. */
+        public DisplayEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The billboard mode ({@code fixed}, {@code vertical}, {@code horizontal},
+         * or {@code center}).
+         * @zh 公告板模式（{@code fixed}、{@code vertical}、{@code horizontal} 或 {@code center}）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getBillboard() {
+            return speciesString("billboard");
+        }
+
+        /** The packed light override, or undefined when following the world.
+         * @zh 光照覆盖值（打包格式）；跟随世界光照时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getBrightness() {
+            return speciesInt("brightness");
+        }
+
+        /** The display width scale multiplier.
+         * @zh 显示宽度缩放倍率。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getDisplayWidth() {
+            return speciesDouble("displayWidth");
+        }
+
+        /** The display height scale multiplier.
+         * @zh 显示高度缩放倍率。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getDisplayHeight() {
+            return speciesDouble("displayHeight");
+        }
+
+        /** The glow color override as packed RGB, or undefined.
+         * @zh 发光颜色覆盖（RGB 打包整数）；未覆盖时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getGlowColorOverride() {
+            return speciesInt("glowColorOverride");
+        }
+
+        /** The view range multiplier.
+         * @zh 可见距离倍率。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getViewRange() {
+            return speciesDouble("viewRange");
+        }
+
+        /** The shadow radius in blocks.
+         * @zh 阴影半径（格）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getShadowRadius() {
+            return speciesDouble("shadowRadius");
+        }
+
+        /** The shadow strength from 0 to 1.
+         * @zh 阴影强度（0-1）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getShadowStrength() {
+            return speciesDouble("shadowStrength");
+        }
+    }
+
+    /** A block display: the rendered block id.
+     * @zh 方块展示实体：所渲染的方块标识。 */
+    @ApiClass(name = "BlockDisplayEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.Display$BlockDisplay")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class BlockDisplayEntity extends DisplayEntity {
+
+        /** Creates the handle for one block display UUID. */
+        public BlockDisplayEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The rendered block identifier.
+         * @zh 渲染方块的标识。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getBlock() {
+            return speciesString("block");
+        }
+    }
+
+    /** An item display: the rendered stack.
+     * @zh 物品展示实体：所渲染的物品堆。 */
+    @ApiClass(name = "ItemDisplayEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.Display$ItemDisplay")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class ItemDisplayEntity extends DisplayEntity {
+
+        /** Creates the handle for one item display UUID. */
+        public ItemDisplayEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The rendered stack.
+         * @zh 渲染的物品堆。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.ItemStack getItem() {
+            Object data = speciesState().get("item");
+            return data instanceof ink.tuanzi.neomacros.port.model.ItemStackData stack
+                    ? ink.tuanzi.neomacros.core.api.types.ItemStack.of(stack) : null;
+        }
+    }
+
+    /** A text display: the rendered text and background.
+     * @zh 文本展示实体：所渲染的文本与背景。 */
+    @ApiClass(name = "TextDisplayEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.Display$TextDisplay")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class TextDisplayEntity extends DisplayEntity {
+
+        /** Creates the handle for one text display UUID. */
+        public TextDisplayEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The rendered plain text.
+         * @zh 渲染的纯文本内容。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getText() {
+            return speciesString("text");
+        }
+
+        /** The background color as packed ARGB.
+         * @zh 背景颜色（ARGB 打包整数）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getBackgroundColor() {
+            return speciesInt("backgroundColor");
+        }
+    }
+
+    /** A slime (or magma cube): its size tier.
+     * @zh 史莱姆（含岩浆怪）：体型档位。 */
+    @ApiClass(name = "SlimeEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.cubemob.Slime")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class SlimeEntity extends MobEntity {
+
+        /** Creates the handle for one slime UUID. */
+        public SlimeEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The size tier (1 for small, up to the natural maximum of 4).
+         * @zh 体型档位（小为 1，自然最大为 4）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getSize() {
+            return speciesInt("size");
+        }
+    }
+
+    /** A guardian: the laser attack target.
+     * @zh 守卫者：激光攻击目标。 */
+    @ApiClass(name = "GuardianEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.Guardian")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class GuardianEntity extends MobEntity {
+
+        /** Creates the handle for one guardian UUID. */
+        public GuardianEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The entity currently targeted by the laser, or undefined.
+         * @zh 激光当前瞄准的实体；无目标时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public EntityApi.Entity getActiveTarget() {
+            return speciesEntity("activeTarget");
+        }
+    }
+
+    /** Illager base: the arm pose shared by pillagers, vindicators,
+     * evokers, and witches.
+     * @zh 灾厄村民基类：掠夺者、卫道士、唤魔者与女巫共享的手臂姿态。 */
+    @ApiClass(name = "AbstractIllagerEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.illager.AbstractIllager")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class AbstractIllagerEntity extends MobEntity {
+
+        /** Creates the handle for one illager UUID. */
+        public AbstractIllagerEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** The current arm pose (e.g. {@code crossed}, {@code attacking},
+         * {@code spellcasting}, {@code bow_and_arrow}, {@code celebrating},
+         * {@code neutral}).
+         * @zh 当前手臂姿态（如 {@code crossed}、{@code attacking}、{@code spellcasting}、{@code bow_and_arrow}、{@code celebrating}、{@code neutral}）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getArmPose() {
+            return speciesString("armPose");
+        }
+    }
+
+    /** A spellcasting illager: spell casting state.
+     * @zh 施法者灾厄村民：施法状态。 */
+    @ApiClass(name = "SpellcasterIllagerEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.illager.SpellcasterIllager")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class SpellcasterIllagerEntity extends AbstractIllagerEntity {
+
+        /** Creates the handle for one spellcaster UUID. */
+        public SpellcasterIllagerEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether a spell is currently being cast.
+         * @zh 当前是否正在施法。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isCastingSpell() {
+            return speciesBool("castingSpell");
+        }
+    }
+
+    /** A vindicator (the {@code johnny} flag has no client accessor).
+     * @zh 卫道士（{@code johnny} 标记无客户端访问器）。 */
+    @ApiClass(name = "VindicatorEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.monster.illager.Vindicator")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class VindicatorEntity extends AbstractIllagerEntity {
+
+        /** Creates the handle for one vindicator UUID. */
+        public VindicatorEntity(UUID uuid) {
+            super(uuid);
+        }
+    }
+
+    /** A pig: saddle state.
+     * @zh 猪：鞍状态。 */
+    @ApiClass(name = "PigEntity", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.entity.animal.pig.Pig")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class PigEntity extends AnimalEntity {
+
+        /** Creates the handle for one pig UUID. */
+        public PigEntity(UUID uuid) {
+            super(uuid);
+        }
+
+        /** Whether a saddle is currently equipped.
+         * @zh 当前是否已装备鞍。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isSaddled() {
+            return speciesBool("saddled");
         }
     }
 }

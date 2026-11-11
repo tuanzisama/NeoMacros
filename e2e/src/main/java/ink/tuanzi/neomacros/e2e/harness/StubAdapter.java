@@ -600,7 +600,7 @@ public final class StubAdapter implements NeomacrosAdapter {
         ScoreboardData scoreboard;
         TpsData tps;
         ChunkData chunk;
-        final java.util.List<Pos3d> foundBlocks = new ArrayList<>();
+        public final java.util.List<Pos3d> foundBlocks = new ArrayList<>();
         final List<BossBarSnapshot> bossBars = new ArrayList<>();
         final List<String> playedSounds = new ArrayList<>();
         final List<String> spawnedParticles = new ArrayList<>();
@@ -682,6 +682,55 @@ public final class StubAdapter implements NeomacrosAdapter {
                 double speed) {
             spawnedParticles.add(particleId);
         }
+
+        /** Records the last findBlocksMatching request for scenario assertions. */
+        public volatile java.util.Map<String, Object> lastScanRequest;
+        /** Records every scan request in call order for scenario assertions. */
+        public final java.util.List<java.util.Map<String, Object>> scanRequests =
+                new java.util.concurrent.CopyOnWriteArrayList<>();
+
+        @Override
+        public java.util.List<Pos3d> findBlocks(java.util.List<String> blockIds,
+                Pos3d center, int range, int limit) {
+            return findBlocksMatching(blockIds, null, null, center, range, limit, false);
+        }
+
+        @Override
+        public java.util.List<Pos3d> findBlocksMatching(java.util.List<String> blockIds,
+                String idPattern, java.util.Map<String, Object> stateFilters,
+                Pos3d center, int range, int limit, boolean sphere) {
+            java.util.Map<String, Object> request = new java.util.LinkedHashMap<>();
+            request.put("types", blockIds == null ? java.util.List.of() : blockIds);
+            request.put("idPattern", idPattern);
+            request.put("states", stateFilters);
+            request.put("center", center);
+            request.put("range", range);
+            request.put("limit", limit);
+            request.put("sphere", sphere);
+            lastScanRequest = request;
+            scanRequests.add(request);
+            return java.util.List.copyOf(foundBlocks);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<java.util.List<Pos3d>> scanBlocks(
+                java.util.List<String> blockIds, String idPattern,
+                java.util.Map<String, Object> stateFilters, Pos3d center,
+                int range, int limit, boolean sphere) {
+            java.util.Map<String, Object> request = new java.util.LinkedHashMap<>();
+            request.put("types", blockIds == null ? java.util.List.of() : blockIds);
+            request.put("idPattern", idPattern);
+            request.put("states", stateFilters);
+            request.put("center", center);
+            request.put("range", range);
+            request.put("limit", limit);
+            request.put("sphere", sphere);
+            request.put("async", true);
+            lastScanRequest = request;
+            scanRequests.add(request);
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    java.util.List.copyOf(foundBlocks));
+        }
     }
 
     /** Entity queries over a canned snapshot list. */
@@ -708,6 +757,23 @@ public final class StubAdapter implements NeomacrosAdapter {
                 double dy = entity.pos().y() - center.y();
                 double dz = entity.pos().z() - center.z();
                 if (dx * dx + dy * dy + dz * dz <= squared && filter.test(entity)) {
+                    hits.add(entity);
+                }
+            }
+            return List.copyOf(hits);
+        }
+
+        @Override
+        public List<EntitySnapshot> inBox(Pos3d min, Pos3d max, Predicate<EntitySnapshot> filter) {
+            List<EntitySnapshot> hits = new ArrayList<>();
+            for (EntitySnapshot entity : entities) {
+                Pos3d pos = entity.pos();
+                if (pos.x() < min.x() || pos.x() > max.x()
+                        || pos.y() < min.y() || pos.y() > max.y()
+                        || pos.z() < min.z() || pos.z() > max.z()) {
+                    continue;
+                }
+                if (filter.test(entity)) {
                     hits.add(entity);
                 }
             }

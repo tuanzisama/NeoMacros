@@ -25,6 +25,15 @@ public interface EntityPort {
      */
     List<EntitySnapshot> inRadius(Pos3d center, double range, Predicate<EntitySnapshot> filter);
 
+    /**
+     * Returns snapshots of all entities inside the axis-aligned box spanned
+     * by {@code min} and {@code max} (inclusive) that pass the filter; an
+     * empty list without a loaded world or when the box is inverted.
+     */
+    default List<EntitySnapshot> inBox(Pos3d min, Pos3d max, Predicate<EntitySnapshot> filter) {
+        return List.of();
+    }
+
 
     /**
      * Returns the raw host object behind the entity, or empty when unloaded.

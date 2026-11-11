@@ -368,34 +368,52 @@ public final class FabricWorldPort implements WorldPort {
     @Override
     public java.util.List<Pos3d> findBlocks(java.util.List<String> blockIds,
             Pos3d center, int range, int limit) {
+        return findBlocksMatching(blockIds, null, null, center, range, limit, false);
+    }
+
+    @Override
+    public java.util.List<Pos3d> findBlocksMatching(java.util.List<String> blockIds,
+            String idPattern, java.util.Map<String, Object> stateFilters,
+            Pos3d center, int range, int limit, boolean sphere) {
         return MainThread.run(() -> {
             ClientLevel level = Minecraft.getInstance().level;
             if (level == null) {
                 return java.util.List.of();
             }
-            java.util.List<net.minecraft.world.level.block.Block> targets = new ArrayList<>();
-            for (String raw : blockIds) {
-                String id = raw.indexOf(':') >= 0 ? raw : "minecraft:" + raw;
-                var block = BuiltInRegistries.BLOCK.getValue(
-                        net.minecraft.resources.Identifier.tryParse(id));
-                if (block != null) {
-                    targets.add(block);
+            java.util.List<String> exactIds = new ArrayList<>();
+            if (blockIds != null) {
+                for (String raw : blockIds) {
+                    exactIds.add(raw.indexOf(':') >= 0 ? raw : "minecraft:" + raw);
                 }
             }
-            if (targets.isEmpty()) {
+            if (exactIds.isEmpty() && (idPattern == null || idPattern.isBlank())) {
                 return java.util.List.of();
             }
-            int clampedRange = Math.max(0, Math.min(32, range));
-            int clampedLimit = Math.max(1, Math.min(512, limit));
+            java.util.regex.Pattern pattern =
+                    idPattern != null && !idPattern.isBlank()
+                            ? BlockScanMatcher.compileGlob(idPattern) : null;
+            int clampedRange = Math.max(0, Math.min(48, range));
+            int clampedLimit = Math.max(1, Math.min(1024, limit));
             java.util.List<Pos3d> out = new ArrayList<>();
             int baseX = (int) Math.floor(center.x());
             int baseY = (int) Math.floor(center.y());
             int baseZ = (int) Math.floor(center.z());
+            long squaredRange = (long) clampedRange * clampedRange;
             for (int dx = -clampedRange; dx <= clampedRange; dx++) {
                 for (int dy = -clampedRange; dy <= clampedRange; dy++) {
                     for (int dz = -clampedRange; dz <= clampedRange; dz++) {
+                        if (sphere && (long) dx * dx + (long) dy * dy + (long) dz * dz
+                                > squaredRange) {
+                            continue;
+                        }
                         BlockPos pos = new BlockPos(baseX + dx, baseY + dy, baseZ + dz);
-                        if (targets.contains(level.getBlockState(pos).getBlock())) {
+                        BlockState state = level.getBlockState(pos);
+                        String id = BuiltInRegistries.BLOCK
+                                .getKey(state.getBlock()).toString();
+                        boolean idHit = pattern != null
+                                ? pattern.matcher(id).matches()
+                                : exactIds.contains(id);
+                        if (idHit && BlockScanMatcher.stateMatches(state, stateFilters)) {
                             out.add(toPos3d(pos));
                             if (out.size() >= clampedLimit) {
                                 return out;
@@ -406,6 +424,21 @@ public final class FabricWorldPort implements WorldPort {
             }
             return out;
         });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<java.util.List<Pos3d>> scanBlocks(
+            java.util.List<String> blockIds, String idPattern,
+            java.util.Map<String, Object> stateFilters, Pos3d center,
+            int range, int limit, boolean sphere) {
+        java.util.List<String> exactIds = new ArrayList<>();
+        if (blockIds != null) {
+            for (String raw : blockIds) {
+                exactIds.add(raw.indexOf(':') >= 0 ? raw : "minecraft:" + raw);
+            }
+        }
+        return BlockScanScheduler.submit(exactIds, idPattern, stateFilters,
+                center, range, limit, sphere);
     }
 
     /** Neutral physics/light extras read off one block state. */

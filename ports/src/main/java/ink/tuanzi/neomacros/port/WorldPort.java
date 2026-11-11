@@ -140,6 +140,38 @@ public interface WorldPort {
      */
     default java.util.List<Pos3d> findBlocks(java.util.List<String> blockIds,
             Pos3d center, int range, int limit) {
+        return findBlocksMatching(blockIds, null, null, center, range, limit, false);
+    }
+
+    /**
+     * Extended synchronous scan: matches blocks whose id is one of
+     * {@code blockIds} or (when {@code idPattern} is non-null) whose id
+     * matches the glob pattern ({@code *} and {@code ?} wildcards), further
+     * filtered by the {@code stateFilters} property map (stringified
+     * comparison), inside the cube or sphere around the center. Adapters cap
+     * the scanned volume to keep the main thread responsive.
+     */
+    default java.util.List<Pos3d> findBlocksMatching(java.util.List<String> blockIds,
+            String idPattern, java.util.Map<String, Object> stateFilters,
+            Pos3d center, int range, int limit, boolean sphere) {
         return java.util.List.of();
+    }
+
+    /**
+     * Starts a large-volume block scan with the same matching rules as
+     * {@link #findBlocksMatching}; the adapter executes the scan in
+     * per-tick slices and completes the future with the matched positions
+     * (up to {@code limit}), or completes exceptionally on timeout,
+     * over-capacity submission, or a world change mid-scan.
+     */
+    default java.util.concurrent.CompletableFuture<java.util.List<Pos3d>> scanBlocks(
+            java.util.List<String> blockIds, String idPattern,
+            java.util.Map<String, Object> stateFilters, Pos3d center,
+            int range, int limit, boolean sphere) {
+        java.util.concurrent.CompletableFuture<java.util.List<Pos3d>> future =
+                new java.util.concurrent.CompletableFuture<>();
+        future.completeExceptionally(
+                new UnsupportedOperationException("scanBlocks is not supported here"));
+        return future;
     }
 }

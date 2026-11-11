@@ -42,6 +42,18 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
         replace("world.entity.monster.illager.Pillager", "world.entity.monster.Pillager")
         replace("world.entity.monster.illager.Evoker", "world.entity.monster.Evoker")
         replace("world.entity.npc.wanderingtrader.WanderingTrader", "world.entity.npc.WanderingTrader")
+        // 26.1 also grouped the remaining projectile/vehicle/decoration species
+        // into their subpackages; the flat pre-26.1 tree keeps them one level up.
+        replace("world.entity.projectile.arrow.AbstractArrow", "world.entity.projectile.AbstractArrow")
+        replace("world.entity.projectile.arrow.Arrow", "world.entity.projectile.Arrow")
+        replace("world.entity.projectile.arrow.ThrownTrident", "world.entity.projectile.ThrownTrident")
+        replace("world.entity.projectile.hurtingprojectile.WitherSkull", "world.entity.projectile.WitherSkull")
+        replace("world.entity.decoration.painting.Painting", "world.entity.decoration.Painting")
+        replace("world.entity.animal.pig.Pig", "world.entity.animal.Pig")
+        replace("world.entity.monster.illager.AbstractIllager", "world.entity.monster.AbstractIllager")
+        replace("world.entity.monster.illager.SpellcasterIllager", "world.entity.monster.SpellcasterIllager")
+        replace("world.entity.vehicle.boat.AbstractBoat", "world.entity.vehicle.AbstractBoat")
+        replace("world.entity.vehicle.minecart.MinecartTNT", "world.entity.vehicle.MinecartTNT")
         // The command tag accessor renamed after 1.21.6; the 26.x era keeps
         // the entityTags() spelling everywhere else.
         replace("living.entityTags()", "living.getTags()")
@@ -102,5 +114,7 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
         replace("gui.setScreen(", "setScreen(")
         // The main framebuffer accessor moved onto the game renderer.
         replace("gameRenderer.mainRenderTarget()", "getMainRenderTarget()")
+        // 26.2 grouped slimes (and cubes) into the monster/cubemob package.
+        replace("world.entity.monster.cubemob.Slime", "world.entity.monster.Slime")
     }
 }

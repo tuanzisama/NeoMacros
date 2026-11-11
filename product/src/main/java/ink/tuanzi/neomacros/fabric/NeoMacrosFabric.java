@@ -258,6 +258,31 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("FallingBlockEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.FallingBlockEntity.class);
         registry.registerGuestType("ItemFrameEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.ItemFrameEntity.class);
         registry.registerGuestType("AreaEffectCloudEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.AreaEffectCloudEntity.class);
+        registry.registerGuestType("ProjectileEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.ProjectileEntity.class);
+        registry.registerGuestType("AbstractArrowEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.AbstractArrowEntity.class);
+        registry.registerGuestType("ArrowEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.ArrowEntity.class);
+        registry.registerGuestType("ThrownTridentEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.ThrownTridentEntity.class);
+        registry.registerGuestType("WitherSkullEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.WitherSkullEntity.class);
+        registry.registerGuestType("FishingHookEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.FishingHookEntity.class);
+        registry.registerGuestType("BoatEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.BoatEntity.class);
+        registry.registerGuestType("ChestBoatEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.ChestBoatEntity.class);
+        registry.registerGuestType("AbstractMinecartEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.AbstractMinecartEntity.class);
+        registry.registerGuestType("MinecartFurnaceEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.MinecartFurnaceEntity.class);
+        registry.registerGuestType("MinecartTntEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.MinecartTntEntity.class);
+        registry.registerGuestType("EndCrystalEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.EndCrystalEntity.class);
+        registry.registerGuestType("InteractionEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.InteractionEntity.class);
+        registry.registerGuestType("HangingEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.HangingEntity.class);
+        registry.registerGuestType("PaintingEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.PaintingEntity.class);
+        registry.registerGuestType("DisplayEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.DisplayEntity.class);
+        registry.registerGuestType("BlockDisplayEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.BlockDisplayEntity.class);
+        registry.registerGuestType("ItemDisplayEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.ItemDisplayEntity.class);
+        registry.registerGuestType("TextDisplayEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.TextDisplayEntity.class);
+        registry.registerGuestType("SlimeEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.SlimeEntity.class);
+        registry.registerGuestType("GuardianEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.GuardianEntity.class);
+        registry.registerGuestType("AbstractIllagerEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.AbstractIllagerEntity.class);
+        registry.registerGuestType("SpellcasterIllagerEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.SpellcasterIllagerEntity.class);
+        registry.registerGuestType("VindicatorEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.VindicatorEntity.class);
+        registry.registerGuestType("PigEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.PigEntity.class);
         registry.registerGuestType("Component", ink.tuanzi.neomacros.core.api.types.Component.class);
         registry.registerGuestType("TextComponent", ink.tuanzi.neomacros.core.api.types.TextComponent.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
@@ -608,7 +633,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                 click.containerId(), click.kind(), click.slot(),
                                 click.button(), click.shift())));
 
-        ClientTickEvents.START_CLIENT_TICK.register(mc -> runtime.mainThread().runQueuedTasks());
+        ClientTickEvents.START_CLIENT_TICK.register(mc -> {
+            runtime.mainThread().runQueuedTasks();
+            ink.tuanzi.neomacros.adapter.BlockScanScheduler.tick();
+        });
         registerCommands(trustManager, errorPresenter, pendingTrusts, updateChecker, adapter.chat());
         preRegisterScriptBindings();
         // Raw keyboard source: the cancellable path fans the edge out to the

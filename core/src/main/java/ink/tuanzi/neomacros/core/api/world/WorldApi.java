@@ -373,13 +373,14 @@ public final class WorldApi {
     }
 
     /**
-     * Scans the cube around the center for blocks matching one of the given
-     * block ids and returns their positions as {@code Block} handles. The
-     * scan range is capped at 32 blocks and the result at 512 entries to
+     * Scans the cube (or sphere) around the center for blocks matching the
+     * given block ids or id glob pattern, optionally filtered by block state
+     * properties, and returns their positions as {@code Block} handles. The
+     * scan range is capped at 48 blocks and the result at 1024 entries to
      * keep the main thread responsive; unknown ids are ignored.
      *
-     * @zh 在中心周围立方体范围内扫描匹配方块 id 的方块，返回 {@code Block} 句柄数组。扫描半径上限 32、结果上限 512 以保持主线程响应；未知 id 忽略。
-     * @zh-param options 扫描选项：{@code {types: string|string[], center: {x,y,z}, range?: number, limit?: number}}
+     * @zh 在中心周围立方体（或球体）范围内扫描匹配方块 id 或 id 通配模式（可再按方块状态属性过滤）的方块，返回 {@code Block} 句柄数组。扫描半径上限 48、结果上限 1024 以保持主线程响应；未知 id 忽略。
+     * @zh-param options 扫描选项：{@code {types?: string|string[], idPattern?: string, states?: Record<string, string|number|boolean>, center: {x,y,z}, range?: number, limit?: number, shape?: "cube"|"sphere"}}
      * @zh-return {@code Block[]} 数组
      */
     @ApiSince("0.2.0")
@@ -387,8 +388,62 @@ public final class WorldApi {
     @ApiLoader("*")
     public java.util.List<ink.tuanzi.neomacros.core.api.types.Block> findBlocks(
             @ApiType("FindBlocksOptions") java.util.Map<String, Object> options) {
+        ParsedScan scan = parseScan(options, "findBlocks", false);
+        return ScriptApiEnvironment.adapter().world()
+                .findBlocksMatching(scan.types(), scan.idPattern(), scan.states(),
+                        scan.center(), scan.range(), scan.limit(), scan.sphere())
+                .stream()
+                .map(WorldApi::toBlock)
+                .toList();
+    }
+
+    /**
+     * Starts a large-volume block scan with the same matching rules as
+     * {@code findBlocks} and resolves the promise with the matched
+     * {@code Block} handles. The scan runs in per-tick slices on the main
+     * thread (about 4 ms per tick), so big volumes never stall the frame:
+     * the range may go up to 256 (16-million-block volume budget) with up
+     * to 65536 results and a 10-second deadline. When {@code center} is
+     * omitted the local player position is used. At most four scans run at
+     * once; the promise rejects when the budget is exceeded, the deadline
+     * passes, or the world changes mid-scan.
+     *
+     * @zh 启动一次大范围方块扫描（匹配规则同 {@code findBlocks}），以 Promise 返回 {@code Block} 句柄数组。扫描按 tick 在主线程分片执行（每 tick 约 4 ms），不会卡帧：半径上限 256（1600 万方块体积预算）、结果上限 65536、超时 10 秒。{@code center} 省略时取本地玩家坐标。同时最多 4 个扫描任务；超预算、超时或世界切换时 Promise 拒绝。
+     * @zh-param options 扫描选项：{@code {types?: string|string[], idPattern?: string, states?: Record<string, string|number|boolean>, center?: {x,y,z}, range?: number, limit?: number, shape?: "cube"|"sphere"}}
+     * @zh-return {@code Promise<Block[]>}
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public java.util.concurrent.CompletableFuture<java.util.List<ink.tuanzi.neomacros.core.api.types.Block>> scanBlocks(
+            @ApiType("ScanBlocksOptions") java.util.Map<String, Object> options) {
+        ParsedScan scan = parseScan(options, "scanBlocks", true);
+        return ScriptApiEnvironment.adapter().world()
+                .scanBlocks(scan.types(), scan.idPattern(), scan.states(),
+                        scan.center(), scan.range(), scan.limit(), scan.sphere())
+                .thenApply(list -> list.stream().map(WorldApi::toBlock).toList());
+    }
+
+    /** Wraps one scanned position as a live block handle. */
+    private static ink.tuanzi.neomacros.core.api.types.Block toBlock(Pos3d pos) {
+        return new ink.tuanzi.neomacros.core.api.types.Block(
+                new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                        (int) Math.floor(pos.x()),
+                        (int) Math.floor(pos.y()),
+                        (int) Math.floor(pos.z())));
+    }
+
+    /** One parsed scan request shared by findBlocks and scanBlocks. */
+    private record ParsedScan(java.util.List<String> types, String idPattern,
+            java.util.Map<String, Object> states, Pos3d center, int range,
+            int limit, boolean sphere) {
+    }
+
+    /** Parses and validates one scan options object. */
+    private static ParsedScan parseScan(java.util.Map<String, Object> options,
+            String api, boolean async) {
         if (options == null) {
-            throw new IllegalArgumentException("findBlocks options are required");
+            throw new IllegalArgumentException(api + " options are required");
         }
         java.util.List<String> types = new java.util.ArrayList<>();
         Object rawTypes = options.get("types");
@@ -401,27 +456,36 @@ public final class WorldApi {
         } else if (rawTypes != null) {
             types.add(String.valueOf(rawTypes));
         }
-        if (types.isEmpty()) {
-            throw new IllegalArgumentException("findBlocks needs at least one block type");
+        String idPattern = options.get("idPattern") != null
+                ? String.valueOf(options.get("idPattern")) : null;
+        if (types.isEmpty() && (idPattern == null || idPattern.isBlank())) {
+            throw new IllegalArgumentException(
+                    api + " needs block types or an idPattern");
         }
-        Object rawCenter = options.get("center");
-        if (!(rawCenter instanceof java.util.Map<?, ?> center)) {
-            throw new IllegalArgumentException("findBlocks needs a center {x, y, z}");
+        java.util.Map<String, Object> states = new java.util.LinkedHashMap<>();
+        if (options.get("states") instanceof java.util.Map<?, ?> rawStates) {
+            for (Map.Entry<?, ?> entry : rawStates.entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    states.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+            }
         }
-        double cx = asDouble(center.get("x"), 0);
-        double cy = asDouble(center.get("y"), 0);
-        double cz = asDouble(center.get("z"), 0);
+        Pos3d center;
+        if (options.get("center") instanceof java.util.Map<?, ?> rawCenter) {
+            center = new Pos3d(asDouble(rawCenter.get("x"), 0),
+                    asDouble(rawCenter.get("y"), 0), asDouble(rawCenter.get("z"), 0));
+        } else if (async) {
+            center = ScriptApiEnvironment.adapter().player().self()
+                    .map(ink.tuanzi.neomacros.port.model.PlayerSnapshot::pos)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            api + " needs a center {x, y, z} (no local player is loaded)"));
+        } else {
+            throw new IllegalArgumentException(api + " needs a center {x, y, z}");
+        }
         int range = (int) asDouble(options.get("range"), 16);
-        int limit = (int) asDouble(options.get("limit"), 128);
-        return ScriptApiEnvironment.adapter().world()
-                .findBlocks(types, new Pos3d(cx, cy, cz), range, limit)
-                .stream()
-                .map(pos -> new ink.tuanzi.neomacros.core.api.types.Block(
-                        new ink.tuanzi.neomacros.core.api.types.BlockPos(
-                                (int) Math.floor(pos.x()),
-                                (int) Math.floor(pos.y()),
-                                (int) Math.floor(pos.z()))))
-                .toList();
+        int limit = (int) asDouble(options.get("limit"), async ? 65536 : 128);
+        boolean sphere = "sphere".equalsIgnoreCase(String.valueOf(options.get("shape")));
+        return new ParsedScan(types, idPattern, states, center, range, limit, sphere);
     }
 
     /** Coerces one option number with a default for absent values. */
@@ -430,19 +494,45 @@ public final class WorldApi {
     }
 
     /**
-     * One findBlocks scan: the block ids (string or string array), the
-     * center position, the scan range, and the result cap.
+     * One findBlocks scan: the block ids (string or string array) or id
+     * glob pattern, the state-property filters, the center position, the
+     * scan range, the result cap, and the shape.
      *
-     * @zh 一次 findBlocks 扫描：方块 id（字符串或字符串数组）、中心坐标、扫描半径与结果上限。
+     * @zh 一次 findBlocks 扫描：方块 id（字符串或字符串数组）或 id 通配模式、状态属性过滤、中心坐标、扫描半径、结果上限与形状。
      */
     @ApiClass(name = "FindBlocksOptions", kind = ApiClassKind.DATA)
-    @ApiSince("0.2.0")
+    @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
     public record FindBlocksOptions(
-            @ApiType("string | Array<string>") Object types,
+            @ApiOptional @ApiType("string | Array<string>") Object types,
+            @ApiOptional String idPattern,
+            @ApiOptional @ApiType("Record<string, string | number | boolean>")
+                    java.util.Map<String, Object> states,
             @ApiType("{ x: number; y: number; z: number }") Object center,
             @ApiOptional Double range,
-            @ApiOptional Integer limit) {
+            @ApiOptional Integer limit,
+            @ApiOptional @ApiType("\"cube\" | \"sphere\"") String shape) {
+    }
+
+    /**
+     * One scanBlocks scan: the same filters and shape as findBlocks with a
+     * much larger range budget; the center defaults to the local player.
+     *
+     * @zh 一次 scanBlocks 扫描：过滤与形状同 findBlocks，预算大得多；center 省略时取本地玩家坐标。
+     */
+    @ApiClass(name = "ScanBlocksOptions", kind = ApiClassKind.DATA)
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record ScanBlocksOptions(
+            @ApiOptional @ApiType("string | Array<string>") Object types,
+            @ApiOptional String idPattern,
+            @ApiOptional @ApiType("Record<string, string | number | boolean>")
+                    java.util.Map<String, Object> states,
+            @ApiOptional @ApiType("{ x: number; y: number; z: number }") Object center,
+            @ApiOptional Double range,
+            @ApiOptional Integer limit,
+            @ApiOptional @ApiType("\"cube\" | \"sphere\"") String shape) {
     }
 }

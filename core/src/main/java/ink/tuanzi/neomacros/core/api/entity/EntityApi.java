@@ -66,22 +66,82 @@ public final class EntityApi {
 
     /**
      * Returns handles of every entity within {@code range} blocks of the
-     * center point.
+     * center point, optionally filtered by entity type ids.
      *
-     * @zh 查询中心点半径范围内的全部实体句柄。
+     * @zh 查询中心点半径范围内的全部实体句柄，可按实体类型过滤。
      * @zh-param x 中心点坐标 X
      * @zh-param y 中心点坐标 Y
      * @zh-param z 中心点坐标 Z
      * @zh-param range 半径（格）
+     * @zh-param types 实体类型 id（字符串或字符串数组），如 {@code "minecraft:sheep"}；省略时不过滤
      * @zh-return 实体句柄数组
      */
     @ApiSince("0.1.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public List<Entity> inRadius(double x, double y, double z, double range) {
-        return adapter().inRadius(new Pos3d(x, y, z), range, snapshot -> true).stream()
+    public List<Entity> inRadius(double x, double y, double z, double range,
+            @ApiOptional @ApiType("string | Array<string>") Object types) {
+        java.util.Set<String> wanted = typeSet(types);
+        return adapter().inRadius(new Pos3d(x, y, z), range,
+                snapshot -> wanted == null || wanted.contains(snapshot.type())).stream()
                 .map(snapshot -> wrap(snapshot.uuid()))
                 .toList();
+    }
+
+    /**
+     * Returns handles of every entity inside the axis-aligned box spanned by
+     * {@code min} and {@code max}, optionally filtered by entity type ids.
+     *
+     * @zh 查询由 {@code min} 与 {@code max} 张成的轴对齐盒内的全部实体句柄，可按实体类型过滤。
+     * @zh-param options 查询选项：{@code {min: {x,y,z}, max: {x,y,z}, types?: string|string[]}}
+     * @zh-return 实体句柄数组
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public List<Entity> inBox(
+            @ApiType("EntityInBoxOptions") java.util.Map<String, Object> options) {
+        if (options == null) {
+            throw new IllegalArgumentException("inBox options are required");
+        }
+        if (!(options.get("min") instanceof java.util.Map<?, ?> min)
+                || !(options.get("max") instanceof java.util.Map<?, ?> max)) {
+            throw new IllegalArgumentException("inBox needs min and max {x, y, z}");
+        }
+        Pos3d minPos = new Pos3d(
+                asDouble(min.get("x")), asDouble(min.get("y")), asDouble(min.get("z")));
+        Pos3d maxPos = new Pos3d(
+                asDouble(max.get("x")), asDouble(max.get("y")), asDouble(max.get("z")));
+        if (minPos.x() > maxPos.x() || minPos.y() > maxPos.y() || minPos.z() > maxPos.z()) {
+            throw new IllegalArgumentException("inBox min must not exceed max");
+        }
+        java.util.Set<String> wanted = typeSet(options.get("types"));
+        return adapter().inBox(minPos, maxPos,
+                snapshot -> wanted == null || wanted.contains(snapshot.type())).stream()
+                .map(snapshot -> wrap(snapshot.uuid()))
+                .toList();
+    }
+
+    /** Normalizes one types option (string or array) into an id set. */
+    private static java.util.Set<String> typeSet(Object types) {
+        if (types == null) {
+            return null;
+        }
+        if (types instanceof java.util.List<?> list) {
+            java.util.Set<String> out = new java.util.LinkedHashSet<>();
+            for (Object entry : list) {
+                if (entry != null) {
+                    out.add(String.valueOf(entry));
+                }
+            }
+            return out.isEmpty() ? null : out;
+        }
+        return java.util.Set.of(String.valueOf(types));
+    }
+
+    /** Coerces one option number, defaulting absent values to zero. */
+    private static double asDouble(Object value) {
+        return value instanceof Number number ? number.doubleValue() : 0;
     }
 
     /**
@@ -221,6 +281,21 @@ public final class EntityApi {
         protected Integer speciesInt(String key) {
             Object value = speciesState().get(key);
             return value instanceof Integer i ? i : null;
+        }
+
+        /** Reads one numeric species-state entry, or null when absent. */
+        protected Double speciesDouble(String key) {
+            Object value = speciesState().get(key);
+            return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /**
+         * Wraps one species-state UUID string as an entity handle, or null
+         * when the entry is absent or the entity is gone.
+         */
+        protected EntityApi.Entity speciesEntity(String key) {
+            Object value = speciesState().get(key);
+            return value instanceof String id ? EntityApi.wrap(UUID.fromString(id)) : null;
         }
 
         /**
@@ -1067,6 +1142,22 @@ public final class EntityApi {
     @ApiLoader("*")
     public record StatusEffectData(String id, Integer duration, Integer amplifier,
             Boolean infinite) {
+    }
+
+    /**
+     * One entity.inBox query: the box corner positions and an optional
+     * entity type filter.
+     *
+     * @zh 一次 entity.inBox 查询：盒体角点与可选的实体类型过滤。
+     */
+    @ApiClass(name = "EntityInBoxOptions", kind = ApiClassKind.DATA)
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record EntityInBoxOptions(
+            @ApiType("{ x: number; y: number; z: number }") Object min,
+            @ApiType("{ x: number; y: number; z: number }") Object max,
+            @ApiOptional @ApiType("string | Array<string>") Object types) {
     }
 
 }

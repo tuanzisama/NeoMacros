@@ -279,6 +279,13 @@ class WorldGapExpansionsTest {
         }
 
         @Override
+        public java.util.List<Pos3d> findBlocksMatching(java.util.List<String> blockIds,
+                String idPattern, java.util.Map<String, Object> stateFilters,
+                Pos3d center, int range, int limit, boolean sphere) {
+            return java.util.List.copyOf(foundBlocks);
+        }
+
+        @Override
         public void playSound(String soundId, Pos3d pos, double volume, double pitch) {
             lastSound = soundId;
             lastVolume = volume;

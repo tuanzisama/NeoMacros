@@ -1,0 +1,4 @@
+name: t601-species-world-scan
+version: 1.0.0
+author: neomacros
+description: Species-specific state reads and world/entity scan API observe case (needs a real world session)
