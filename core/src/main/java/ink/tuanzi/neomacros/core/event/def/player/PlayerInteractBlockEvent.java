@@ -17,6 +17,6 @@ import ink.tuanzi.neomacros.core.api.types.Block;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:interactBlock", cancellable = true)
+@ApiEvent(name = "player:interactBlock", direction = ApiEvent.Direction.C2S, cancellable = true)
 public record PlayerInteractBlockEvent(Block block, String face) {
 }

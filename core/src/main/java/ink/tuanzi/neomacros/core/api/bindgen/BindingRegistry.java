@@ -20,7 +20,18 @@ public final class BindingRegistry {
     private final Map<PermissionView, Map<String, ModuleBinding>> bindingCache = new java.util.IdentityHashMap<>();
     private final Map<String, List<String>> promoted = new LinkedHashMap<>();
     private final Map<String, Class<?>> guestTypes = new LinkedHashMap<>();
-    private final Map<String, Boolean> eventTypes = new LinkedHashMap<>();
+    private final Map<String, EventTypeInfo> eventTypes = new LinkedHashMap<>();
+
+    /** Guest-facing metadata of one registered event class. */
+    public record EventTypeInfo(boolean cancellable,
+                                ink.tuanzi.neomacros.doc.api.ApiEvent.Direction direction) {
+    }
+
+    /** Root names reserved by the engine's glue (event base/direction classes
+     * and the priority constants). */
+    private static final java.util.Set<String> RESERVED_ROOTS =
+            java.util.Set.of("BaseEvent", "InputEvent", "DisplayEvent", "StateEvent",
+                    "EventPriority");
 
     /** Creates the registry for the running milestone node. */
     public BindingRegistry(String currentMcVersion) {
@@ -102,7 +113,8 @@ public final class BindingRegistry {
      * collisions with modules or other root classes are rejected.
      */
     public void registerGuestType(String name, Class<?> cellClass) {
-        if (modules.containsKey(name) || guestTypes.containsKey(name) || name.equals("BaseEvent")) {
+        if (RESERVED_ROOTS.contains(name) || modules.containsKey(name)
+                || guestTypes.containsKey(name)) {
             throw new IllegalStateException("guest type collision: " + name);
         }
         var annotation = cellClass.getAnnotation(
@@ -119,9 +131,11 @@ public final class BindingRegistry {
      * Registers one script-facing event class at the root of the global
      * tree: {@code neo.<XxxEvent>} resolves to the guest event class.
      */
-    public void registerEventType(String eventName, boolean cancellable) {
+    public void registerEventType(String eventName, boolean cancellable,
+                                  ink.tuanzi.neomacros.doc.api.ApiEvent.Direction direction) {
         String className = eventNameToClassName(eventName);
-        if (modules.containsKey(className) || guestTypes.containsKey(className)) {
+        if (RESERVED_ROOTS.contains(className) || modules.containsKey(className)
+                || guestTypes.containsKey(className)) {
             throw new IllegalStateException("event class collision: " + className);
         }
         for (String registered : eventTypes.keySet()) {
@@ -129,11 +143,11 @@ public final class BindingRegistry {
                 throw new IllegalStateException("event class collision: " + className);
             }
         }
-        eventTypes.putIfAbsent(eventName, cancellable);
+        eventTypes.putIfAbsent(eventName, new EventTypeInfo(cancellable, direction));
     }
 
-    /** The registered event classes ({@code name -> cancellable}), in registration order. */
-    public Map<String, Boolean> eventTypes() {
+    /** The registered event classes ({@code name -> type info}), in registration order. */
+    public Map<String, EventTypeInfo> eventTypes() {
         return Map.copyOf(eventTypes);
     }
 
@@ -164,14 +178,36 @@ public final class BindingRegistry {
                 tree.put(type.getKey(), rootEntry(type.getKey(),
                         new ModuleBinding.GuestTypeMember(type.getValue())));
             }
-            tree.put("BaseEvent", rootEntry("BaseEvent",
-                    new ModuleBinding.EventTypeMember("BaseEvent", false)));
-            for (Map.Entry<String, Boolean> type : eventTypes.entrySet()) {
-                String className = eventNameToClassName(type.getKey());
-                tree.put(className, rootEntry(className,
-                        new ModuleBinding.EventTypeMember(type.getKey(), type.getValue())));
-            }
         }
+        // Event class hierarchy: the shared base, the direction middle
+        // classes (instanceof dispatch per traffic direction), then one
+        // class per registered event chained through its direction.
+        tree.put("BaseEvent", rootEntry("BaseEvent",
+                new ModuleBinding.EventTypeMember("BaseEvent", false,
+                        ink.tuanzi.neomacros.doc.api.ApiEvent.Direction.LOCAL)));
+        tree.put("InputEvent", rootEntry("InputEvent",
+                new ModuleBinding.EventTypeMember("InputEvent", false,
+                        ink.tuanzi.neomacros.doc.api.ApiEvent.Direction.C2S)));
+        tree.put("DisplayEvent", rootEntry("DisplayEvent",
+                new ModuleBinding.EventTypeMember("DisplayEvent", false,
+                        ink.tuanzi.neomacros.doc.api.ApiEvent.Direction.S2C)));
+        tree.put("StateEvent", rootEntry("StateEvent",
+                new ModuleBinding.EventTypeMember("StateEvent", false,
+                        ink.tuanzi.neomacros.doc.api.ApiEvent.Direction.LOCAL)));
+        for (Map.Entry<String, EventTypeInfo> type : eventTypes.entrySet()) {
+            String className = eventNameToClassName(type.getKey());
+            tree.put(className, rootEntry(className,
+                    new ModuleBinding.EventTypeMember(type.getKey(),
+                            type.getValue().cancellable(), type.getValue().direction())));
+        }
+        // Sync-channel priorities as a frozen constant namespace:
+        // neo.EventPriority.LOWEST … MONITOR (Bukkit-style enum face).
+        Map<String, ModuleBinding.BindingMember> priorities = new LinkedHashMap<>();
+        for (ink.tuanzi.neomacros.core.event.EventPriority priority
+                : ink.tuanzi.neomacros.core.event.EventPriority.values()) {
+            priorities.put(priority.name(), new ModuleBinding.ConstantMember(priority));
+        }
+        tree.put("EventPriority", ModuleBinding.ofMembers("EventPriority", priorities));
         return tree;
     }
 

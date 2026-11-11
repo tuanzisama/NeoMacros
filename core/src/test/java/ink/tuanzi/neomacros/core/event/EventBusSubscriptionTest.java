@@ -130,7 +130,6 @@ class EventBusSubscriptionTest {
         AtomicReference<String> threadName = new AtomicReference<>();
         cancellableBus.onSync("chat:send", (payload, flag) -> {
             threadName.set(Thread.currentThread().getName());
-            return null;
         });
 
         EventBus.PublishResult result = cancellableBus.publish("chat:send", "msg");

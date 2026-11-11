@@ -270,13 +270,13 @@ class WebApiIntegrationTest {
         List<ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse.Entry> catalog =
                 List.of(
                         new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse.Entry(
-                                "chat:receive", false),
+                                "chat:receive", false, "s2c", List.of()),
                         new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse.Entry(
-                                "key:press", true),
+                                "input:keyPress", true, "c2s", List.of()),
                         new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse.Entry(
-                                "player:join", false),
+                                "player:join", false, "local", List.of()),
                         new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse.Entry(
-                                "tick", false));
+                                "tick", false, "local", List.of()));
 
         @Override
         public ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse eventCatalog() {
@@ -906,8 +906,9 @@ class WebApiIntegrationTest {
         assertEquals("chat:receive", first.get("name").getAsString());
         assertFalse(first.get("cancellable").getAsBoolean());
         JsonObject keyPress = events.get(1).getAsJsonObject();
-        assertEquals("key:press", keyPress.get("name").getAsString());
+        assertEquals("input:keyPress", keyPress.get("name").getAsString());
         assertTrue(keyPress.get("cancellable").getAsBoolean());
+        assertEquals("c2s", keyPress.get("direction").getAsString());
 
         // The catalog route is NM1-guarded like every non-stream endpoint.
         HttpResponse<String> anonymous = send("GET", "/api/v1/events/catalog",

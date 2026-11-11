@@ -13,6 +13,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "game:quit")
+@ApiEvent(name = "game:quit", direction = ApiEvent.Direction.LOCAL)
 public record GameQuitEvent() {
 }

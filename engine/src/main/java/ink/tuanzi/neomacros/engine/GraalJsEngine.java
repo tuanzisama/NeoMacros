@@ -83,6 +83,7 @@ public final class GraalJsEngine implements ScriptEngine {
                 get type() { return this.__neoType; }
                 get timestamp() { return this.__neoTimestamp; }
                 get cancellable() { return this.__neoCancellable === true; }
+                get direction() { return this.__neoDirection; }
                 toJSON() {
                     const out = {};
                     for (const key of Object.keys(this)) {
@@ -94,6 +95,31 @@ public final class GraalJsEngine implements ScriptEngine {
                     return '[' + this.constructor.name + ' type=' + this.type + ']';
                 }
             };
+            // Direction middle classes: C2S input interception, S2C display
+            // interception, local state observation (never cancellable).
+            globalThis.__neoDirectionClasses = {};
+            globalThis.__neoDirectionClass = function (direction) {
+                const table = globalThis.__neoDirectionClasses;
+                if (table[direction] !== undefined) {
+                    return table[direction];
+                }
+                let cls;
+                if (direction === 'c2s') {
+                    cls = class InputEvent extends globalThis.__neoBaseEvent {
+                    };
+                } else if (direction === 's2c') {
+                    cls = class DisplayEvent extends globalThis.__neoBaseEvent {
+                    };
+                } else {
+                    cls = class StateEvent extends globalThis.__neoBaseEvent {
+                    };
+                }
+                const className = direction === 'c2s' ? 'InputEvent'
+                        : direction === 's2c' ? 'DisplayEvent' : 'StateEvent';
+                Object.defineProperty(cls, 'name', { value: className, writable: false });
+                table[direction] = cls;
+                return cls;
+            };
             globalThis.__neoEventClasses = {};
             globalThis.__neoEventClassName = function (name) {
                 const camel = name.replace(/[:_-]+(.)/g, function (m, ch) {
@@ -101,12 +127,12 @@ public final class GraalJsEngine implements ScriptEngine {
                 });
                 return camel.charAt(0).toUpperCase() + camel.slice(1) + 'Event';
             };
-            globalThis.__neoEventClass = function (name, cancellable) {
+            globalThis.__neoEventClass = function (name, cancellable, direction) {
                 const table = globalThis.__neoEventClasses;
                 if (table[name] !== undefined) {
                     return table[name];
                 }
-                const cls = class extends globalThis.__neoBaseEvent {
+                const cls = class extends __neoDirectionClass(direction) {
                 };
                 Object.defineProperty(cls, 'name', {
                     value: __neoEventClassName(name),
@@ -118,8 +144,8 @@ public final class GraalJsEngine implements ScriptEngine {
             // Attaches the event class prototype to one payload snapshot and
             // freezes it: the fields stay own enumerable properties (JSON,
             // destructuring, property access unchanged), the prototype adds
-            // the type/timestamp/cancellable introspection face.
-            globalThis.__neoWrapEvent = function (name, cancellable, source) {
+            // the type/timestamp/cancellable/direction introspection face.
+            globalThis.__neoWrapEvent = function (name, cancellable, direction, timestamp, source) {
                 if (source === undefined || source === null
                         || typeof source !== 'object') {
                     return source;
@@ -131,13 +157,120 @@ public final class GraalJsEngine implements ScriptEngine {
                 }
                 const hidden = { writable: false, enumerable: false, configurable: false };
                 Object.defineProperty(obj, '__neoType', { value: name, ...hidden });
-                Object.defineProperty(obj, '__neoTimestamp', {
-                    value: (new Date()).getTime(), ...hidden
-                });
+                Object.defineProperty(obj, '__neoTimestamp', { value: timestamp, ...hidden });
                 Object.defineProperty(obj, '__neoCancellable', {
                     value: cancellable === true, ...hidden
                 });
-                Object.setPrototypeOf(obj, __neoEventClass(name, cancellable).prototype);
+                Object.defineProperty(obj, '__neoDirection', { value: direction, ...hidden });
+                Object.setPrototypeOf(obj, __neoEventClass(name, cancellable, direction).prototype);
+                Object.freeze(obj);
+                return obj;
+            };
+            // Mutable sync-channel face: whitelisted payload fields become
+            // accessor properties that commit writes through the host hooks;
+            // other payload fields stay read-only (strict writes throw,
+            // matching the d.ts readonly face). MONITOR deliveries are
+            // readOnly: writes and cancel changes drop with one warning.
+            globalThis.__neoWrapMutableEvent = function (name, cancellable, direction,
+                                                        timestamp, source, mutableKeys,
+                                                        hooks, readOnly) {
+                if (source === undefined || source === null
+                        || typeof source !== 'object') {
+                    return source;
+                }
+                const obj = {};
+                const store = {};
+                const mutable = {};
+                for (const key of Object.keys(source)) {
+                    store[key] = source[key];
+                    mutable[key] = false;
+                }
+                for (const key of mutableKeys) {
+                    if (key in store) {
+                        mutable[key] = true;
+                    }
+                }
+                const hidden = { writable: false, enumerable: false, configurable: false };
+                Object.defineProperty(obj, '__neoType', { value: name, ...hidden });
+                Object.defineProperty(obj, '__neoTimestamp', { value: timestamp, ...hidden });
+                Object.defineProperty(obj, '__neoCancellable', {
+                    value: cancellable === true, ...hidden
+                });
+                Object.defineProperty(obj, '__neoDirection', { value: direction, ...hidden });
+                let warned = false;
+                const warnReadOnly = function () {
+                    if (!warned) {
+                        warned = true;
+                        console.warn('onSync monitor subscriptions are read-only;'
+                                + ' modifications are dropped');
+                    }
+                };
+                for (const key of Object.keys(store)) {
+                    (function (k) {
+                        Object.defineProperty(obj, k, {
+                            enumerable: true,
+                            configurable: false,
+                            get: function () {
+                                return store[k];
+                            },
+                            set: function (value) {
+                                if (!mutable[k]) {
+                                    throw new TypeError("cannot rewrite '" + k
+                                            + "': field is not mutable on event " + name);
+                                }
+                                if (readOnly) {
+                                    warnReadOnly();
+                                    return;
+                                }
+                                store[k] = value;
+                                hooks.write(k, value);
+                            }
+                        });
+                    })(key);
+                }
+                Object.defineProperty(obj, 'cancel', {
+                    value: function () {
+                        if (readOnly) {
+                            warnReadOnly();
+                            return;
+                        }
+                        hooks.cancel();
+                    },
+                    writable: true,
+                    enumerable: false,
+                    configurable: true
+                });
+                Object.defineProperty(obj, 'cancelled', {
+                    enumerable: false,
+                    configurable: false,
+                    get: function () {
+                        return hooks.isCancelled() === true;
+                    },
+                    set: function (value) {
+                        if (readOnly) {
+                            warnReadOnly();
+                            return;
+                        }
+                        hooks.setCancelled(value === true);
+                    }
+                });
+                Object.setPrototypeOf(obj, __neoEventClass(name, cancellable, direction).prototype);
+                return obj;
+            };
+            // One EventPriority constant: a frozen cell carrying its name and
+            // the hidden host enum (__neoCell probe marshals it back to Java).
+            globalThis.__neoPriorityCell = function (cell, name) {
+                const obj = { name: name };
+                const hidden = { writable: false, enumerable: false, configurable: false };
+                Object.defineProperty(obj, '__neoCell', { value: cell, ...hidden });
+                Object.defineProperty(obj, 'toString', {
+                    value: function () {
+                        return 'EventPriority.' + name;
+                    },
+                    writable: true,
+                    enumerable: false,
+                    configurable: true
+                });
                 Object.freeze(obj);
                 return obj;
             };
@@ -1078,13 +1211,24 @@ public final class GraalJsEngine implements ScriptEngine {
                 return guestClassFor(typeMember.cellClass());
             }
             if (member instanceof ModuleBinding.EventTypeMember eventType) {
-                // Guest event classes live in the glue; "BaseEvent" is
-                // the shared base class itself.
+                // Guest event classes live in the glue; "BaseEvent" is the
+                // shared base class itself, the direction names are the
+                // middle classes (InputEvent / DisplayEvent / StateEvent).
                 if (eventType.eventName().equals("BaseEvent")) {
                     return glueMember("__neoBaseEvent");
                 }
+                if (eventType.eventName().equals("InputEvent")) {
+                    return glueMember("__neoDirectionClass").execute("c2s");
+                }
+                if (eventType.eventName().equals("DisplayEvent")) {
+                    return glueMember("__neoDirectionClass").execute("s2c");
+                }
+                if (eventType.eventName().equals("StateEvent")) {
+                    return glueMember("__neoDirectionClass").execute("local");
+                }
                 return glueMember("__neoEventClass")
-                        .execute(eventType.eventName(), eventType.cancellable());
+                        .execute(eventType.eventName(), eventType.cancellable(),
+                                eventType.direction().name().toLowerCase(java.util.Locale.ROOT));
             }
             if (member instanceof ModuleBinding.PropertyMember property) {
                 try {
@@ -1117,6 +1261,12 @@ public final class GraalJsEngine implements ScriptEngine {
                 });
             }
             if (member instanceof ModuleBinding.ConstantMember constant) {
+                // EventPriority constants cross as frozen priority cells so
+                // they marshal back to the host enum through the cell probe.
+                if (constant.value() instanceof ink.tuanzi.neomacros.core.event.EventPriority priority) {
+                    return glueMember("__neoPriorityCell")
+                            .execute(context.asValue(priority), priority.name());
+                }
                 return constant.value();
             }
             throw new IllegalStateException("unrenderable binding member");
@@ -1189,11 +1339,48 @@ public final class GraalJsEngine implements ScriptEngine {
             return asGuestValue(value);
         }
 
-        /** Renders one event payload with its BaseEvent prototype attached. */
+        /**
+         * Renders one event payload with its BaseEvent prototype attached:
+         * async deliveries freeze the snapshot face, sync deliveries render
+         * the mutable face (whitelisted accessors + cancel) bound to the
+         * envelope's hooks sink.
+         */
         private Value eventValue(ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope) {
             Value source = asGuestValue(envelope.payload());
+            if (envelope.syncChannel()) {
+                List<Object> mutableKeys = new ArrayList<>(envelope.mutableKeys());
+                return glueMember("__neoWrapMutableEvent")
+                        .execute(envelope.eventName(), envelope.cancellable(),
+                                envelope.direction().name().toLowerCase(java.util.Locale.ROOT),
+                                envelope.timestamp(), source,
+                                org.graalvm.polyglot.proxy.ProxyArray.fromList(mutableKeys),
+                                syncHooksValue(envelope.hooks()), envelope.readOnly());
+            }
             return glueMember("__neoWrapEvent")
-                    .execute(envelope.eventName(), envelope.cancellable(), source);
+                    .execute(envelope.eventName(), envelope.cancellable(),
+                            envelope.direction().name().toLowerCase(java.util.Locale.ROOT),
+                            envelope.timestamp(), source);
+        }
+
+        /** Host-side hook executables bound to one sync delivery's mutation sink. */
+        private Value syncHooksValue(ink.tuanzi.neomacros.core.event.SyncEventHooks hooks) {
+            Map<String, Object> members = new LinkedHashMap<>();
+            members.put("write", executable(arguments -> {
+                hooks.write(stringArg(arguments, 0, null), asNeutral(
+                        arguments.length > 1 ? arguments[1] : null));
+                return null;
+            }));
+            members.put("cancel", executable(arguments -> {
+                hooks.cancel();
+                return null;
+            }));
+            members.put("isCancelled", executable(arguments -> hooks.isCancelled()));
+            members.put("setCancelled", executable(arguments -> {
+                Value value = arguments.length > 0 ? arguments[0] : null;
+                hooks.setCancelled(value != null && !value.isNull() && value.asBoolean());
+                return null;
+            }));
+            return context.asValue(org.graalvm.polyglot.proxy.ProxyObject.fromMap(members));
         }
 
         private Value asGuestValue(Object result) {
@@ -1208,6 +1395,10 @@ public final class GraalJsEngine implements ScriptEngine {
             }
             if (plain instanceof ink.tuanzi.neomacros.core.api.java.JavaInterop interop) {
                 return interopProxy(interop);
+            }
+            if (plain instanceof ink.tuanzi.neomacros.core.event.EventPriority priority) {
+                return glueMember("__neoPriorityCell")
+                        .execute(context.asValue(priority), priority.name());
             }
             if (plain instanceof byte[] bytes) {
                 List<Object> numbers = new ArrayList<>(bytes.length);

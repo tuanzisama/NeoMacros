@@ -20,6 +20,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.3.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "inventory:update")
+@ApiEvent(name = "inventory:update", direction = ApiEvent.Direction.LOCAL)
 public record InventoryUpdateEvent(String mode, int containerId, String kind, int slot) {
 }

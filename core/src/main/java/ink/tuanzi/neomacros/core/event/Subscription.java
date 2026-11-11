@@ -28,18 +28,23 @@ public final class Subscription {
     private final String pattern;
     private final boolean wildcard;
     private final boolean sync;
+    private final EventPriority priority;
+    private final boolean ignoreCancelled;
     private final Executor executor;
     private final Consumer<Object> handler;
     private final SyncEventCallback syncCallback;
     private final Runnable removalHook;
     private volatile boolean active = true;
 
-    Subscription(long id, String pattern, boolean wildcard, boolean sync, Executor executor,
+    Subscription(long id, String pattern, boolean wildcard, boolean sync,
+                 EventPriority priority, boolean ignoreCancelled, Executor executor,
                  Consumer<Object> handler, SyncEventCallback syncCallback, Runnable removalHook) {
         this.id = id;
         this.pattern = pattern;
         this.wildcard = wildcard;
         this.sync = sync;
+        this.priority = priority;
+        this.ignoreCancelled = ignoreCancelled;
         this.executor = executor;
         this.handler = handler;
         this.syncCallback = syncCallback;
@@ -93,6 +98,16 @@ public final class Subscription {
     @ApiReadOnly
     public boolean isSync() {
         return sync;
+    }
+
+    /** The sync-channel priority (NORMAL for async subscriptions). */
+    EventPriority priority() {
+        return priority;
+    }
+
+    /** Whether dispatch skips this subscription once the event is already canceled. */
+    boolean ignoresCancelled() {
+        return ignoreCancelled;
     }
 
     long id() {

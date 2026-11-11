@@ -16,6 +16,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.3.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "inventory:close")
+@ApiEvent(name = "inventory:close", direction = ApiEvent.Direction.LOCAL)
 public record InventoryCloseEvent(String kind, String title) {
 }

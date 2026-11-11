@@ -15,6 +15,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "world:weather")
+@ApiEvent(name = "world:weather", direction = ApiEvent.Direction.LOCAL)
 public record WorldWeatherEvent(boolean raining, boolean thundering) {
 }

@@ -18,6 +18,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.3.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "inventory:open")
+@ApiEvent(name = "inventory:open", direction = ApiEvent.Direction.LOCAL)
 public record InventoryOpenEvent(String title, String kind, int size, int containerId) {
 }

@@ -16,6 +16,6 @@ import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 @ApiSince("0.2.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:riding")
+@ApiEvent(name = "player:riding", direction = ApiEvent.Direction.LOCAL)
 public record PlayerRidingEvent(EntitySnapshot vehicle) {
 }

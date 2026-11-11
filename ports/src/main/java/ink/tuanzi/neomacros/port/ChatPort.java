@@ -31,6 +31,15 @@ public interface ChatPort {
     void onChatReceive(Consumer<ChatComponent> sink);
 
     /**
+     * Registers a sink invoked for every outgoing chat message (the player's
+     * send path, script sends included); the sink verdict swallows the message
+     * or replaces the text before it reaches the server. Sinks run on the
+     * game main thread in registration order.
+     */
+    default void onChatSend(Function<String, ink.tuanzi.neomacros.port.model.ChatSendVerdict> sink) {
+    }
+
+    /**
      * Registers a sink invoked for every title/subtitle display (the server
      * title packets); the sink verdict suppresses the display or replaces the
      * text. Sinks run on the game main thread in registration order.

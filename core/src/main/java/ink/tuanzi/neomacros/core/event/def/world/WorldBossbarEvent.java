@@ -20,6 +20,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "world:bossbar")
+@ApiEvent(name = "world:bossbar", direction = ApiEvent.Direction.LOCAL)
 public record WorldBossbarEvent(String uuid, String action, String name, Float progress) {
 }

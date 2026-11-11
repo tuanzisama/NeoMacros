@@ -14,6 +14,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.3.0")
 @ApiMC(">=1.21.6")
 @ApiLoader("*")
-@ApiEvent(name = "dialog:close")
+@ApiEvent(name = "dialog:close", direction = ApiEvent.Direction.LOCAL)
 public record DialogCloseEvent(String kind) {
 }

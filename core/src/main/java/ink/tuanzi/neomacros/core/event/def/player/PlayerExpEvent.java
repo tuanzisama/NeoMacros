@@ -16,6 +16,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:exp")
+@ApiEvent(name = "player:exp", direction = ApiEvent.Direction.LOCAL)
 public record PlayerExpEvent(int level, float progress, int change) {
 }

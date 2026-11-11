@@ -24,7 +24,7 @@ public final class ProductionEventSet {
                 ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent.class,
                 ink.tuanzi.neomacros.core.event.def.chat.ChatTitleEvent.class,
                 ink.tuanzi.neomacros.core.event.def.chat.ChatActionbarEvent.class,
-                ink.tuanzi.neomacros.core.event.def.input.KeyPressEvent.class,
+                ink.tuanzi.neomacros.core.event.def.input.InputKeyPressEvent.class,
                 ink.tuanzi.neomacros.core.event.def.input.InputWheelEvent.class,
                 ink.tuanzi.neomacros.core.event.def.player.PlayerExpEvent.class,
                 ink.tuanzi.neomacros.core.event.def.player.PlayerHeldItemEvent.class,

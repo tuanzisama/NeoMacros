@@ -16,6 +16,6 @@ import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:spawn")
+@ApiEvent(name = "player:spawn", direction = ApiEvent.Direction.LOCAL)
 public record PlayerSpawnEvent(EntitySnapshot player) {
 }

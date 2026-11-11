@@ -26,10 +26,11 @@ import java.util.function.Consumer;
 public final class EventBus {
 
     /**
-     * Outcome of one publish: whether any sync callback canceled the event,
-     * the dispatch count, and the structured verdict returned by the sync
-     * callbacks ({@code null} when none of them returned a verdict object;
-     * when several do, the last non-null one wins).
+     * Outcome of one publish: the current cancellation state (last sync
+     * write wins — a callback may undo an earlier cancel), the dispatch
+     * count, and the accumulated mutations committed by the sync callbacks
+     * ({@code null} when nothing was rewritten; later priority overrides
+     * earlier fields).
      */
     public record PublishResult(boolean canceled, int notified, Object verdict) {
     }
@@ -69,12 +70,12 @@ public final class EventBus {
 
     /** Subscribes asynchronously with the bus-wide executor. Wildcards allowed. */
     public Subscription on(String name, Consumer<Object> handler) {
-        return subscribe(name, null, name.contains("*"), false, handler, null);
+        return subscribe(name, null, name.contains("*"), false, EventPriority.NORMAL, false, handler, null);
     }
 
     /** Subscribes asynchronously with a dedicated executor (per-context event loop wiring). */
     public Subscription on(String name, Executor executor, Consumer<Object> handler) {
-        return subscribe(name, executor, name.contains("*"), false, handler, null);
+        return subscribe(name, executor, name.contains("*"), false, EventPriority.NORMAL, false, handler, null);
     }
 
     /** Subscribes to fire exactly once, then auto-unsubscribes. */
@@ -82,7 +83,7 @@ public final class EventBus {
         java.util.concurrent.atomic.AtomicReference<Subscription> self =
                 new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.atomic.AtomicBoolean fired = new java.util.concurrent.atomic.AtomicBoolean();
-        Subscription sub = subscribe(name, null, name.contains("*"), false, payload -> {
+        Subscription sub = subscribe(name, null, name.contains("*"), false, EventPriority.NORMAL, false, payload -> {
             if (fired.compareAndSet(false, true)) {
                 Subscription active = self.get();
                 if (active != null) {
@@ -96,20 +97,34 @@ public final class EventBus {
     }
 
     /**
-     * Subscribes on the synchronous cancellation channel; only cancellable
-     * known events may be subscribed this way (the script surface raises a
-     * TypeError for violations; the Java layer raises {@link IllegalStateException}).
+     * Subscribes on the synchronous cancellation channel with default
+     * priority ({@link EventPriority#NORMAL}); only cancellable known events
+     * may be subscribed this way (the script surface raises a TypeError for
+     * violations; the Java layer raises {@link IllegalStateException}).
      */
     public Subscription onSync(String name, SyncEventCallback callback) {
+        return onSync(name, EventPriority.NORMAL, false, callback);
+    }
+
+    /**
+     * Subscribes on the synchronous channel with an explicit priority and
+     * cancelled-dispatch policy. Handlers run LOWEST first, HIGHEST last;
+     * the last write — mutations and cancellation alike — wins, and
+     * {@code ignoreCancelled} skips this callback once the event is already
+     * cancelled.
+     */
+    public Subscription onSync(String name, EventPriority priority, boolean ignoreCancelled,
+                               SyncEventCallback callback) {
         if (name.contains("*")) {
             throw new IllegalArgumentException("synchronous subscriptions cannot use wildcards: " + name);
         }
-        if (!catalog.isCancellable(name)) {
+        EventDescriptor descriptor = catalog.descriptor(name).orElse(null);
+        if (descriptor == null || !descriptor.cancellable()) {
             throw new IllegalStateException(
                     "events.onSync requires a known cancellable event: " + name
                             + " (script surface: TypeError)");
         }
-        return subscribe(name, null, false, true, null, callback);
+        return subscribe(name, null, false, true, priority, ignoreCancelled, null, callback);
     }
 
     /**
@@ -129,7 +144,7 @@ public final class EventBus {
     public CompletableFuture<Object> waitFor(String name, java.util.function.Predicate<Object> filter,
                                              long timeoutMillis) {
         CompletableFuture<Object> future = new CompletableFuture<>();
-        Subscription sub = subscribe(name, null, false, false, payload -> {
+        Subscription sub = subscribe(name, null, false, false, EventPriority.NORMAL, false, payload -> {
             if (future.isDone()) {
                 return;
             }
@@ -161,40 +176,98 @@ public final class EventBus {
         }
     }
 
-    /** Publishes an event; unknown names are allowed and treated as non-cancellable. */
+    /**
+     * Publishes an event; unknown names are allowed and treated as
+     * non-cancellable local events.
+     *
+     * <p>Sync callbacks run in priority order (LOWEST first, HIGHEST last,
+     * ties by registration order) and share one state snapshot: every
+     * committed mutation applies back onto the current payload, so later
+     * priorities observe and override earlier writes (sequential visibility,
+     * Bukkit-style last write wins). The accumulated mutations surface as the
+     * structured verdict, and the async dispatch observes the final state.</p>
+     */
     public PublishResult publish(String name, Object payload) {
         CancelFlag cancelFlag = new CancelFlag();
+        long timestamp = System.currentTimeMillis();
         int notified = 0;
         Object verdict = null;
-        // Every dispatched payload pairs with its concrete name so the engine
-        // boundary can attach the event class prototype (BaseEvent chain).
-        EventPayloadEnvelope envelope = new EventPayloadEnvelope(name,
-                catalog.isCancellable(name), payload);
+        EventDescriptor descriptor = catalog.descriptor(name).orElse(null);
+        boolean cancellable = descriptor != null && descriptor.cancellable();
 
-        if (catalog.isCancellable(name)) {
-            for (Subscription sub : snapshot(exactSubscriptions.get(name))) {
-                if (sub.isActive() && sub.isSync()) {
+        Object current = payload;
+        if (cancellable) {
+            List<Subscription> syncSubs = snapshot(exactSubscriptions.get(name)).stream()
+                    .filter(sub -> sub.isActive() && sub.isSync())
+                    .sorted(java.util.Comparator.comparingInt(
+                                    (Subscription sub) -> sub.priority().slot())
+                            .thenComparingLong(Subscription::id))
+                    .toList();
+            if (!syncSubs.isEmpty()) {
+                Object snap = Payloads.snapshot(payload);
+                Map<String, Object> state = snap instanceof Map<?, ?> map
+                        ? new java.util.LinkedHashMap<>((Map<String, Object>) map)
+                        : wrappedState(snap);
+                Map<String, Object> committed = new java.util.LinkedHashMap<>();
+                for (Subscription sub : syncSubs) {
+                    if (!sub.isActive()
+                            || (cancelFlag.isCanceled() && sub.ignoresCancelled())) {
+                        continue;
+                    }
                     notified++;
-                    java.util.concurrent.atomic.AtomicReference<Object> returned =
-                            new java.util.concurrent.atomic.AtomicReference<>();
+                    // Every dispatched payload pairs with its concrete name so
+                    // the engine boundary can attach the event class prototype;
+                    // the hooks sink commits this delivery's mutations, which
+                    // merge back onto the shared state right after the callback.
+                    Map<String, Object> writes = new java.util.LinkedHashMap<>();
+                    SyncEventHooks hooks = new SyncEventHooks() {
+                        @Override
+                        public void write(String key, Object value) {
+                            writes.put(key, value);
+                        }
+
+                        @Override
+                        public void cancel() {
+                            cancelFlag.cancel();
+                        }
+
+                        @Override
+                        public boolean isCancelled() {
+                            return cancelFlag.isCanceled();
+                        }
+
+                        @Override
+                        public void setCancelled(boolean cancelled) {
+                            cancelFlag.setCanceled(cancelled);
+                        }
+                    };
+                    EventPayloadEnvelope envelope = new EventPayloadEnvelope(name, true,
+                            descriptor.direction(), timestamp, state, true,
+                            descriptor.mutable(), sub.priority() == EventPriority.MONITOR,
+                            hooks);
                     if (watchdog != null) {
                         watchdog.guard(sub, name, () ->
-                                returned.set(sub.syncCallback().invoke(envelope, cancelFlag)));
+                                sub.syncCallback().invoke(envelope, cancelFlag));
                     } else {
-                        returned.set(sub.syncCallback().invoke(envelope, cancelFlag));
+                        sub.syncCallback().invoke(envelope, cancelFlag);
                     }
-                    // Structured verdicts chain by registration order: the
-                    // last callback returning an object wins the verdict.
-                    if (returned.get() != null) {
-                        verdict = returned.get();
+                    for (Map.Entry<String, Object> entry : writes.entrySet()) {
+                        committed.put(entry.getKey(), entry.getValue());
+                        state.put(entry.getKey(), entry.getValue());
                     }
+                }
+                if (!committed.isEmpty()) {
+                    verdict = committed;
+                    current = state;
                 }
             }
         }
 
-        notified += dispatchAsync(snapshot(exactSubscriptions.get(name)), name, payload);
+        notified += dispatchAsync(snapshot(exactSubscriptions.get(name)), name, current,
+                descriptor, timestamp);
         if (!isWildcardIgnored(name)) {
-            notified += dispatchAsync(List.copyOf(wildcardSubscriptions), name, payload);
+            notified += dispatchAsync(List.copyOf(wildcardSubscriptions), name, current,
+                    descriptor, timestamp);
         }
         return new PublishResult(cancelFlag.isCanceled(), notified, verdict);
     }
@@ -209,9 +282,13 @@ public final class EventBus {
         return wildcardIgnores;
     }
 
-    private int dispatchAsync(List<Subscription> candidates, String name, Object payload) {
+    private int dispatchAsync(List<Subscription> candidates, String name, Object payload,
+                              EventDescriptor descriptor, long timestamp) {
         EventPayloadEnvelope envelope = new EventPayloadEnvelope(name,
-                catalog.isCancellable(name), payload);
+                descriptor != null && descriptor.cancellable(),
+                descriptor != null ? descriptor.direction()
+                        : ink.tuanzi.neomacros.doc.api.ApiEvent.Direction.LOCAL,
+                timestamp, payload);
         int notified = 0;
         for (Subscription sub : candidates) {
             if (!sub.isActive() || sub.isSync() || !matches(sub.pattern(), name)) {
@@ -230,11 +307,12 @@ public final class EventBus {
     }
 
     private Subscription subscribe(String name, Executor executor, boolean wildcard, boolean sync,
+                                   EventPriority priority, boolean ignoreCancelled,
                                    Consumer<Object> handler, SyncEventCallback syncCallback) {
         java.util.concurrent.atomic.AtomicReference<Subscription> self = new java.util.concurrent.atomic.AtomicReference<>();
         Subscription sub = new Subscription(SEQUENCE.incrementAndGet(), name, wildcard, sync,
-                executor != null ? executor : asyncExecutor, handler, syncCallback,
-                () -> remove(self.get()));
+                priority, ignoreCancelled, executor != null ? executor : asyncExecutor,
+                handler, syncCallback, () -> remove(self.get()));
         self.set(sub);
         if (wildcard) {
             wildcardSubscriptions.add(sub);
@@ -257,6 +335,13 @@ public final class EventBus {
 
     private static List<Subscription> snapshot(CopyOnWriteArrayList<Subscription> subs) {
         return subs == null ? List.of() : List.copyOf(subs);
+    }
+
+    /** Wraps a non-map sync payload (bare scalars in tests) into the shared state shape. */
+    private static Map<String, Object> wrappedState(Object snap) {
+        Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("value", snap);
+        return state;
     }
 
     /** Wildcard matching: {@code *} matches everything, {@code domain:*} matches the domain. */

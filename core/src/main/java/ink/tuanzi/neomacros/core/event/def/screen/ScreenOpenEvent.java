@@ -16,6 +16,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "screen:open")
+@ApiEvent(name = "screen:open", direction = ApiEvent.Direction.LOCAL)
 public record ScreenOpenEvent(String title, String kind, String screen) {
 }

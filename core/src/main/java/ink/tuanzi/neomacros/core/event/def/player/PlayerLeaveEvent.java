@@ -18,7 +18,7 @@ import java.util.UUID;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:leave")
+@ApiEvent(name = "player:leave", direction = ApiEvent.Direction.LOCAL)
 public record PlayerLeaveEvent(UUID uuid, String name) {
     public PlayerLeaveEvent {
         Objects.requireNonNull(uuid, "uuid cannot be null");

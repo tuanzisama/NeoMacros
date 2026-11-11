@@ -324,7 +324,9 @@ public final class WebRuntime implements PanelBackend, GameRunner {
         return new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse(
                 catalog.all().stream()
                         .map(d -> new ink.tuanzi.neomacros.fabric.web.v1.EventsCatalogResponse
-                                .Entry(d.name(), d.cancellable()))
+                                .Entry(d.name(), d.cancellable(),
+                                        d.direction().name().toLowerCase(),
+                                        d.mutable()))
                         .toList());
     }
 

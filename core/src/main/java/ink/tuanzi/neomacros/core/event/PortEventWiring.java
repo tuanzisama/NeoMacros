@@ -4,6 +4,7 @@ import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.types.TextComponent;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatActionbarEvent;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent;
+import ink.tuanzi.neomacros.core.event.def.chat.ChatSendEvent;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatTitleEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent;
@@ -34,7 +35,7 @@ import ink.tuanzi.neomacros.core.event.def.screen.ScreenCloseEvent;
 import ink.tuanzi.neomacros.core.event.def.screen.ScreenOpenEvent;
 import ink.tuanzi.neomacros.core.event.def.screen.ScreenSignEditEvent;
 import ink.tuanzi.neomacros.core.event.def.world.WorldWeatherEvent;
-import ink.tuanzi.neomacros.core.event.def.input.KeyPressEvent;
+import ink.tuanzi.neomacros.core.event.def.input.InputKeyPressEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerJoinEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerLeaveEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerRespawnEvent;
@@ -189,6 +190,14 @@ public final class PortEventWiring {
         });
         adapter.chat().onChatReceive(message ->
                 bus.publish("chat:receive", new ChatReceiveEvent(message)));
+        adapter.chat().onChatSend(message -> {
+            var result = bus.publish("chat:send", new ChatSendEvent(message));
+            // A committed {message} rewrite replaces the text on the wire.
+            String rewritten = result.verdict() instanceof java.util.Map<?, ?> map
+                    && map.get("message") instanceof String text ? text : null;
+            return new ink.tuanzi.neomacros.port.model.ChatSendVerdict(
+                    result.canceled(), rewritten);
+        });
         adapter.chat().onTitle(display -> {
             var result = bus.publish("chat:title",
                     new ChatTitleEvent(display.kind(), display.text()));
@@ -204,7 +213,7 @@ public final class PortEventWiring {
         adapter.player().onSignEdit(data -> {
             var result = bus.publish("screen:signEdit",
                     new ScreenSignEditEvent(data.x(), data.y(), data.z(),
-                            data.front(), data.lines()));
+                            data.front(), data.lines(), false));
             return signEditVerdict(result.canceled(), result.verdict());
         });
 
@@ -220,7 +229,7 @@ public final class PortEventWiring {
                 bus.publish("player:interactEntity", new PlayerInteractEntityEvent(target)).canceled());
 
         adapter.input().onKeyPress(edge ->
-                bus.publish("key:press", new KeyPressEvent(
+                bus.publish("input:keyPress", new InputKeyPressEvent(
                         edge.keyName(), edge.keyCode(),
                         edge.down() ? "press" : "release", List.of())).canceled());
         adapter.input().onScroll(amount ->

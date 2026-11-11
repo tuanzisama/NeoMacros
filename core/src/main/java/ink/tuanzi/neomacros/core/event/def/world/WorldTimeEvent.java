@@ -16,6 +16,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "world:time")
+@ApiEvent(name = "world:time", direction = ApiEvent.Direction.LOCAL)
 public record WorldTimeEvent(long time) {
 }

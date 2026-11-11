@@ -10,11 +10,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * T-430 scenarios: the cancellable key:press channel, the input:wheel
- * publish, and script-defined custom events (register/emit round trip).
+ * T-430 scenarios: the cancellable input:keyPress channel, the input:wheel
+ * publish, the chat:send intercept channel, and script-defined custom events
+ * (register/emit round trip).
  */
 class InputEventScenariosTest {
 
@@ -41,8 +43,10 @@ class InputEventScenariosTest {
     void keyPressIsCancellableAndWheelPublishes() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "keys.js", String.join("\n",
-                    "neo.events.onSync('key:press', (ev) => ev.key === 'key.keyboard.blocked');",
-                    "neo.events.on('key:press', (ev) => {",
+                    "neo.events.onSync('input:keyPress', (ev) => {",
+                    "  if (ev.key === 'key.keyboard.blocked') { ev.cancel(); }",
+                    "});",
+                    "neo.events.on('input:keyPress', (ev) => {",
                     "  neo.__test.report('key-press', ev.key === 'key.keyboard.free' && ev.action === 'press',",
                     "    JSON.stringify({ key: ev.key, action: ev.action }));",
                     "});",
@@ -69,6 +73,38 @@ class InputEventScenariosTest {
             TestBridge.Report wheelReport = e2e.bridge().get("wheel");
             assertTrue(wheelReport != null && wheelReport.pass(),
                     "wheel report: " + (wheelReport == null ? "missing" : wheelReport.detail()));
+        }
+    }
+
+    @Test
+    void chatSendInterceptsCancelsAndRewrites() throws Exception {
+        try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
+            fixture(dir.resolve("scripts"), "chatguard.js", String.join("\n",
+                    "neo.events.onSync('chat:send', (ev) => {",
+                    "  if (ev.message === 'spam') { ev.cancel(); }",
+                    "  if (ev.message === 'rewrite-me') { ev.message = 'rewritten'; }",
+                    "});",
+                    "neo.events.on('chat:send', (ev) => {",
+                    "  neo.__test.report('chat-send', ev.direction === 'c2s', ev.direction);",
+                    "});",
+                    ""));
+            e2e.loadScript(dir.resolve("scripts").resolve("chatguard.js"));
+
+            var adapter = e2e.adapter();
+            var blocked = adapter.chatPort().fireChatSend("spam");
+            e2e.awaitSettle();
+            var rewritten = adapter.chatPort().fireChatSend("rewrite-me");
+            e2e.awaitSettle();
+            var pass = adapter.chatPort().fireChatSend("hello");
+            assertTrue(blocked.canceled(), "spam must be canceled");
+            assertFalse(rewritten.canceled(), "rewritten message passes");
+            assertEquals("rewritten", rewritten.message(), "rewrite verdict must carry the text");
+            assertFalse(pass.canceled() || pass.message() != null, "hello passes untouched");
+            e2e.awaitSettle();
+
+            TestBridge.Report report = e2e.bridge().get("chat-send");
+            assertTrue(report != null && report.pass(),
+                    "chat-send report: " + (report == null ? "missing" : report.detail()));
         }
     }
 

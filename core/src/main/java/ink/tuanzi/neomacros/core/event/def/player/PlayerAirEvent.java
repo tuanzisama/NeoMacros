@@ -14,6 +14,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:air")
+@ApiEvent(name = "player:air", direction = ApiEvent.Direction.LOCAL)
 public record PlayerAirEvent(int air) {
 }

@@ -1,24 +1,29 @@
 package ink.tuanzi.neomacros.core.event;
 
 import ink.tuanzi.neomacros.doc.api.ApiEvent;
+
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+
+import java.util.List;
 
 /**
  * Immutable metadata of one script event: namespaced name, derived domain,
- * cancellation support, payload type, and catalog origin.
+ * cancellation support, traffic direction, mutable payload fields, payload
+ * type, and catalog origin.
  *
  * <p>Descriptors are produced from {@code @ApiEvent}-annotated payload records
  * (built-in events) or created for script-registered custom events; wildcard
- * derivation, sync-channel legality checks, and the documentation pipeline all
- * consume this one record.</p>
+ * derivation, sync-channel legality checks, the guest class tree, and the
+ * documentation pipeline all consume this one record.</p>
  */
 public record EventDescriptor(String name, String domain, boolean cancellable,
+                              ApiEvent.Direction direction, List<String> mutable,
                               Class<?> payloadType, String since, boolean custom) {
 
     /** Payload keys the BaseEvent prototype claims; payload records and
      * custom emits must not use them. */
     public static final java.util.Set<String> RESERVED_PAYLOAD_KEYS =
-            java.util.Set.of("type", "timestamp", "cancellable");
+            java.util.Set.of("type", "timestamp", "cancellable", "direction");
 
     /** Builds the descriptor of an annotated event payload record. */
     public static EventDescriptor from(Class<?> eventRecord, boolean custom) {
@@ -35,6 +40,7 @@ public record EventDescriptor(String name, String domain, boolean cancellable,
         }
         ApiSince since = eventRecord.getAnnotation(ApiSince.class);
         return new EventDescriptor(event.name(), domainOf(event.name()), event.cancellable(),
+                event.direction(), List.of(event.mutable()),
                 eventRecord, since == null ? null : since.value(), custom);
     }
 

@@ -15,6 +15,6 @@ import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:death")
+@ApiEvent(name = "player:death", direction = ApiEvent.Direction.LOCAL)
 public record PlayerDeathEvent(EntitySnapshot player) {
 }

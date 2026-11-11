@@ -17,6 +17,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:effect")
+@ApiEvent(name = "player:effect", direction = ApiEvent.Direction.LOCAL)
 public record PlayerEffectEvent(String effectId, boolean added, int amplifier) {
 }

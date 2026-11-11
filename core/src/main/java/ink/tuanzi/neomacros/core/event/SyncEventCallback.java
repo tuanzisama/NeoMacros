@@ -9,10 +9,12 @@ package ink.tuanzi.neomacros.core.event;
 public interface SyncEventCallback {
 
     /**
-     * Handles the event payload; call {@code cancelFlag.cancel()} to cancel
-     * the event. Returning a non-null object hands a structured verdict back
-     * to the publisher (available on {@code PublishResult.verdict()}); when
-     * several sync callbacks return verdicts, the last one wins.
+     * Handles one sync delivery. Call {@code cancelFlag.cancel()} /
+     * {@code setCanceled(boolean)} to drive the cancellation state (last
+     * write wins); script deliveries commit field rewrites through
+     * {@code envelope.hooks()} — the bus merges them onto the event state so
+     * later sync callbacks observe them, and the accumulation lands on
+     * {@code PublishResult.verdict()}.
      */
-    Object invoke(Object payload, CancelFlag cancelFlag);
+    void invoke(Object payload, CancelFlag cancelFlag);
 }

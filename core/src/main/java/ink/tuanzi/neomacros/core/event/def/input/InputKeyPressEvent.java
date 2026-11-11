@@ -20,6 +20,6 @@ import java.util.List;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "key:press", cancellable = true)
-public record KeyPressEvent(String key, int code, String action, List<String> modifiers) {
+@ApiEvent(name = "input:keyPress", direction = ApiEvent.Direction.C2S, cancellable = true)
+public record InputKeyPressEvent(String key, int code, String action, List<String> modifiers) {
 }

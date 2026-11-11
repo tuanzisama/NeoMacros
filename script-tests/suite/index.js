@@ -32,7 +32,9 @@ neo.events.on('tick', () => {
   }
   if (ticks === 60) {
     try {
-      neo.events.onSync('chat:send', (ev) => false);
+      neo.events.onSync('chat:send', (ev) => {
+        if (ev.message === 'blocked') ev.cancel();
+      }, { priority: neo.EventPriority.HIGH, ignoreCancelled: true });
       record('onsync-register', true, 'registered');
     } catch (e) {
       record('onsync-register', false, String(e));

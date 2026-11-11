@@ -90,13 +90,16 @@ class LaneWorldScenariosTest {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "display.js", String.join("\n",
                     "neo.events.onSync('chat:title', (ev) => {",
-                    "  if (ev.kind === 'subtitle' && ev.text.plain === 'bad') return true;",
-                    "  if (ev.kind === 'title') return { text: 'swapped:' + ev.text.plain };",
-                    "  return undefined;",
+                    "  if (ev.kind === 'subtitle' && ev.text.plain === 'bad') { ev.cancel(); }",
+                    "  if (ev.kind === 'title') { ev.text = 'swapped:' + ev.text.plain; }",
                     "});",
-                    "neo.events.onSync('chat:actionbar', (ev) => ev.source === 'local');",
-                    "neo.events.onSync('screen:signEdit', (ev) =>",
-                    "  ({ lines: ['a', 'b', '', ''], closeScreen: true }));",
+                    "neo.events.onSync('chat:actionbar', (ev) => {",
+                    "  if (ev.source === 'local') { ev.cancel(); }",
+                    "});",
+                    "neo.events.onSync('screen:signEdit', (ev) => {",
+                    "  ev.lines = ['a', 'b', '', ''];",
+                    "  ev.closeScreen = true;",
+                    "});",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("display.js"));
 
@@ -131,7 +134,7 @@ class LaneWorldScenariosTest {
                     "let saw = null;",
                     "neo.events.onSync('player:attackEntity', (ev) => {",
                     "  saw = ev.target.type;",
-                    "  return ev.target.type === 'minecraft:iron_golem';",
+                    "  if (ev.target.type === 'minecraft:iron_golem') { ev.cancel(); }",
                     "});",
                     "neo.events.on('game:start', () => neo.__test.report('lane-guard', saw === null, 'registered'));",
                     ""));

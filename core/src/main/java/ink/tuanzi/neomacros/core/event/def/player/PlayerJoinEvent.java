@@ -15,6 +15,6 @@ import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:join")
+@ApiEvent(name = "player:join", direction = ApiEvent.Direction.LOCAL)
 public record PlayerJoinEvent(EntitySnapshot player) {
 }

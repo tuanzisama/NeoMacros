@@ -1,7 +1,6 @@
 package ink.tuanzi.neomacros.core.api;
 
 import ink.tuanzi.neomacros.core.api.bindgen.LoadTracker;
-import ink.tuanzi.neomacros.core.event.Payloads;
 import ink.tuanzi.neomacros.core.module.LoadedModule;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
@@ -89,9 +88,9 @@ public final class EventsApi {
      * Emits one custom event; the payload is a plain object (or undefined)
      * and delivery is async. The name must be registered first; payload keys
      * must not use the BaseEvent reserved words
-     * ({@code type}, {@code timestamp}, {@code cancellable}).
+     * ({@code type}, {@code timestamp}, {@code cancellable}, {@code direction}).
      *
-     * @zh 触发一个自定义事件；载荷须为普通对象（或 undefined），走异步通道。名称须先注册；载荷键不得占用 BaseEvent 保留字（{@code type}、{@code timestamp}、{@code cancellable}）。
+     * @zh 触发一个自定义事件；载荷须为普通对象（或 undefined），走异步通道。名称须先注册；载荷键不得占用 BaseEvent 保留字（{@code type}、{@code timestamp}、{@code cancellable}、{@code direction}）。
      */
     @ApiSince("0.1.0")
     @ApiMC("*")
@@ -136,48 +135,50 @@ public final class EventsApi {
 
     /**
      * Subscribes synchronously on the dispatch thread; only cancellable
-     * events accept sync subscriptions. The callback receives the payload and
-     * returns a truthy value to cancel the event (filter-style, like
-     * {@code Array.filter}), or a plain object carrying modification fields
-     * for the event (a truthy {@code cancel} key cancels; event-specific keys
-     * such as {@code text} or {@code lines} travel back to the publisher).
+     * events accept sync subscriptions. The callback receives the payload in
+     * writable form: rewrite whitelisted fields directly ({@code e.text = ...}),
+     * cancel with {@code e.cancel()} or the writable {@code e.cancelled},
+     * and return nothing — the engine commits the writes back to the
+     * publisher. Later priorities observe and override earlier writes;
+     * MONITOR subscriptions are observation-only.
      * Sync callbacks must stay short; they block the dispatch thread.
      *
-     * @zh 在分发线程上同步订阅；仅可取消事件可用。回调返回 truthy 即取消该事件；返回普通对象则携带修改字段（truthy 的 {@code cancel} 键取消，事件特定键如 {@code text}、{@code lines} 回传发布方）。
+     * @param options optional {@code { priority: neo.EventPriority.*, ignoreCancelled: boolean }}
+     * @zh 在分发线程上同步订阅；仅可取消事件可用。回调收到的载荷可写：直接改写白名单字段、用 {@code e.cancel()} 或可写的 {@code e.cancelled} 取消，无需返回值——引擎把修改提交回发布方。后执行的优先级能看到并覆盖先前修改；MONITOR 仅作观测。同步回调必须短小，会阻塞分发线程。
      * @zh-param name 事件名（仅可取消事件）
-     * @zh-param handler 判定回调：返回 truthy 取消事件，或返回修改对象；须短小
+     * @zh-param handler 处理回调：通过事件对象提交修改与取消；须短小
+     * @zh-param options 可选 {@code { priority: neo.EventPriority.*, ignoreCancelled: 布尔 }}
      */
-    @ApiSince("0.1.0")
+    @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public void onSync(String name, java.util.function.Function<Object, Object> handler) {
-        var subscription = ScriptApiEnvironment.bus().onSync(name,
-                (payload, cancel) -> {
-                    Object source = payload instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope
-                            ? envelope.payload() : payload;
-                    Object view = ScriptApiEnvironment.guestView(Payloads.snapshot(source));
-                    Object returned = handler.apply(view);
-                    if (returned instanceof java.util.Map<?, ?> verdict) {
-                        // Structured verdict: a truthy "cancel" field cancels;
-                        // the remaining fields travel back to the publisher
-                        // (chat:title text, screen:signEdit lines/closeScreen).
-                        if (truthy(verdict.get("cancel"))) {
-                            cancel.cancel();
-                        }
-                        return verdict;
-                    }
-                    if (truthy(returned)) {
-                        cancel.cancel();
-                    }
-                    return null;
-                });
+    public void onSync(String name, java.util.function.Function<Object, Object> handler,
+                       @ApiType("SyncOptions") Object options) {
+        var priority = ink.tuanzi.neomacros.core.event.EventPriority.NORMAL;
+        boolean ignoreCancelled = false;
+        if (options instanceof java.util.Map<?, ?> map) {
+            if (map.get("priority") != null) {
+                if (!(map.get("priority") instanceof ink.tuanzi.neomacros.core.event.EventPriority parsed)) {
+                    throw new IllegalArgumentException("events.onSync option 'priority' must be"
+                            + " a neo.EventPriority constant (e.g. neo.EventPriority.HIGH)");
+                }
+                priority = parsed;
+            }
+            if (map.get("ignoreCancelled") != null) {
+                ignoreCancelled = truthy(map.get("ignoreCancelled"));
+            }
+        } else if (options != null) {
+            throw new IllegalArgumentException("events.onSync options must be a plain object");
+        }
+        var subscription = ScriptApiEnvironment.bus().onSync(name, priority, ignoreCancelled,
+                (payload, cancel) -> handler.apply(payload));
         LoadedModule owner = LoadTracker.current();
         if (owner != null) {
             owner.trackSync(subscription);
         }
     }
 
-    /** JS-style truthiness for sync-verdict values. */
+    /** JS-style truthiness for sync option values. */
     private static boolean truthy(Object value) {
         if (value == null || Boolean.FALSE.equals(value)) {
             return false;

@@ -197,10 +197,7 @@ class PortEventWiringTest {
         var runtime = runtime(adapter, bus);
         PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-c")), new TickClock());
 
-        var subscription = bus.onSync("player:attackBlock", (payload, flag) -> {
-            flag.cancel();
-            return null;
-        });
+        var subscription = bus.onSync("player:attackBlock", (payload, flag) -> flag.cancel());
         try {
             boolean canceled = adapter.playerPort.fireAttackBlock(
                     new BlockInteraction("minecraft:stone", new Pos3d(1, 2, 3)));
@@ -225,14 +222,18 @@ class PortEventWiringTest {
         var published = new ArrayList<Published>();
         recordAll(published, bus, catalog);
 
-        bus.onSync("chat:title", (payload, flag) -> java.util.Map.of("text", "replaced"));
+        bus.onSync("chat:title", (payload, flag) ->
+                ((ink.tuanzi.neomacros.core.event.EventPayloadEnvelope) payload).hooks()
+                        .write("text", "replaced"));
         var verdict = adapter.chatPort.fireTitle("subtitle", "original");
         assertFalse(verdict.canceled());
         assertEquals("replaced", verdict.text().text());
         assertEquals("chat:title", published.get(0).name());
-        var payload = (ink.tuanzi.neomacros.core.event.def.chat.ChatTitleEvent) published.get(0).payload();
-        assertEquals("subtitle", payload.kind());
-        assertEquals("original", payload.text().text());
+        // Async observers see the final mutated state (sequential visibility).
+        @SuppressWarnings("unchecked")
+        var state = (java.util.Map<String, Object>) published.get(0).payload();
+        assertEquals("subtitle", state.get("kind"));
+        assertEquals("replaced", state.get("text"));
         runtime.close();
     }
 
@@ -245,10 +246,7 @@ class PortEventWiringTest {
         var published = new ArrayList<Published>();
         recordAll(published, bus, catalog);
 
-        bus.onSync("chat:actionbar", (payload, flag) -> {
-            flag.cancel();
-            return null;
-        });
+        bus.onSync("chat:actionbar", (payload, flag) -> flag.cancel());
         var verdict = adapter.chatPort.fireActionbar("local", "hello");
         assertTrue(verdict.canceled());
         assertEquals("chat:actionbar", published.get(0).name());
@@ -267,18 +265,23 @@ class PortEventWiringTest {
         var published = new ArrayList<Published>();
         recordAll(published, bus, catalog);
 
-        bus.onSync("screen:signEdit", (payload, flag) -> java.util.Map.of(
-                "lines", java.util.List.of("a", "b", "", ""),
-                "closeScreen", true));
+        bus.onSync("screen:signEdit", (payload, flag) -> {
+            var envelope = (ink.tuanzi.neomacros.core.event.EventPayloadEnvelope) payload;
+            envelope.hooks().write("lines", java.util.List.of("a", "b", "", ""));
+            envelope.hooks().write("closeScreen", true);
+        });
         var verdict = adapter.playerPort.fireSignEdit(new ink.tuanzi.neomacros.port.model.SignEditData(
                 1, 64, 2, true, java.util.List.of("", "", "", "")));
         assertFalse(verdict.canceled());
         assertTrue(verdict.closeScreen());
         assertEquals(java.util.List.of("a", "b", "", ""), verdict.lines());
         assertEquals("screen:signEdit", published.get(0).name());
-        var payload = (ink.tuanzi.neomacros.core.event.def.screen.ScreenSignEditEvent) published.get(0).payload();
-        assertEquals(1, payload.x());
-        assertTrue(payload.front());
+        // Async observers see the final mutated state (sequential visibility).
+        @SuppressWarnings("unchecked")
+        var state = (java.util.Map<String, Object>) published.get(0).payload();
+        assertEquals(1, state.get("x"));
+        assertEquals(Boolean.TRUE, state.get("front"));
+        assertEquals(java.util.List.of("a", "b", "", ""), state.get("lines"));
         runtime.close();
     }
 

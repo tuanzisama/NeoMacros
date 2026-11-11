@@ -16,6 +16,6 @@ import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:interactEntity", cancellable = true)
+@ApiEvent(name = "player:interactEntity", direction = ApiEvent.Direction.C2S, cancellable = true)
 public record PlayerInteractEntityEvent(EntitySnapshot target) {
 }

@@ -17,6 +17,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "entity:spawn")
+@ApiEvent(name = "entity:spawn", direction = ApiEvent.Direction.LOCAL)
 public record EntitySpawnDespawnEvent(java.util.UUID uuid, String entityTypeId) {
 }

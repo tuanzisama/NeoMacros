@@ -18,6 +18,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "world:blockUpdate")
+@ApiEvent(name = "world:blockUpdate", direction = ApiEvent.Direction.LOCAL)
 public record WorldBlockUpdateEvent(ink.tuanzi.neomacros.core.api.types.BlockPos pos, String id) {
 }

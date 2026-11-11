@@ -158,7 +158,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
         for (var descriptor : catalog.all()) {
-            registry.registerEventType(descriptor.name(), descriptor.cancellable());
+            registry.registerEventType(descriptor.name(), descriptor.cancellable(), descriptor.direction());
         }
 
         registry.registerGuestType("Pos2D", ink.tuanzi.neomacros.core.api.types.Pos2D.class);

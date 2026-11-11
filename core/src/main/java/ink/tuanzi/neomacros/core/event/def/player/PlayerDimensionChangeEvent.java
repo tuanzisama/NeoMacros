@@ -17,7 +17,7 @@ import java.util.Objects;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:dimensionChange")
+@ApiEvent(name = "player:dimensionChange", direction = ApiEvent.Direction.LOCAL)
 public record PlayerDimensionChangeEvent(String from, String to) {
     public PlayerDimensionChangeEvent {
         Objects.requireNonNull(from, "from cannot be null");

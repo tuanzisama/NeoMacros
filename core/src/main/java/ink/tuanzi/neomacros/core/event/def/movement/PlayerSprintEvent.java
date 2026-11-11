@@ -14,6 +14,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.2.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:sprint")
+@ApiEvent(name = "player:sprint", direction = ApiEvent.Direction.LOCAL)
 public record PlayerSprintEvent(boolean sprinting) {
 }

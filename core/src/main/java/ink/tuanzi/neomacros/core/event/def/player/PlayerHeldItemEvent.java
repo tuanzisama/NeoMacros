@@ -16,6 +16,6 @@ import ink.tuanzi.neomacros.port.model.ItemStackData;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:heldItem")
+@ApiEvent(name = "player:heldItem", direction = ApiEvent.Direction.LOCAL)
 public record PlayerHeldItemEvent(ItemStackData previous, ItemStackData current) {
 }

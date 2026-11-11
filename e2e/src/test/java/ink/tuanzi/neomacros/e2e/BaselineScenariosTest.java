@@ -114,7 +114,9 @@ class BaselineScenariosTest {
     void syncCancellationRejectsEvent() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "filter.js", String.join("\n",
-                    "neo.events.onSync('chat:send', (ev) => ev.message === 'spam');",
+                    "neo.events.onSync('chat:send', (ev) => {",
+                    "  if (ev.message === 'spam') { ev.cancel(); }",
+                    "});",
                     ""));
             e2e.loadScript(dir.resolve("scripts").resolve("filter.js"));
 

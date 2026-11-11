@@ -66,7 +66,9 @@ public final class EventCatalog {
         if (builtinDomain) {
             throw new IllegalArgumentException("custom event may not use the built-in domain '" + domain + "': " + name);
         }
-        descriptors.putIfAbsent(name, new EventDescriptor(name, domain, false, null, null, true));
+        descriptors.putIfAbsent(name, new EventDescriptor(name, domain, false,
+                ink.tuanzi.neomacros.doc.api.ApiEvent.Direction.LOCAL, List.of(),
+                null, null, true));
     }
 
     /** Returns the descriptor of the event, or empty when unknown. */

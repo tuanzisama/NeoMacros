@@ -19,6 +19,6 @@ import java.util.List;
 @ApiSince("0.2.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:armor")
+@ApiEvent(name = "player:armor", direction = ApiEvent.Direction.LOCAL)
 public record PlayerArmorEvent(List<ItemStackData> armor) {
 }

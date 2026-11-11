@@ -469,6 +469,8 @@ public final class StubAdapter implements NeomacrosAdapter {
                 ink.tuanzi.neomacros.port.model.TextVerdict>> titleSinks = new CopyOnWriteArrayList<>();
         final List<Function<ink.tuanzi.neomacros.port.model.ActionbarDisplayData,
                 ink.tuanzi.neomacros.port.model.TextVerdict>> actionbarSinks = new CopyOnWriteArrayList<>();
+        final List<Function<String, ink.tuanzi.neomacros.port.model.ChatSendVerdict>> sendSinks =
+                new CopyOnWriteArrayList<>();
 
         /** Delivers one displayed message to the receive sinks. */
         public void fireReceive(String text) {
@@ -476,6 +478,26 @@ public final class StubAdapter implements NeomacrosAdapter {
             for (Consumer<ChatComponent> sink : receiveSinks) {
                 sink.accept(message);
             }
+        }
+
+        /**
+         * Fires one outgoing chat message through the send sinks; returns the
+         * combined verdict (cancel OR across sinks, last replacement wins).
+         */
+        public ink.tuanzi.neomacros.port.model.ChatSendVerdict fireChatSend(String message) {
+            boolean canceled = false;
+            String replaced = null;
+            for (Function<String, ink.tuanzi.neomacros.port.model.ChatSendVerdict> sink : sendSinks) {
+                var verdict = sink.apply(message);
+                if (verdict == null) {
+                    continue;
+                }
+                canceled |= verdict.canceled();
+                if (verdict.message() != null) {
+                    replaced = verdict.message();
+                }
+            }
+            return new ink.tuanzi.neomacros.port.model.ChatSendVerdict(canceled, replaced);
         }
 
         /**
@@ -544,6 +566,12 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public void onChatReceive(Consumer<ChatComponent> sink) {
             receiveSinks.add(sink);
+        }
+
+        @Override
+        public void onChatSend(Function<String,
+                ink.tuanzi.neomacros.port.model.ChatSendVerdict> sink) {
+            sendSinks.add(sink);
         }
 
         @Override

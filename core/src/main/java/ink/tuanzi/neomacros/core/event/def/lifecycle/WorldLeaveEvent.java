@@ -13,6 +13,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "world:leave")
+@ApiEvent(name = "world:leave", direction = ApiEvent.Direction.LOCAL)
 public record WorldLeaveEvent() {
 }

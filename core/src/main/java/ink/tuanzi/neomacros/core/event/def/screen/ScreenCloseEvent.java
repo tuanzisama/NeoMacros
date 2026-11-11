@@ -15,6 +15,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "screen:close")
+@ApiEvent(name = "screen:close", direction = ApiEvent.Direction.LOCAL)
 public record ScreenCloseEvent(String title, String screen) {
 }

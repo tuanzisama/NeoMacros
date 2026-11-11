@@ -226,6 +226,12 @@ public final class FabricChatPort implements ChatPort {
     }
 
     @Override
+    public void onChatSend(java.util.function.Function<String,
+            ink.tuanzi.neomacros.port.model.ChatSendVerdict> sink) {
+        ChatSendHub.register(sink);
+    }
+
+    @Override
     public void onTitle(java.util.function.Function<ink.tuanzi.neomacros.port.model.TitleDisplayData,
             ink.tuanzi.neomacros.port.model.TextVerdict> sink) {
         DisplayHub.registerTitle(sink);

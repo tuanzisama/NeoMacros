@@ -15,6 +15,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "tick")
+@ApiEvent(name = "tick", direction = ApiEvent.Direction.LOCAL)
 public record TickEvent(long count) {
 }

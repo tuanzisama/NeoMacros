@@ -20,6 +20,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.3.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "screen:change")
+@ApiEvent(name = "screen:change", direction = ApiEvent.Direction.LOCAL)
 public record ScreenChangeEvent(String phase, String screen, String kind, String title) {
 }

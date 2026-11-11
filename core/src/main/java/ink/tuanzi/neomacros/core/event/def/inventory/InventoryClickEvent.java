@@ -19,6 +19,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.3.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "inventory:click")
+@ApiEvent(name = "inventory:click", direction = ApiEvent.Direction.LOCAL)
 public record InventoryClickEvent(int containerId, String kind, int slot, int button, boolean shift) {
 }

@@ -38,20 +38,25 @@ public final class ModuleBinding {
 
     /**
      * Script-facing event class member: the engine resolves it to the guest
-     * ES event class ({@code XxxEvent extends BaseEvent}) built from the
-     * event name; scripts use it for {@code instanceof} dispatch.
+     * ES event class ({@code XxxEvent extends BaseEvent} through the
+     * direction middle class) built from the event name; scripts use it for
+     * {@code instanceof} dispatch.
      */
     public static final class EventTypeMember implements BindingMember {
 
         private final String eventName;
         private final boolean cancellable;
+        private final ink.tuanzi.neomacros.doc.api.ApiEvent.Direction direction;
 
-        public EventTypeMember(String eventName, boolean cancellable) {
+        public EventTypeMember(String eventName, boolean cancellable,
+                               ink.tuanzi.neomacros.doc.api.ApiEvent.Direction direction) {
             this.eventName = eventName;
             this.cancellable = cancellable;
+            this.direction = direction;
         }
 
-        /** The event name backing the guest class ("BaseEvent" yields the base). */
+        /** The event name backing the guest class ("BaseEvent" yields the base;
+         * "InputEvent"/"DisplayEvent"/"StateEvent" yield the direction classes). */
         public String eventName() {
             return eventName;
         }
@@ -59,6 +64,11 @@ public final class ModuleBinding {
         /** Whether the event supports cancellation (introspection face). */
         public boolean cancellable() {
             return cancellable;
+        }
+
+        /** The traffic direction driving the middle-class inheritance. */
+        public ink.tuanzi.neomacros.doc.api.ApiEvent.Direction direction() {
+            return direction;
         }
     }
 

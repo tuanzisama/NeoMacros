@@ -19,7 +19,7 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.3.0")
 @ApiMC(">=1.21.6")
 @ApiLoader("*")
-@ApiEvent(name = "dialog:open")
+@ApiEvent(name = "dialog:open", direction = ApiEvent.Direction.LOCAL)
 public record DialogOpenEvent(String kind, String title, boolean canCloseWithEscape,
                               java.util.List<PlayerApi.DialogAction> actions) {
 }

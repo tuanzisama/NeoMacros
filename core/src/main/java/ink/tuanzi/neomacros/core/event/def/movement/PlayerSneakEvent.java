@@ -14,6 +14,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.2.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:sneak")
+@ApiEvent(name = "player:sneak", direction = ApiEvent.Direction.LOCAL)
 public record PlayerSneakEvent(boolean sneaking) {
 }

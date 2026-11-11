@@ -14,6 +14,6 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.2.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:gliding")
+@ApiEvent(name = "player:gliding", direction = ApiEvent.Direction.LOCAL)
 public record PlayerGlidingEvent(boolean gliding) {
 }

@@ -17,6 +17,6 @@ import ink.tuanzi.neomacros.core.api.types.Block;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "player:attackBlock", cancellable = true)
+@ApiEvent(name = "player:attackBlock", direction = ApiEvent.Direction.C2S, cancellable = true)
 public record PlayerAttackBlockEvent(Block block, String face) {
 }

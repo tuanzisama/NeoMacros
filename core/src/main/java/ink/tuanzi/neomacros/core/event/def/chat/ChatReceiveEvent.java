@@ -16,6 +16,6 @@ import ink.tuanzi.neomacros.port.model.ChatComponent;
 @ApiSince("0.1.0")
 @ApiMC("*")
 @ApiLoader("*")
-@ApiEvent(name = "chat:receive")
+@ApiEvent(name = "chat:receive", direction = ApiEvent.Direction.S2C)
 public record ChatReceiveEvent(ChatComponent message) {
 }
