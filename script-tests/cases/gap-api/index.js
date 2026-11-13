@@ -67,7 +67,8 @@ function start() {
     check('player.statistics', self.statistics === null || typeof self.statistics === 'object');
     check('player.interactionRange', typeof self.blockInteractionRange === 'number'
         && typeof self.entityInteractionRange === 'number');
-    check('player.isBreakingBlock', typeof self.isBreakingBlock === 'boolean');
+    // A no-arg is/getter publishes as a property (isBreakingBlock -> breakingBlock).
+    check('player.isBreakingBlock', typeof self.breakingBlock === 'boolean');
     const selfInv = self.inventory;
     check('player.self-inventory-craft-grid',
         typeof selfInv === 'object' && selfInv.craftingWidth === 2
@@ -84,6 +85,41 @@ function start() {
         typeof selfInv === 'object'
         && (selfInv.recipeBookOpened === undefined
             || typeof selfInv.recipeBookOpened === 'boolean'));
+    const absent = (v) => v === undefined || typeof v === 'boolean';
+    check('entity.glowing', absent(self.glowing));
+    check('entity.glowColor', self.glowColor === undefined
+        || typeof self.glowColor === 'number');
+    check('entity.customName', self.customName === undefined
+        || typeof self.customName === 'string');
+    check('entity.customNameVisible', absent(self.customNameVisible));
+    check('entity.air', self.air === undefined || typeof self.air === 'number');
+    check('entity.maxAir', self.maxAir === undefined || typeof self.maxAir === 'number');
+    check('entity.speed', self.speed === undefined || typeof self.speed === 'number');
+    const slot = (s) => s === undefined || typeof s.id === 'string';
+    check('entity.armor-slots',
+        slot(self.headArmor) && slot(self.chestArmor)
+        && slot(self.legArmor) && slot(self.footArmor));
+    check('entity.living-traits',
+        (self.armorToughness === undefined || typeof self.armorToughness === 'number')
+        && (self.defaultMaxHealth === undefined
+            || typeof self.defaultMaxHealth === 'number')
+        && (self.bowPull === undefined || typeof self.bowPull === 'number')
+        && absent(self.breathesUnderwater) && absent(self.noDrag)
+        && absent(self.partOfGame) && absent(self.undead) && absent(self.baby));
+    check('entity.predicates',
+        typeof self.canBeAffected('speed') === 'boolean'
+        && typeof self.canAttack(self) === 'boolean'
+        && typeof self.hasLineOfSight(self) === 'boolean');
+    try {
+      // The forced glow is restored right away, so the run ends on the
+      // game's own decision.
+      const pending = self.setGlowing(true).then(() => self.resetGlowing());
+      check('entity.write-promise',
+          Boolean(pending) && typeof pending.then === 'function');
+      pending.catch(() => {});
+    } catch (e) {
+      check('entity.write-promise', false);
+    }
   }
   try {
     const handle = neo.fs.open('neomacro-test-gap.txt');

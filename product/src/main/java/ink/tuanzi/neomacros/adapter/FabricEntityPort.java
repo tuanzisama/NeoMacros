@@ -625,7 +625,6 @@ public final class FabricEntityPort implements EntityPort {
                 state.put("absorption", living.getAbsorptionAmount());
                 state.put("armorValue", (double) living.getArmorValue());
                 state.put("noGravity", living.isNoGravity());
-                state.put("glowing", living.isCurrentlyGlowing());
                 if (living instanceof net.minecraft.world.entity.monster.Enemy enemyCheck) {
                     state.put("hostile", true);
                 }
@@ -639,10 +638,9 @@ public final class FabricEntityPort implements EntityPort {
                     state.put("flySpeed", (double) abilities.getFlyingSpeed());
                     state.put("walkingSpeed", (double) abilities.getWalkingSpeed());
                 }
-                state.put("air", living.getAirSupply());
-                state.put("maxAir", living.getMaxAirSupply());
                 state.put("useItemRemainingTicks", living.getUseItemRemainingTicks());
                 state.put("tags", new java.util.ArrayList<>(living.entityTags()));
+                collectEquipmentAndTraits(living, state);
                 java.util.List<Object> effects = new java.util.ArrayList<>();
                 for (net.minecraft.world.effect.MobEffectInstance effect : living.getActiveEffects()) {
                     java.util.Map<String, Object> entry = new java.util.LinkedHashMap<>();
@@ -668,5 +666,270 @@ public final class FabricEntityPort implements EntityPort {
             return enumValue.name().toLowerCase(java.util.Locale.ROOT);
         }
         return String.valueOf(value);
+    }
+
+    /** The glow mode that leaves the game's own decision in place. */
+    private static final int AUTO_GLOW = 1;
+
+    /** The glow colour marker meaning "no override installed". */
+    private static final int NO_COLOR = -1;
+
+    /**
+     * The script-installed glow overrides, keyed by the live entity. Weak
+     * keys drop the entry with the entity, so a long session never grows a
+     * table of unloaded entities. Every access runs on the game main thread
+     * (render decisions and adapter writes both do).
+     */
+    private static final java.util.Map<Entity, GlowOverride> GLOW_OVERRIDES =
+            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+
+    /** One entity's glow overrides: forced mode and outline colour. */
+    private record GlowOverride(int forceMode, int color) {
+    }
+
+    /**
+     * The forced glow mode behind one entity: {@code 0} forces the outline
+     * off, {@code 2} forces it on and {@code 1} leaves the game's decision
+     * alone. Read by the glow mixin on every render decision.
+     */
+    public static int neomacros$forceGlowMode(Entity entity) {
+        GlowOverride state = entity != null ? GLOW_OVERRIDES.get(entity) : null;
+        return state == null ? AUTO_GLOW : state.forceMode();
+    }
+
+    /**
+     * The glow outline colour override behind one entity, or null when the
+     * team-derived colour applies. Read by the glow mixin on every outline
+     * colour lookup.
+     */
+    public static Integer neomacros$glowColorOverride(Entity entity) {
+        GlowOverride state = entity != null ? GLOW_OVERRIDES.get(entity) : null;
+        return state == null || state.color() == NO_COLOR ? null : state.color();
+    }
+
+    /** The current overrides of one entity, or the defaults when unset. */
+    private static GlowOverride glowOf(Entity entity) {
+        GlowOverride state = GLOW_OVERRIDES.get(entity);
+        return state != null ? state : new GlowOverride(AUTO_GLOW, NO_COLOR);
+    }
+
+    /** Stores one entity's overrides, dropping the entry when both reset. */
+    private static void putGlow(Entity entity, int forceMode, int color) {
+        if (forceMode == AUTO_GLOW && color == NO_COLOR) {
+            GLOW_OVERRIDES.remove(entity);
+        } else {
+            GLOW_OVERRIDES.put(entity, new GlowOverride(forceMode, color));
+        }
+    }
+
+    @Override
+    public Map<String, Object> entityState(UUID uuid) {
+        return MainThread.run(() -> {
+            Entity entity = findEntity(uuid);
+            if (entity == null) {
+                return Map.of();
+            }
+            Map<String, Object> state = new java.util.LinkedHashMap<>();
+            state.put("glowing", entity.isCurrentlyGlowing());
+            state.put("glowColor", entity.getTeamColor());
+            var customName = entity.getCustomName();
+            state.put("customName", customName != null ? customName.getString() : null);
+            state.put("customNameVisible", entity.isCustomNameVisible());
+            state.put("air", entity.getAirSupply());
+            state.put("maxAir", entity.getMaxAirSupply());
+            double stepX = entity.getX() - entity.xo;
+            double stepZ = entity.getZ() - entity.zo;
+            state.put("speed", Math.sqrt(stepX * stepX + stepZ * stepZ) * 20.0);
+            return state;
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setGlowing(UUID uuid, boolean glowing) {
+        return dispatch(() -> {
+            Entity entity = requireEntity(uuid);
+            GlowOverride current = glowOf(entity);
+            putGlow(entity, glowing ? 2 : 0, current.color());
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> resetGlowing(UUID uuid) {
+        return dispatch(() -> {
+            Entity entity = requireEntity(uuid);
+            putGlow(entity, AUTO_GLOW, glowOf(entity).color());
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setGlowingColor(UUID uuid, int color) {
+        return dispatch(() -> {
+            Entity entity = requireEntity(uuid);
+            putGlow(entity, glowOf(entity).forceMode(), color);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> resetGlowingColor(UUID uuid) {
+        return dispatch(() -> {
+            Entity entity = requireEntity(uuid);
+            putGlow(entity, glowOf(entity).forceMode(), NO_COLOR);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setCustomName(UUID uuid, String name) {
+        return dispatch(() -> {
+            Entity entity = requireEntity(uuid);
+            entity.setCustomName(name == null
+                    ? null : net.minecraft.network.chat.Component.literal(name));
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setCustomNameVisible(
+            UUID uuid, boolean visible) {
+        return dispatch(() -> requireEntity(uuid).setCustomNameVisible(visible));
+    }
+
+    @Override
+    public boolean canAttack(UUID uuid, UUID target) {
+        Boolean allowed = MainThread.run(() -> {
+            Entity self = findEntity(uuid);
+            Entity other = findEntity(target);
+            return self instanceof LivingEntity attacker
+                    && other instanceof LivingEntity victim
+                    && attacker.canAttack(victim);
+        });
+        return Boolean.TRUE.equals(allowed);
+    }
+
+    @Override
+    public boolean canBeAffected(UUID uuid, String effectId) {
+        Boolean allowed = MainThread.run(() -> {
+            Entity self = findEntity(uuid);
+            if (!(self instanceof LivingEntity living)) {
+                return false;
+            }
+            var effect = net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT
+                    .get(net.minecraft.resources.Identifier.tryParse(effectId));
+            if (effect.isEmpty()) {
+                return false;
+            }
+            return living.canBeAffected(
+                    new net.minecraft.world.effect.MobEffectInstance(effect.get(), 1));
+        });
+        return Boolean.TRUE.equals(allowed);
+    }
+
+    @Override
+    public boolean canSee(UUID uuid, UUID target, boolean simpleCast) {
+        Boolean visible = MainThread.run(() -> {
+            Entity self = findEntity(uuid);
+            Entity other = findEntity(target);
+            if (self == null || other == null || self.level() != other.level()) {
+                return false;
+            }
+            var from = new Vec3(self.getX(), self.getEyeY(), self.getZ());
+            java.util.function.Function<Vec3, Boolean> sees = to -> self.level()
+                    .clip(new net.minecraft.world.level.ClipContext(from, to,
+                            net.minecraft.world.level.ClipContext.Block.VISUAL,
+                            net.minecraft.world.level.ClipContext.Fluid.NONE, self))
+                    .getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+            double targetX = other.getX();
+            double targetY = other.getY();
+            double targetZ = other.getZ();
+            if (sees.apply(new Vec3(targetX, other.getEyeY(), targetZ))
+                    || sees.apply(new Vec3(targetX, targetY + 0.5, targetZ))
+                    || sees.apply(new Vec3(targetX, targetY, targetZ))) {
+                return true;
+            }
+            if (simpleCast) {
+                return false;
+            }
+            var box = other.getBoundingBox();
+            double halfX = (box.maxX - box.minX) / 2;
+            double halfZ = (box.maxZ - box.minZ) / 2;
+            int steps = (int) ((box.maxY - box.minY) / 0.1);
+            for (int i = 0; i < steps; i++) {
+                double y = targetY + i * 0.1;
+                if (sees.apply(new Vec3(targetX + halfX, y, targetZ))
+                        || sees.apply(new Vec3(targetX - halfX, y, targetZ))
+                        || sees.apply(new Vec3(targetX, y, targetZ + halfZ))
+                        || sees.apply(new Vec3(targetX, y, targetZ - halfZ))) {
+                    return true;
+                }
+            }
+            return false;
+        });
+        return Boolean.TRUE.equals(visible);
+    }
+
+    /** Fills the armor slots and the trait entries of the living extras. */
+    private static void collectEquipmentAndTraits(LivingEntity living,
+            Map<String, Object> state) {
+        state.put("headArmor", stackData(living.getItemBySlot(
+                net.minecraft.world.entity.EquipmentSlot.HEAD)));
+        state.put("chestArmor", stackData(living.getItemBySlot(
+                net.minecraft.world.entity.EquipmentSlot.CHEST)));
+        state.put("legArmor", stackData(living.getItemBySlot(
+                net.minecraft.world.entity.EquipmentSlot.LEGS)));
+        state.put("footArmor", stackData(living.getItemBySlot(
+                net.minecraft.world.entity.EquipmentSlot.FEET)));
+        var toughness = living.getAttribute(
+                net.minecraft.world.entity.ai.attributes.Attributes.ARMOR_TOUGHNESS);
+        state.put("armorToughness", toughness != null ? toughness.getValue() : null);
+        var maxHealth = living.getAttribute(
+                net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+        state.put("defaultMaxHealth", maxHealth != null ? maxHealth.getBaseValue() : null);
+        state.put("breathesUnderwater", living.canBreatheUnderwater());
+        state.put("noDrag", living.shouldDiscardFriction());
+        state.put("partOfGame", living.canBeSeenByAnyone());
+        state.put("undead", living.getType().builtInRegistryHolder()
+                .is(net.minecraft.tags.EntityTypeTags.UNDEAD));
+        state.put("baby", living.isBaby());
+        state.put("bowPull", living.getMainHandItem().getItem()
+                instanceof net.minecraft.world.item.BowItem
+                ? (double) net.minecraft.world.item.BowItem
+                        .getPowerForTime(living.getTicksUsingItem())
+                : 0.0);
+    }
+
+    /** Finds one loaded entity by UUID, or null when it is absent. */
+    private static Entity findEntity(UUID uuid) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null || uuid == null) {
+            return null;
+        }
+        for (Entity entity : level.entitiesForRendering()) {
+            if (entity.getUUID().equals(uuid)) {
+                return entity;
+            }
+        }
+        return null;
+    }
+
+    /** Resolves one handle, or reports that the entity is gone. */
+    private static Entity requireEntity(UUID uuid) {
+        Entity entity = findEntity(uuid);
+        if (entity == null) {
+            throw new IllegalStateException("handle no longer valid");
+        }
+        return entity;
+    }
+
+    /** Runs a write on the game main thread and resolves once it landed. */
+    private static java.util.concurrent.CompletableFuture<Void> dispatch(Runnable action) {
+        java.util.concurrent.CompletableFuture<Void> future =
+                new java.util.concurrent.CompletableFuture<>();
+        Minecraft.getInstance().execute(() -> {
+            try {
+                action.run();
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
     }
 }
