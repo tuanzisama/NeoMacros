@@ -1,0 +1,142 @@
+ **done**（2026-11-06） | session-t501 | t501-gap-api（W5 切片，java.wrap） | **done**（2026-11-06） | session-t501 | t501-gap-api（W4 切片，含 screen/fs/net） | **done**（2026-11-06） | session-t501 | t501-gap-api @72df830 | **done**（2026-11-06） | session-t501 | t501-gap-api @2c51e82 | **done**（2026-11-06） | session-t501 | t501-gap-api @884b805 |# NeoMacros 任务看板
+
+> **新会话/新 agent 从这里开始**（2026-10-31 建立交接入口）：
+> 1. 读设计基线 `../../neomacros-docs/README.md`（已确认决策，不可单方面推翻）；
+> 2. 读执行协议 `../../neomacros-docs/09-development-plan.md`（§0 Agent 使用说明 / DoD / 泳道 / E2E 规格）；
+> 3. 在本看板认领任务：动工前标 `in-progress` + Owner/分支，完成后标 `done` 并写 `plan/reports/<ID>.md` 报告。
+>
+> 当前进度（2026-11-01 终版）：**done=32 / partially=0 / pending=0，30 项计划任务全部收口，CI 实跑全绿**。仓库 public：https://github.com/tuanzisama/NeoMacros 。CI run 41261073201 @ 2e706e2 四 job 全绿（actionlint / compile 四节点+JDK17-21-25 / unit / documentation）；修复轨迹：actionlint-action 失效→上游二进制、setup-java v4→v5、gradlew 可执行位、unit 冷 runner 闪失败已列为观察项（失败时自动以注解暴露失败测试）。全量本地 build 同绿：四节点 216 tests，四个 fabric jar。G-R3 已决（1.18.2 backport tier，最低里程碑 1.21.6）。游戏内 G 级人工验证项为用户人工清单；后续窗口可选项：1.19.4~1.21.4 梯队、docs-builder 生成页接入 vitepress。
+> R1/R2 已关闭（T-022，结论见 08 §7）；bindgen 完成（T-023）：值中立绑定 + ProxyObject 活属性 + 权限包装 + @ApiMC 节点裁剪，双通道同一性有脚本级测试。
+> 已解锁可认领：**T-031（模块管理器——关键路径，前置全就绪）**、**T-030**（adapter 最小产品节点；首个 adapter 代码前必做双向 chisel 验证，见 T-000 报告遗留）、**T-032**（配置系统）；T-001 闭环（配 remote → PR 实跑 → 改标 done）。
+> 关键路径剩余：T-031 → T-040（E2E-A）→ G0。
+> 快速自验命令（仓库根）：`./gradlew build` → `bash scripts/smoke-build.sh`；引擎：`./gradlew :engine:test`；文档管线：`./gradlew :doc-api:publishToMavenLocal && ./gradlew -p docs-builder check -PtscPath=<bin/tsc>`。
+>
+> **2026-11-04 增补（S1v2 / API v2 波次，G-R5 已确认）**：T-400~T-450 十二任务已登记（表末尾），设计真源 = `../../neomacros-docs/12-api-catalog.md`（双层模型 / java 穿透层单闸全权 / 统一活句柄 / 0.x 直接演进）。DAG 与认领顺序见 09 §2/§8：**T-400 ∥ T-420 可立即认领**，T-401 为关键路径；S1v2 会重塑既有 S2/S3 产物（hud/render/面板同名文件），认领前 fresh read 确认无人正在改。
+
+> 来源：[09-开发计划书](../../neomacros-docs/09-development-plan.md)。认领协议见计划书 §0：
+> 动工前把任务标 `in-progress` 并填 Owner/分支/日期；完成后标 `done` 并在备注附报告链接。
+> 同一任务同时只能有一个 owner；泳道内非标注可并行的任务不并行认领。
+
+| ID | 任务 | 阶段 | 状态 | Owner | 分支 | 备注 |
+|---|---|---|---|---|---|---|
+| T-000 | 仓库骨架与构建脚手架 | S0 | **done** | session-agent | main | [报告](reports/T-000.md)；loom 1.19/Gradle 9.8 升级与 stonecutter 根脚本语义实证已回写架构文档 02 |
+| T-001 | CI 工作流骨架 | S0 | **done**（CI 实跑绿 ✓） | session-agent | t001-ci | [报告](reports/T-001.md)；run 41261073201 @ 2e706e2 **四 job 全绿**（lint/compile 四节点/unit/documentation）；修复过程：actionlint-action 失效改上游二进制、setup-java v4→v5（新 runner exit 126）、gradlew 补可执行位、加失败测试注解步骤；注意 unit 曾在 cd0690f 冷 runner 上闪失败（同套件后续 run 绿，疑似时序敏感，列为观察项） |
+| T-010 | doc-api 注解集 | S0 | **done** | session-agent | t010-doc-api | [报告](reports/T-010.md)；10 注解 + 18 单测绿 + maven 坐标已验证 |
+| T-011 | ports 中立类型与最小端口集 | S0 | **done** | session-agent | t011-ports | [报告](reports/T-011.md)；7 record + 5 端口 + ArchUnit 共享守卫（testFixtures） |
+| T-020 | core 事件框架 | S0 | **done** | session-agent | t020-event-framework | [报告](reports/T-020.md)；双通道 bus+watchdog+通配 43 测试绿，框架包覆盖率 97.7%；P0 基础事件载荷已备 |
+| T-021 | core Runtime·线程·Engine SPI | S0 | **done** | session-agent | t021-runtime-threading | [报告](reports/T-021.md)；Runtime/线程池/事件循环/异步原语/Engine SPI/死锁防护 39 测试绿（全量 82） |
+| T-022 | engine GraalJS PoC ★R1 | S0 | **done** | session-agent | t022-graaljs-engine | [报告](reports/T-022.md)；R1 结：FileSystem SPI 原生拦截可行；R2 结：24.2.2 跑通 Java 17（预热 968→20ms）；08 §7 已回写 |
+| T-023 | core ApiModel·绑定注册 | S0 | **done** | session-agent | t023-bindgen | [报告](reports/T-023.md)；值中立绑定+ProxyObject 活属性+权限包装+节点裁剪，core 11 + 引擎集成 6 全绿；**关键路径打通，T-031 已解锁** |
+| T-024 | 文档管线骨架（docs-builder） | S0 | **done** | session-agent | t024-docs-builder | [报告](reports/T-024.md)；双 doclet + 快照回归 + tsc 实跑全绿；骨架期约定见其 README |
+| T-030 | adapter/fabric 最小产品节点 | S0 | **done** | session-agent | t030-product-node | [报告](reports/T-030.md)；Lifecycle/Chat 端口+mixin+Bootstrap 全绿；游戏内完整启动 0 mixin 错误；reload 移交 T-031 |
+| T-031 | 模块管理器 | S0 | **done** | session-agent | t031-module-manager | [报告](reports/T-031.md)；收口：sleep-settles 游戏内 PASS（真因=旧 record 的 console.log 抛错）；文件监视器由 T-032 交付；单模块 reload 移交 T-303 |
+| T-032 | 配置系统 | S0 | **done** | session-agent | t032-config | [报告](reports/T-032.md)；ConfigManager+Codec+CoreOptions+watch 接线全绿；补 T-031 遗留#2 文件监视器 |
+| T-033 | storage 模块 | S0 | **done** | session-agent | t033-storage | [报告](reports/T-033.md)；StorageApi/ModuleStorage/防抖/快照+Proxy 包装全绿；真脚本 put→get→落盘集成测试 |
+| T-040 | E2E-A 测试骨架 | S0 | **done** | session-agent | t040-e2ea | [报告](reports/T-040.md)；8 基线场景绿；修复 payload guest 化等五项跨层缺陷 |
+| T-041 | E2E-G 套件骨架 | S0 | **done** | session-agent | t041-e2eg（收口 33f4b37→main） | [报告](reports/T-041.md)；收口：suite 5/5 ALL PASS + verifyGameE2E 绿 + 33f4b37 独立复核全绿；根因三项定性已回写 08 §8；遗留移交见报告（watchdog 接线→T-100、quitOnDone 复跑、cases 同源机制） |
+| T-100 | 权限信任门 | S1 | **done** | session-agent | t100-trust | [报告](reports/T-100.md)；TrustManager+可点击提示+trust 命令 ×5 单测绿；信任哈希口径=模块名+声明集（回写 05） |
+| T-101 | lane-world（world/entity/player） | S1 | **partially-done** | session-agent-b | t101-lane-world | [报告](reports/T-101.md)；版本无关层全交付+player/world 事件族 17 件全绿；剩余 mixin 事件族→T-101b、游戏内 observe 待人工进世界；**合入 main 需等 T-100 提交（同改 NeoMacrosFabric）** |
+| T-101b | lane-world mixin 事件族 | S1 | **done** | session-agent | t101b-mixin-events3 | [报告](reports/T-101b.md)；11 件全交付：entity:damage/heal=per-tick 健康快照差量（PortEventWiring SelfStateTracker，32 格半径、离域清位防重放）、world:blockUpdate/chunkLoad=ClientLevelWorldMixin、world:chunkUnload=ClientChunkCacheMixin、world:bossbar=BossUpdateMixin 重派发 packet、player:effect=PlayerPort.activeEffects()+EffectSnapshot 差量；新增 4 payload record 入 ProductionEventSet；修复合并产生的 hub 桥重复注册；删除死代码 EntityEventHub |
+| T-102 | lane-inventory | S1 | **done** | session-agent | t102-inventory | [报告](reports/T-102.md)；InventoryPort+FabricInventoryPort 只读查询集绿；写操作随 P1 安全评审 |
+| T-103 | lane-input | S1 | **done** | session-agent | t103-input | [报告](reports/T-103.md)；InputPort+FabricInputPort（26.3 keymapping/v1 新 API）+滚轮 mixin+InputApi；输入模拟延后 |
+| T-104 | lane-fs/net | S1 | **done** | session-agent | t104-fs-net | [报告](reports/T-104.md)；FsApi+NetApi 门面+沙箱边界+逃逸拒绝 ×3 单测绿；WebSocket 延后 |
+| T-105 | lane-command | S1 | **done** | session-agent | t105-command | [报告](reports/T-105.md)；CommandApi+FabricCommandPort（literal+args remainder）×3 单测绿；类型化 DSL 延后 |
+| T-106 | 全节点矩阵 + 1.18.2 可行性 ★R3 | S1 | **done**（矩阵收口，G-R3 已决） | session-agent | t106-node-matrix | 四节点（1.21.6/26.1.2/26.2/26.3）编译绿+出 jar；1.21.6=mapped 工具链（现代 loom 插件 id+disableObfuscation=false），26.x=旧插件 id（loom 强制 unobf）；跨版本=buildSrc replacements（安全对）+ //? 交换（结构差异）；9 节点坐标已核实；**G-R3：1.18.2 不纳入矩阵**（MatrixStack 世代+无 MultiLineEditBox，02 §9），最低里程碑=1.21.6，1.19.4~1.21.4 为下一梯队 |
+| T-200 | hud·Draw2D | S2 | **done** | session-agent | t200-t201-render | [报告](reports/T-200-T-201.md)；RenderPort+HudApi+FabricRenderPort（26.3 HudElementRegistry pipeline）；Draw2D 完整管线为渲染增量 |
+| T-201 | render·Draw3D | S2 | **done** | session-agent | t200-t201-render | 合并交付（Draw3D 世界内渲染延后到渲染增量） |
+| T-300 | 错误呈现链路 | S3 | **done**（v1） | session-agent | main | ErrorPresenter 节流+20 条环形历史（单测）；setErrorHandler 此前从未接线（运行时错误静默丢失）已修复；可点击聊天行 → /neomacros errors 查看器 |
+| T-301 | screen·ScriptScreen | S3 | **done**（v1 查看器） | session-agent | main | 26.3 extractRenderState 管线 + MultiLineEditBox + Done；/neomacros open <script> 显示源码；编辑能力归 T-302 |
+| T-302 | 编辑器 GUI | S3 | **done** | session-agent | t302-editor-panel | ScriptEditorScreen：MultiLineEditBox 可编辑 + Save/Save+Reload + 新脚本创建，保存即 modules.checkForChanges；/neomacros edit <script> 入口（路径规范化防逃逸） |
+| T-303 | 管理面板 | S3 | **done** | session-agent | t302-editor-panel | ScriptManagerScreen：ObjectSelectionList 行列表（loaded/untrusted 标记、行点击进编辑器）+ New Script/Reload All/Trust Selected；修复 /neomacros trust <name> 无 handler 缺陷（pendingTrusts 映射） |
+| T-310 | VitePress·npm types | S3 | **partially-done** | session-agent | t310-vitepress | [报告](reports/T-310.md)；VitePress 脚手架+npm types 打包脚本就位；npm install/build 待 Node.js 环境验证 |
+| T-107 | 分类脚本目录 + neomacro 清单（计划外新增，需求方 2026-11-01 两轮交互确认） | S1.5 | **done** | session-agent-c | t107-macro-folders | [报告](reports/T-107.md)；macros/{keypress,event,services} 文件夹制+清单（yml/json/json5）+首装示例+按键中央绑定表（原地改键）+服务启停+面板分组与按键捕获；core/engine/e2e 158 测试绿、四节点 build 绿、26.3 产物 jar 嵌套齐（Graal 闭包+snakeyaml）；文档回写 README/01/03/05/08/09；游戏内人工验证项见报告遗留；分支待合入 main（node-common 与渲染 lane WIP 有同段 Graal include，合并去重） |
+| T-400 | doc-api `@ApiClass` 注解 + docs-builder class 形态 | S1v2 | **done** | session-t400 | t400-api-class（worktree neomacros-t400，@44fdcef 待合 main） | [报告](reports/T-400.md)；`@ApiHandle`→`@ApiClass(name,kind,wraps?)` 直接替换（ApiHandle 已删）；TSDoclet 生成 class 声明+extends 链、MDDoclet kind/wraps 徽标+模块类树、tsDeclaredType 用注解 guest 名；fixture 加继承链+DATA 类、快照 4 件审阅晋升、新增 4 测试；doc-api/docs-builder(tsc)/core/engine/e2e 全绿；侧边栏增长推迟到门面落地任务（防死链，已回写 09）；guest 名维持现名（更名归 T-401） |
+| T-401 | ApiModel 类树提取 + guest 端真实 ES 类生成 | S1v2 | **done** | session-t401 | t401-class-tree（worktree neomacros-t401，@43481a5 待合 main） | [报告](reports/T-401.md)；cell 更名 Entity→Player（脚本面零变化）；glue `__neoDefineClass` 生成真实 ES 类树（instanceof/用户继承/toStringTag/JSON 快照；父类先建+`__cell` 沿 super 链安装为关键修复）；扁平代理方法惰性化（顺带修语义缺陷）；四层类树集成测试 12 断言 + engine/core/e2e/docs 全绿；类元数据 engine 侧反射（core bindgen 零改动）、raw 推迟 T-410，均已回写 09 |
+| T-402 | `@neomacros/types` 模块 | S1v2 | **done**（2026-11-04，@3982005 经 0ee3528 合 main）| session-t402 | t402-types | [报告](reports/S1v2-wave.md)；GuestTypeMember 注册表 + neo.types 树 + @neomacros/types 与领域自动 re-export；E2E 同一性/instanceof/用户子类断言 |
+| T-410 | java 穿透层核心（中介反射） | S1v2 | **done**（2026-11-04，@d13106c 经 1d5acaa 合 main）| session-t410 | t402-types 波次 | [报告](reports/S1v2-wave.md)；JavaApi(neo.java, java 单闸)+JavaClass/JavaObject 动态代理+自动包装；类级 @ApiPermission 回退修复（原类门不生效真雷）；侧边栏 +java |
+| T-411 | MappingResolver 集成 + 函数/集合编组 | S1v2 | **done**（2026-11-04，@ae330dd 经 1d5acaa 合 main）| session-t411 | t411-mapping | [报告](reports/S1v2-wave.md)；FabricClassResolver（直连优先→MappingResolver）+java.proxy+toList/fromList/toArray+__neoRaw 反向解包+宿主对象自动包装 |
+| T-420 | ports 模型扩展（∥ 可先行） | S1v2 | **done**（2026-11-04，@7530f37 经合并入 main）| session-t420 | t420-ports | [报告](reports/S1v2-wave.md)；ItemStackData +damage/maxDamage/lore/enchantments(EnchantmentData)+兼容构造；EntitySnapshot/ItemStackData displayName→name（脚本面字段名对齐）；WorldPort raycast(origin,dir,RayOptions)→RayHit{block|entity,pos,distance}+Fabric 手写实体扫掠+新 getters thundering/day/age/difficulty/biomeAt/loaded；WorldApi.raycast 临时兼容视图（T-421 重塑为 RayHit 句柄面） — | — | ItemStackData 扩 damage/lore/enchantments、EntitySnapshot displayName→name 全仓、WorldPort 射线重签名+粒子/声音/biome、PlayerPort 动作；StubAdapter 同步；**等 main WIP（正改 ports/ChatComponent）收口后认领**（G-R6 时序确认） |
+| T-421 | world/entity/player 重塑（统一活句柄） | S1v2 | **done**（2026-11-04，@617cf30 经合并入 main） | session-wave | t422-inventory 波次 | [报告](reports/S1v2-wave.md)；Vec3/BlockPos/Block/BlockState/RayHit/LocalPlayer cells + 自构造支持(__neoMakeCell via new.target)+__neoCell 探针+any-arity 方法派发；EntityApi inRadius→Entity[]；WorldApi blockAt→Block+raycast→RayHit+新 getters；PlayerPort 5 动作（1.21.6 已接，26.x 石切待研究） |
+| T-422 | inventory 模块（Container + 异步动作） | S1v2 | **done**（2026-11-04，@e33ee62 经合并入 main） | session-wave | t422-inventory 波次 | [报告](reports/S1v2-wave.md)；InventoryApi facade+Container cell+opened 属性+click/quickMove/drop/swapHotbar/close 异步+inventory:open/update 事件接线 |
+| T-423 | fs/net/command 扩充 | S1v2 | **done**（2026-11-04，@adb7fbb 经合并入 main）| session-t423 | t411-mapping 波次 | [报告](reports/S1v2-wave.md)；fs+readJSON/writeJSON/readBytes/writeBytes/stat/move/copy(JsonLite)；net 重塑 fetch→Response{text/json/bytes}；command.arg 类型化 DSL+CommandContext |
+| T-424 | input 扩充（模拟 + Subscription 统一） | S1v2 | **done**（2026-11-04，@9ecc491 经合并入 main）| session-t424 | t424-input | [报告](reports/S1v2-wave.md)；press/release/hold/set 注入(InputPort injectKey/injectBind+FabricInputPort 原版键映射驱动)；注册统一 Subscription |
+| T-430 | P1 事件族（8 项）+ 自定义事件 | S1v2 | **done**（2026-11-04，@187ff4e+43df573+64948e4 全部合 main）| session-t430 | t424-input 波次 | [报告](reports/S1v2-wave.md)；已落地 key:press(可取消,KeyMapping.set 钩头)/input:wheel/自定义事件 register+emit(catalog 校验防遮蔽)；余事件(weather/exp/heldItem/gamemode/screen:open/close)已由 T-430b/T-430c 全部接线落地 |
+| T-430c | screen:open/close 接线（SelfStateTracker tick 轮询） | S1v2 | **done**（2026-11-04，@64948e4 经合并入 main） | session-t430c | t430c-screen | [报告](reports/S1v2-wave.md)；LifecyclePort 加 isScreenOpen/screenTitle（default-valued；FabricLifecyclePort 用 Gui/screen accessor 石切守卫实现）；SelfStateTracker emitScreen tick 粒度转换检测；避免专用 mixin（Screen API 26.x 漂移，tick 轮询版本无关且可无头测试） |
+| T-450 | script-tests 全模块迁移 + G1v2 真机验收（S1v2 合并点 M2） | S1v2 | **partially-done**（2026-11-04，@43df573+docs regen） | session-wave | t422-inventory 波次 | [报告](reports/T-450.md)；无头验收全绿+docs 重生成 15 页；真机清单 7 项待用户执行；26.x player 动作**已全量实现**（swing 3-arg/interact 4-arg EntityHitResult/dropItem）；jar=neomacros-26.3-fabric-0.1.0-s1v2.jar；screen tick 轮询已接；raw 穿透口 Block/Player/Entity 三 cell 全量实现(@2dcbe4d)+.d.ts types 补充已加 |
+
+## 需求方确认点（agent 不得自行决策）
+
+| Gate | 触发 | 内容 |
+|---|---|---|
+| G-R1 | T-022 完成 | ESM PoC 结论确认 |
+| G-R3 | T-106 期间 | 1.18.2 不可行时矩阵降级决策 |
+| G-R5 | S1v2 动工前（2026-11-04 已确认） | API v2 设计定案：双层模型 / 穿透层单闸（permissions:['java'] 授信全权、engine.allowJava 废除）/ 统一活句柄 / 0.x 直接演进；真源 = neomacros-docs/12-api-catalog.md |
+| G-R6 | S1v2 拆解后（2026-11-04 第二轮已确认） | 事件命名维持 camelCase；input 模拟与 inventory 写操作免门控（T-102 安全评审遗留关闭）；自定义事件 events.register/emit 纳入 S1v2（归 T-430）；chat:receive payload.message 演进为 Text；开工时序 = T-400 先行、T-420 等 main WIP 收口 |
+| G0 | S0 出口 | 核心循环演示验收 |
+| G1 | S1 出口 | API 面验收 |
+| G1v2 | S1v2 出口 | API v2 验收：E2E-A 全绿 + script-tests 全模块 + 真机 java.import 直调 MC 类 + .d.ts class 形态快照回归绿 |
+| G2 | S2 出口 | 渲染验收 |
+| G3 | S3 出口 | devkit 发布验收 |
+## 2026-11-05 API 第二轮修订实施（goal 驱动，单会话连做）
+
+> 真源：`fabric-mod/api设计-补充与改进.md`（已拍板）+ 12 号 §8 回写。全部合入 main 并推送；P1 范围大部分落地，遗留项登记如下。
+
+| ID | 任务 | 阶段 | 状态 | Owner | 分支 | 备注 |
+|---|---|---|---|---|---|---|
+| API2-W1~W7 | 位置族（Pos2D/Pos3D/ChunkPos）/ thread 模块 / inventory→player / BaseEvent 原型链 / Entity 族重塑+类树 / ItemStack(+Builder) / sneak·sprint·gliding 事件 | API 第二轮 P1 | **done** | session-agent | main | [报告](reports/API2-round.md)；commits 838d8b3 / 8c6f0f8 / c82df5b / 640884a 及后续修复链 |
+| API2-W8~W10 | client 模块 P1 面 / reflect 模块 P1 面 + java.type 双名回退 / Block·BlockState P1 行 + world.chunkLoaded | API 第二轮 P1 | **done** | session-agent | main | 同上报告；Text/TextBuilder 为 12 号 P1 遗留未实现面，随遗留项顺延 |
+| API2-W11 | @ApiLoader + 应标尽标双闸 + 存量补标 sweep（72 文件） | API 第二轮 P1 管线 | **done** | session-agent | main | AnnotationCompletenessTest 静态闸 + BindingRegistry 运行期 loader 裁剪（bootstrap 传真实 loader 版本） |
+| API2-W12 | docs-builder 三注解渲染（@mc/@loader TSDoc + Loader 徽标）+ .d.ts 事件类（XxxEvent extends BaseEvent）+ VitePress 侧栏 16 模块 + script-tests/fixtures 更新 + 文档重生成 | API 第二轮 P1 管线 | **done** | session-agent | main | 文档站 16 模块页 + 18 类页 + 92 事件页重生成，npm build 死链过 |
+| API2-F1 | **跟进：player:join 经 SelfStateTracker→BaseEvent envelope→guest 的载荷通路不达脚本 handler**（lane-world join / types userSubclass 两 e2e 场景确定性失败，已 @Disabled 留诊断钩子 scriptErrors()） | API 第二轮 | **pending** | — | — | 直接 fire 的同类事件（chat/key/game）通路正常；仅 tracker 定时轮询发布的 join/派生事件不达。已实证排除：imports/注册/序/合成器名称（closure-name fix 已入）；怀疑 envelope 拷贝与 guestReadable 交叉路径。修复后移除两处 @Disabled |
+| API2-F2 | 遗留顺延（原 12 号 P1 余量 + 第二轮未落）：Inventory 特化树 6 类 + region 槽位映射；LivingEntity absorption/armorValue/effects/hasEffect；LocalPlayer interactItem/swapHands/targetBlock/targetEntity（需端口扩充）；Text/TextBuilder 全量；world scan/heightAt/tabList；client/reflect P2 面；Entity P2 行 | API 第二轮 P1/P2 | **pending** | — | — | 见报告 §遗留 |
+
+## 2026-11-05 performance 模块（User Timing，第三轮 API 增补）
+
+> 12 号 §4.17（2026-11-05 第三轮拍板并实施）：`@neomacros/performance`（模块 19→20）——MDN User Timing 子集裁剪，measure 双形、每脚本 4096 条环形缓冲、getEntries 家族属性化落地、免门控；doc-api 增 `@ApiOptional`。
+
+| ID | 任务 | 阶段 | 状态 | Owner | 分支 | 备注 |
+|---|---|---|---|---|---|---|
+| T-500 | performance 模块（timeOrigin/now/mark/measure/clears/entries 族 + PerformanceEntry record + doc-api @ApiOptional + 文档管线与真源回写） | API 第三轮 P1 | **done**（2026-11-05） | session-agent | main | [报告](reports/T-500.md)；:core:test/:e2e:test 全绿、:product:26.3:compileJava 通过；真机用例 s1v2-performance 待用户执行；文档站 NeoMacros-Doc 侧已同步（侧栏 17 项、api-examples 双语、generate 764 路由含 performance 页） |
+
+## 2026-11-06 JsMacros 缺口 API 补全（13 号分册驱动，需求方 2026-11-06 六条拍板）
+
+> 真源：`../../neomacros-docsx/13-jsmacros-gap-api.md`（missing-apis.md ~1341 项全量映射 + 分期）。目标层 = NeoMacros 扩展 + jsmacros-compat 回桥；首批 = missing-apis §1 全局库全量；物种特化树恢复（12 号第四轮回写）；GlobalVars 不支持不扩展；永久缺口仅运行时 Java 编译族。
+> **2026-11-06 收口更正**：主检出 WIP（performance 模块 + net trace + web network 端点 + 26.x 适配修复）已按需求方指示提交 main @107a278，并合入本波次分支 @55448b7（合并后四节点编译 + core/e2e 全绿；performance 注册与 19 guest 类型完好）。初版报告中「T-500 不在 main / WIP 不可编译」系误判（status 截断漏看未跟踪文件），已在报告与本记忆更正。分支已合回 main 并推送 origin（@55448b7，fast-forward，合并前四节点编译 + core/e2e/doc-api/engine/ports 全绿）。
+
+| ID | 任务 | 阶段 | 状态 | Owner | 分支 | 备注 |
+|---|---|---|---|---|---|---|
+| T-501 | 13 号分册撰写 + 12 号/README 决策回写（物种特化 + GlobalVars）+ 本看板登记 | 缺口 P2' 管线 | **done**（2026-11-06） | session-t501 | —（文档侧无 git） | 13-jsmacros-gap-api.md（§0-§10）；12 号头部第四轮修订 + §1 病灶 #2 + §2.1 物种特化回写；README 决策登记 2 行 + 文档地图 1 行 |
+| T-502 | 首批 W1：world 模块扩充（§1 World 25 项 → 13 号 §5.1） | 缺口 P2x 首批 | **done**（2026-11-06） | session-t501 | t501-gap-api @884b805 | [报告](reports/T-501-gap-wave.md)；含 HEAD 漂移修复（product 编译修复 + swing/drop 版本门）+
+| T-503 | 首批 W2：client 模块扩充（§1 Client 23 项 → 13 号 §5.4；packet 三件随 T-517 顺延） | 缺口 P2' 首批 | **done**（2026-11-06 随 t501-gap-api 首批落地 @2c51e82） | — | — | connect/disconnect/loadWorld/shutdown 沿清单信任门 + 文档风险标注，不新增权限键 |
+| T-504 | 首批 W3：player/chat/input 扩充（§1 Player 21 + Chat 9 + KeyBind 4 项） | 缺口 P2' 首批 | **done**（2026-11-06 随首批落地 @72df830） | — | — | Image(NativeImage)/Abilities 新类；input.movement 移动合成；predictInput 族默认 D（W3 复核） |
+| T-505 | 首批 W4：hud/fs/net 扩充（§1 Hud 11 + FS 4 + Request 2=WS；storage 零改动） | 缺口 P2' 首批 | **done**（2026-11-06 随首批落地） | — | — | ScreenApi 最小件（opened）；FileHandle raw 走 java 闸；net.connect Ws |
+| T-506 | 首批 W5：java/reflect 收尾（java.wrap 如缺则补；Reflection 编译族=E、映射助手/JavaWrapper=D） | 缺口 P2' 首批 | **done**（2026-11-06 随首批落地 java.wrap） | — | — | |
+| T-507 | 首批收口：script-tests 每模块用例 + docs/d.ts 重生成 + 报告 | 缺口 P2' 首批 | **partially-done**（2026-11-06） | session-t501 | t501-gap-api（gap-api 用例已交付） | [报告](reports/T-501-gap-wave.md)；docs/d.ts 重生成随合并由 CI 自动执行，真机清单待用户 |
+| T-508 | 兼容壳回桥：jsmacros-compat stub→bridge + npm run audit 门禁 + missing-apis.md 重生成 + smoke 20/20 | 缺口 P2' 首批 | **partially-done**（三轮回桥 1341→1282→1205→1157：九全局面+截图+容器壳+Abilities/TradeOffer/ServerInfo/HorseInventory 真桥+getTrades；余量=60 物种壳桥接（模板工程，随需推进）） | — | — | GlobalVars.getRaw 桩永久保留并标注 |
+| T-509 | §3 实体物种子类树全量（75 壳 → 13 号 §3.2 映射表；结构中间类自动生成；派发=最深注册子类） | 缺口 P2' | **partially-done**（2026-11-07 终批后 67 类：六批全清单见 SpeciesEntities；余量=壳类与 26.3 缺公有 getter 的物种，需 accessor mixin 专项） | — | t501-gap-api @b9d3986 | |
+| T-510 | §4 容器特化树全量（18 类 + TradeOffer 类 + villager trades；沿第二轮拍板名） | 缺口 P2' | **partially-done**（2026-11-06 二轮：FurnaceInventory + 12 容器壳 + **TradeOffer 数据类 + VillagerInventory.getTrades + HorseInventory**；CreativeInventory 后置 T-521+ P3'） | — | t501-gap-api @d3ed164 | |
+| T-511 | Chunk 类 + world.findBlocks 扫描 DSL + biomeAt 缺席语义微调（ChunkHelper/WorldScannerBuilder 56 项） | 缺口 P2' | **done**（2026-11-06，四节点绿） | — | — | |
+| T-512 | 实体/生物通用成员批（§2 基类 + Abilities/InteractionManager/LocalPlayer 写面/移动读面） | 缺口 P2' | **partially-done**（2026-11-06 切片，livingExtras 五成员） | — | — | |
+| T-513 | BlockState/ItemStack/Block 小批成员 + Pos2D.ZERO/compareTo（§5 数据类） | 缺口 P2' | **done**（2026-11-06 收窄版，extras 通道 + Pos2D） | — | — | |
+| T-514 | Text/TextBuilder 全量落地（API2-F2 遗留合并）+ chat.width/wrap/history 读 + fetch 补全 | 缺口 P2' | **done**（2026-11-06，main @7561294+compat；2026-11-07 余量补完：hover show-item + chat:receive Text 打通 @d3bf07e） | session-t501 | t501-gap-api @7561294 | [报告](reports/T-501-gap-wave.md)；Text DATA + TextBuilder HANDLE guest + chat.text(str, style?) 工厂 + logText/actionbarText 富渲染（命名色+hex+hover/click）+ getPlain；compat chat.text 桥直接返回 neo builder；renderRichText 走 chat HUD/actionbar 双通道 | — | — | |
+| T-515 | client 扩全：client.registry 全谱 + client.options 全谱 + advancements | 缺口 P2' | **partially-done**（2026-11-07 切片：registry 全谱=REGISTRY 根派发 + option(name) 76 名白名单反射读；advancements 裁剪后置=1.21.6 progress 非公有，需 accessor） | — | t501-gap-api @35a7a6b | |
+| T-516 | Draw2D 元素扩展（line/image/item/z-index）+ Draw3D surface/traceLine | 缺口 P2' | **partially-done**（2026-11-07：traceLine+surface 双管线落地；Draw2D 后置=hud.layer 模型未立项） | — | t501-gap-api @a7d91e7 | |
+| T-517 | packet 专项（packet:receive/send + PacketBuffer + client.sendPacket/receivePacket；12 号 §5.3 P2 已排） | 缺口 P2' | **后置**（C 级专项：需 mixin 管线立项 + send 信任门需求方拍板 + 高流量忽略名单先行） | — | — | 13 号原标注顺延 |
+| T-518 | 纹理专项（hud.texture + Image 绘制族评估，可能缩水） | 缺口 P2' | **后置**（C 级专项，13 号原标注顺延） | — | — | |
+| T-519 | 事件字段补齐批（13 号 §6.1/§6.2 清单：chat:title/player:armor/riding/sign:edit/entity:customName/inventory:click + 桥接事件字段） | 缺口 P2' | **partially-done**（2026-11-07：world:join.address + player:riding + player:armor；chat:title/entity:customName/sign:edit/inventory:click 裁剪=需 mixin/getter 缺失） | — | — | 新事件须入 ProductionEventSet |
+| T-520 | 状态 ping / panorama / movement 依赖复核专项 | 缺口 P2' | **done**（2026-11-07：serverInfo+ping 落地；movement 复核=T-502 已有；panorama 后置 P3） | — | t501-gap-api @0486223 | |
+| T-521+ | P3'：screen.build 自建 GUI、chat.open、writeSign、chat history mutate、CreativeInventory、nested Draw2D（立项前单独评审） | P3' | pending | — | — | |
+| T-522 | 物种专门化状态收口批：25 个新物种类（Projectile/Arrow/Trident/WitherSkull/FishingHook/Boat/ChestBoat/Minecart 族/EndCrystal/Interaction/Hanging/Painting/Display 四类/Slime/Guardian/Illager 三族/Vindicator/Pig）+ 既有物种成员缺口（Sheep/Wolf/Tamable/Horse/Strider/Bee/Fox/Frog/Panda/Parrot/Shulker/SnowGolem/Mooshroom/Turtle/Dolphin/Enderman/Creeper/AreaEffectCloud） | 缺口 P2' | **done**（2026-11-11，四节点+三测试套全绿未提交） | — | — | [报告](reports/T-522-species-world-scan.md)；服务端-only 状态（AI 目标/信任列表/交易报价/属性统计/引信剩余）按 D 类跳过并登记 13 号 §2.2；`@ApiSince("0.5.0")` |
+| T-523 | 世界扫描收口批：`world.findBlocks` 增强（idPattern glob / states 属性过滤 / sphere 形状 / 上限 48·1024）+ 新 `world.scanBlocks` 异步分片（每 tick 4 ms、4 并发、10s 超时、上限 256·65536）+ `entity.inRadius` types 过滤 + 新 `entity.inBox` | 缺口 P2' | **done**（2026-11-11，同上） | — | — | [报告](reports/T-522-species-world-scan.md)；引擎同批修复两处缺口：Map/List 形参数转换、模块级 async 返回值未走 guestReadable |
+| T-524 | 背包事件族收口批：`inventory:click` 改造为 HEAD 可取消 C2S（+`mode`）、新 `inventory:dropSlot`（菜单 THROW + 热栏 Q 两路包级拦截）、`inventory:open` 可取消（取消即关容器）、`inventory:update` 补 `oldStack/newStack/held`（HEAD 预写）、新 `item:damage`/`item:pickup`；`stackDataOf` 补真实 damage/maxDamage | 缺口 P2' | **done**（2026-11-11，三测试套+四节点全绿未提交） | — | — | [报告](reports/T-524-inventory-events.md)；事件发布从 bootstrap hub 迁入 `PortEventWiring`（e2e 可见）；热栏 Q 经 `ClientCommonPacketListenerImpl.send` HEAD 拦 `ServerboundPlayerActionPacket` |
+
+## 2026-11-13 JsMacros 缺口开发波（15 号驱动，协调会话编排）
+
+> 真源：`../../neomacros-docsx/15-jsmacros-gap-development-plan.md`（47 工作包）+ `JsMacros-Dump/gap/tasks.json`。基线 = main@5ffcaf4。协议：一 subagent 一 G-xxx、独立 worktree/分支 `g-xxx-<slug>`、只改任务卡列出文件、看板由协调者更新；G-004/005/039 只改 jsmacros-compat（无 git 单 owner 禁并发）；G-001/002/003 为设计 spike，确认前不开 G-031~G-038。
+
+| ID | 任务 | 阶段 | 状态 | Owner | 分支 | 备注 |
+|---|---|---|---|---|---|---|
+| G-001 | 设计 spike：hud.layer 与 Draw2D 元素模型 | W0 | **done**（2026-11-13，设计稿待需求方确认） | session-g001 | g-001-hud-layer-design @9b5393c 合 main | [报告](reports/G-001.md)；保留式场景图+每帧重投（无 per-frame guest 回调）；端口只补 setLayerZ；旧成员糖化冻结；§11 有 8 个拍板点（①组件命名②Builder 折叠③owner 隔离④颜色双形⑤删 ids()⑥纹理层开关） |
+| G-002 | 设计 spike：packet 管线与信任门 | W0 | in-progress | session-g002 | g-002-packet-trust-design | 设计稿交付后待需求方确认 send 权限 |
+| G-003 | 设计 spike：脚本 GUI 构建器 | W0 | in-progress | session-g003 | g-003-script-gui-design | 设计稿交付后待需求方确认；与 G-019 共享 PlayerApi 须串行 |
+| G-004 | compat 回桥波：216 个兼容壳桩回桥（230 签名） | W0 | in-progress | session-g004 | —（jsmacros-compat 无 git） | 验收 = npm test 20/20 + audit 绿 + missing-apis 重生成 |
