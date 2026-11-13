@@ -10,6 +10,7 @@ import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
+import ink.tuanzi.neomacros.port.model.KeybindCatalogData;
 import ink.tuanzi.neomacros.port.model.ModData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
 import ink.tuanzi.neomacros.port.model.ServerInfoData;
@@ -1392,6 +1393,288 @@ public final class ClientApi {
         public Options getParent() {
             return parent;
         }
+
+        /** The mouse sensitivity.
+         * @zh 鼠标灵敏度。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getSensitivity() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.sensitivity();
+        }
+
+        /**
+         * Sets the mouse sensitivity; rejects when the stored value differs
+         * (out-of-range input).
+         *
+         * @zh 设置鼠标灵敏度；存储值与请求不一致（越界输入）时 reject。
+         * @zh-param value 灵敏度
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setSensitivity(double value) {
+            return writeOption("sensitivity", value);
+        }
+
+        /** Whether the vertical mouse axis is inverted.
+         * @zh 鼠标纵轴是否反转。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getInvertMouseY() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.invertMouseY();
+        }
+
+        /**
+         * Enables or disables vertical mouse inversion.
+         *
+         * @zh 开启或关闭鼠标纵轴反转。
+         * @zh-param value true 为反转
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setInvertMouseY(boolean value) {
+            return writeOption("invertMouseY", value);
+        }
+
+        /** The mouse wheel sensitivity.
+         * @zh 鼠标滚轮灵敏度。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getMouseWheelSensitivity() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.mouseWheelSensitivity();
+        }
+
+        /**
+         * Sets the mouse wheel sensitivity; rejects when the stored value
+         * differs.
+         *
+         * @zh 设置鼠标滚轮灵敏度；存储值与请求不一致时 reject。
+         * @zh-param value 滚轮灵敏度
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setMouseWheelSensitivity(double value) {
+            return writeOption("mouseWheelSensitivity", value);
+        }
+
+        /** Whether the mouse wheel scrolls in discrete steps.
+         * @zh 鼠标滚轮是否按离散步进滚动。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getDiscreteMouseScroll() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.discreteMouseScroll();
+        }
+
+        /**
+         * Enables or disables discrete mouse scrolling.
+         *
+         * @zh 开启或关闭滚轮离散步进。
+         * @zh-param value true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setDiscreteMouseScroll(boolean value) {
+            return writeOption("discreteMouseScroll", value);
+        }
+
+        /**
+         * Whether touchscreen mode is on; always {@code false} from Minecraft
+         * 26.2, where the setting was removed.
+         *
+         * @zh 触屏模式是否开启；Minecraft 26.2 起该设置已移除，恒为 false。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getTouchscreen() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.touchscreen();
+        }
+
+        /**
+         * Enables or disables touchscreen mode. The setting was removed in
+         * Minecraft 26.2 with no replacement: the write has no effect there
+         * and resolves only when the requested value already matches the
+         * stored one.
+         *
+         * @zh 开启或关闭触屏模式。该设置在 Minecraft 26.2 被移除且无替代：在那些版本上写入无效，仅当请求值与存储值一致时 resolve。
+         * @zh-param value true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setTouchscreen(boolean value) {
+            return writeOption("touchscreen", value);
+        }
+
+        /**
+         * Whether raw mouse input is on; always {@code true} from Minecraft
+         * 26.3, where the setting was removed in favour of the SDL relative
+         * mouse mode.
+         *
+         * @zh 原始鼠标输入是否开启；Minecraft 26.3 起该设置已移除（SDL 相对鼠标模式默认即原始输入），恒为 true。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getRawMouseInput() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.rawMouseInput();
+        }
+
+        /**
+         * Enables or disables raw mouse input. The setting was removed in
+         * Minecraft 26.3: the write has no effect there and resolves only
+         * when the requested value already matches the stored one.
+         *
+         * @zh 开启或关闭原始鼠标输入。该设置在 Minecraft 26.3 被移除：在那个版本上写入无效，仅当请求值与存储值一致时 resolve。
+         * @zh-param value true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setRawMouseInput(boolean value) {
+            return writeOption("rawMouseInput", value);
+        }
+
+        /** Whether auto-jump is enabled.
+         * @zh 是否开启自动跳跃。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getAutoJump() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.autoJump();
+        }
+
+        /**
+         * Enables or disables auto-jump.
+         *
+         * @zh 开启或关闭自动跳跃。
+         * @zh-param value true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setAutoJump(boolean value) {
+            return writeOption("autoJump", value);
+        }
+
+        /** Whether sneak uses toggle behaviour.
+         * @zh 潜行是否为切换式。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getToggleCrouch() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.toggleCrouch();
+        }
+
+        /**
+         * Switches sneak between hold and toggle behaviour.
+         *
+         * @zh 切换潜行的按住/切换行为。
+         * @zh-param value true 为切换式
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setToggleCrouch(boolean value) {
+            return writeOption("toggleCrouch", value);
+        }
+
+        /** Whether sprint uses toggle behaviour.
+         * @zh 疾跑是否为切换式。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getToggleSprint() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.toggleSprint();
+        }
+
+        /**
+         * Switches sprint between hold and toggle behaviour.
+         *
+         * @zh 切换疾跑的按住/切换行为。
+         * @zh-param value true 为切换式
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setToggleSprint(boolean value) {
+            return writeOption("toggleSprint", value);
+        }
+
+        /** The key-mapping names in registration order.
+         * @zh 键位绑定名列表，按注册顺序。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<String> getKeys() {
+            KeybindCatalogData catalog = keybindCatalog();
+            return catalog == null ? List.of() : catalog.names();
+        }
+
+        /** The distinct key-mapping category keys in first-seen order.
+         * @zh 键位分类键列表（去重，按首次出现顺序）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<String> getCategories() {
+            KeybindCatalogData catalog = keybindCatalog();
+            return catalog == null ? List.of() : catalog.categories();
+        }
+
+        /** The key binds grouped by category: category key to {@code {bind name, key label}}.
+         * @zh 按分类分组的键位表：分类键 → {@code {绑定名, 按键标签}}。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public java.util.Map<String, java.util.Map<String, String>> getKeyBindsByCategory() {
+            KeybindCatalogData catalog = keybindCatalog();
+            return catalog == null ? java.util.Map.of() : catalog.bindsByCategory();
+        }
+
+        /**
+         * The key binds of one category as {@code {bind name, key label}},
+         * or {@code undefined} when the category is unknown.
+         *
+         * @zh 指定分类的键位表 {@code {绑定名, 按键标签}}；分类未知时为 undefined。
+         * @zh-param category 分类键（见 {@code categories}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public java.util.Map<String, String> getKeyBindsByCategory(String category) {
+            if (category == null) {
+                return null;
+            }
+            return getKeyBindsByCategory().get(category);
+        }
     }
 
     /**
@@ -1419,6 +1702,404 @@ public final class ClientApi {
         @ApiReadOnly
         public Options getParent() {
             return parent;
+        }
+
+        /** The chat visibility: {@code full}, {@code system} or {@code hidden}.
+         * @zh 聊天可见性：{@code full}/{@code system}/{@code hidden}。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getChatVisibility() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatVisibility();
+        }
+
+        /**
+         * Sets the chat visibility; unknown modes reject.
+         *
+         * @zh 设置聊天可见性；未知模式 reject。
+         * @zh-param mode {@code full}、{@code system} 或 {@code hidden}（大小写不敏感）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatVisibility(String mode) {
+            if (mode == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalArgumentException("chat visibility required"));
+            }
+            return writeOption("chatVisibility", mode);
+        }
+
+        /** Whether chat colors are shown.
+         * @zh 是否显示聊天颜色。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getChatColors() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatColors();
+        }
+
+        /**
+         * Shows or hides chat colors.
+         *
+         * @zh 显示或隐藏聊天颜色。
+         * @zh-param value true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatColors(boolean value) {
+            return writeOption("chatColors", value);
+        }
+
+        /** Whether web links in chat can be opened.
+         * @zh 聊天中的网页链接是否可点击打开。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getChatLinks() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatLinks();
+        }
+
+        /**
+         * Enables or disables opening web links from chat.
+         *
+         * @zh 开启或关闭聊天网页链接点击。
+         * @zh-param value true 为允许打开
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatLinks(boolean value) {
+            return writeOption("chatLinks", value);
+        }
+
+        /** Whether opening a chat web link asks for confirmation first.
+         * @zh 打开聊天链接前是否先弹出确认。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getChatLinksPrompt() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatLinksPrompt();
+        }
+
+        /**
+         * Enables or disables the confirmation prompt before a chat link opens.
+         *
+         * @zh 开启或关闭聊天链接的打开确认。
+         * @zh-param value true 为需要确认
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatLinksPrompt(boolean value) {
+            return writeOption("chatLinksPrompt", value);
+        }
+
+        /** The chat background opacity.
+         * @zh 聊天背景不透明度。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getChatOpacity() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatOpacity();
+        }
+
+        /**
+         * Sets the chat background opacity; rejects when the stored value
+         * differs (out-of-range input).
+         *
+         * @zh 设置聊天背景不透明度；存储值与请求不一致（越界输入）时 reject。
+         * @zh-param value 不透明度（0 到 1）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatOpacity(double value) {
+            return writeOption("chatOpacity", value);
+        }
+
+        /** The text background opacity.
+         * @zh 文字背景不透明度。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getTextBackgroundOpacity() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.textBackgroundOpacity();
+        }
+
+        /**
+         * Sets the text background opacity; rejects when the stored value
+         * differs.
+         *
+         * @zh 设置文字背景不透明度；存储值与请求不一致时 reject。
+         * @zh-param value 不透明度（0 到 1）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setTextBackgroundOpacity(double value) {
+            return writeOption("textBackgroundOpacity", value);
+        }
+
+        /** The chat text scale.
+         * @zh 聊天文字缩放。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getChatScale() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatScale();
+        }
+
+        /**
+         * Sets the chat text scale; rejects when the stored value differs.
+         *
+         * @zh 设置聊天文字缩放；存储值与请求不一致时 reject。
+         * @zh-param value 文字缩放
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatScale(double value) {
+            return writeOption("chatScale", value);
+        }
+
+        /** The spacing between chat lines.
+         * @zh 聊天行距。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getChatLineSpacing() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatLineSpacing();
+        }
+
+        /**
+         * Sets the spacing between chat lines; rejects when the stored value
+         * differs.
+         *
+         * @zh 设置聊天行距；存储值与请求不一致时 reject。
+         * @zh-param value 行距
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatLineSpacing(double value) {
+            return writeOption("chatLineSpacing", value);
+        }
+
+        /** The delay before a chat message appears, in seconds.
+         * @zh 聊天消息显示延迟（秒）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getChatDelay() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatDelay();
+        }
+
+        /**
+         * Sets the chat message delay in seconds; rejects when the stored
+         * value differs.
+         *
+         * @zh 设置聊天消息延迟（秒）；存储值与请求不一致时 reject。
+         * @zh-param value 延迟秒数
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatDelay(double value) {
+            return writeOption("chatDelay", value);
+        }
+
+        /** The chat width scale.
+         * @zh 聊天宽度缩放。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getChatWidth() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatWidth();
+        }
+
+        /**
+         * Sets the chat width scale; rejects when the stored value differs.
+         *
+         * @zh 设置聊天宽度缩放；存储值与请求不一致时 reject。
+         * @zh-param value 宽度缩放
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatWidth(double value) {
+            return writeOption("chatWidth", value);
+        }
+
+        /** The chat height scale while chat is focused.
+         * @zh 聊天获得焦点时的高度缩放。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getChatHeightFocused() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatHeightFocused();
+        }
+
+        /**
+         * Sets the chat height scale while chat is focused; rejects when the
+         * stored value differs.
+         *
+         * @zh 设置聊天获得焦点时的高度缩放；存储值与请求不一致时 reject。
+         * @zh-param value 高度缩放
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatHeightFocused(double value) {
+            return writeOption("chatHeightFocused", value);
+        }
+
+        /** The chat height scale while chat is unfocused.
+         * @zh 聊天失去焦点时的高度缩放。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getChatHeightUnfocused() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatHeightUnfocused();
+        }
+
+        /**
+         * Sets the chat height scale while chat is unfocused; rejects when
+         * the stored value differs.
+         *
+         * @zh 设置聊天失去焦点时的高度缩放；存储值与请求不一致时 reject。
+         * @zh-param value 高度缩放
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatHeightUnfocused(double value) {
+            return writeOption("chatHeightUnfocused", value);
+        }
+
+        /** The narrator mode: {@code off}, {@code chat}, {@code system} or {@code all}.
+         * @zh 朗读模式：{@code off}/{@code chat}/{@code system}/{@code all}。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getNarrator() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.narrator();
+        }
+
+        /**
+         * Sets the narrator mode; unknown modes reject.
+         *
+         * @zh 设置朗读模式；未知模式 reject。
+         * @zh-param mode {@code off}、{@code chat}、{@code system} 或 {@code all}（大小写不敏感）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setNarrator(String mode) {
+            if (mode == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalArgumentException("narrator mode required"));
+            }
+            return writeOption("narrator", mode);
+        }
+
+        /** Whether command suggestions appear while typing in chat.
+         * @zh 聊天输入时是否显示命令建议。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getAutoSuggestions() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.autoSuggestions();
+        }
+
+        /**
+         * Enables or disables command suggestions while typing.
+         *
+         * @zh 开启或关闭聊天命令建议。
+         * @zh-param value true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setAutoSuggestions(boolean value) {
+            return writeOption("autoSuggestions", value);
+        }
+
+        /** Whether messages from blocked players are hidden.
+         * @zh 是否隐藏被屏蔽玩家的消息。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getHideMatchedNames() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.hideMatchedNames();
+        }
+
+        /**
+         * Enables or hides messages from blocked players.
+         *
+         * @zh 开启或关闭屏蔽玩家消息的隐藏。
+         * @zh-param value true 为隐藏
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setHideMatchedNames(boolean value) {
+            return writeOption("hideMatchedNames", value);
+        }
+
+        /** Whether the debug overlay is reduced.
+         * @zh 是否精简调试信息。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getReducedDebugInfo() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.reducedDebugInfo();
+        }
+
+        /**
+         * Enables or disables reduced debug information.
+         *
+         * @zh 开启或关闭精简调试信息。
+         * @zh-param value true 为精简
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setReducedDebugInfo(boolean value) {
+            return writeOption("reducedDebugInfo", value);
         }
     }
 
@@ -1448,6 +2129,339 @@ public final class ClientApi {
         @ApiReadOnly
         public Options getParent() {
             return parent;
+        }
+
+        /** The narrator mode: {@code off}, {@code chat}, {@code system} or {@code all}.
+         * @zh 朗读模式：{@code off}/{@code chat}/{@code system}/{@code all}。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getNarrator() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.narrator();
+        }
+
+        /**
+         * Sets the narrator mode; unknown modes reject.
+         *
+         * @zh 设置朗读模式；未知模式 reject。
+         * @zh-param mode {@code off}、{@code chat}、{@code system} 或 {@code all}（大小写不敏感）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setNarrator(String mode) {
+            if (mode == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalArgumentException("narrator mode required"));
+            }
+            return writeOption("narrator", mode);
+        }
+
+        /** Whether subtitle captions are shown.
+         * @zh 是否显示字幕。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getShowSubtitles() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.showSubtitles();
+        }
+
+        /**
+         * Shows or hides subtitle captions.
+         *
+         * @zh 显示或隐藏字幕。
+         * @zh-param value true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setShowSubtitles(boolean value) {
+            return writeOption("showSubtitles", value);
+        }
+
+        /** The text background opacity.
+         * @zh 文字背景不透明度。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getTextBackgroundOpacity() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.textBackgroundOpacity();
+        }
+
+        /**
+         * Sets the text background opacity; rejects when the stored value
+         * differs.
+         *
+         * @zh 设置文字背景不透明度；存储值与请求不一致时 reject。
+         * @zh-param value 不透明度（0 到 1）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setTextBackgroundOpacity(double value) {
+            return writeOption("textBackgroundOpacity", value);
+        }
+
+        /** Whether text backgrounds render behind chat only.
+         * @zh 文字背景是否只出现在聊天后方。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getBackgroundForChatOnly() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.backgroundForChatOnly();
+        }
+
+        /**
+         * Restricts text backgrounds to chat or lets them render everywhere.
+         *
+         * @zh 把文字背景限制在聊天，或允许其出现在所有文字后方。
+         * @zh-param value true 为仅聊天
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setBackgroundForChatOnly(boolean value) {
+            return writeOption("backgroundForChatOnly", value);
+        }
+
+        /** The chat background opacity.
+         * @zh 聊天背景不透明度。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getChatOpacity() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatOpacity();
+        }
+
+        /**
+         * Sets the chat background opacity; rejects when the stored value
+         * differs.
+         *
+         * @zh 设置聊天背景不透明度；存储值与请求不一致时 reject。
+         * @zh-param value 不透明度（0 到 1）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatOpacity(double value) {
+            return writeOption("chatOpacity", value);
+        }
+
+        /** The spacing between chat lines.
+         * @zh 聊天行距。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getChatLineSpacing() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatLineSpacing();
+        }
+
+        /**
+         * Sets the spacing between chat lines; rejects when the stored value
+         * differs.
+         *
+         * @zh 设置聊天行距；存储值与请求不一致时 reject。
+         * @zh-param value 行距
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatLineSpacing(double value) {
+            return writeOption("chatLineSpacing", value);
+        }
+
+        /** The delay before a chat message appears, in seconds.
+         * @zh 聊天消息显示延迟（秒）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getChatDelay() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.chatDelay();
+        }
+
+        /**
+         * Sets the chat message delay in seconds; rejects when the stored
+         * value differs.
+         *
+         * @zh 设置聊天消息延迟（秒）；存储值与请求不一致时 reject。
+         * @zh-param value 延迟秒数
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setChatDelay(double value) {
+            return writeOption("chatDelay", value);
+        }
+
+        /** Whether auto-jump is enabled.
+         * @zh 是否开启自动跳跃。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getAutoJump() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.autoJump();
+        }
+
+        /**
+         * Enables or disables auto-jump.
+         *
+         * @zh 开启或关闭自动跳跃。
+         * @zh-param value true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setAutoJump(boolean value) {
+            return writeOption("autoJump", value);
+        }
+
+        /** Whether sneak uses toggle behaviour.
+         * @zh 潜行是否为切换式。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getToggleCrouch() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.toggleCrouch();
+        }
+
+        /**
+         * Switches sneak between hold and toggle behaviour.
+         *
+         * @zh 切换潜行的按住/切换行为。
+         * @zh-param value true 为切换式
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setToggleCrouch(boolean value) {
+            return writeOption("toggleCrouch", value);
+        }
+
+        /** Whether sprint uses toggle behaviour.
+         * @zh 疾跑是否为切换式。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getToggleSprint() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.toggleSprint();
+        }
+
+        /**
+         * Switches sprint between hold and toggle behaviour.
+         *
+         * @zh 切换疾跑的按住/切换行为。
+         * @zh-param value true 为切换式
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setToggleSprint(boolean value) {
+            return writeOption("toggleSprint", value);
+        }
+
+        /** The screen distortion effect scale.
+         * @zh 屏幕扭曲效果强度。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getDistortionEffect() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.screenEffectScale();
+        }
+
+        /**
+         * Sets the screen distortion effect scale; rejects when the stored
+         * value differs.
+         *
+         * @zh 设置屏幕扭曲效果强度；存储值与请求不一致时 reject。
+         * @zh-param value 效果强度
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setDistortionEffect(double value) {
+            return writeOption("screenEffectScale", value);
+        }
+
+        /** The field-of-view effect scale.
+         * @zh 视野效果强度。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getFovEffect() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.fovEffectScale();
+        }
+
+        /**
+         * Sets the field-of-view effect scale; rejects when the stored value
+         * differs.
+         *
+         * @zh 设置视野效果强度；存储值与请求不一致时 reject。
+         * @zh-param value 效果强度
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setFovEffect(double value) {
+            return writeOption("fovEffectScale", value);
+        }
+
+        /** Whether the dark Mojang Studios background is used.
+         * @zh 是否使用深色 Mojang Studios 背景。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getDarkMojangStudiosBackground() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.darkMojangStudiosBackground();
+        }
+
+        /**
+         * Enables or disables the dark Mojang Studios background.
+         *
+         * @zh 开启或关闭深色 Mojang Studios 背景。
+         * @zh-param value true 为深色
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setDarkMojangStudiosBackground(boolean value) {
+            return writeOption("darkMojangStudiosBackground", value);
+        }
+
+        /** Whether lightning flashes are hidden.
+         * @zh 是否隐藏闪电闪光。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getHideLightningFlash() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.hideLightningFlash();
         }
     }
 
@@ -1532,6 +2546,12 @@ public final class ClientApi {
     /** The current option face, or null when it is unavailable. */
     private static OptionsData optionsData() {
         var data = adapter().options();
+        return data == null ? null : data.orElse(null);
+    }
+
+    /** The current key-mapping catalog, or null when it is unavailable. */
+    private static KeybindCatalogData keybindCatalog() {
+        var data = adapter().keybindCatalog();
         return data == null ? null : data.orElse(null);
     }
 

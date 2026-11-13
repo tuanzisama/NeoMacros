@@ -20,9 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The options root and video faces over a writable canned port: reads render
- * the option vocabulary, writes round-trip through read-back verification,
- * and a write the client does not store rejects.
+ * The options root, video, chat, control and accessibility faces over a
+ * writable canned port: reads render the option vocabulary, writes round-trip
+ * through read-back verification, and a write the client does not store
+ * rejects.
  */
 class OptionsFaceTest {
 
@@ -130,6 +131,135 @@ class OptionsFaceTest {
     }
 
     @Test
+    void groupReadsRenderTheOptionVocabulary() {
+        ClientApi.Options options = api.getOptions();
+
+        ClientApi.ChatOptions chat = options.getChat();
+        assertEquals("full", chat.getChatVisibility());
+        assertEquals(Boolean.TRUE, chat.getChatColors());
+        assertEquals(Boolean.TRUE, chat.getChatLinks());
+        assertEquals(Boolean.TRUE, chat.getChatLinksPrompt());
+        assertEquals(1.0, chat.getChatOpacity());
+        assertEquals(0.5, chat.getTextBackgroundOpacity());
+        assertEquals(1.0, chat.getChatScale());
+        assertEquals(0.0, chat.getChatLineSpacing());
+        assertEquals(0.0, chat.getChatDelay());
+        assertEquals(1.0, chat.getChatWidth());
+        assertEquals(1.0, chat.getChatHeightFocused());
+        assertEquals(0.4436, chat.getChatHeightUnfocused());
+        assertEquals("off", chat.getNarrator());
+        assertEquals(Boolean.TRUE, chat.getAutoSuggestions());
+        assertEquals(Boolean.FALSE, chat.getHideMatchedNames());
+        assertEquals(Boolean.FALSE, chat.getReducedDebugInfo());
+        assertEquals(options.getFov(), chat.getParent().getFov());
+
+        ClientApi.ControlOptions control = options.getControl();
+        assertEquals(0.5, control.getSensitivity());
+        assertEquals(Boolean.FALSE, control.getInvertMouseY());
+        assertEquals(1.0, control.getMouseWheelSensitivity());
+        assertEquals(Boolean.FALSE, control.getDiscreteMouseScroll());
+        assertEquals(Boolean.FALSE, control.getTouchscreen());
+        assertEquals(Boolean.TRUE, control.getRawMouseInput());
+        assertEquals(Boolean.FALSE, control.getAutoJump());
+        assertEquals(Boolean.FALSE, control.getToggleCrouch());
+        assertEquals(Boolean.FALSE, control.getToggleSprint());
+        assertEquals(List.of("key.forward", "key.back", "key.left", "key.right"),
+                control.getKeys());
+        assertEquals(List.of("key.categories.movement"), control.getCategories());
+        assertEquals("W", control.getKeyBindsByCategory()
+                .get("key.categories.movement").get("Forward"));
+        assertEquals("S",
+                control.getKeyBindsByCategory("key.categories.movement").get("Back"));
+        assertNull(control.getKeyBindsByCategory("key.categories.inventory"));
+
+        ClientApi.AccessibilityOptions accessibility = options.getAccessibility();
+        assertEquals("off", accessibility.getNarrator());
+        assertEquals(Boolean.FALSE, accessibility.getShowSubtitles());
+        assertEquals(0.5, accessibility.getTextBackgroundOpacity());
+        assertEquals(Boolean.FALSE, accessibility.getBackgroundForChatOnly());
+        assertEquals(1.0, accessibility.getChatOpacity());
+        assertEquals(0.0, accessibility.getChatLineSpacing());
+        assertEquals(0.0, accessibility.getChatDelay());
+        assertEquals(Boolean.FALSE, accessibility.getAutoJump());
+        assertEquals(Boolean.FALSE, accessibility.getToggleCrouch());
+        assertEquals(Boolean.FALSE, accessibility.getToggleSprint());
+        assertEquals(0.5, accessibility.getDistortionEffect());
+        assertEquals(1.0, accessibility.getFovEffect());
+        assertEquals(Boolean.FALSE, accessibility.getDarkMojangStudiosBackground());
+        assertEquals(Boolean.FALSE, accessibility.getHideLightningFlash());
+        assertEquals(options.getFov(), accessibility.getParent().getFov());
+    }
+
+    @Test
+    void groupWritesRoundTripThroughReadBack() throws Exception {
+        ClientApi.Options options = api.getOptions();
+
+        options.getChat().setChatOpacity(0.5).get(1, TimeUnit.SECONDS);
+        assertEquals(0.5, options.getChat().getChatOpacity());
+
+        options.getChat().setChatVisibility("hidden").get(1, TimeUnit.SECONDS);
+        assertEquals("hidden", options.getChat().getChatVisibility());
+
+        options.getChat().setNarrator("all").get(1, TimeUnit.SECONDS);
+        assertEquals("all", options.getChat().getNarrator());
+
+        options.getControl().setSensitivity(0.75).get(1, TimeUnit.SECONDS);
+        assertEquals(0.75, options.getControl().getSensitivity());
+
+        options.getControl().setAutoJump(true).get(1, TimeUnit.SECONDS);
+        assertEquals(Boolean.TRUE, options.getControl().getAutoJump());
+
+        options.getControl().setInvertMouseY(true).get(1, TimeUnit.SECONDS);
+        assertEquals(Boolean.TRUE, options.getControl().getInvertMouseY());
+
+        options.getAccessibility().setShowSubtitles(true).get(1, TimeUnit.SECONDS);
+        assertEquals(Boolean.TRUE, options.getAccessibility().getShowSubtitles());
+
+        options.getAccessibility().setTextBackgroundOpacity(0.25).get(1, TimeUnit.SECONDS);
+        assertEquals(0.25, options.getAccessibility().getTextBackgroundOpacity());
+
+        options.getAccessibility().setDistortionEffect(0.25).get(1, TimeUnit.SECONDS);
+        assertEquals(0.25, options.getAccessibility().getDistortionEffect());
+
+        options.getAccessibility().setDarkMojangStudiosBackground(true)
+                .get(1, TimeUnit.SECONDS);
+        assertEquals(Boolean.TRUE,
+                options.getAccessibility().getDarkMojangStudiosBackground());
+    }
+
+    @Test
+    void groupWriteRejectsWhenTheClientStoresAnotherValue() {
+        client.ignore.add("chatOpacity");
+        ExecutionException error = assertThrows(ExecutionException.class,
+                () -> api.getOptions().getChat()
+                        .setChatOpacity(0.25).get(1, TimeUnit.SECONDS));
+        assertTrue(String.valueOf(error.getCause()).contains("was not applied"),
+                "message was: " + error.getCause());
+        assertEquals(1.0, api.getOptions().getChat().getChatOpacity());
+    }
+
+    @Test
+    void removedOptionWritesSettleOnlyWhenTheStoredValueMatches() throws Exception {
+        ClientApi.Options options = api.getOptions();
+        // A node without the setting keeps its stored value: a matching write
+        // settles and a differing write rejects through read-back.
+        client.ignore.add("touchscreen");
+        client.ignore.add("rawMouseInput");
+
+        options.getControl().setTouchscreen(false).get(1, TimeUnit.SECONDS);
+        assertEquals(Boolean.FALSE, options.getControl().getTouchscreen());
+        ExecutionException rejected = assertThrows(ExecutionException.class,
+                () -> options.getControl().setTouchscreen(true).get(1, TimeUnit.SECONDS));
+        assertTrue(String.valueOf(rejected.getCause()).contains("was not applied"),
+                "message was: " + rejected.getCause());
+
+        options.getControl().setRawMouseInput(true).get(1, TimeUnit.SECONDS);
+        assertEquals(Boolean.TRUE, options.getControl().getRawMouseInput());
+        assertThrows(ExecutionException.class,
+                () -> options.getControl().setRawMouseInput(false).get(1, TimeUnit.SECONDS));
+    }
+
+    @Test
     void lockDifficultySendsTheRequestWithoutLocalReadBack() throws Exception {
         api.getOptions().lockDifficulty().get(1, TimeUnit.SECONDS);
         assertEquals(List.of("lock:true"), client.actions);
@@ -175,8 +305,17 @@ class OptionsFaceTest {
         assertNull(options.getDifficultyLocked());
         assertTrue(options.getResourcePacks().isEmpty());
         assertNull(options.getVideo().getRenderDistance());
+        assertNull(options.getChat().getChatOpacity());
+        assertNull(options.getChat().getChatVisibility());
+        assertNull(options.getControl().getSensitivity());
+        assertNull(options.getAccessibility().getShowSubtitles());
+        assertTrue(options.getControl().getKeys().isEmpty());
+        assertTrue(options.getControl().getCategories().isEmpty());
+        assertTrue(options.getControl().getKeyBindsByCategory().isEmpty());
         assertThrows(ExecutionException.class,
                 () -> options.setFov(70).get(1, TimeUnit.SECONDS));
+        assertThrows(ExecutionException.class,
+                () -> options.getChat().setChatOpacity(0.5).get(1, TimeUnit.SECONDS));
         assertThrows(ExecutionException.class,
                 () -> options.saveOptions().get(1, TimeUnit.SECONDS));
         assertFalse(client.actions.contains("save"));
@@ -213,6 +352,13 @@ class OptionsFaceTest {
         @Override
         public Optional<OptionsData> options() {
             return present ? Optional.of(data) : Optional.empty();
+        }
+
+        @Override
+        public Optional<ink.tuanzi.neomacros.port.model.KeybindCatalogData> keybindCatalog() {
+            return present
+                    ? Optional.of(ClientGapExpansionsTest.cannedKeybinds())
+                    : Optional.empty();
         }
 
         @Override

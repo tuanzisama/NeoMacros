@@ -98,4 +98,80 @@ class OptionsRoundtripScenariosTest {
                     "action log was: " + stub.actions());
         }
     }
+
+    @Test
+    void chatControlAndAccessibilityGroupsWriteThenReadBack() throws Exception {
+        try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
+            var stub = e2e.adapter().clientPort();
+
+            fixture(dir.resolve("scripts"), "option-groups.js", String.join("\n",
+                    "neo.events.on('game:start', () => {",
+                    "  try {",
+                    "    const opts = neo.client.options;",
+                    "    const chat = opts.chat;",
+                    "    const control = opts.control;",
+                    "    const a11y = opts.accessibility;",
+                    "    const checks = {",
+                    "      chatHandle: typeof chat.setChatOpacity === 'function'",
+                    "          && chat.chatVisibility === 'full'",
+                    "          && chat.narrator === 'off',",
+                    "      controlHandle: typeof control.setAutoJump === 'function'",
+                    "          && control.sensitivity === 0.5",
+                    "          && control.touchscreen === false,",
+                    "      a11yHandle: typeof a11y.setShowSubtitles === 'function'",
+                    "          && a11y.showSubtitles === false",
+                    "          && a11y.hideLightningFlash === false,",
+                    "      parent: chat.parent.fov === opts.fov",
+                    "          && control.parent.fov === opts.fov",
+                    "          && a11y.parent.fov === opts.fov,",
+                    "      keys: Array.isArray(control.keys)",
+                    "          && control.keys[0] === 'key.forward',",
+                    "      categories: Array.isArray(control.categories)",
+                    "          && control.categories[0] === 'key.categories.movement',",
+                    "      binds: control.keyBindsByCategory['key.categories.movement']",
+                    "          .Forward === 'W',",
+                    "      bindsForCategory:",
+                    "          control.getKeyBindsByCategory('key.categories.movement')",
+                    "              .Back === 'S',",
+                    "      bindsMissing:",
+                    "          control.getKeyBindsByCategory('nope') === undefined,",
+                    "    };",
+                    "    chat.setChatOpacity(0.5).then(() => {",
+                    "      checks.chatRoundTrip = chat.chatOpacity === 0.5;",
+                    "      return chat.setChatVisibility('hidden');",
+                    "    }).then(() => {",
+                    "      checks.visibilityRoundTrip = chat.chatVisibility === 'hidden';",
+                    "      return control.setAutoJump(true);",
+                    "    }).then(() => {",
+                    "      checks.controlRoundTrip = control.autoJump === true;",
+                    "      return a11y.setShowSubtitles(true);",
+                    "    }).then(() => {",
+                    "      checks.a11yRoundTrip = a11y.showSubtitles === true;",
+                    "      return a11y.setDistortionEffect(0.25);",
+                    "    }).then(() => {",
+                    "      checks.distortionRoundTrip = a11y.distortionEffect === 0.25;",
+                    "      const pass = Object.values(checks).every(Boolean);",
+                    "      const failed = Object.keys(checks).filter((k) => !checks[k]);",
+                    "      neo.__test.report('option-groups', pass,",
+                    "          'failed=' + failed.join(','));",
+                    "    }, (e) => neo.__test.report('option-groups', false,",
+                    "        'write: ' + e));",
+                    "  } catch (err) {",
+                    "    neo.__test.report('option-groups', false, 'sync-error: ' + err);",
+                    "  }",
+                    "});",
+                    ""));
+            e2e.loadScript(dir.resolve("scripts").resolve("option-groups.js"));
+            e2e.adapter().lifecyclePort().fireGameStart();
+            e2e.awaitSettle();
+
+            TestBridge.Report report = e2e.bridge().get("option-groups");
+            assertTrue(report != null && report.pass(),
+                    "report was: " + report + " reports=" + e2e.bridge().all()
+                            + " errors=" + e2e.scriptErrors());
+            assertEquals(List.of("option:chatOpacity", "option:chatVisibility",
+                    "option:autoJump", "option:showSubtitles", "option:screenEffectScale"),
+                    stub.actions(), "action log was: " + stub.actions());
+        }
+    }
 }

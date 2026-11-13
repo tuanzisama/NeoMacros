@@ -1,8 +1,10 @@
 package ink.tuanzi.neomacros.adapter;
 
 import ink.tuanzi.neomacros.adapter.mixin.DownloadedPackSourceAccessor;
+import ink.tuanzi.neomacros.adapter.mixin.OptionsKeyMappingsAccessor;
 import ink.tuanzi.neomacros.adapter.mixin.ServerPackPromptAccessor;
 import ink.tuanzi.neomacros.port.ClientPort;
+import ink.tuanzi.neomacros.port.model.KeybindCatalogData;
 import ink.tuanzi.neomacros.port.model.ModData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
 import ink.tuanzi.neomacros.port.model.Pos2d;
@@ -10,6 +12,7 @@ import ink.tuanzi.neomacros.port.model.ServerInfoData;
 import ink.tuanzi.neomacros.port.model.WindowData;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.SharedConstants;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
@@ -243,8 +246,120 @@ public final class FabricClientPort implements ClientPort {
                     List.copyOf(repository.getAvailableIds()),
                     List.copyOf(repository.getSelectedIds()),
                     serverPacksDisabled(mc),
-                    options.fullscreenVideoModeString));
+                    options.fullscreenVideoModeString,
+                    options.chatVisibility().get().name()
+                            .toLowerCase(java.util.Locale.ROOT),
+                    options.chatColors().get(),
+                    options.chatLinks().get(),
+                    options.chatLinksPrompt().get(),
+                    options.chatOpacity().get(),
+                    options.textBackgroundOpacity().get(),
+                    options.chatScale().get(),
+                    options.chatLineSpacing().get(),
+                    options.chatDelay().get(),
+                    options.chatWidth().get(),
+                    options.chatHeightFocused().get(),
+                    options.chatHeightUnfocused().get(),
+                    options.narrator().get().name()
+                            .toLowerCase(java.util.Locale.ROOT),
+                    options.autoSuggestions().get(),
+                    options.hideMatchedNames().get(),
+                    options.reducedDebugInfo().get(),
+                    options.sensitivity().get(),
+                    invertMouseY(options),
+                    options.mouseWheelSensitivity().get(),
+                    options.discreteMouseScroll().get(),
+                    touchscreenEnabled(options),
+                    rawMouseInputEnabled(options),
+                    options.autoJump().get(),
+                    options.toggleCrouch().get(),
+                    options.toggleSprint().get(),
+                    options.showSubtitles().get(),
+                    options.backgroundForChatOnly().get(),
+                    options.darkMojangStudiosBackground().get(),
+                    options.hideLightningFlash().get()));
         });
+    }
+
+    /**
+     * Reads the vertical mouse inversion; the accessor was renamed from
+     * {@code invertYMouse} to {@code invertMouseY} after 1.21.8.
+     */
+    private static boolean invertMouseY(net.minecraft.client.Options options) {
+        //? if >=1.21.9 {
+        return options.invertMouseY().get();
+        //?} else {
+        /* return options.invertYMouse().get(); */
+        //?}
+    }
+
+    /**
+     * Reads touchscreen mode; Minecraft 26.2 removed the setting with no
+     * replacement, so the stored face reports it as off.
+     */
+    private static boolean touchscreenEnabled(net.minecraft.client.Options options) {
+        //? if >=26.2 {
+        return false;
+        //?} else {
+        /* return options.touchscreen().get(); */
+        //?}
+    }
+
+    /**
+     * Reads raw mouse input; Minecraft 26.3 removed the setting and its SDL
+     * relative mouse mode always reads raw input.
+     */
+    private static boolean rawMouseInputEnabled(net.minecraft.client.Options options) {
+        //? if >=26.3 {
+        return true;
+        //?} else {
+        /* return options.rawMouseInput().get(); */
+        //?}
+    }
+
+    @Override
+    public Optional<KeybindCatalogData> keybindCatalog() {
+        return MainThread.run(() -> {
+            var options = Minecraft.getInstance().options;
+            if (options == null) {
+                return Optional.empty();
+            }
+            KeyMapping[] mappings =
+                    ((OptionsKeyMappingsAccessor) (Object) options).neomacros$keyMappings();
+            List<String> names = new ArrayList<>(mappings.length);
+            List<String> categories = new ArrayList<>();
+            java.util.Map<String, java.util.Map<String, String>> grouped =
+                    new java.util.LinkedHashMap<>();
+            for (KeyMapping mapping : mappings) {
+                names.add(mapping.getName());
+                String category = categoryKey(mapping);
+                grouped.computeIfAbsent(category, key -> new java.util.LinkedHashMap<>()).put(
+                        net.minecraft.network.chat.Component.translatable(mapping.getName())
+                                .getString(),
+                        mapping.getTranslatedKeyMessage().getString());
+                if (!categories.contains(category)) {
+                    categories.add(category);
+                }
+            }
+            java.util.Map<String, java.util.Map<String, String>> frozen =
+                    new java.util.LinkedHashMap<>();
+            grouped.forEach((category, binds) -> frozen.put(category,
+                    java.util.Collections.unmodifiableMap(binds)));
+            return Optional.of(new KeybindCatalogData(List.copyOf(names),
+                    List.copyOf(categories), java.util.Collections.unmodifiableMap(frozen)));
+        });
+    }
+
+    /**
+     * The category key of one mapping; categories became records holding an
+     * identifier after 1.21.11, so the key is derived from the identifier.
+     */
+    private static String categoryKey(KeyMapping mapping) {
+        //? if >=1.21.11 {
+        return mapping.getCategory().id().toLanguageKey();
+        //?} else {
+        /* return mapping.getCategory(); */
+        //?}
     }
 
     /**
@@ -285,8 +400,15 @@ public final class FabricClientPort implements ClientPort {
                 throw new IllegalArgumentException("option unavailable: " + name);
             }
             java.lang.reflect.Method getter;
+            String accessor = nodeOptionAccessor(name);
+            if (accessor == null) {
+                // The node no longer carries this setting, so the write is a
+                // no-op and the caller's read-back comparison decides whether
+                // the requested value matched the stored one.
+                return;
+            }
             try {
-                getter = options.getClass().getMethod(name);
+                getter = options.getClass().getMethod(accessor);
             } catch (NoSuchMethodException e) {
                 throw new IllegalArgumentException("unknown option: " + name, e);
             }
@@ -316,6 +438,31 @@ public final class FabricClientPort implements ClientPort {
                 //?}
             }
         });
+    }
+
+    /**
+     * Resolves one canonical option name to the accessor this node carries,
+     * or {@code null} when the node dropped the setting.
+     */
+    private static String nodeOptionAccessor(String name) {
+        //? if <1.21.9 {
+        /*
+        if ("invertMouseY".equals(name)) {
+            return "invertYMouse";
+        }
+        */
+        //?}
+        //? if >=26.2 {
+        if ("touchscreen".equals(name)) {
+            return null;
+        }
+        //?}
+        //? if >=26.3 {
+        if ("rawMouseInput".equals(name)) {
+            return null;
+        }
+        //?}
+        return name;
     }
 
     /** Coerces an incoming script value onto the option's current type. */

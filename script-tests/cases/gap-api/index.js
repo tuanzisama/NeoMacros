@@ -147,6 +147,34 @@ function start() {
         opts.skin !== undefined && opts.music !== undefined
             && opts.control !== undefined && opts.chat !== undefined
             && opts.accessibility !== undefined);
+    const chat = opts.chat;
+    const control = opts.control;
+    const a11y = opts.accessibility;
+    check('client.options.chat-handle',
+        typeof chat.setChatOpacity === 'function'
+            && typeof chat.setNarrator === 'function'
+            && (chat.chatOpacity === undefined
+                || typeof chat.chatOpacity === 'number')
+            && (chat.chatVisibility === undefined
+                || typeof chat.chatVisibility === 'string'));
+    check('client.options.control-handle',
+        typeof control.setAutoJump === 'function'
+            && typeof control.setSensitivity === 'function'
+            && (control.sensitivity === undefined
+                || typeof control.sensitivity === 'number')
+            && (control.keys === undefined || Array.isArray(control.keys))
+            && (control.categories === undefined
+                || Array.isArray(control.categories))
+            && (control.keyBindsByCategory === undefined
+                || typeof control.keyBindsByCategory === 'object')
+            && typeof control.getKeyBindsByCategory === 'function');
+    check('client.options.accessibility-handle',
+        typeof a11y.setShowSubtitles === 'function'
+            && typeof a11y.setFovEffect === 'function'
+            && (a11y.showSubtitles === undefined
+                || typeof a11y.showSubtitles === 'boolean')
+            && (a11y.hideLightningFlash === undefined
+                || typeof a11y.hideLightningFlash === 'boolean'));
     try {
       const pending = opts.setFov(70);
       check('client.options.write-promise',
