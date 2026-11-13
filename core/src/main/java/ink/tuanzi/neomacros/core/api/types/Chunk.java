@@ -185,6 +185,163 @@ public final class Chunk implements ScriptHandle {
     }
 
     /**
+     * The world position of the chunk's local origin (northwest corner at
+     * y = 0), available without a loaded world.
+     *
+     * @zh 区块局部原点的世界坐标（西北角，y=0）；无需加载世界即可读取。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public BlockPos getMinBlock() {
+        return new BlockPos(chunkX << 4, 0, chunkZ << 4);
+    }
+
+    /**
+     * The world block position from a local x/z offset and an absolute y;
+     * offsets outside {@code 0..15} address neighbouring chunks.
+     *
+     * @zh 由区块内 x/z 偏移与绝对 y 得到的世界方块坐标；x/z 超出 {@code 0..15} 时指向相邻区块。
+     * @zh-param xOffset 区块内 x 偏移
+     * @zh-param y 绝对 y 坐标
+     * @zh-param zOffset 区块内 z 偏移
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public BlockPos offsetBlock(int xOffset, int y, int zOffset) {
+        return new BlockPos((chunkX << 4) + xOffset, y, (chunkZ << 4) + zOffset);
+    }
+
+    /**
+     * The chunk's build height in blocks, or {@code null} when unloaded.
+     *
+     * @zh 区块的可建造高度（格数）；未加载时为 null。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Integer getHeight() {
+        ChunkData data = current();
+        return data != null ? data.maxY() - data.minY() + 1 : null;
+    }
+
+    /**
+     * The first available y of one heightmap column (local x/z offsets),
+     * or {@code null} when unloaded, the local offsets fall outside
+     * {@code 0..15}, or the heightmap type is unknown.
+     *
+     * @zh 某高度图列的首个可用 y（区块内 x/z 偏移）；未加载、偏移越界或高度图类型未知时为 null。
+     * @zh-param xOffset 区块内 x 偏移（0-15）
+     * @zh-param zOffset 区块内 z 偏移（0-15）
+     * @zh-param heightmap 高度图类型名：{@code world_surface} / {@code ocean_floor} / {@code motion_blocking} / {@code motion_blocking_no_leaves}
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Integer topYAt(int xOffset, int zOffset, String heightmap) {
+        ChunkData data = current();
+        if (data == null || heightmap == null
+                || xOffset < 0 || xOffset > 15 || zOffset < 0 || zOffset > 15) {
+            return null;
+        }
+        int[] heights = data.heightmaps()
+                .get(heightmap.toLowerCase(java.util.Locale.ROOT));
+        if (heights == null || heights.length < 256) {
+            return null;
+        }
+        return heights[xOffset + zOffset * 16];
+    }
+
+    /**
+     * The entities inside the chunk's bounds, empty list when unloaded.
+     *
+     * @zh 区块边界内的实体；未加载时为空数组。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public java.util.List<ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity> getEntities() {
+        ChunkData data = current();
+        if (data == null) {
+            return List.of();
+        }
+        Pos3d min = new Pos3d(data.chunkX() * 16, data.minY(), data.chunkZ() * 16);
+        Pos3d max = new Pos3d(data.chunkX() * 16 + 15, data.maxY(), data.chunkZ() * 16 + 15);
+        return ScriptApiEnvironment.adapter().entity()
+                .inBox(min, max, snapshot -> true).stream()
+                .map(snapshot -> new ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity(
+                        snapshot.uuid()))
+                .toList();
+    }
+
+    /**
+     * Whether the chunk contains any of the given block ids; an unloaded
+     * chunk answers undefined, an empty request answers false.
+     *
+     * @zh 区块是否包含任一指定方块 id；未加载区块为 undefined，空请求为 false。
+     * @zh-param blocks 方块 id（字符串或字符串数组），可省略命名空间
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Boolean containsAny(
+            @ApiType("string | Array<string>") Object blocks) {
+        return contains(blocks, false);
+    }
+
+    /**
+     * Whether the chunk contains every one of the given block ids; an
+     * unloaded chunk answers undefined, an empty request answers true, and
+     * an unresolvable id fails the check.
+     *
+     * @zh 区块是否包含全部指定方块 id；未加载区块为 undefined，空请求为 true，无法解析的 id 判定失败。
+     * @zh-param blocks 方块 id（字符串或字符串数组），可省略命名空间
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Boolean containsAll(
+            @ApiType("string | Array<string>") Object blocks) {
+        return contains(blocks, true);
+    }
+
+    /** Runs one chunk containment query, normalizing the id request first. */
+    private Boolean contains(Object blocks, boolean requireAll) {
+        java.util.List<String> ids = idList(blocks);
+        if (ids.isEmpty()) {
+            // Vacuous truth: all-of holds, any-of does not.
+            return requireAll;
+        }
+        return ScriptApiEnvironment.adapter().world()
+                .chunkContains(chunkX, chunkZ, ids, requireAll).orElse(null);
+    }
+
+    /** Normalizes one id request: a single string or an array of strings. */
+    private static java.util.List<String> idList(Object blocks) {
+        if (blocks == null) {
+            return List.of();
+        }
+        if (blocks instanceof java.util.List<?> list) {
+            java.util.List<String> out = new ArrayList<>();
+            for (Object entry : list) {
+                if (entry != null) {
+                    out.add(String.valueOf(entry));
+                }
+            }
+            return out;
+        }
+        if (blocks instanceof String single) {
+            return List.of(single);
+        }
+        return List.of(String.valueOf(blocks));
+    }
+
+    /**
      * Whether the world position lies inside this chunk.
      *
      * @zh 判断世界坐标是否落在本区块内。

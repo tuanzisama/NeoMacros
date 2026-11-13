@@ -223,6 +223,123 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
         return value instanceof String s ? s : null;
     }
 
+    /**
+     * Whether the state's block belongs to the block tag. Unknown tags and
+     * tags of other registries answer false; without a loaded registry
+     * answer undefined.
+     *
+     * @zh 状态所属方块是否属于指定方块标签；未知标签或其他注册表的标签为 false，注册表不可用时为 undefined。
+     * @zh-param tag 标签名，可带 {@code #} 前缀、可省略命名空间
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean hasTag(String tag) {
+        ink.tuanzi.neomacros.port.model.BlockTypeData data =
+                ink.tuanzi.neomacros.core.api.ScriptApiEnvironment.adapter().world()
+                        .blockType(id).orElse(null);
+        if (data == null) {
+            return null;
+        }
+        return data.tags().contains(normalizeTag(tag));
+    }
+
+    /** Whether the state has a large (exceeds-cube) collision shape.
+     * @zh 该状态是否具有超出立方体的大型碰撞形状。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean exceedsCube() {
+        Object value = extra("exceedsCube");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /** Whether the state supports an analog (comparator) output signal.
+     * @zh 该状态是否支持比较器模拟输出信号。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean hasComparatorOutput() {
+        Object value = extra("hasComparatorOutput");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /**
+     * The legacy movement-blocking flag (excludes cobwebs and bamboo
+     * saplings), or undefined when the state carries no world snapshot.
+     *
+     * @zh 旧版阻挡移动标记（排除蛛网与竹笋）；状态无世界快照时为 undefined。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean blocksMovement() {
+        Object value = extra("blocksMovement");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /** The legacy solid flag, distinct from opacity, or undefined without a world snapshot.
+     * @zh 旧版固体标记（与不透明度不同）；无世界快照时为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean isSolid() {
+        Object value = extra("isSolid");
+        return value instanceof Boolean b ? b : null;
+    }
+
+    /**
+     * Whether the block state present at the position allows spawning the
+     * given entity type in the currently loaded world; undefined without a
+     * world, false for an unknown entity identifier.
+     *
+     * @zh 当前加载世界中该坐标处的方块状态是否允许指定实体类型生成；无世界时为 undefined，未知实体标识为 false。
+     * @zh-param x 方块坐标 X
+     * @zh-param y 方块坐标 Y
+     * @zh-param z 方块坐标 Z
+     * @zh-param entity 实体类型标识，可省略命名空间
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean allowsSpawning(int x, int y, int z, String entity) {
+        return ink.tuanzi.neomacros.core.api.ScriptApiEnvironment.adapter().world()
+                .allowsSpawningAt(new ink.tuanzi.neomacros.port.model.Pos3d(x, y, z), entity)
+                .orElse(null);
+    }
+
+    /**
+     * Whether the block state present at the position suffocates entities
+     * standing inside it in the currently loaded world; undefined without
+     * a world.
+     *
+     * @zh 当前加载世界中该坐标处的方块状态是否会令其中的实体窒息；无世界时为 undefined。
+     * @zh-param x 方块坐标 X
+     * @zh-param y 方块坐标 Y
+     * @zh-param z 方块坐标 Z
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean shouldSuffocate(int x, int y, int z) {
+        return ink.tuanzi.neomacros.core.api.ScriptApiEnvironment.adapter().world()
+                .suffocatesAt(new ink.tuanzi.neomacros.port.model.Pos3d(x, y, z))
+                .orElse(null);
+    }
+
+    /** Normalizes one tag reference: an optional {@code #} prefix and a default namespace. */
+    private static String normalizeTag(String tag) {
+        String id = tag.startsWith("#") ? tag.substring(1) : tag;
+        return id.indexOf(':') >= 0 ? id : "minecraft:" + id;
+    }
+
     public boolean isProps(java.util.Map<String, String> props) {
         for (java.util.Map.Entry<String, String> entry : props.entrySet()) {
             if (entry.getKey().equals("id")) {

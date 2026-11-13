@@ -35,6 +35,65 @@ function start() {
   } catch (e) {
     check('world.playSoundFile-promise', false);
   }
+  // G-017 block/chunk face: shape checks only; a missing world or a block
+  // of air reads undefined and still counts as present.
+  const block = neo.world.blockAt(0, 64, 0);
+  if (block === undefined) {
+    check('g017.block-absent', true);
+  } else {
+    check('g017.block-state', typeof block.state === 'object'
+        && typeof block.state.id === 'string');
+    check('g017.block-defaultState',
+        block.defaultState === undefined || (typeof block.defaultState === 'object'
+            && typeof block.defaultState.id === 'string'));
+    check('g017.block-defaultItemStack',
+        block.defaultItemStack === undefined
+        || typeof block.defaultItemStack.id === 'string');
+    check('g017.block-multipliers',
+        typeof block.blastResistance === 'number'
+        && typeof block.jumpVelocityMultiplier === 'number'
+        && typeof block.slipperiness === 'number'
+        && typeof block.velocityMultiplier === 'number');
+    check('g017.block-tags', Array.isArray(block.tags));
+    check('g017.block-states', Array.isArray(block.states)
+        && block.states.length >= 1);
+    check('g017.block-name', typeof block.name === 'string');
+    check('g017.block-predicates',
+        typeof block.canMobSpawnInside() === 'boolean'
+        && typeof block.hasDynamicBounds() === 'boolean');
+    check('g017.block-hasTag',
+        block.hasTag('minecraft:base_stone_overworld') !== undefined
+        && block.hasTag('nope:nope') === false);
+    const state = block.state;
+    check('g017.state-flags',
+        typeof state.solid === 'boolean'
+        && typeof state.exceedsCube() === 'boolean'
+        && typeof state.blocksMovement() === 'boolean'
+        && typeof state.hasComparatorOutput() === 'boolean');
+    check('g017.state-position-queries',
+        typeof state.allowsSpawning(0, 64, 0, 'sheep') === 'boolean'
+        && typeof state.shouldSuffocate(0, 64, 0) === 'boolean');
+  }
+  const chunk = neo.world.chunkAt(0, 64, 0);
+  if (chunk === undefined) {
+    check('g017.chunk-absent', true);
+  } else {
+    check('g017.chunk-geometry',
+        typeof chunk.minBlock === 'object'
+        && typeof chunk.offsetBlock(1, 64, 1).x === 'number');
+    check('g017.chunk-height', typeof chunk.height === 'number');
+    const top = chunk.topYAt(0, 0, 'world_surface');
+    check('g017.chunk-topYAt', top === undefined || typeof top === 'number');
+    check('g017.chunk-contains',
+        typeof chunk.containsAny(['minecraft:stone']) === 'boolean'
+        && chunk.containsAll([]) === true
+        && chunk.containsAny([]) === false);
+    check('g017.chunk-entities', Array.isArray(chunk.entities));
+  }
+  const g017ray = neo.world.raycast(0, 64, 0, 0, 64, 4);
+  check('g017.ray-insideBlock', g017ray === undefined
+      || g017ray.insideBlock === undefined
+      || typeof g017ray.insideBlock === 'boolean');
   check('client.mods-array', Array.isArray(neo.client.mods));
   check('client.isDevEnv', typeof neo.client.isDevEnv === 'boolean');
   check('client.window', neo.client.window === null || typeof neo.client.window === 'object');
