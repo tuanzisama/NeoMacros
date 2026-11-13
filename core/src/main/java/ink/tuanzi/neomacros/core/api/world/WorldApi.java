@@ -14,6 +14,7 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
+import ink.tuanzi.neomacros.port.model.LightData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.ScoreboardData;
 import ink.tuanzi.neomacros.port.model.TabListData;
@@ -196,6 +197,47 @@ public final class WorldApi {
     }
 
     /**
+     * The world spawn or respawn-data position as a {@code BlockPos}, or
+     * {@code null} without a loaded world. This is the position the level
+     * records for respawning; it does not predict where the player will
+     * eventually respawn.
+     *
+     * @zh 世界出生点/重生数据位置的 {@code BlockPos}；未加载世界时为 null。取世界记录的重生数据，不预测玩家最终重生结果。
+     */
+    @ApiSince("0.7.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public ink.tuanzi.neomacros.core.api.types.BlockPos getRespawnPos() {
+        return ScriptApiEnvironment.adapter().world().respawnPos()
+                .map(pos -> new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                        (int) Math.floor(pos.x()),
+                        (int) Math.floor(pos.y()),
+                        (int) Math.floor(pos.z())))
+                .orElse(null);
+    }
+
+    /**
+     * The light levels at the block position as {@code {sky, block}}, each
+     * layer reading 0 to 15, or {@code null} without a loaded world. The two
+     * layers are independent; sky light does not account for time-of-day or
+     * weather darkening.
+     *
+     * @zh 坐标处方块光照 {@code {sky, block}}，各层 0 到 15；未加载世界时为 null。两层相互独立，sky 不含昼夜与天气的变暗修正。
+     * @zh-param x 世界坐标 X
+     * @zh-param y 世界坐标 Y
+     * @zh-param z 世界坐标 Z
+     * @zh-return {@code {sky, block}} 或 null
+     */
+    @ApiSince("0.7.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public LightData lightAt(double x, double y, double z) {
+        return ScriptApiEnvironment.adapter().world().lightAt(new Pos3d(x, y, z))
+                .orElse(null);
+    }
+
+    /**
      * Whether the chunk containing the position is loaded.
      *
      * @zh 判断坐标所在区块是否已加载。
@@ -326,6 +368,27 @@ public final class WorldApi {
             double volume, double pitch) {
         ScriptApiEnvironment.adapter().world().playSound(soundId,
                 new Pos3d(x, y, z), volume, pitch);
+    }
+
+    /**
+     * Plays an audio file through the host sound mixer and resolves once
+     * playback starts. Unlike {@code playSound}, which plays registered sound
+     * events through the game sound engine (positional, honoring game volume
+     * settings), this plays the file itself outside the game sound engine.
+     * The path may be absolute or relative to the game directory. Volume is
+     * {@code 0..1} mapped onto the mixer's master-gain range. The promise
+     * rejects when the file cannot be read, decoded, or played.
+     *
+     * @zh 通过宿主混音器播放音频文件，播放启动后 resolve。与 playSound（游戏声音引擎内播放注册声音事件，可定位、受游戏音量设置约束）不同，本方法播放文件本身，不经游戏声音引擎。路径可为绝对路径或相对游戏目录；volume 为 0..1，映射到混音器主增益范围；文件不可读、无法解码或无法播放时 reject。
+     * @zh-param path 音频文件路径（绝对路径，或相对游戏目录）
+     * @zh-param volume 音量 0..1（映射到主增益范围）
+     */
+    @ApiSince("0.7.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<void>")
+    public java.util.concurrent.CompletableFuture<Void> playSoundFile(String path, double volume) {
+        return ScriptApiEnvironment.adapter().world().playSoundFile(path, volume);
     }
 
     /**

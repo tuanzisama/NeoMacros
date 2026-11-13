@@ -15,6 +15,7 @@ import ink.tuanzi.neomacros.core.api.world.WorldApi;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
 import ink.tuanzi.neomacros.port.model.ChunkData;
+import ink.tuanzi.neomacros.port.model.LightData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.ScoreboardData;
 import ink.tuanzi.neomacros.port.model.TabListData;
@@ -33,7 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * The world gap expansions: level name, moon phase, tab list, boss bars,
- * scoreboards, tick rate estimate, and the sound/particle actions, driven
+ * scoreboards, tick rate estimate, the sound/particle actions, and the G-010
+ * world queries (respawn position, light levels, sound-file playback), driven
  * through the API over a canned port.
  */
 class WorldGapExpansionsTest {
@@ -194,6 +196,43 @@ class WorldGapExpansionsTest {
         assertEquals(10, world.lastCount);
     }
 
+    @Test
+    void respawnPosRendersBlockPosHandle() {
+        world.respawnPos = new Pos3d(12, 64, -8);
+        var handle = api.getRespawnPos();
+        assertEquals(12.0, handle.getX());
+        assertEquals(64.0, handle.getY());
+        assertEquals(-8.0, handle.getZ());
+    }
+
+    @Test
+    void respawnPosIsNullWithoutWorld() {
+        world.respawnPos = null;
+        assertNull(api.getRespawnPos());
+    }
+
+    @Test
+    void lightAtRendersBothLayers() {
+        world.light = new LightData(15, 7);
+        LightData view = api.lightAt(0, 64, 0);
+        assertEquals(15, view.sky());
+        assertEquals(7, view.block());
+    }
+
+    @Test
+    void lightAtIsNullWithoutWorld() {
+        world.light = null;
+        assertNull(api.lightAt(0, 64, 0));
+    }
+
+    @Test
+    void playSoundFileDelegatesAndResolvesOnce() {
+        var started = api.playSoundFile("sfx/hit.wav", 0.5);
+        assertTrue(started.isDone(), "the canned port resolves immediately");
+        assertEquals(List.of("sfx/hit.wav"), world.playedSoundFiles);
+        assertEquals(0.5, world.lastSoundFileVolume);
+    }
+
     /** World port with canned fields the tests mutate directly. */
     static final class CannedWorld implements WorldPort {
         String levelName = "";
@@ -209,6 +248,10 @@ class WorldGapExpansionsTest {
         double lastPitch;
         String lastParticle;
         int lastCount;
+        Pos3d respawnPos;
+        LightData light;
+        final List<String> playedSoundFiles = new java.util.ArrayList<>();
+        double lastSoundFileVolume;
 
         @Override
         public long time() {
@@ -297,6 +340,24 @@ class WorldGapExpansionsTest {
                 double speed) {
             lastParticle = particleId;
             lastCount = count;
+        }
+
+        @Override
+        public java.util.Optional<Pos3d> respawnPos() {
+            return java.util.Optional.ofNullable(respawnPos);
+        }
+
+        @Override
+        public java.util.Optional<LightData> lightAt(Pos3d pos) {
+            return java.util.Optional.ofNullable(light);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> playSoundFile(String path,
+                double volume) {
+            playedSoundFiles.add(path);
+            lastSoundFileVolume = volume;
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
         }
     }
 
