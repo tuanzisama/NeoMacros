@@ -58,9 +58,112 @@ public interface EntityPort {
     /**
      * Returns live living-entity extras (e.g. {@code absorption},
      * {@code armorValue}, {@code noGravity}, {@code baby}) keyed by member
-     * name; an empty map when the entity is absent or not living.
+     * name; an empty map when the entity is absent or not living. A
+     * {@code null} value marks an absent member (an empty armor slot, no
+     * custom name).
      */
     default java.util.Map<String, Object> livingExtras(java.util.UUID uuid) {
         return java.util.Map.of();
+    }
+
+    /**
+     * Returns the base-entity live state keyed by the script-facing member
+     * names: {@code glowing}, {@code glowColor}, {@code customName},
+     * {@code customNameVisible}, {@code air}, {@code maxAir} and
+     * {@code speed}; an empty map when the entity is absent. Entries read on
+     * every entity kind, so the values survive on plain (non-living) entities
+     * too. A {@code null} value marks an absent member.
+     */
+    default java.util.Map<String, Object> entityState(java.util.UUID uuid) {
+        return java.util.Map.of();
+    }
+
+    // --- Client-side write face: every action below writes local state on
+    // the game main thread and resolves once processed. Servers keep
+    // authority over the real value, so a later sync may overwrite it.
+
+    /**
+     * Forces the glow outline on or off for the entity, overriding the
+     * game's own decision; the future resolves once the write landed.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setGlowing(
+            java.util.UUID uuid, boolean glowing) {
+        return unsupported("setGlowing");
+    }
+
+    /** Restores the game's own glow decision for the entity. */
+    default java.util.concurrent.CompletableFuture<Void> resetGlowing(java.util.UUID uuid) {
+        return unsupported("resetGlowing");
+    }
+
+    /**
+     * Overrides the glow outline colour with the packed RGB value for the
+     * entity, leaving whether it glows untouched.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setGlowingColor(
+            java.util.UUID uuid, int color) {
+        return unsupported("setGlowingColor");
+    }
+
+    /** Restores the team-derived glow outline colour for the entity. */
+    default java.util.concurrent.CompletableFuture<Void> resetGlowingColor(
+            java.util.UUID uuid) {
+        return unsupported("resetGlowingColor");
+    }
+
+    /**
+     * Sets the entity's custom name locally; a null name clears it. The
+     * server owns the real value and may overwrite the local write on the
+     * next sync.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setCustomName(
+            java.util.UUID uuid, String name) {
+        return unsupported("setCustomName");
+    }
+
+    /**
+     * Sets whether the custom name is always shown above the entity
+     * (client-side write, see {@link #setCustomName}).
+     */
+    default java.util.concurrent.CompletableFuture<Void> setCustomNameVisible(
+            java.util.UUID uuid, boolean visible) {
+        return unsupported("setCustomNameVisible");
+    }
+
+    // --- Predicates that need a second handle.
+
+    /**
+     * Whether the game permits the entity to attack the target; false when
+     * either handle is gone or the target is not a living entity.
+     */
+    default boolean canAttack(java.util.UUID uuid, java.util.UUID target) {
+        return false;
+    }
+
+    /**
+     * Whether Minecraft considers the entity eligible for the status effect
+     * with the id (namespace defaults to {@code minecraft}); false when the
+     * id is unknown or either handle is gone.
+     */
+    default boolean canBeAffected(java.util.UUID uuid, String effectId) {
+        return false;
+    }
+
+    /**
+     * Whether nothing blocks the view from the entity to the target. The
+     * simple cast tests three points only; the extended cast additionally
+     * samples four pillars around the target.
+     */
+    default boolean canSee(java.util.UUID uuid, java.util.UUID target, boolean simpleCast) {
+        return false;
+    }
+
+    /** The rejected future returned by a write the adapter does not serve. */
+    private static java.util.concurrent.CompletableFuture<Void> unsupported(String member) {
+        java.util.concurrent.CompletableFuture<Void> future =
+                new java.util.concurrent.CompletableFuture<>();
+        future.completeExceptionally(new UnsupportedOperationException(
+                member + " requires the fabric adapter"));
+        return future;
     }
 }

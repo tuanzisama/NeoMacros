@@ -28,6 +28,7 @@
     ,"ClientPacketListenerMixin"
     ,"ChatListenerMixin"
     ,"LocalPlayerMixin"
+    ,"EntityGlowMixin"
   ],
   "injectors": {
     "defaultRequire": 1

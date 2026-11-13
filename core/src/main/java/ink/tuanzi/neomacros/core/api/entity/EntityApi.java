@@ -298,6 +298,35 @@ public final class EntityApi {
             return value instanceof String id ? EntityApi.wrap(UUID.fromString(id)) : null;
         }
 
+        /** The base-entity state channel (glowing/air/speed/custom name). */
+        protected java.util.Map<String, Object> entityState() {
+            return uuid != null ? adapter().entityState(uuid) : java.util.Map.of();
+        }
+
+        /** Reads one base-entity boolean entry, or null when absent. */
+        protected Boolean entityBool(String key) {
+            Object value = entityState().get(key);
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /** Reads one base-entity integer entry, or null when absent. */
+        protected Integer entityInt(String key) {
+            Object value = entityState().get(key);
+            return value instanceof Integer i ? i : null;
+        }
+
+        /** Reads one base-entity numeric entry, or null when absent. */
+        protected Double entityDouble(String key) {
+            Object value = entityState().get(key);
+            return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /** Reads one base-entity string entry, or null when absent. */
+        protected String entityString(String key) {
+            Object value = entityState().get(key);
+            return value instanceof String s ? s : null;
+        }
+
         /**
          * The entity UUID string.
          *
@@ -571,11 +600,210 @@ public final class EntityApi {
         /** Whether the entity is gliding with an elytra.
          * @zh 实体是否在鞘翅滑翔。 */
         @ApiSince("0.2.0")
-        @ApiLoader("*")
         @ApiMC("*")
+        @ApiLoader("*")
         public boolean isGliding() {
             return current().map(EntitySnapshot::gliding).orElse(false);
         }
+
+        /**
+         * Whether the entity currently carries a glow outline; re-read on
+         * every access, undefined once the entity is gone.
+         *
+         * @zh 实体当前是否带发光描边；每次访问实时回读，实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean getGlowing() {
+            return entityBool("glowing");
+        }
+
+        /**
+         * The packed RGB colour the glow outline is drawn in (the team
+         * colour when nothing overrides it); undefined once the entity is
+         * gone.
+         *
+         * @zh 发光描边所用的打包 RGB 颜色（未覆盖时为队伍颜色）；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getGlowColor() {
+            return entityInt("glowColor");
+        }
+
+        /**
+         * The custom name shown above the entity, or undefined when the
+         * entity carries none or is gone.
+         *
+         * @zh 实体头顶显示的自定义名；未设置或实体消失时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getCustomName() {
+            return entityString("customName");
+        }
+
+        /**
+         * Whether the custom name is always shown, ignoring distance;
+         * undefined once the entity is gone.
+         *
+         * @zh 自定义名是否始终显示（不受距离影响）；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isCustomNameVisible() {
+            return entityBool("customNameVisible");
+        }
+
+        /**
+         * The remaining air in ticks (300 max in vanilla water); undefined
+         * once the entity is gone.
+         *
+         * @zh 剩余空气刻（原版水中小上限 300）；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getAir() {
+            return entityInt("air");
+        }
+
+        /**
+         * The maximum air in ticks (300 in vanilla); undefined once the
+         * entity is gone.
+         *
+         * @zh 最大空气刻（原版 300）；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getMaxAir() {
+            return entityInt("maxAir");
+        }
+
+        /**
+         * The horizontal movement since the previous tick, scaled to blocks
+         * per second; undefined once the entity is gone.
+         *
+         * @zh 上一 tick 起的水平位移，换算为格/秒；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getSpeed() {
+            return entityDouble("speed");
+        }
+
+        /**
+         * Forces the glow outline on or off, overriding the game's own
+         * decision; {@link #resetGlowing()} restores it. Local write: a later
+         * server sync may take the decision back.
+         *
+         * @zh 强制开启或关闭发光描边，覆盖游戏自身的判定；{@link #resetGlowing()} 恢复。本地写入，服务器后续同步可能收回。
+         * @zh-param glowing 是否强制发光
+         * @zh-return 写入完成后落定的 Promise
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public java.util.concurrent.CompletableFuture<Void> setGlowing(boolean glowing) {
+            return adapter().setGlowing(uuid, glowing);
+        }
+
+        /**
+         * Restores the game's own glow decision after {@link #setGlowing}.
+         * Local write.
+         *
+         * @zh 在 {@link #setGlowing()} 之后恢复游戏自身的发光判定。本地写入。
+         * @zh-return 写入完成后落定的 Promise
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public java.util.concurrent.CompletableFuture<Void> resetGlowing() {
+            return adapter().resetGlowing(uuid);
+        }
+
+        /**
+         * Draws the glow outline in the packed RGB colour, leaving whether
+         * the entity glows untouched; {@link #resetGlowingColor()} restores
+         * the team-derived colour. Local write.
+         *
+         * @zh 以打包 RGB 颜色绘制发光描边，不改变是否发光；{@link #resetGlowingColor()} 恢复队伍颜色。本地写入。
+         * @zh-param color 打包的 RGB 颜色值
+         * @zh-return 写入完成后落定的 Promise
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public java.util.concurrent.CompletableFuture<Void> setGlowingColor(int color) {
+            return adapter().setGlowingColor(uuid, color);
+        }
+
+        /**
+         * Restores the team-derived glow colour after
+         * {@link #setGlowingColor(int)}. Local write.
+         *
+         * @zh 在 {@link #setGlowingColor(int)} 之后恢复队伍派生的发光颜色。本地写入。
+         * @zh-return 写入完成后落定的 Promise
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public java.util.concurrent.CompletableFuture<Void> resetGlowingColor() {
+            return adapter().resetGlowingColor(uuid);
+        }
+
+        /**
+         * Sets the custom name shown above the entity; an omitted or null
+         * name clears it. Local write: the server owns the real value and
+         * may overwrite it on the next sync.
+         *
+         * @zh 设置实体头顶显示的自定义名；省略或传 null 表示清除。本地写入：真实值归服务器所有，下次同步可能被覆盖。
+         * @zh-param name 自定义名，省略或 null 清除
+         * @zh-return 写入完成后落定的 Promise
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public java.util.concurrent.CompletableFuture<Void> setCustomName(
+                @ApiOptional @ApiType("string | null") String name) {
+            return adapter().setCustomName(uuid, name);
+        }
+
+        /**
+         * Sets whether the custom name is always shown above the entity,
+         * ignoring distance. Local write.
+         *
+         * @zh 设置自定义名是否始终显示（不受距离影响）。本地写入。
+         * @zh-param visible 是否始终显示
+         * @zh-return 写入完成后落定的 Promise
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public java.util.concurrent.CompletableFuture<Void> setCustomNameVisible(
+                boolean visible) {
+            return adapter().setCustomNameVisible(uuid, visible);
+        }
+
 
         /**
          * The entity poses riding on this one, as entity handles; empty when
@@ -866,17 +1094,6 @@ public final class EntityApi {
             return value instanceof Boolean b ? b : null;
         }
 
-        /** Whether the entity is currently glowing (outline).
-         * @zh 实体当前是否发光（描边）。 */
-        @ApiSince("0.2.0")
-        @ApiMC("*")
-        @ApiLoader("*")
-        @ApiReadOnly
-        public Boolean isGlowing() {
-            Object value = livingExtras().get("glowing");
-            return value instanceof Boolean b ? b : null;
-        }
-
         /** Whether the entity is hostile (implements the Enemy marker).
          * @zh 实体是否为敌对（实现 Enemy 标记接口）。 */
         @ApiSince("0.2.0")
@@ -939,28 +1156,6 @@ public final class EntityApi {
             return false;
         }
 
-        /** The remaining air ticks; 300 max in vanilla water.
-         * @zh 剩余空气刻；原版水中小上限 300。 */
-        @ApiSince("0.2.0")
-        @ApiMC("*")
-        @ApiLoader("*")
-        @ApiReadOnly
-        public Integer getAir() {
-            Object value = livingExtras().get("air");
-            return value instanceof Integer i ? i : null;
-        }
-
-        /** The maximum air ticks (300 in vanilla).
-         * @zh 最大空气刻（原版 300）。 */
-        @ApiSince("0.2.0")
-        @ApiMC("*")
-        @ApiLoader("*")
-        @ApiReadOnly
-        public Integer getMaxAir() {
-            Object value = livingExtras().get("maxAir");
-            return value instanceof Integer i ? i : null;
-        }
-
         /** The remaining use ticks while eating, drinking, or blocking.
          * @zh 进食/饮水/格挡时的剩余使用刻。 */
         @ApiSince("0.2.0")
@@ -970,6 +1165,249 @@ public final class EntityApi {
         public Integer getUseItemRemainingTicks() {
             Object value = livingExtras().get("useItemRemainingTicks");
             return value instanceof Integer i ? i : null;
+        }
+
+        /**
+         * The stack in the head armor slot; undefined for an empty slot or a
+         * gone entity.
+         *
+         * @zh 头盔槽物品；空槽或实体消失时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getHeadArmor() {
+            return livingStack("headArmor");
+        }
+
+        /**
+         * The stack in the chest armor slot; undefined for an empty slot or
+         * a gone entity.
+         *
+         * @zh 胸甲槽物品；空槽或实体消失时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getChestArmor() {
+            return livingStack("chestArmor");
+        }
+
+        /**
+         * The stack in the leggings slot; undefined for an empty slot or a
+         * gone entity.
+         *
+         * @zh 护腿槽物品；空槽或实体消失时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getLegArmor() {
+            return livingStack("legArmor");
+        }
+
+        /**
+         * The stack in the boots slot; undefined for an empty slot or a gone
+         * entity.
+         *
+         * @zh 靴子槽物品；空槽或实体消失时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getFootArmor() {
+            return livingStack("footArmor");
+        }
+
+        /**
+         * The armor-toughness attribute value; undefined once the entity is
+         * gone or carries no such attribute.
+         *
+         * @zh 护甲韧性属性值；实体消失或没有该属性时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getArmorToughness() {
+            Object value = livingExtras().get("armorToughness");
+            return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /**
+         * The base (unmodified) maximum health of the entity; undefined once
+         * the entity is gone or carries no such attribute.
+         *
+         * @zh 实体的最大生命属性基准值（不含修饰）；实体消失或没有该属性时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getDefaultMaxHealth() {
+            Object value = livingExtras().get("defaultMaxHealth");
+            return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /**
+         * Whether the entity can breathe underwater by its own behaviour
+         * (breathing equipment does not count); undefined once the entity is
+         * gone.
+         *
+         * @zh 实体按自身行为能否在水下呼吸（不含呼吸装备）；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isBreathesUnderwater() {
+            Object value = livingExtras().get("breathesUnderwater");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /**
+         * Whether the entity discards friction (its "no drag" flag), not
+         * whether it is currently sliding; undefined once the entity is gone.
+         *
+         * @zh 实体是否免除摩擦（无阻力旗标），而非当前是否在滑动；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isNoDrag() {
+            Object value = livingExtras().get("noDrag");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /**
+         * Whether the entity counts as part of the game: alive and not a
+         * spectator; undefined once the entity is gone.
+         *
+         * @zh 实体是否算作游戏的一部分：存活且非旁观者；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isPartOfGame() {
+            Object value = livingExtras().get("partOfGame");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /**
+         * Whether the entity type belongs to the undead tag; undefined once
+         * the entity is gone.
+         *
+         * @zh 实体类型是否属于亡灵标签；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isUndead() {
+            Object value = livingExtras().get("undead");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /**
+         * Whether the entity is a baby; undefined once the entity is gone.
+         *
+         * @zh 实体是否为幼体；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isBaby() {
+            Object value = livingExtras().get("baby");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /**
+         * The bow draw power of the held item (0 to 1), or 0 when the main
+         * hand holds no bow; undefined once the entity is gone.
+         *
+         * @zh 手持物品的拉弓力度（0 到 1），主手非弓时为 0；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Double getBowPull() {
+            Object value = livingExtras().get("bowPull");
+            return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /**
+         * Whether Minecraft considers the entity eligible for the status
+         * effect with the id; this does not check whether the effect is
+         * active. Unknown ids answer false.
+         *
+         * @zh Minecraft 是否认为该实体可被指定状态效果影响；不检查效果是否已生效。未知 id 返回 false。
+         * @zh-param effectId 状态效果 id（命名空间可省略）
+         * @zh-return 是否可被该效果影响
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public boolean canBeAffected(String effectId) {
+            if (effectId == null) {
+                return false;
+            }
+            String wanted = effectId.startsWith("minecraft:") ? effectId : "minecraft:" + effectId;
+            return adapter().canBeAffected(uuid, wanted);
+        }
+
+        /**
+         * Whether the game permits this entity to attack the target; an
+         * eligibility check, not a statement of intent. False when either
+         * handle is gone or the target is not living.
+         *
+         * @zh 游戏是否允许本实体攻击目标；这是资格判定，不代表攻击意图。任一句柄失效或目标非生物时为 false。
+         * @zh-param target 目标实体句柄
+         * @zh-return 是否可攻击
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public boolean canAttack(EntityApi.Entity target) {
+            if (target == null || target.uuid == null || uuid == null) {
+                return false;
+            }
+            return adapter().canAttack(uuid, target.uuid);
+        }
+
+        /**
+         * Whether nothing blocks the view from this entity to the target.
+         * The simple cast tests three points only; passing false additionally
+         * samples four pillars around the target. False when either handle is
+         * gone.
+         *
+         * @zh 本实体到目标之间是否视线无阻。简单投射只测三个点；传 false 会再围绕目标采样四根立柱。任一句柄失效时为 false。
+         * @zh-param target 目标实体句柄
+         * @zh-param simpleCast 是否只用简单投射（省略为 true）
+         * @zh-return 是否看得见
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public boolean hasLineOfSight(EntityApi.Entity target,
+                @ApiOptional Boolean simpleCast) {
+            if (target == null || target.uuid == null || uuid == null) {
+                return false;
+            }
+            return adapter().canSee(uuid, target.uuid, simpleCast == null || simpleCast);
+        }
+
+        /** Reads one living-entity stack entry, or null when absent. */
+        private ItemStack livingStack(String key) {
+            Object value = livingExtras().get(key);
+            return value instanceof ItemStackData data ? ItemStack.of(data) : null;
         }
 
         /** The command tags attached to the entity.

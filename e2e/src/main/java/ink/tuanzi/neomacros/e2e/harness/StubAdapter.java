@@ -884,6 +884,15 @@ public final class StubAdapter implements NeomacrosAdapter {
     /** Entity queries over a canned snapshot list. */
     public static final class StubEntity implements EntityPort {
         final List<EntitySnapshot> entities = new ArrayList<>();
+        public final java.util.Map<String, Object> entityState =
+                new java.util.LinkedHashMap<>();
+        public final java.util.Map<String, Object> livingExtras =
+                new java.util.LinkedHashMap<>();
+        final List<String> writes = new ArrayList<>();
+        public volatile boolean canAttackResult;
+        public volatile boolean canBeAffectedResult;
+        public volatile boolean canSeeResult;
+        public volatile boolean lastSimpleCast = true;
 
         /** Replaces the canned entity population. */
         public void setEntities(List<EntitySnapshot> snapshots) {
@@ -891,9 +900,95 @@ public final class StubAdapter implements NeomacrosAdapter {
             entities.addAll(snapshots);
         }
 
+        /** Replaces the base-entity state entries the port serves. */
+        public void setEntityState(java.util.Map<String, Object> state) {
+            entityState.clear();
+            entityState.putAll(state);
+        }
+
+        /** Replaces the living-entity extras entries the port serves. */
+        public void setLivingExtras(java.util.Map<String, Object> extras) {
+            livingExtras.clear();
+            livingExtras.putAll(extras);
+        }
+
+        /** The recorded write actions, oldest first. */
+        public List<String> writes() {
+            return List.copyOf(writes);
+        }
+
         @Override
         public Optional<EntitySnapshot> byUuid(UUID uuid) {
             return entities.stream().filter(e -> e.uuid().equals(uuid)).findFirst();
+        }
+
+        @Override
+        public java.util.Map<String, Object> entityState(UUID uuid) {
+            return byUuid(uuid)
+                    .<java.util.Map<String, Object>>map(
+                            s -> new java.util.LinkedHashMap<>(entityState))
+                    .orElse(java.util.Map.of());
+        }
+
+        @Override
+        public java.util.Map<String, Object> livingExtras(UUID uuid) {
+            return byUuid(uuid)
+                    .<java.util.Map<String, Object>>map(
+                            s -> new java.util.LinkedHashMap<>(livingExtras))
+                    .orElse(java.util.Map.of());
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setGlowing(UUID uuid, boolean glowing) {
+            writes.add("setGlowing:" + glowing);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> resetGlowing(UUID uuid) {
+            writes.add("resetGlowing");
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setGlowingColor(UUID uuid, int color) {
+            writes.add("setGlowingColor:" + color);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> resetGlowingColor(UUID uuid) {
+            writes.add("resetGlowingColor");
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setCustomName(UUID uuid, String name) {
+            writes.add("setCustomName:" + name);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setCustomNameVisible(
+                UUID uuid, boolean visible) {
+            writes.add("setCustomNameVisible:" + visible);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public boolean canAttack(UUID uuid, UUID target) {
+            return canAttackResult;
+        }
+
+        @Override
+        public boolean canBeAffected(UUID uuid, String effectId) {
+            return canBeAffectedResult;
+        }
+
+        @Override
+        public boolean canSee(UUID uuid, UUID target, boolean simpleCast) {
+            lastSimpleCast = simpleCast;
+            return canSeeResult;
         }
 
         @Override
