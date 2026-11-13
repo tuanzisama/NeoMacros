@@ -57,6 +57,10 @@ final class ApiCompletenessSurface {
     static final List<Class<?>> CLASSES = List.of(
             EntityApi.Entity.class, EntityApi.ItemEntity.class, EntityApi.LivingEntity.class,
             PlayerApi.Player.class, PlayerApi.LocalPlayer.class,
+            ClientApi.Options.class, ClientApi.VideoOptions.class,
+            ClientApi.SkinOptions.class, ClientApi.MusicOptions.class,
+            ClientApi.ControlOptions.class, ClientApi.ChatOptions.class,
+            ClientApi.AccessibilityOptions.class,
             PlayerApi.Inventory.class, PlayerApi.PlayerInventory.class,
             Pos2D.class, Pos3D.class, BlockPos.class, ChunkPos.class,
             Block.class, BlockState.class, RayHit.class,

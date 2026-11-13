@@ -20,10 +20,10 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * The {@code neo.client} module: process-level facts about the running game
- * client, window and input surfaces, the connection lifecycle, and read-only
- * registry and option slices.
+ * client, window and input surfaces, the connection lifecycle, the registry
+ * queries, and the game-options handle with its write actions.
  *
- * @zh {@code neo.client}：运行中游戏客户端的进程级事实、窗口与输入面、连接生命周期，以及只读的注册表与设置切片。
+ * @zh {@code neo.client}：运行中游戏客户端的进程级事实、窗口与输入面、连接生命周期、注册表查询，以及带写操作的游戏设置句柄。
  */
 @ApiModule(name = "client", category = "系统")
 @ApiSince("0.2.0")
@@ -299,17 +299,1156 @@ public final class ClientApi {
     }
 
     /**
-     * A small read-only slice of the game options as
-     * {@code {fov, gamma, guiScale, renderDistance}}.
+     * The live game-options root handle: video, skin, music, control, chat
+     * and accessibility groups plus the resource-pack, language, difficulty,
+     * camera and window controls. Every read re-queries the client port;
+     * writes resolve once the stored value has been read back.
      *
-     * @zh 游戏设置只读切片 {@code {fov, gamma, guiScale, renderDistance}}。
+     * @zh 活的游戏设置根句柄：视频/皮肤/音乐/控制/聊天/无障碍分组，以及资源包、语言、难度、镜头与窗口控制。每次读取都重新查询端口；写入在回读确认存储值后落定。
      */
-    @ApiSince("0.2.0")
+    @ApiSince("0.5.0")
     @ApiLoader("*")
     @ApiMC("*")
-    @ApiReadOnly
-    public OptionsData getOptions() {
-        return adapter().options().orElse(null);
+    public Options getOptions() {
+        return new Options();
+    }
+
+    /**
+     * The live game-options root handle. The read face keeps the historical
+     * {@code fov}, {@code gamma}, {@code guiScale} and {@code renderDistance}
+     * slice at the root; the full surface lives on {@link Options} and
+     * {@link Options#getVideo()}.
+     *
+     * @zh 活的游戏设置根句柄；读面在根上保留历史的 {@code fov}/{@code gamma}/{@code guiScale}/{@code renderDistance} 切片，完整面在 {@link Options} 与 {@link Options#getVideo()}。
+     */
+    @ApiClass(name = "Options", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.Options")
+    public static final class Options implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+
+        private final VideoOptions video = new VideoOptions(this);
+        private final SkinOptions skin = new SkinOptions(this);
+        private final MusicOptions music = new MusicOptions(this);
+        private final ControlOptions control = new ControlOptions(this);
+        private final ChatOptions chat = new ChatOptions(this);
+        private final AccessibilityOptions accessibility = new AccessibilityOptions(this);
+
+        /** The graphics and video settings group.
+         * @zh 图形与视频设置分组。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public VideoOptions getVideo() {
+            return video;
+        }
+
+        /** The skin model-part and main-hand settings group.
+         * @zh 皮肤部件与主手设置分组。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public SkinOptions getSkin() {
+            return skin;
+        }
+
+        /** The sound volume and audio device settings group.
+         * @zh 音量与音频设备设置分组。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public MusicOptions getMusic() {
+            return music;
+        }
+
+        /** The input and key-binding settings group.
+         * @zh 输入与键位设置分组。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public ControlOptions getControl() {
+            return control;
+        }
+
+        /** The chat display and behavior settings group.
+         * @zh 聊天显示与行为设置分组。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public ChatOptions getChat() {
+            return chat;
+        }
+
+        /** The accessibility settings group.
+         * @zh 无障碍设置分组。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public AccessibilityOptions getAccessibility() {
+            return accessibility;
+        }
+
+        /** Persists the current settings to disk.
+         * @zh 把当前设置写入磁盘。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> saveOptions() {
+            return adapter().saveOptions();
+        }
+
+        /** The available resource-pack identifiers.
+         * @zh 可用资源包标识列表。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<String> getResourcePacks() {
+            OptionsData data = optionsData();
+            return data == null ? List.of() : data.resourcePacks();
+        }
+
+        /** The enabled resource-pack identifiers, including required packs.
+         * @zh 已启用的资源包标识（含必选包）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<String> getEnabledResourcePacks() {
+            OptionsData data = optionsData();
+            return data == null ? List.of() : data.enabledResourcePacks();
+        }
+
+        /**
+         * Selects the resource packs to enable and reloads resources when the
+         * selection changes. The promise rejects when the stored selection
+         * does not match the request (unknown identifiers or required packs
+         * the list omits).
+         *
+         * @zh 选择要启用的资源包并在选择变化时重载资源；存储选择与请求不一致（未知标识或遗漏必选包）时 reject。
+         * @zh-param enabled 要启用的资源包标识列表
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setEnabledResourcePacks(List<String> enabled) {
+            if (enabled == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalArgumentException("resource pack list required"));
+            }
+            return adapter().setEnabledResourcePacks(enabled)
+                    .thenCompose(ignored -> verifyValue("enabledResourcePacks", enabled));
+        }
+
+        /**
+         * Rejects or allows server-provided resource packs and reloads
+         * resources when the policy changes.
+         *
+         * @zh 禁用或允许服务器提供的资源包；策略变化时重载资源。
+         * @zh-param state true 为拒绝服务器资源包，false 为允许
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> removeServerResourcePack(boolean state) {
+            return adapter().setServerResourcePacksDisabled(state)
+                    .thenCompose(ignored -> verifyValue("serverPacksDisabled", state));
+        }
+
+        /** The selected language code.
+         * @zh 当前选择的语言代码。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getLanguage() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.language();
+        }
+
+        /**
+         * Selects the language when its code is known and reloads resources;
+         * unknown codes reject.
+         *
+         * @zh 在语言代码已知时切换语言并重载资源；未知代码 reject。
+         * @zh-param languageCode 语言代码（如 {@code zh_cn}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setLanguage(String languageCode) {
+            if (languageCode == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalArgumentException("language code required"));
+            }
+            return adapter().setLanguage(languageCode)
+                    .thenCompose(ignored -> verifyValue("language", languageCode));
+        }
+
+        /** Whether the world difficulty is locked; undefined without a world.
+         * @zh 世界难度是否被锁定；不在世界中为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getDifficultyLocked() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.difficultyLocked();
+        }
+
+        /**
+         * Asks the server to lock the world difficulty. The promise settles
+         * once the request is sent; the server decides whether it applies.
+         *
+         * @zh 请求服务器锁定世界难度；请求发出后即落定，是否生效由服务器决定。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> lockDifficulty() {
+            return adapter().setDifficultyLocked(true);
+        }
+
+        /**
+         * Asks the server to unlock the world difficulty. The promise settles
+         * once the request is sent; the server decides whether it applies.
+         *
+         * @zh 请求服务器解除世界难度锁定；请求发出后即落定，是否生效由服务器决定。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> unlockDifficulty() {
+            return adapter().setDifficultyLocked(false);
+        }
+
+        /** The field of view in degrees; undefined when options are unavailable.
+         * @zh 视野角度（度）；设置不可用时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getFov() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.fov();
+        }
+
+        /** The brightness (gamma) level; an alias of {@code video.gamma}.
+         * @zh 亮度（gamma）值；{@code video.gamma} 的别名。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getGamma() {
+            return video.getGamma();
+        }
+
+        /** The configured GUI scale factor; an alias of {@code video.guiScale}.
+         * @zh 配置的界面缩放倍率；{@code video.guiScale} 的别名。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getGuiScale() {
+            return video.getGuiScale();
+        }
+
+        /** The render distance in chunks; an alias of {@code video.renderDistance}.
+         * @zh 渲染距离（区块）；{@code video.renderDistance} 的别名。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getRenderDistance() {
+            return video.getRenderDistance();
+        }
+
+        /**
+         * Sets the field of view; rejects when the client stores a different
+         * value (out-of-range input).
+         *
+         * @zh 设置视野角度；客户端存储值与请求不一致（越界输入）时 reject。
+         * @zh-param fov 视野角度（度）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setFov(int fov) {
+            return writeOption("fov", fov);
+        }
+
+        /** The camera mode: 0 first person, 1 third person behind, 2 third person front.
+         * @zh 镜头模式：0 第一人称、1 第三人称背后、2 第三人称正面。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getCameraMode() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.cameraMode();
+        }
+
+        /**
+         * Sets the camera mode; rejects when the mode is out of range or the
+         * stored value differs.
+         *
+         * @zh 设置镜头模式；模式越界或存储值不一致时 reject。
+         * @zh-param mode 0 第一人称、1 第三人称背后、2 第三人称正面
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setCameraMode(int mode) {
+            return adapter().setCameraMode(mode)
+                    .thenCompose(ignored -> verifyValue("cameraMode", mode));
+        }
+
+        /** Whether the smooth-camera toggle is enabled.
+         * @zh 平滑镜头开关是否开启。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getSmoothCamera() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.smoothCamera();
+        }
+
+        /**
+         * Enables or disables the smooth-camera toggle.
+         *
+         * @zh 开启或关闭平滑镜头。
+         * @zh-param enabled true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setSmoothCamera(boolean enabled) {
+            return adapter().setSmoothCamera(enabled)
+                    .thenCompose(ignored -> verifyValue("smoothCamera", enabled));
+        }
+
+        /** The window width in screen pixels.
+         * @zh 窗口宽度（屏幕像素）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getWidth() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.width();
+        }
+
+        /** The window height in screen pixels.
+         * @zh 窗口高度（屏幕像素）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getHeight() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.height();
+        }
+
+        /**
+         * Resizes the window width, keeping the current height; rejects while
+         * fullscreen.
+         *
+         * @zh 调整窗口宽度（高度不变）；全屏状态下 reject。
+         * @zh-param w 宽度（像素）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setWidth(int w) {
+            return resizeTo(w, null, "width");
+        }
+
+        /**
+         * Resizes the window height, keeping the current width; rejects while
+         * fullscreen.
+         *
+         * @zh 调整窗口高度（宽度不变）；全屏状态下 reject。
+         * @zh-param h 高度（像素）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setHeight(int h) {
+            return resizeTo(null, h, "height");
+        }
+
+        /**
+         * Resizes the window; rejects while fullscreen or for non-positive
+         * sizes.
+         *
+         * @zh 调整窗口尺寸；全屏状态或非正尺寸时 reject。
+         * @zh-param w 宽度（像素）
+         * @zh-param h 高度（像素）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setSize(int w, int h) {
+            return adapter().setWindowSize(w, h)
+                    .thenCompose(ignored -> verifyValue("width", w))
+                    .thenCompose(ignored -> verifyValue("height", h));
+        }
+
+        /**
+         * Broadcasts the current synchronized options to the server; call it
+         * after writes that other players should observe.
+         *
+         * @zh 把当前同步设置广播给服务器；写入需要让他人观察到的选项后调用。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public void sendSyncedOptions() {
+            adapter().sendSyncedOptions();
+        }
+
+        /** Resizes one window axis while keeping the other, then verifies it. */
+        private static CompletableFuture<Void> resizeTo(Integer width, Integer height,
+                                                        String component) {
+            OptionsData data = optionsData();
+            if (data == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalStateException("game options are unavailable"));
+            }
+            int targetWidth = width != null ? width : data.width();
+            int targetHeight = height != null ? height : data.height();
+            return adapter().setWindowSize(targetWidth, targetHeight)
+                    .thenCompose(ignored -> verifyValue(component,
+                            component.equals("width") ? targetWidth : targetHeight));
+        }
+    }
+
+    /**
+     * Video and graphics settings view over the option face. Reads re-query
+     * the client on every access; writes resolve after read-back.
+     *
+     * @zh 视频与图形设置视图；每次读取都重新查询客户端，写入在回读后落定。
+     */
+    @ApiClass(name = "VideoOptions", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class VideoOptions implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+
+        private final Options parent;
+
+        VideoOptions(Options parent) {
+            this.parent = parent;
+        }
+
+        /** The options root that owns this group.
+         * @zh 拥有该分组的设置根句柄。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Options getParent() {
+            return parent;
+        }
+
+        /** The configured fullscreen video mode string; undefined when none is set.
+         * @zh 已配置的全屏分辨率串；未配置时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getFullscreenResolution() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.fullscreenResolution();
+        }
+
+        /** The biome blend radius in blocks.
+         * @zh 生物群系混合半径（方块）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getBiomeBlendRadius() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.biomeBlendRadius();
+        }
+
+        /**
+         * Sets the biome blend radius; rejects when the client stores a
+         * different value.
+         *
+         * @zh 设置生物群系混合半径；客户端存储值不一致时 reject。
+         * @zh-param radius 半径（方块）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setBiomeBlendRadius(int radius) {
+            return writeOption("biomeBlendRadius", radius);
+        }
+
+        /** The graphics preset: {@code fast}, {@code fancy} or {@code fabulous} (and {@code custom} on newer versions).
+         * @zh 图形预设：{@code fast}/{@code fancy}/{@code fabulous}（新版本另有 {@code custom}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getGraphicsMode() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.graphicsMode();
+        }
+
+        /**
+         * Sets the graphics preset by name, case-insensitively; rejects on
+         * unknown names or when the stored value differs.
+         *
+         * @zh 按名称（忽略大小写）设置图形预设；名称未知或存储值不一致时 reject。
+         * @zh-param mode fast / fancy / fabulous（新版本另有 custom）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setGraphicsMode(String mode) {
+            return writeOption("graphicsMode", mode);
+        }
+
+        /** The chunk builder mode: {@code none}, {@code nearby} or {@code player_affected}.
+         * @zh 区块构建模式：{@code none}/{@code nearby}/{@code player_affected}。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getPrioritizeChunkUpdates() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.prioritizeChunkUpdates();
+        }
+
+        /**
+         * Sets the chunk builder mode, case-insensitively; rejects on unknown
+         * names or when the stored value differs.
+         *
+         * @zh 按名称（忽略大小写）设置区块构建模式；名称未知或存储值不一致时 reject。
+         * @zh-param mode none / nearby / player_affected
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setPrioritizeChunkUpdates(String mode) {
+            return writeOption("prioritizeChunkUpdates", mode);
+        }
+
+        /** Whether ambient occlusion (smooth lighting) is enabled.
+         * @zh 环境光遮蔽（平滑光照）是否开启。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getAmbientOcclusion() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.ambientOcclusion();
+        }
+
+        /**
+         * Enables or disables ambient occlusion.
+         *
+         * @zh 开启或关闭环境光遮蔽。
+         * @zh-param mode true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setAmbientOcclusion(boolean mode) {
+            return writeOption("ambientOcclusion", mode);
+        }
+
+        /** The render distance in chunks.
+         * @zh 渲染距离（区块）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getRenderDistance() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.renderDistance();
+        }
+
+        /**
+         * Sets the render distance; rejects when the client stores a
+         * different value (out-of-range input).
+         *
+         * @zh 设置渲染距离；客户端存储值不一致（越界输入）时 reject。
+         * @zh-param radius 距离（区块）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setRenderDistance(int radius) {
+            return writeOption("renderDistance", radius);
+        }
+
+        /** The simulation distance in chunks.
+         * @zh 模拟距离（区块）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getSimulationDistance() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.simulationDistance();
+        }
+
+        /**
+         * Sets the simulation distance; rejects when the client stores a
+         * different value.
+         *
+         * @zh 设置模拟距离；客户端存储值不一致时 reject。
+         * @zh-param radius 距离（区块）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setSimulationDistance(int radius) {
+            return writeOption("simulationDistance", radius);
+        }
+
+        /** The upper frame-rate limit.
+         * @zh 帧率上限。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getFramerateLimit() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.framerateLimit();
+        }
+
+        /**
+         * Sets the upper frame-rate limit; rejects when the client stores a
+         * different value.
+         *
+         * @zh 设置帧率上限；客户端存储值不一致时 reject。
+         * @zh-param maxFps 帧率上限
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setFramerateLimit(int maxFps) {
+            return writeOption("framerateLimit", maxFps);
+        }
+
+        /** Whether vertical sync is enabled.
+         * @zh 垂直同步是否开启。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getEnableVsync() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.enableVsync();
+        }
+
+        /**
+         * Enables or disables vertical sync.
+         *
+         * @zh 开启或关闭垂直同步。
+         * @zh-param val true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setEnableVsync(boolean val) {
+            return writeOption("enableVsync", val);
+        }
+
+        /** Whether view bobbing is enabled.
+         * @zh 视角晃动是否开启。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getBobView() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.bobView();
+        }
+
+        /**
+         * Enables or disables view bobbing.
+         *
+         * @zh 开启或关闭视角晃动。
+         * @zh-param val true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setBobView(boolean val) {
+            return writeOption("bobView", val);
+        }
+
+        /** The configured GUI scale factor; the game may pick another effective scale.
+         * @zh 配置的界面缩放倍率；游戏可能采用不同的实际倍率。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getGuiScale() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.guiScale();
+        }
+
+        /**
+         * Sets the GUI scale factor and resizes the interface; rejects when
+         * the client stores a different value.
+         *
+         * @zh 设置界面缩放倍率并重排界面；客户端存储值不一致时 reject。
+         * @zh-param scale 缩放倍率
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setGuiScale(int scale) {
+            return writeOption("guiScale", scale);
+        }
+
+        /** The attack indicator mode: {@code off}, {@code crosshair} or {@code hotbar}.
+         * @zh 攻击指示器模式：{@code off}/{@code crosshair}/{@code hotbar}。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getAttackIndicator() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.attackIndicator();
+        }
+
+        /**
+         * Sets the attack indicator mode, case-insensitively; rejects on
+         * unknown names or when the stored value differs.
+         *
+         * @zh 按名称（忽略大小写）设置攻击指示器；名称未知或存储值不一致时 reject。
+         * @zh-param type off / crosshair / hotbar
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setAttackIndicator(String type) {
+            return writeOption("attackIndicator", type);
+        }
+
+        /** The brightness (gamma) level.
+         * @zh 亮度（gamma）值。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getGamma() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.gamma();
+        }
+
+        /**
+         * Sets the brightness (gamma) level; rejects when the client stores a
+         * different value.
+         *
+         * @zh 设置亮度（gamma）值；客户端存储值不一致时 reject。
+         * @zh-param gamma 亮度值
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setGamma(double gamma) {
+            return writeOption("gamma", gamma);
+        }
+
+        /** The brightness level; an alias of {@link #getGamma()}.
+         * @zh 亮度值；{@link #getGamma()} 的别名。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getBrightness() {
+            return getGamma();
+        }
+
+        /**
+         * Sets the brightness level; an alias of {@link #setGamma(double)}.
+         *
+         * @zh 设置亮度值；{@link #setGamma(double)} 的别名。
+         * @zh-param gamma 亮度值
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setBrightness(double gamma) {
+            return setGamma(gamma);
+        }
+
+        /** The cloud rendering mode: {@code off}, {@code fast} or {@code fancy}.
+         * @zh 云层渲染模式：{@code off}/{@code fast}/{@code fancy}。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getCloudStatus() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.cloudStatus();
+        }
+
+        /**
+         * Sets the cloud rendering mode, case-insensitively; rejects on
+         * unknown names or when the stored value differs.
+         *
+         * @zh 按名称（忽略大小写）设置云层模式；名称未知或存储值不一致时 reject。
+         * @zh-param mode off / fast / fancy
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setCloudStatus(String mode) {
+            return writeOption("cloudStatus", mode);
+        }
+
+        /** Whether the game runs in fullscreen.
+         * @zh 游戏是否以全屏运行。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getFullscreen() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.fullscreen();
+        }
+
+        /**
+         * Enters or leaves fullscreen mode.
+         *
+         * @zh 切换全屏模式。
+         * @zh-param fullscreen true 为进入全屏
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setFullscreen(boolean fullscreen) {
+            return writeOption("fullscreen", fullscreen);
+        }
+
+        /** The particle rendering mode: {@code minimal}, {@code decreased} or {@code all}.
+         * @zh 粒子渲染模式：{@code minimal}/{@code decreased}/{@code all}。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getParticles() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.particles();
+        }
+
+        /**
+         * Sets the particle rendering mode, case-insensitively; rejects on
+         * unknown names or when the stored value differs.
+         *
+         * @zh 按名称（忽略大小写）设置粒子模式；名称未知或存储值不一致时 reject。
+         * @zh-param mode minimal / decreased / all
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setParticles(String mode) {
+            return writeOption("particles", mode);
+        }
+
+        /** The mip-map level count.
+         * @zh Mipmap 层级数。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getMipmapLevels() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.mipmapLevels();
+        }
+
+        /**
+         * Sets the mip-map level count; rejects when the client stores a
+         * different value.
+         *
+         * @zh 设置 Mipmap 层级数；客户端存储值不一致时 reject。
+         * @zh-param val 层级数
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setMipmapLevels(int val) {
+            return writeOption("mipmapLevels", val);
+        }
+
+        /** Whether entity shadows are enabled.
+         * @zh 实体阴影是否开启。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getEntityShadows() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.entityShadows();
+        }
+
+        /**
+         * Enables or disables entity shadows.
+         *
+         * @zh 开启或关闭实体阴影。
+         * @zh-param val true 为开启
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setEntityShadows(boolean val) {
+            return writeOption("entityShadows", val);
+        }
+
+        /** The screen distortion effect scale.
+         * @zh 屏幕扭曲效果强度。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getScreenEffectScale() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.screenEffectScale();
+        }
+
+        /**
+         * Sets the screen distortion effect scale; rejects when the client
+         * stores a different value.
+         *
+         * @zh 设置屏幕扭曲效果强度；客户端存储值不一致时 reject。
+         * @zh-param val 强度值
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setScreenEffectScale(double val) {
+            return writeOption("screenEffectScale", val);
+        }
+
+        /** The entity distance scaling factor.
+         * @zh 实体距离缩放系数。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getEntityDistanceScaling() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.entityDistanceScaling();
+        }
+
+        /**
+         * Sets the entity distance scaling factor; rejects when the client
+         * stores a different value.
+         *
+         * @zh 设置实体距离缩放系数；客户端存储值不一致时 reject。
+         * @zh-param val 缩放系数
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setEntityDistanceScaling(double val) {
+            return writeOption("entityDistanceScaling", val);
+        }
+
+        /** The field-of-view effect scale.
+         * @zh 视野晃动效果强度。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getFovEffectScale() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.fovEffectScale();
+        }
+
+        /**
+         * Sets the field-of-view effect scale; rejects when the client stores
+         * a different value.
+         *
+         * @zh 设置视野晃动效果强度；客户端存储值不一致时 reject。
+         * @zh-param val 强度值
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setFovEffectScale(double val) {
+            return writeOption("fovEffectScale", val);
+        }
+
+        /** Whether the autosave indicator is shown.
+         * @zh 是否显示自动保存提示。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getShowAutosaveIndicator() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.showAutosaveIndicator();
+        }
+
+        /**
+         * Shows or hides the autosave indicator.
+         *
+         * @zh 显示或隐藏自动保存提示。
+         * @zh-param val true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setShowAutosaveIndicator(boolean val) {
+            return writeOption("showAutosaveIndicator", val);
+        }
+    }
+
+    /**
+     * Skin model-part visibility and main-hand settings group.
+     *
+     * @zh 皮肤部件可见性与主手设置分组。
+     */
+    @ApiClass(name = "SkinOptions", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class SkinOptions implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+
+        private final Options parent;
+
+        SkinOptions(Options parent) {
+            this.parent = parent;
+        }
+
+        /** The options root that owns this group.
+         * @zh 拥有该分组的设置根句柄。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Options getParent() {
+            return parent;
+        }
+    }
+
+    /**
+     * Sound volume and audio device settings group.
+     *
+     * @zh 音量与音频设备设置分组。
+     */
+    @ApiClass(name = "MusicOptions", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class MusicOptions implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+
+        private final Options parent;
+
+        MusicOptions(Options parent) {
+            this.parent = parent;
+        }
+
+        /** The options root that owns this group.
+         * @zh 拥有该分组的设置根句柄。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Options getParent() {
+            return parent;
+        }
+    }
+
+    /**
+     * Input and key-binding settings group.
+     *
+     * @zh 输入与键位设置分组。
+     */
+    @ApiClass(name = "ControlOptions", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class ControlOptions implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+
+        private final Options parent;
+
+        ControlOptions(Options parent) {
+            this.parent = parent;
+        }
+
+        /** The options root that owns this group.
+         * @zh 拥有该分组的设置根句柄。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Options getParent() {
+            return parent;
+        }
+    }
+
+    /**
+     * Chat display and behavior settings group.
+     *
+     * @zh 聊天显示与行为设置分组。
+     */
+    @ApiClass(name = "ChatOptions", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class ChatOptions implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+
+        private final Options parent;
+
+        ChatOptions(Options parent) {
+            this.parent = parent;
+        }
+
+        /** The options root that owns this group.
+         * @zh 拥有该分组的设置根句柄。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Options getParent() {
+            return parent;
+        }
+    }
+
+    /**
+     * Accessibility settings group.
+     *
+     * @zh 无障碍设置分组。
+     */
+    @ApiClass(name = "AccessibilityOptions", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class AccessibilityOptions
+            implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+
+        private final Options parent;
+
+        AccessibilityOptions(Options parent) {
+            this.parent = parent;
+        }
+
+        /** The options root that owns this group.
+         * @zh 拥有该分组的设置根句柄。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Options getParent() {
+            return parent;
+        }
     }
 
     /**
@@ -388,5 +1527,54 @@ public final class ClientApi {
     /** The client port behind the API (single adapter access point). */
     private static ink.tuanzi.neomacros.port.ClientPort adapter() {
         return ScriptApiEnvironment.adapter().client();
+    }
+
+    /** The current option face, or null when it is unavailable. */
+    private static OptionsData optionsData() {
+        var data = adapter().options();
+        return data == null ? null : data.orElse(null);
+    }
+
+    /**
+     * Writes one option-backed value and settles once the stored value reads
+     * back as requested; a stored value that differs rejects.
+     */
+    private static CompletableFuture<Void> writeOption(String name, Object value) {
+        return adapter().setOption(name, value)
+                .thenCompose(ignored -> verifyValue(name, value));
+    }
+
+    /** Settles one write once the stored component matches the request. */
+    private static CompletableFuture<Void> verifyValue(String component, Object expected) {
+        OptionsData data = optionsData();
+        if (data == null) {
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("game options are unavailable"));
+        }
+        Object stored = data.option(component);
+        if (sameValue(expected, stored)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFuture.failedFuture(new IllegalStateException(
+                "option '" + component + "' was not applied: requested "
+                        + expected + ", stored " + stored));
+    }
+
+    /** Compares a requested value with the value stored after a write. */
+    private static boolean sameValue(Object expected, Object stored) {
+        if (expected == null || stored == null) {
+            return false;
+        }
+        if (expected instanceof Number wanted && stored instanceof Number actual) {
+            return Double.compare(wanted.doubleValue(), actual.doubleValue()) == 0;
+        }
+        if (expected instanceof String wanted && stored instanceof String actual) {
+            return wanted.equalsIgnoreCase(actual);
+        }
+        if (expected instanceof java.util.List<?> wanted
+                && stored instanceof java.util.List<?> actual) {
+            return new java.util.HashSet<>(wanted).equals(new java.util.HashSet<>(actual));
+        }
+        return expected.equals(stored);
     }
 }

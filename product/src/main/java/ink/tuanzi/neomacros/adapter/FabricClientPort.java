@@ -1,5 +1,7 @@
 package ink.tuanzi.neomacros.adapter;
 
+import ink.tuanzi.neomacros.adapter.mixin.DownloadedPackSourceAccessor;
+import ink.tuanzi.neomacros.adapter.mixin.ServerPackPromptAccessor;
 import ink.tuanzi.neomacros.port.ClientPort;
 import ink.tuanzi.neomacros.port.model.ModData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
@@ -197,13 +199,324 @@ public final class FabricClientPort implements ClientPort {
     @Override
     public Optional<OptionsData> options() {
         return MainThread.run(() -> {
-            var options = Minecraft.getInstance().options;
+            Minecraft mc = Minecraft.getInstance();
+            var options = mc.options;
             if (options == null) {
                 return Optional.empty();
             }
-            return Optional.of(new OptionsData(options.fov().get(), options.gamma().get(),
-                    options.guiScale().get(), options.renderDistance().get()));
+            var window = mc.getWindow();
+            var repository = mc.getResourcePackRepository();
+            var level = mc.level;
+            return Optional.of(new OptionsData(
+                    options.fov().get(),
+                    options.gamma().get(),
+                    options.guiScale().get(),
+                    options.renderDistance().get(),
+                    options.biomeBlendRadius().get(),
+                    graphicsModeName(options),
+                    options.prioritizeChunkUpdates().get().name()
+                            .toLowerCase(java.util.Locale.ROOT),
+                    options.ambientOcclusion().get(),
+                    options.simulationDistance().get(),
+                    options.framerateLimit().get(),
+                    options.enableVsync().get(),
+                    options.bobView().get(),
+                    options.attackIndicator().get().name()
+                            .toLowerCase(java.util.Locale.ROOT),
+                    options.cloudStatus().get().name()
+                            .toLowerCase(java.util.Locale.ROOT),
+                    options.fullscreen().get(),
+                    options.particles().get().name()
+                            .toLowerCase(java.util.Locale.ROOT),
+                    options.mipmapLevels().get(),
+                    options.entityShadows().get(),
+                    options.screenEffectScale().get(),
+                    options.entityDistanceScaling().get(),
+                    options.fovEffectScale().get(),
+                    options.showAutosaveIndicator().get(),
+                    options.getCameraType().ordinal(),
+                    options.smoothCamera,
+                    window == null ? 0 : window.getScreenWidth(),
+                    window == null ? 0 : window.getScreenHeight(),
+                    options.languageCode,
+                    level == null ? null : level.getLevelData().isDifficultyLocked(),
+                    List.copyOf(repository.getAvailableIds()),
+                    List.copyOf(repository.getSelectedIds()),
+                    serverPacksDisabled(mc),
+                    options.fullscreenVideoModeString));
         });
+    }
+
+    /**
+     * Reads the graphics preset as a lowercase name; the option accessor was
+     * renamed from {@code graphicsMode} to {@code graphicsPreset} after
+     * 1.21.11.
+     */
+    private static String graphicsModeName(net.minecraft.client.Options options) {
+        //? if >=1.21.11 {
+        return options.graphicsPreset().get().name().toLowerCase(java.util.Locale.ROOT);
+        //?} else {
+        /* return options.graphicsMode().get().name().toLowerCase(java.util.Locale.ROOT); */
+        //?}
+    }
+
+    /** Reads the server-resource-pack rejection policy. */
+    private static boolean serverPacksDisabled(Minecraft mc) {
+        var source = mc.getDownloadedPackSource();
+        if (source == null) {
+            return false;
+        }
+        var manager = ((DownloadedPackSourceAccessor) (Object) source).neomacros$manager();
+        if (manager == null) {
+            return false;
+        }
+        var status = ((ServerPackPromptAccessor) (Object) manager)
+                .neomacros$packPromptStatus();
+        return status == net.minecraft.client.resources.server.ServerPackManager.PackPromptStatus
+                .DECLINED;
+    }
+
+    @Override
+    public CompletableFuture<Void> setOption(String name, Object value) {
+        return dispatch(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            var options = mc.options;
+            if (options == null || name == null || value == null) {
+                throw new IllegalArgumentException("option unavailable: " + name);
+            }
+            java.lang.reflect.Method getter;
+            try {
+                getter = options.getClass().getMethod(name);
+            } catch (NoSuchMethodException e) {
+                throw new IllegalArgumentException("unknown option: " + name, e);
+            }
+            if (getter.getParameterCount() != 0
+                    || !net.minecraft.client.OptionInstance.class
+                            .isAssignableFrom(getter.getReturnType())) {
+                throw new IllegalArgumentException("not a writable option: " + name);
+            }
+            net.minecraft.client.OptionInstance<?> instance;
+            try {
+                instance = (net.minecraft.client.OptionInstance<?>) getter.invoke(options);
+            } catch (ReflectiveOperationException e) {
+                throw new IllegalStateException("option read failed: " + name, e);
+            }
+            if (instance == null) {
+                throw new IllegalArgumentException("option unavailable: " + name);
+            }
+            Object converted = convertOptionValue(name, instance.get(), value);
+            @SuppressWarnings("unchecked")
+            var typed = (net.minecraft.client.OptionInstance<Object>) instance;
+            typed.set(converted);
+            if ("guiScale".equals(name)) {
+                //? if >=26.1 {
+                mc.resizeGui();
+                //?} else {
+                /* mc.resizeDisplay(); */
+                //?}
+            }
+        });
+    }
+
+    /** Coerces an incoming script value onto the option's current type. */
+    private static Object convertOptionValue(String name, Object current, Object value) {
+        if (current == null) {
+            throw new IllegalArgumentException("option '" + name + "' has no reference value");
+        }
+        try {
+            if (current instanceof Enum<?> constant && value instanceof String text) {
+                @SuppressWarnings({"unchecked", "rawtypes"})
+                Object parsed = Enum.valueOf((Class) constant.getClass(),
+                        text.toUpperCase(java.util.Locale.ROOT));
+                return parsed;
+            }
+            if (current instanceof Boolean && value instanceof Boolean) {
+                return value;
+            }
+            if (current instanceof Integer && value instanceof Number number) {
+                return number.intValue();
+            }
+            if (current instanceof Long && value instanceof Number number) {
+                return number.longValue();
+            }
+            if ((current instanceof Double || current instanceof Float)
+                    && value instanceof Number number) {
+                return number.doubleValue();
+            }
+            if (current.getClass().isInstance(value)) {
+                return value;
+            }
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "option '" + name + "' rejects value " + value, e);
+        }
+        throw new IllegalArgumentException(
+                "option '" + name + "' rejects value " + value);
+    }
+
+    @Override
+    public CompletableFuture<Void> saveOptions() {
+        return dispatch(() -> {
+            var options = Minecraft.getInstance().options;
+            if (options == null) {
+                throw new IllegalStateException("game options are unavailable");
+            }
+            options.save();
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> setEnabledResourcePacks(List<String> enabled) {
+        return dispatch(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            var options = mc.options;
+            if (options == null) {
+                throw new IllegalStateException("game options are unavailable");
+            }
+            var repository = mc.getResourcePackRepository();
+            List<String> requested = enabled.stream().distinct()
+                    .collect(java.util.stream.Collectors.toList());
+            repository.setSelected(requested);
+            List<String> current = List.copyOf(options.resourcePacks);
+            options.resourcePacks.clear();
+            options.incompatibleResourcePacks.clear();
+            for (net.minecraft.server.packs.repository.Pack pack :
+                    repository.getSelectedPacks()) {
+                if (!pack.isFixedPosition()) {
+                    options.resourcePacks.add(pack.getId());
+                    if (!pack.getCompatibility().isCompatible()) {
+                        options.incompatibleResourcePacks.add(pack.getId());
+                    }
+                }
+            }
+            options.save();
+            if (!current.equals(List.copyOf(options.resourcePacks))) {
+                mc.reloadResourcePacks();
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> setServerResourcePacksDisabled(boolean disabled) {
+        return dispatch(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            var source = mc.getDownloadedPackSource();
+            if (source == null) {
+                throw new IllegalStateException("server pack source is unavailable");
+            }
+            boolean before = serverPacksDisabled(mc);
+            if (disabled) {
+                source.rejectServerPacks();
+            } else {
+                source.allowServerPacks();
+            }
+            if (serverPacksDisabled(mc) != before) {
+                mc.reloadResourcePacks();
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> setLanguage(String languageCode) {
+        return dispatch(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            var options = mc.options;
+            var manager = mc.getLanguageManager();
+            if (options == null) {
+                throw new IllegalStateException("game options are unavailable");
+            }
+            if (manager.getLanguage(languageCode) == null) {
+                throw new IllegalArgumentException("unknown language: " + languageCode);
+            }
+            manager.setSelected(languageCode);
+            options.languageCode = languageCode;
+            options.save();
+            mc.reloadResourcePacks();
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> setDifficultyLocked(boolean locked) {
+        return dispatch(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            var connection = mc.getConnection();
+            if (connection == null) {
+                throw new IllegalStateException("no server connection");
+            }
+            connection.send(new net.minecraft.network.protocol.game
+                    .ServerboundLockDifficultyPacket(locked));
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> setCameraMode(int mode) {
+        return dispatch(() -> {
+            var options = Minecraft.getInstance().options;
+            if (options == null) {
+                throw new IllegalStateException("game options are unavailable");
+            }
+            var types = net.minecraft.client.CameraType.values();
+            if (mode < 0 || mode >= types.length) {
+                throw new IllegalArgumentException("camera mode out of range: " + mode);
+            }
+            options.setCameraType(types[mode]);
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> setSmoothCamera(boolean enabled) {
+        return dispatch(() -> {
+            var options = Minecraft.getInstance().options;
+            if (options == null) {
+                throw new IllegalStateException("game options are unavailable");
+            }
+            options.smoothCamera = enabled;
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> setWindowSize(int width, int height) {
+        return dispatch(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            var options = mc.options;
+            var window = mc.getWindow();
+            if (options == null || window == null) {
+                throw new IllegalStateException("game options are unavailable");
+            }
+            if (options.fullscreen().get()) {
+                throw new IllegalStateException(
+                        "cannot resize the window while fullscreen");
+            }
+            if (width <= 0 || height <= 0) {
+                throw new IllegalArgumentException("window size must be positive");
+            }
+            window.setWindowed(width, height);
+        });
+    }
+
+    @Override
+    public void sendSyncedOptions() {
+        MainThread.run(() -> {
+            var options = Minecraft.getInstance().options;
+            if (options != null) {
+                options.broadcastOptions();
+            }
+            return null;
+        });
+    }
+
+    /** Dispatches one action on the main thread; failures settle the future. */
+    private static CompletableFuture<Void> dispatch(Runnable action) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Minecraft.getInstance().execute(() -> {
+            try {
+                action.run();
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
     }
 
     @Override

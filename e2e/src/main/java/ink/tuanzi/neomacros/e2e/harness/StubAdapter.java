@@ -163,23 +163,7 @@ public final class StubAdapter implements NeomacrosAdapter {
         return world;
     }
 
-    private final ink.tuanzi.neomacros.port.ClientPort clientPort =
-            new ink.tuanzi.neomacros.port.ClientPort() {
-                @Override
-                public int fps() {
-                    return 60;
-                }
-
-                @Override
-                public String gameVersion() {
-                    return "26.3-stub";
-                }
-
-                @Override
-                public Object minecraftInstance() {
-                    return null;
-                }
-            };
+    private final StubClient client = new StubClient();
 
     @Override
     public EntityPort entity() {
@@ -188,7 +172,158 @@ public final class StubAdapter implements NeomacrosAdapter {
 
     @Override
     public ink.tuanzi.neomacros.port.ClientPort client() {
-        return clientPort;
+        return client;
+    }
+
+    /** The test-facing client port: canned option face, recorded writes. */
+    public StubClient clientPort() {
+        return client;
+    }
+
+    /** Client port stub serving a mutable option face and recording writes. */
+    public static final class StubClient implements ink.tuanzi.neomacros.port.ClientPort {
+
+        /** The canned option face served to reads. */
+        public volatile ink.tuanzi.neomacros.port.model.OptionsData options =
+                cannedOptions();
+        /** Names whose writes are accepted but not stored (simulated clamps). */
+        public final java.util.Set<String> ignoredWrites =
+                java.util.concurrent.ConcurrentHashMap.newKeySet();
+        private final List<String> actions = new CopyOnWriteArrayList<>();
+
+        /** The recorded write actions in order. */
+        public List<String> actions() {
+            return List.copyOf(actions);
+        }
+
+        /** The current option face. */
+        public ink.tuanzi.neomacros.port.model.OptionsData data() {
+            return options;
+        }
+
+        /** A plausible canned option face for the harness. */
+        public static ink.tuanzi.neomacros.port.model.OptionsData cannedOptions() {
+            return new ink.tuanzi.neomacros.port.model.OptionsData(
+                    70, 0.5, 2, 12,
+                    3, "fancy", "nearby", true,
+                    10, 120, true, true,
+                    "crosshair", "fancy", false, "all",
+                    4, true,
+                    0.5, 1.0, 1.0, true,
+                    0, false,
+                    1920, 1080,
+                    "en_us", Boolean.FALSE,
+                    List.of("vanilla"), List.of("vanilla"),
+                    false, null);
+        }
+
+        @Override
+        public int fps() {
+            return 60;
+        }
+
+        @Override
+        public String gameVersion() {
+            return "26.3-stub";
+        }
+
+        @Override
+        public Object minecraftInstance() {
+            return null;
+        }
+
+        @Override
+        public Optional<ink.tuanzi.neomacros.port.model.OptionsData> options() {
+            return Optional.of(options);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setOption(String name, Object value) {
+            if (ignoredWrites.contains(name)) {
+                actions.add("option:" + name);
+                return java.util.concurrent.CompletableFuture.completedFuture(null);
+            }
+            try {
+                options = options.withOption(name, value);
+            } catch (IllegalArgumentException e) {
+                return java.util.concurrent.CompletableFuture.failedFuture(e);
+            }
+            actions.add("option:" + name);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> saveOptions() {
+            actions.add("save");
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setEnabledResourcePacks(
+                List<String> enabled) {
+            options = options.withOption("enabledResourcePacks", enabled);
+            actions.add("packs");
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setServerResourcePacksDisabled(
+                boolean disabled) {
+            options = options.withOption("serverPacksDisabled", disabled);
+            actions.add("serverPacks:" + disabled);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setLanguage(String languageCode) {
+            if (languageCode == null || !languageCode.startsWith("en_")) {
+                return java.util.concurrent.CompletableFuture.failedFuture(
+                        new IllegalArgumentException("unknown language: " + languageCode));
+            }
+            options = options.withOption("language", languageCode);
+            actions.add("language:" + languageCode);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setDifficultyLocked(boolean locked) {
+            actions.add("lock:" + locked);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setCameraMode(int mode) {
+            if (mode < 0 || mode > 2) {
+                return java.util.concurrent.CompletableFuture.failedFuture(
+                        new IllegalArgumentException("camera mode out of range: " + mode));
+            }
+            options = options.withOption("cameraMode", mode);
+            actions.add("camera:" + mode);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setSmoothCamera(boolean enabled) {
+            options = options.withOption("smoothCamera", enabled);
+            actions.add("smooth:" + enabled);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setWindowSize(int width, int height) {
+            if (width <= 0 || height <= 0) {
+                return java.util.concurrent.CompletableFuture.failedFuture(
+                        new IllegalArgumentException("window size must be positive"));
+            }
+            options = options.withOption("width", width).withOption("height", height);
+            actions.add("size:" + width + "x" + height);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public void sendSyncedOptions() {
+            actions.add("sync");
+        }
     }
 
     public ink.tuanzi.neomacros.port.InputPort input() {

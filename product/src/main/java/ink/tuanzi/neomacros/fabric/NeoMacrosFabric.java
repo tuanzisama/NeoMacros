@@ -157,6 +157,20 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
+        registry.registerGuestType("Options",
+                ink.tuanzi.neomacros.core.api.client.ClientApi.Options.class);
+        registry.registerGuestType("VideoOptions",
+                ink.tuanzi.neomacros.core.api.client.ClientApi.VideoOptions.class);
+        registry.registerGuestType("SkinOptions",
+                ink.tuanzi.neomacros.core.api.client.ClientApi.SkinOptions.class);
+        registry.registerGuestType("MusicOptions",
+                ink.tuanzi.neomacros.core.api.client.ClientApi.MusicOptions.class);
+        registry.registerGuestType("ControlOptions",
+                ink.tuanzi.neomacros.core.api.client.ClientApi.ControlOptions.class);
+        registry.registerGuestType("ChatOptions",
+                ink.tuanzi.neomacros.core.api.client.ClientApi.ChatOptions.class);
+        registry.registerGuestType("AccessibilityOptions",
+                ink.tuanzi.neomacros.core.api.client.ClientApi.AccessibilityOptions.class);
         for (var descriptor : catalog.all()) {
             registry.registerEventType(descriptor.name(), descriptor.cancellable(), descriptor.direction());
         }
