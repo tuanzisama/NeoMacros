@@ -237,7 +237,9 @@ public final class PortEventWiring {
 
         // Inventory event family: the click and drop sources are pre-action
         // and cancellable (a cancelled click/drop never sends its packet);
-        // the slot/cursor syncs and pickups are observations.
+        // the slot/cursor syncs and pickups are observations. The sync
+        // payloads carry the open screen's MC class name alongside the menu
+        // identity (kind/containerId), captured on the publishing thread.
         adapter.inventory().onClickSlot(click ->
                 bus.publish("inventory:click",
                         new ink.tuanzi.neomacros.core.event.def.inventory.InventoryClickEvent(
@@ -252,12 +254,13 @@ public final class PortEventWiring {
                         new ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent(
                                 update.full() ? "all" : "slot", update.containerId(),
                                 update.kind(), update.slot(),
-                                update.oldStack(), update.newStack())));
+                                update.oldStack(), update.newStack(),
+                                currentScreenClass(adapter))));
         adapter.inventory().onHeldUpdate(update ->
                 bus.publish("inventory:update",
                         new ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent(
                                 "held", update.containerId(), update.kind(), -1,
-                                null, update.stack())));
+                                null, update.stack(), currentScreenClass(adapter))));
         adapter.inventory().onItemPickup(pickup ->
                 bus.publish("item:pickup",
                         new ink.tuanzi.neomacros.core.event.def.inventory.ItemPickupEvent(
@@ -265,6 +268,18 @@ public final class PortEventWiring {
 
         // SelfStateTracker's tick check; the packet-driven inventory
         // update/click sources ride the fabric hubs in the bootstrap.
+    }
+
+    /**
+     * The MC class name of the currently open screen, or {@code null} when
+     * no screen snapshot is available.
+     *
+     * @zh 当前打开屏幕的 MC 类名；无屏幕快照时为 null。
+     */
+    private static String currentScreenClass(NeomacrosAdapter adapter) {
+        return adapter.lifecycle().screenInfo()
+                .map(info -> info.screenClass())
+                .orElse(null);
     }
 
     /**
@@ -522,7 +537,8 @@ public final class PortEventWiring {
             if (info != null) {
                 var result = bus.publish("inventory:open",
                         new ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent(
-                                info.title(), info.kind(), info.size(), info.containerId()));
+                                info.title(), info.kind(), info.size(), info.containerId(),
+                                currentScreenClass(adapter)));
                 if (result.canceled()) {
                     try {
                         adapter.inventory().close();

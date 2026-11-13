@@ -491,6 +491,18 @@ public final class StubAdapter implements NeomacrosAdapter {
         final List<Runnable> joinSinks = new CopyOnWriteArrayList<>();
         final List<Runnable> leaveSinks = new CopyOnWriteArrayList<>();
         final AtomicBooleanHolder inWorld = new AtomicBooleanHolder();
+        volatile java.util.Optional<LifecyclePort.ScreenInfo> screen =
+                java.util.Optional.empty();
+
+        /** Sets the canned open-screen snapshot (empty clears it). */
+        public void setScreen(java.util.Optional<LifecyclePort.ScreenInfo> value) {
+            this.screen = value;
+        }
+
+        @Override
+        public java.util.Optional<ScreenInfo> screenInfo() {
+            return screen;
+        }
 
         /** Fires the tick sink with the given tick count. */
         public void fireTick(long tick) {

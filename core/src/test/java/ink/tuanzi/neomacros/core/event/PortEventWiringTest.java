@@ -434,8 +434,11 @@ class PortEventWiringTest {
                 && "open".equals(((ink.tuanzi.neomacros.core.event.def.screen.ScreenChangeEvent) p.payload()).phase())),
                 "events were: " + names(published));
 
-        // A container opens on top: inventory:open carries kind and menu id.
+        // A container opens on top: inventory:open carries kind, menu id,
+        // and the MC class name of the opening screen.
         published.clear();
+        adapter.lifecyclePort.screen = java.util.Optional.of(
+                new LifecyclePort.ScreenInfo("GenericContainerScreen", "chest", "Chest"));
         adapter.container = java.util.Optional.of(new ContainerInfo("Chest", "chest", 27, 1));
         fireTicks(adapter, clock, 1);
         var containerOpen = published.stream()
@@ -443,6 +446,7 @@ class PortEventWiringTest {
         var openPayload = (ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent) containerOpen.payload();
         assertEquals("chest", openPayload.kind());
         assertEquals(1, openPayload.containerId());
+        assertEquals("GenericContainerScreen", openPayload.screen());
 
         // The container closes: inventory:close keeps the last kind.
         published.clear();
@@ -526,22 +530,35 @@ class PortEventWiringTest {
         var newStack = new ink.tuanzi.neomacros.port.model.ItemStackData(
                 "minecraft:diamond_pickaxe", 1, "Pickaxe", 11, 1561, List.of(), List.of(),
                 java.util.Map.of());
+        adapter.lifecyclePort.screen = java.util.Optional.of(
+                new LifecyclePort.ScreenInfo("GenericContainerScreen", "chest", "Chest"));
         adapter.inventorySinks.fireSlot(new SlotUpdateInfo(1, "chest", 3, false, oldStack, newStack));
         adapter.inventorySinks.fireHeld(new HeldUpdateInfo(1, "chest", newStack));
         adapter.inventorySinks.firePickup(new ItemPickupInfo(newStack, 3));
+        // A sync with no screen open reports no screen class.
+        adapter.lifecyclePort.screen = java.util.Optional.empty();
+        adapter.inventorySinks.fireSlot(new SlotUpdateInfo(1, "chest", 4, false, oldStack, newStack));
 
         var slotUpdate = published.stream()
                 .filter(p -> p.name().equals("inventory:update")).toList();
-        assertEquals(2, slotUpdate.size(), "slot + held updates; events were: " + names(published));
+        assertEquals(3, slotUpdate.size(),
+                "slot + held + screenless slot updates; events were: " + names(published));
         var slotPayload = (ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent)
                 slotUpdate.get(0).payload();
         assertEquals("slot", slotPayload.mode());
         assertEquals(10, slotPayload.oldStack().damage());
         assertEquals(11, slotPayload.newStack().damage());
+        assertEquals("GenericContainerScreen", slotPayload.screen());
         var heldPayload = (ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent)
                 slotUpdate.get(1).payload();
         assertEquals("held", heldPayload.mode());
         assertEquals(-1, heldPayload.slot());
+        assertEquals("GenericContainerScreen", heldPayload.screen());
+        var screenlessPayload = (ink.tuanzi.neomacros.core.event.def.inventory.InventoryUpdateEvent)
+                slotUpdate.get(2).payload();
+        assertEquals("slot", screenlessPayload.mode());
+        assertEquals(null, screenlessPayload.screen(),
+                "no open screen reads as a null (undefined to scripts) screen field");
 
         var pickup = published.stream().filter(p -> p.name().equals("item:pickup"))
                 .findFirst().orElseThrow();

@@ -132,6 +132,56 @@ class InventoryEventScenariosTest {
     }
 
     @Test
+    void openAndUpdateCarryTheScreenClassName() throws Exception {
+        try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
+            fixture(dir.resolve("scripts"), "inv-screen.js", String.join("\n",
+                    "neo.events.on('inventory:open', (ev) => {",
+                    "  neo.__test.report('inv-open-screen',",
+                    "      ev.screen === 'GenericContainerScreen',",
+                    "      JSON.stringify({ screen: ev.screen }));",
+                    "});",
+                    "neo.events.on('inventory:update', (ev) => {",
+                    "  if (ev.mode === 'slot' && ev.screen === 'GenericContainerScreen') {",
+                    "    neo.__test.report('inv-update-screen', ev.slot === 3,",
+                    "        JSON.stringify({ screen: ev.screen, slot: ev.slot }));",
+                    "  }",
+                    "});",
+                    ""));
+            e2e.loadScript(dir.resolve("scripts").resolve("inv-screen.js"));
+
+            var adapter = e2e.adapter();
+            adapter.playerPort().setSelf(new ink.tuanzi.neomacros.port.model.PlayerSnapshot(
+                    java.util.UUID.randomUUID(), "tester",
+                    new ink.tuanzi.neomacros.port.model.Pos3d(0, 64, 0),
+                    new ink.tuanzi.neomacros.port.model.Rot2d(0, 0), 20, 20, 300));
+            adapter.lifecyclePort().setScreen(java.util.Optional.of(
+                    new ink.tuanzi.neomacros.port.LifecyclePort.ScreenInfo(
+                            "GenericContainerScreen", "chest", "Chest")));
+            adapter.inventoryPort().opened = java.util.Optional.of(
+                    new InventoryPort.ContainerInfo("Chest", "chest", 27, 1));
+            adapter.lifecyclePort().fireTick(1);
+            adapter.lifecyclePort().fireTick(2);
+            e2e.awaitSettle();
+
+            TestBridge.Report openSeen = e2e.bridge().get("inv-open-screen");
+            assertTrue(openSeen != null && openSeen.pass(),
+                    "inv-open-screen: " + (openSeen == null ? "missing" : openSeen.detail())
+                            + " | script errors: " + e2e.scriptErrors());
+
+            var stack = new ItemStackData("minecraft:diamond", 1, "Diamond", 0, 0,
+                    List.of(), List.of(), java.util.Map.of());
+            adapter.inventoryPort().fireSlotUpdate(new InventoryPort.SlotUpdateInfo(
+                    1, "chest", 3, false, stack, stack));
+            e2e.awaitSettle();
+
+            TestBridge.Report updateSeen = e2e.bridge().get("inv-update-screen");
+            assertTrue(updateSeen != null && updateSeen.pass(),
+                    "inv-update-screen: " + (updateSeen == null ? "missing" : updateSeen.detail())
+                            + " | script errors: " + e2e.scriptErrors());
+        }
+    }
+
+    @Test
     void cancelledChestOpenClosesTheContainer() throws Exception {
         try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
             fixture(dir.resolve("scripts"), "inv-open.js", String.join("\n",
