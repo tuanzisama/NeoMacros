@@ -30,6 +30,8 @@
     ,"ChatListenerMixin"
     ,"LocalPlayerMixin"
     ,"EntityGlowMixin"
+    ,"DownloadedPackSourceAccessor"
+    ,"ServerPackPromptAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

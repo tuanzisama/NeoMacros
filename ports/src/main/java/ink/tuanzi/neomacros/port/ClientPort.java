@@ -13,8 +13,8 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Client context port: process-level facts about the running game client
  * (frame counter, version), the raw client instance for the escape layer,
- * window/input surfaces, connection lifecycle, and read-only registry and
- * option slices.
+ * window/input surfaces, connection lifecycle, read-only registry queries,
+ * and the game-options face with its write actions.
  */
 public interface ClientPort {
 
@@ -106,7 +106,7 @@ public interface ClientPort {
         return Optional.empty();
     }
 
-    /** Returns a small read-only slice of the game options. */
+    /** Returns the full game-options face, or empty when it is unavailable. */
     default Optional<OptionsData> options() {
         return Optional.empty();
     }
@@ -117,6 +117,83 @@ public interface ClientPort {
      */
     default Optional<Object> optionValue(String name) {
         return Optional.empty();
+    }
+
+    /**
+     * Writes one option-backed value by its option name. The write settles
+     * once the client has stored the value; invalid or out-of-range values
+     * reject. Read-back verification stays with the caller.
+     */
+    default CompletableFuture<Void> setOption(String name, Object value) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot set " + name));
+    }
+
+    /** Persists the current option face to disk. */
+    default CompletableFuture<Void> saveOptions() {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot save options"));
+    }
+
+    /**
+     * Selects the resource packs to enable and persists the selection;
+     * required packs stay selected regardless of the requested list.
+     */
+    default CompletableFuture<Void> setEnabledResourcePacks(List<String> enabled) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot select resource packs"));
+    }
+
+    /**
+     * Enables or disables server-provided resource packs; the future settles
+     * once the new policy is stored.
+     */
+    default CompletableFuture<Void> setServerResourcePacksDisabled(boolean disabled) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot policy server packs"));
+    }
+
+    /**
+     * Selects the game language when its code is known and reloads resources;
+     * unknown codes reject.
+     */
+    default CompletableFuture<Void> setLanguage(String languageCode) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot set language"));
+    }
+
+    /**
+     * Sends a difficulty-lock request to the server. The future settles once
+     * the request is sent; the stored state flips when the server applies it.
+     */
+    default CompletableFuture<Void> setDifficultyLocked(boolean locked) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot lock difficulty"));
+    }
+
+    /** Sets the camera mode ordinal (0 first person, 1 back, 2 front). */
+    default CompletableFuture<Void> setCameraMode(int mode) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot set camera mode"));
+    }
+
+    /** Enables or disables the smooth-camera toggle. */
+    default CompletableFuture<Void> setSmoothCamera(boolean enabled) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot set smooth camera"));
+    }
+
+    /**
+     * Resizes the window in screen pixels; rejects while fullscreen or for
+     * non-positive sizes.
+     */
+    default CompletableFuture<Void> setWindowSize(int width, int height) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot resize the window"));
+    }
+
+    /** Broadcasts the current option face to the server. */
+    default void sendSyncedOptions() {
     }
 
     /**

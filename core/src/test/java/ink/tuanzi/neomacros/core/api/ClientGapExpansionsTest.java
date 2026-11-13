@@ -117,11 +117,11 @@ class ClientGapExpansionsTest {
         ClientApi.MousePos mouse = api.getMouse();
         assertEquals(12.5, mouse.x());
         assertEquals(3.25, mouse.y());
-        OptionsData options = api.getOptions();
-        assertEquals(90, options.fov());
-        assertEquals(1.0, options.gamma());
-        assertEquals(2, options.guiScale());
-        assertEquals(12, options.renderDistance());
+        ClientApi.Options options = api.getOptions();
+        assertEquals(90, options.getFov());
+        assertEquals(1.0, options.getGamma());
+        assertEquals(2, options.getGuiScale());
+        assertEquals(12, options.getVideo().getRenderDistance());
     }
 
     @Test
@@ -145,6 +145,22 @@ class ClientGapExpansionsTest {
         } catch (IllegalArgumentException expected) {
             // unknown kind as designed
         }
+    }
+
+    /** The canned option face served to reads by both client test ports. */
+    static OptionsData cannedOptions() {
+        return new OptionsData(
+                90, 1.0, 2, 12,
+                3, "fancy", "nearby", true,
+                10, 120, true, true,
+                "crosshair", "fancy", false, "all",
+                4, true,
+                0.5, 1.0, 1.0, true,
+                0, false,
+                1920, 1080,
+                "en_us", Boolean.FALSE,
+                List.of("vanilla"), List.of("vanilla"),
+                false, null);
     }
 
     /** Client port with canned fields the tests mutate directly. */
@@ -251,7 +267,7 @@ class ClientGapExpansionsTest {
 
         @Override
         public java.util.Optional<OptionsData> options() {
-            return java.util.Optional.of(new OptionsData(90, 1.0, 2, 12));
+            return java.util.Optional.of(cannedOptions());
         }
 
         @Override

@@ -127,6 +127,35 @@ function start() {
   check('client.window', neo.client.window === null || typeof neo.client.window === 'object');
   check('client.mouse', typeof neo.client.mouse === 'object');
   check('client.clipboard', typeof neo.client.clipboard === 'string');
+  const opts = neo.client.options;
+  check('client.options-handle',
+      opts !== undefined && opts !== null && typeof opts === 'object'
+          && typeof opts.setFov === 'function'
+          && typeof opts.saveOptions === 'function');
+  if (opts !== undefined && opts !== null) {
+    check('client.options.root-read',
+        opts.fov === undefined || typeof opts.fov === 'number');
+    const video = opts.video;
+    check('client.options.video-handle',
+        video !== undefined && typeof video === 'object'
+            && typeof video.setRenderDistance === 'function'
+            && (video.renderDistance === undefined
+                || typeof video.renderDistance === 'number')
+            && (video.graphicsMode === undefined
+                || typeof video.graphicsMode === 'string'));
+    check('client.options.groups',
+        opts.skin !== undefined && opts.music !== undefined
+            && opts.control !== undefined && opts.chat !== undefined
+            && opts.accessibility !== undefined);
+    try {
+      const pending = opts.setFov(70);
+      check('client.options.write-promise',
+          Boolean(pending) && typeof pending.then === 'function');
+      pending.catch(() => {});
+    } catch (e) {
+      check('client.options.write-promise', false);
+    }
+  }
   check('input.keybinds-array', Array.isArray(neo.input.keybinds));
   check('input.pressedKeys-array', Array.isArray(neo.input.pressedKeys));
   check('input.movementState', typeof neo.input.movementState === 'object');
