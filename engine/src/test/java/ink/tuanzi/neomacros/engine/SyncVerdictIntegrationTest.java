@@ -103,12 +103,12 @@ class SyncVerdictIntegrationTest {
 
         var open = bus.publish("inventory:open",
                 new ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent(
-                        "Chest", "chest", 27, 1));
+                        "Chest", "chest", 27, 1, "GenericContainerScreen"));
         assertTrue(open.canceled(), "chest opens are cancelled");
 
         var playerOpen = bus.publish("inventory:open",
                 new ink.tuanzi.neomacros.core.event.def.inventory.InventoryOpenEvent(
-                        "Inventory", "player", 46, 0));
+                        "Inventory", "player", 46, 0, "InventoryScreen"));
         assertFalse(playerOpen.canceled(), "other containers pass");
     }
 

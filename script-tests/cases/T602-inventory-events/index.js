@@ -7,6 +7,8 @@
  *   can be cancelled from onSync (a cancelled click changes no slot);
  * - inventory:dropSlot fires for THROW clicks and the hotbar Q key;
  * - inventory:open can be cancelled (a cancelled chest closes right away);
+ * - inventory:open and inventory:update carry the open screen's MC class
+ *   name in screen (undefined with no screen open);
  * - inventory:update carries mode/oldStack/newStack (and the held variant);
  * - item:pickup and item:damage fire with their payloads.
  */
@@ -27,14 +29,15 @@ neo.events.onSync('inventory:dropSlot', (ev) => {
 });
 
 neo.events.onSync('inventory:open', (ev) => {
-  seen.open = `${ev.kind} size=${ev.size}`;
+  seen.open = `${ev.kind} size=${ev.size} screen=${ev.screen}`;
 });
 
 neo.events.on('inventory:update', (ev) => {
   if (ev.mode === 'slot' && ev.newStack !== undefined) {
     seen.slotUpdate = `${ev.kind} slot=${ev.slot} `
         + `${ev.oldStack === undefined ? '(empty)' : ev.oldStack.id + '@' + ev.oldStack.damage}`
-        + ` -> ${ev.newStack.id}@${ev.newStack.damage}`;
+        + ` -> ${ev.newStack.id}@${ev.newStack.damage}`
+        + ` screen=${ev.screen}`;
   }
   if (ev.mode === 'held') {
     seen.heldUpdate = ev.newStack === undefined ? '(cleared)' : ev.newStack.id;
