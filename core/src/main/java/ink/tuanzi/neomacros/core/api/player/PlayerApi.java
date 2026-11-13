@@ -236,6 +236,8 @@ public final class PlayerApi {
             case "brewing" -> new BrewingStandInventory(title, kind, size);
             case "villager" -> new VillagerInventory(title, kind, size);
             case "horse" -> new HorseInventory(title, kind, size);
+            case "loom" -> new LoomInventory(title, kind, size);
+            case "creative" -> new CreativeInventory(title, kind, size);
             default -> new Inventory(title, kind, size);
         };
     }
@@ -2785,6 +2787,75 @@ public final class PlayerApi {
     }
 
     /**
+     * A loom screen: the banner pattern offer over the ordinary slot face.
+     * The offer depends on the pattern slot item; the banner and dye do not
+     * change it.
+     *
+     * @zh 织机界面：在普通槽位面之上的旗帜图案供给面。供给取决于图案槽中的物品；旗帜与染料不影响供给。
+     */
+    @ApiClass(name = "LoomInventory", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.inventory.LoomMenu")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class LoomInventory extends Inventory {
+
+        LoomInventory(String title, String kind, int size) {
+            super(title, kind, size);
+        }
+
+        /**
+         * The banner pattern registry ids the loom offers for the current
+         * pattern-slot item, in selection order; empty without an open loom.
+         *
+         * @zh 织机针对当前图案槽物品提供的旗帜图案注册 id（按选择顺序）；未开织机时为空列表。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public List<String> getPatterns() {
+            return inventoryPort().loomPatterns();
+        }
+
+        /**
+         * Applies the offered pattern with the given registry id and asks the
+         * server to apply it; resolves {@code false} when the id is not
+         * offered or the pattern list is not displayed.
+         *
+         * @zh 应用指定注册 id 的图案并向服务端请求应用；id 不在供给内或图案列表未显示时落定为 false。
+         * @zh-param id 图案注册 id（如 {@code minecraft:base}）
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Boolean> selectPatternId(String id) {
+            if (id == null) {
+                return CompletableFuture.completedFuture(Boolean.FALSE);
+            }
+            int index = getPatterns().indexOf(id);
+            return index < 0
+                    ? CompletableFuture.completedFuture(Boolean.FALSE)
+                    : inventoryPort().loomSelectPattern(index);
+        }
+
+        /**
+         * Applies the offered pattern at its zero-based position and asks the
+         * server to apply it; resolves {@code false} when the index is out of
+         * range or the pattern list is not displayed.
+         *
+         * @zh 应用指定序号的图案并向服务端请求应用；越界或图案列表未显示时落定为 false。
+         * @zh-param index 图案在供给列表中的零基序号
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Boolean> selectPattern(int index) {
+            return inventoryPort().loomSelectPattern(index);
+        }
+    }
+
+    /**
      * A villager trade screen: trader level and experience progress. Trade
      * offers ride the trade-offer data batch.
      *
@@ -2854,6 +2925,51 @@ public final class PlayerApi {
                 }
             }
             return trades;
+        }
+
+        /**
+         * Selects a trade by its zero-based position in {@link #getTrades()},
+         * highlighting it and requesting it from the server; an out-of-range
+         * index or a closed trader screen is a no-op.
+         *
+         * @zh 按 {@link #getTrades()} 中的零基序号选择交易（高亮并向服务端请求）；越界或未开交易界面时无操作。
+         * @zh-param index 交易报价序号
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> selectTrade(int index) {
+            return inventoryPort().selectVillagerTrade(index);
+        }
+
+        /**
+         * Whether the trader offers a restock; {@code undefined} without an
+         * open trader screen.
+         *
+         * @zh 交易者是否可补货；未开交易界面时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean canRestock() {
+            Object value = inventoryPort().containerState().get("canRestock");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /**
+         * Whether the trader screen shows its level progress bar;
+         * {@code undefined} without an open trader screen.
+         *
+         * @zh 交易界面是否显示等级进度条；未开交易界面时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isLeveled() {
+            Object value = inventoryPort().containerState().get("leveled");
+            return value instanceof Boolean b ? b : null;
         }
     }
 
@@ -3013,7 +3129,491 @@ public final class PlayerApi {
         public ItemStack getArmor() {
             return slot(1);
         }
+
+        /**
+         * Whether the mount can use its saddle slot (false for untamed, baby,
+         * or dead mounts); it does not report whether a saddle is equipped.
+         * {@code undefined} without an open mount screen.
+         *
+         * @zh 坐骑是否可用鞍槽（未驯服/幼年/死亡为 false）；不表示当前是否装备鞍。未开坐骑界面时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean canBeSaddled() {
+            Object value = inventoryPort().containerState().get("canBeSaddled");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /**
+         * Whether a saddle is currently equipped; {@code undefined} without
+         * an open mount screen.
+         *
+         * @zh 当前是否装备了鞍；未开坐骑界面时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isSaddled() {
+            Object value = inventoryPort().containerState().get("isSaddled");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /**
+         * Whether the mount can use the body-armor slot; it does not report
+         * whether armor is equipped. {@code undefined} without an open mount
+         * screen.
+         *
+         * @zh 坐骑是否可用马甲槽；不表示当前是否装备马甲。未开坐骑界面时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasArmorSlot() {
+            Object value = inventoryPort().containerState().get("hasArmorSlot");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /**
+         * Whether the mount carries a chest; {@code undefined} without an
+         * open mount screen.
+         *
+         * @zh 坐骑是否装备了箱子；未开坐骑界面时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasChest() {
+            Object value = inventoryPort().containerState().get("hasChest");
+            return value instanceof Boolean b ? b : null;
+        }
+
+        /**
+         * The number of carried slots (15 for a chested mount, otherwise 0);
+         * {@code undefined} without an open mount screen.
+         *
+         * @zh 随身携带槽位数（装备箱子的坐骑为 15，否则为 0）；未开坐骑界面时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getInventorySize() {
+            Object value = inventoryPort().containerState().get("inventorySize");
+            return value instanceof Integer i ? i : null;
+        }
+
+        /**
+         * The carried slots in menu order, including empty slots as
+         * {@code null} entries; an empty list when the mount has no chest.
+         *
+         * @zh 按菜单序读取随身携带槽位，空槽以 null 占位；坐骑无箱子时为空列表。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public List<ItemStack> getHorseInventory() {
+            Integer size = getInventorySize();
+            if (size == null || size <= 0) {
+                return List.of();
+            }
+            List<ItemStack> out = new java.util.ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                out.add(inventoryPort().menuSlot(2 + i)
+                        .map(ItemStack::of)
+                        .orElse(null));
+            }
+            return out;
+        }
+
+        /**
+         * The mount this screen belongs to, as a species-specific entity
+         * handle; {@code undefined} without an open mount screen.
+         *
+         * @zh 该界面对应的坐骑（物种子类实体句柄）；未开坐骑界面时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity getHorse() {
+            Object value = inventoryPort().containerState().get("horse");
+            if (!(value instanceof String uuid)) {
+                return null;
+            }
+            return wrapEntity(java.util.UUID.fromString(uuid));
+        }
+
+        /**
+         * Wraps one entity UUID as the kind-specific handle, mirroring the
+         * entity package factory (players, dropped stacks, registered
+         * species, living entities, everything else).
+         */
+        private static ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity wrapEntity(
+                java.util.UUID uuid) {
+            var snapshot = ScriptApiEnvironment.adapter().entity().byUuid(uuid).orElse(null);
+            if (snapshot == null) {
+                return null;
+            }
+            if (snapshot.type().equals("minecraft:player")) {
+                return new Player(uuid);
+            }
+            if (snapshot.type().equals("minecraft:item")) {
+                return new ink.tuanzi.neomacros.core.api.entity.EntityApi.ItemEntity(uuid);
+            }
+            var species = ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.registry()
+                    .get(snapshot.type());
+            if (species != null) {
+                return species.apply(uuid);
+            }
+            if (snapshot.living()) {
+                return new ink.tuanzi.neomacros.core.api.entity.EntityApi.LivingEntity(uuid);
+            }
+            return new ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity(uuid);
+        }
     }
+
+    /**
+     * The creative inventory screen: the item-list tabs, search, scrolling,
+     * saved hotbars, and the cursor stack over the player inventory face.
+     * Equipment and hotbar reads answer from the player's own inventory,
+     * the same slots {@link PlayerInventory} exposes.
+     *
+     * @zh 创造物品栏界面：物品列表页签、搜索、滚动、保存的快捷栏与光标堆，叠加在玩家背包面之上。装备与快捷栏读取取自玩家自己的物品栏，与 {@link PlayerInventory} 暴露的槽位一致。
+     */
+    @ApiClass(name = "CreativeInventory", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class CreativeInventory extends Inventory {
+
+        CreativeInventory(String title, String kind, int size) {
+            super(title, kind, size);
+        }
+
+        /**
+         * The item stacks the creative list currently holds, in display
+         * order (empty slots skipped); empty without an open creative screen.
+         *
+         * @zh 创造物品列表当前持有的物品堆（按显示顺序，空槽不入列）；未开创造界面时为空列表。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public List<ItemStack> getShownItems() {
+            List<ItemStack> out = new java.util.ArrayList<>();
+            for (ink.tuanzi.neomacros.port.model.ItemStackData data
+                    : inventoryPort().creativeShownItems()) {
+                out.add(ItemStack.of(data));
+            }
+            return out;
+        }
+
+        /**
+         * The localized display name of every creative tab, in display
+         * order; empty without an open creative screen. These names are not
+         * tab ids and are the values matched by {@link #selectTab(String)}.
+         *
+         * @zh 全部创造页签的本地化显示名（按显示顺序）；未开创造界面时为空列表。这些名称不是页签 id，而是 {@link #selectTab(String)} 的匹配值。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public List<String> getTabNames() {
+            List<String> out = new java.util.ArrayList<>();
+            for (ink.tuanzi.neomacros.port.InventoryPort.CreativeTab tab
+                    : inventoryPort().creativeTabs()) {
+                out.add(tab.name());
+            }
+            return out;
+        }
+
+        /**
+         * Every creative tab's display name as a text object, in the same
+         * order as {@link #getTabNames()}; empty without an open creative
+         * screen.
+         *
+         * @zh 全部创造页签的显示名文本对象（顺序与 {@link #getTabNames()} 一致）；未开创造界面时为空列表。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public List<ink.tuanzi.neomacros.core.api.types.TextComponent> getTabTexts() {
+            List<ink.tuanzi.neomacros.core.api.types.TextComponent> out = new java.util.ArrayList<>();
+            for (String name : getTabNames()) {
+                out.add(ink.tuanzi.neomacros.core.api.types.TextComponent.of(name));
+            }
+            return out;
+        }
+
+        /**
+         * The item stacks stored in a saved-hotbar slot, in hotbar order;
+         * an empty list for an out-of-range index or an unset slot.
+         *
+         * @zh 保存的快捷栏槽位中的物品堆（按快捷栏顺序）；序号越界或未保存时为空列表。
+         * @zh-param index 保存的快捷栏序号（0-8）
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public List<ItemStack> getSavedHotbar(int index) {
+            List<ItemStack> out = new java.util.ArrayList<>();
+            for (ink.tuanzi.neomacros.port.model.ItemStackData data
+                    : inventoryPort().creativeSavedHotbar(index)) {
+                out.add(ItemStack.of(data));
+            }
+            return out;
+        }
+
+        /**
+         * Whether a player inventory slot is the hotbar or the offhand
+         * (player inventory order: 0-8 hotbar, 40 offhand).
+         *
+         * @zh 判断玩家物品栏槽位是否为快捷栏或副手（玩家物品栏序号：0-8 快捷栏、40 副手）。
+         * @zh-param slot 玩家物品栏槽位号
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public boolean isInHotbar(int slot) {
+            return (slot >= 0 && slot <= 8) || slot == 40;
+        }
+
+        /** The offhand stack, or {@code undefined} when empty.
+         * @zh 副手物品；为空时 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getOffhand() {
+            return slot(40);
+        }
+
+        /** The helmet stack, or {@code undefined} when empty.
+         * @zh 头盔物品；为空时 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getHelmet() {
+            return slot(39);
+        }
+
+        /** The chestplate stack, or {@code undefined} when empty.
+         * @zh 胸甲物品；为空时 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getChestplate() {
+            return slot(38);
+        }
+
+        /** The leggings stack, or {@code undefined} when empty.
+         * @zh 护腿物品；为空时 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getLeggings() {
+            return slot(37);
+        }
+
+        /** The boots stack, or {@code undefined} when empty.
+         * @zh 靴子物品；为空时 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getBoots() {
+            return slot(36);
+        }
+
+        /**
+         * Scrolls the creative item list by a relative amount; the resulting
+         * position is clamped to {@code 0..1}. A no-op on a screen without a
+         * scrollbar.
+         *
+         * @zh 按相对量滚动创造物品列表，结果位置夹取到 {@code 0..1}；无滚动条的界面为无操作。
+         * @zh-param amount 相对当前滚动位置的偏移量
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> scroll(double amount) {
+            return inventoryPort().creativeScrollBy(amount);
+        }
+
+        /**
+         * Sets the creative item list's scroll position (clamped to
+         * {@code 0..1}); a no-op on a screen without a scrollbar.
+         *
+         * @zh 设置创造物品列表的滚动位置（夹取到 {@code 0..1}）；无滚动条的界面为无操作。
+         * @zh-param position 目标滚动位置
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> scrollTo(double position) {
+            return inventoryPort().creativeScrollTo(position);
+        }
+
+        /**
+         * Replaces the search box text and refreshes the results; does
+         * nothing unless the search tab is selected.
+         *
+         * @zh 替换搜索框文本并刷新结果；未选中搜索页签时无操作。
+         * @zh-param text 搜索文本
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> search(String text) {
+            return inventoryPort().creativeSearch(text == null ? "" : text);
+        }
+
+        /** Selects the search tab; a no-op when no creative screen is open.
+         * @zh 选中搜索页签；未开创造界面时无操作。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> selectSearch() {
+            return selectTabByType("SEARCH");
+        }
+
+        /** Selects the inventory tab; a no-op when no creative screen is open.
+         * @zh 选中物品栏页签；未开创造界面时无操作。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> selectInventory() {
+            return selectTabByType("INVENTORY");
+        }
+
+        /** Selects the hotbar tab; a no-op when no creative screen is open.
+         * @zh 选中快捷栏页签；未开创造界面时无操作。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> selectHotbar() {
+            return selectTabByType("HOTBAR");
+        }
+
+        /**
+         * Selects the tab whose display name exactly matches the argument;
+         * resolves {@code false} when no tab has that name.
+         *
+         * @zh 选中显示名与参数完全一致的页签；无同名页签时落定为 false。
+         * @zh-param tabName 页签显示名（见 {@link #getTabNames()}）
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Boolean> selectTab(String tabName) {
+            if (tabName == null) {
+                return CompletableFuture.completedFuture(Boolean.FALSE);
+            }
+            int index = getTabNames().indexOf(tabName);
+            if (index < 0) {
+                return CompletableFuture.completedFuture(Boolean.FALSE);
+            }
+            return inventoryPort().creativeSelectTab(index)
+                    .thenApply(v -> Boolean.TRUE);
+        }
+
+        /** Selects the first tab of the given type, or does nothing. */
+        private CompletableFuture<Void> selectTabByType(String type) {
+            List<ink.tuanzi.neomacros.port.InventoryPort.CreativeTab> tabs =
+                    inventoryPort().creativeTabs();
+            for (int i = 0; i < tabs.size(); i++) {
+                if (type.equals(tabs.get(i).type())) {
+                    return inventoryPort().creativeSelectTab(i);
+                }
+            }
+            return CompletableFuture.completedFuture(null);
+        }
+
+        /**
+         * Clears the stack carried on the cursor. Client-side only until the
+         * cursor is used; a no-op without an open creative screen.
+         *
+         * @zh 清空光标上的物品堆；在光标被使用前仅客户端生效，未开创造界面时无操作。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> destroyHeldItem() {
+            return inventoryPort().creativeDestroyHeld();
+        }
+
+        /**
+         * Clears every player inventory slot by sending an empty stack for
+         * each slot through the creative item-add operation.
+         *
+         * <p><b>Risk:</b> the requests are only accepted while the server
+         * allows creative-mode slot edits; on a survival server they are
+         * rejected and the inventory stays unchanged.
+         *
+         * @zh 通过创造物品添加操作为每个槽位发送空堆，清空全部玩家物品栏槽位。
+         * <p><b>风险：</b>仅当服务端允许创造模式槽位修改时才会被接受；生存服上会被拒绝，物品栏保持不变。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> destroyAllItems() {
+            return inventoryPort().creativeDestroyAll();
+        }
+
+        /**
+         * Sets the stack carried on the cursor; a null stack clears it.
+         *
+         * @zh 设置光标上的物品堆；传 null 即清空。
+         * @zh-param stack 要放到光标上的物品
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> setCursorStack(ItemStack stack) {
+            return inventoryPort().creativeSetCursor(stack == null ? null : stack.toData());
+        }
+
+        /**
+         * Saves the current hotbar into a saved-hotbar slot; a no-op for an
+         * out-of-range index or without an open creative screen.
+         *
+         * @zh 将当前快捷栏保存到保存的快捷栏槽位；序号越界或未开创造界面时无操作。
+         * @zh-param index 保存的快捷栏序号（0-8）
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> saveHotbar(int index) {
+            return inventoryPort().creativeSaveHotbar(index);
+        }
+
+        /**
+         * Restores a saved-hotbar slot onto the current hotbar; a no-op for
+         * an out-of-range index or without an open creative screen.
+         *
+         * @zh 将保存的快捷栏槽位恢复到当前快捷栏；序号越界或未开创造界面时无操作。
+         * @zh-param index 保存的快捷栏序号（0-8）
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> restoreHotbar(int index) {
+            return inventoryPort().creativeRestoreHotbar(index);
+        }
+    }
+
     /**
      * Live inventory handle: slot reads re-query the inventory port on every
      * access; actions dispatch on the main thread and resolve once processed.

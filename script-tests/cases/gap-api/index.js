@@ -202,6 +202,38 @@ function start() {
     check('player.inventory-canCraft',
         inv.canCraft === undefined
             || inv.canCraft() === undefined || typeof inv.canCraft() === 'boolean');
+    // G-021 specialized-face observations: each member is only present on
+    // its own container handle, so every shape check accepts undefined.
+    check('player.inventory-patterns',
+        inv.patterns === undefined || Array.isArray(inv.patterns));
+    check('player.inventory-selectPattern',
+        inv.selectPattern === undefined || typeof inv.selectPattern === 'function');
+    check('player.inventory-selectTrade',
+        inv.selectTrade === undefined || typeof inv.selectTrade === 'function');
+    check('player.inventory-canRestock',
+        inv.canRestock === undefined || typeof inv.canRestock === 'function');
+    check('player.inventory-leveled',
+        inv.leveled === undefined || typeof inv.leveled === 'boolean');
+    check('player.inventory-mount-state',
+        inv.canBeSaddled === undefined || typeof inv.canBeSaddled === 'function');
+    check('player.inventory-saddled',
+        inv.saddled === undefined || typeof inv.saddled === 'boolean');
+    check('player.inventory-horse',
+        inv.horse === undefined || typeof inv.horse === 'object');
+    check('player.inventory-horseInventory',
+        inv.horseInventory === undefined || Array.isArray(inv.horseInventory));
+    check('player.inventory-tabNames',
+        inv.tabNames === undefined || Array.isArray(inv.tabNames));
+    check('player.inventory-tabTexts',
+        inv.tabTexts === undefined || Array.isArray(inv.tabTexts));
+    check('player.inventory-shownItems',
+        inv.shownItems === undefined || Array.isArray(inv.shownItems));
+    check('player.inventory-getSavedHotbar',
+        inv.getSavedHotbar === undefined || typeof inv.getSavedHotbar === 'function');
+    check('player.inventory-creative-actions',
+        (inv.scroll === undefined || typeof inv.scroll === 'function')
+        && (inv.search === undefined || typeof inv.search === 'function')
+        && (inv.selectTab === undefined || typeof inv.selectTab === 'function'));
   }
   if (self) {
     check('player.statistics', self.statistics === null || typeof self.statistics === 'object');
