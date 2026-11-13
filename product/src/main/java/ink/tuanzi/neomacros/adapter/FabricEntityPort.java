@@ -329,6 +329,8 @@ public final class FabricEntityPort implements EntityPort {
         if (entity instanceof net.minecraft.world.entity.animal.panda.Panda panda) {
             state.put("mainGene", namespaced(panda.getMainGene()));
             state.put("hiddenGene", namespaced(panda.getHiddenGene()));
+            state.put("mainGeneRecessive", panda.getMainGene().isRecessive());
+            state.put("hiddenGeneRecessive", panda.getHiddenGene().isRecessive());
             state.put("sneezing", panda.isSneezing());
             state.put("onBack", panda.isOnBack());
             state.put("eating", panda.isEating());
@@ -467,6 +469,15 @@ public final class FabricEntityPort implements EntityPort {
         if (entity instanceof net.minecraft.world.entity.decoration.ArmorStand armorStand) {
             state.put("marker", armorStand.isMarker());
             state.put("small", armorStand.isSmall());
+            state.put("invisible", armorStand.isInvisible());
+            state.put("showArms", armorStand.showArms());
+            state.put("showBasePlate", armorStand.showBasePlate());
+            state.put("bodyPose", poseData(armorStand.getBodyPose()));
+            state.put("headPose", poseData(armorStand.getHeadPose()));
+            state.put("leftArmPose", poseData(armorStand.getLeftArmPose()));
+            state.put("rightArmPose", poseData(armorStand.getRightArmPose()));
+            state.put("leftLegPose", poseData(armorStand.getLeftLegPose()));
+            state.put("rightLegPose", poseData(armorStand.getRightLegPose()));
         }
         if (entity instanceof net.minecraft.world.entity.item.FallingBlockEntity fallingBlock) {
             var blockState = fallingBlock.getBlockState();
@@ -554,17 +565,48 @@ public final class FabricEntityPort implements EntityPort {
             state.put("viewRange", (double) display.getViewRange());
             state.put("shadowRadius", (double) display.getShadowRadius());
             state.put("shadowStrength", (double) display.getShadowStrength());
+            // The culling box at the current position: 26.3 replaced the
+            // plain getter with the partial-tick form; 1.0 samples the
+            // current tick's end, i.e. the box as-is.
+            //? if <26.3 {
+            /*
+            var cullingBox = display.getBoundingBoxForCulling();
+            */
+            //?} else {
+            var cullingBox = display.getInterpolatedBoundingBox(1.0F);
+            //?}
+            state.put("visibilityBoundingBox", new BoundingBoxData(
+                    new Pos3d(cullingBox.minX, cullingBox.minY, cullingBox.minZ),
+                    new Pos3d(cullingBox.maxX, cullingBox.maxY, cullingBox.maxZ)));
         }
         if (entity instanceof net.minecraft.world.entity.Display.BlockDisplay blockDisplay) {
+            var renderedState = blockDisplay.getBlockState();
             state.put("block", BuiltInRegistries.BLOCK
-                    .getKey(blockDisplay.getBlockState().getBlock()).toString());
+                    .getKey(renderedState.getBlock()).toString());
+            state.put("blockState", new ink.tuanzi.neomacros.port.model.BlockData(
+                    BuiltInRegistries.BLOCK.getKey(renderedState.getBlock()).toString(),
+                    new Pos3d(entity.getX(), entity.getY(), entity.getZ()),
+                    statePropertiesOf(renderedState)));
         }
         if (entity instanceof net.minecraft.world.entity.Display.ItemDisplay itemDisplay) {
             state.put("item", FabricInventoryPort.stackDataOf(itemDisplay.getItemStack()));
+            state.put("transform", itemDisplay.getItemTransform().getSerializedName());
         }
         if (entity instanceof net.minecraft.world.entity.Display.TextDisplay textDisplay) {
             state.put("text", textDisplay.getText().getString());
             state.put("backgroundColor", textDisplay.getBackgroundColor());
+            state.put("lineWidth", textDisplay.getLineWidth());
+            state.put("textOpacity", (int) textDisplay.getTextOpacity());
+            byte flags = textDisplay.getFlags();
+            state.put("shadow",
+                    (flags & net.minecraft.world.entity.Display.TextDisplay.FLAG_SHADOW) != 0);
+            state.put("seeThrough", (flags
+                    & net.minecraft.world.entity.Display.TextDisplay.FLAG_SEE_THROUGH) != 0);
+            state.put("defaultBackground", (flags
+                    & net.minecraft.world.entity.Display.TextDisplay.FLAG_USE_DEFAULT_BACKGROUND)
+                    != 0);
+            state.put("alignment", net.minecraft.world.entity.Display.TextDisplay
+                    .getAlign(flags).name().toLowerCase(java.util.Locale.ROOT));
         }
 
         // Remaining mobs.
@@ -597,6 +639,20 @@ public final class FabricEntityPort implements EntityPort {
     private static String equipmentId(net.minecraft.world.item.ItemStack stack) {
         return stack.isEmpty()
                 ? null : BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+    }
+
+    /** Copies one armor-stand pose rotation into a neutral triple. */
+    private static Pos3d poseData(net.minecraft.core.Rotations pose) {
+        return new Pos3d(pose.x(), pose.y(), pose.z());
+    }
+
+    /** The vanilla state properties of one block state, keyed by name. */
+    private static Map<String, String> statePropertiesOf(
+            net.minecraft.world.level.block.state.BlockState state) {
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        state.getProperties().forEach(property ->
+                out.put(property.getName(), String.valueOf(state.getValue(property))));
+        return out;
     }
 
     /** Namespaces a serializable enum constant, e.g. {@code minecraft:white}. */

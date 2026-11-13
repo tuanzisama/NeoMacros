@@ -208,6 +208,78 @@ function start() {
       check('entity.write-promise', false);
     }
   }
+  // G-022 species pose/display face: shape checks only; a world without
+  // the species reads absent and still counts as present.
+  const g022Center = self ? self.pos : { x: 0, y: 64, z: 0 };
+  const g022Near = neo.entity.inRadius(
+      g022Center.x, g022Center.y, g022Center.z, 48);
+  const g022ByType = (id) => g022Near.find((e) => e.type === id);
+  const g022Absent = (key) => check(key + '-absent', true);
+  const g022Stand = g022ByType('minecraft:armor_stand');
+  if (g022Stand) {
+    check('g022.armorStand-flags',
+        typeof g022Stand.invisible === 'boolean'
+        && typeof g022Stand.showArms() === 'boolean'
+        && typeof g022Stand.showBasePlate() === 'boolean');
+    const g022Head = g022Stand.headPose;
+    check('g022.armorStand-pose',
+        typeof g022Head === 'object' && g022Head !== null
+        && typeof g022Head.x === 'number'
+        && typeof g022Head.y === 'number'
+        && typeof g022Head.z === 'number'
+        && typeof g022Stand.bodyPose.x === 'number'
+        && typeof g022Stand.leftArmPose.y === 'number'
+        && typeof g022Stand.rightLegPose.z === 'number');
+  } else {
+    g022Absent('g022.armorStand');
+  }
+  const g022Panda = g022ByType('minecraft:panda');
+  if (g022Panda) {
+    check('g022.panda-genes',
+        typeof g022Panda.mainGene === 'string'
+        && typeof g022Panda.hiddenGene === 'string'
+        && typeof g022Panda.mainGeneRecessive === 'boolean'
+        && typeof g022Panda.hiddenGeneRecessive === 'boolean');
+  } else {
+    g022Absent('g022.panda');
+  }
+  const g022BlockDisplay = g022ByType('minecraft:block_display');
+  if (g022BlockDisplay) {
+    check('g022.blockDisplay',
+        typeof g022BlockDisplay.billboard === 'string'
+        && typeof g022BlockDisplay.block === 'string'
+        && typeof g022BlockDisplay.blockState === 'object'
+        && g022BlockDisplay.blockState !== null
+        && typeof g022BlockDisplay.blockState.id === 'string'
+        && typeof g022BlockDisplay.blockState.props === 'object');
+    const g022Box = g022BlockDisplay.visibilityBoundingBox;
+    check('g022.blockDisplay-visibilityBox',
+        typeof g022Box === 'object' && g022Box !== null
+        && typeof g022Box.min === 'object' && typeof g022Box.max === 'object'
+        && typeof g022Box.min.x === 'number' && typeof g022Box.max.y === 'number');
+  } else {
+    g022Absent('g022.blockDisplay');
+  }
+  const g022ItemDisplay = g022ByType('minecraft:item_display');
+  if (g022ItemDisplay) {
+    check('g022.itemDisplay',
+        typeof g022ItemDisplay.transform === 'string'
+        && typeof g022ItemDisplay.billboard === 'string');
+  } else {
+    g022Absent('g022.itemDisplay');
+  }
+  const g022TextDisplay = g022ByType('minecraft:text_display');
+  if (g022TextDisplay) {
+    check('g022.textDisplay-data',
+        typeof g022TextDisplay.lineWidth === 'number'
+        && typeof g022TextDisplay.textOpacity === 'number'
+        && typeof g022TextDisplay.alignment === 'string'
+        && typeof g022TextDisplay.hasShadow() === 'boolean'
+        && typeof g022TextDisplay.hasSeeThrough() === 'boolean'
+        && typeof g022TextDisplay.hasDefaultBackground() === 'boolean');
+  } else {
+    g022Absent('g022.textDisplay');
+  }
   try {
     const handle = neo.fs.open('neomacro-test-gap.txt');
     check('fs.open-handle', typeof handle.readBytes === 'function'

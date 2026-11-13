@@ -1029,6 +1029,8 @@ public final class StubAdapter implements NeomacrosAdapter {
                 new java.util.LinkedHashMap<>();
         public final java.util.Map<String, Object> livingExtras =
                 new java.util.LinkedHashMap<>();
+        public final java.util.Map<UUID, java.util.Map<String, Object>> species =
+                new java.util.LinkedHashMap<>();
         final List<String> writes = new ArrayList<>();
         public volatile boolean canAttackResult;
         public volatile boolean canBeAffectedResult;
@@ -1053,6 +1055,11 @@ public final class StubAdapter implements NeomacrosAdapter {
             livingExtras.putAll(extras);
         }
 
+        /** Serves one entity's species state map (per UUID). */
+        public void setSpeciesState(UUID uuid, java.util.Map<String, Object> state) {
+            species.put(uuid, new java.util.LinkedHashMap<>(state));
+        }
+
         /** The recorded write actions, oldest first. */
         public List<String> writes() {
             return List.copyOf(writes);
@@ -1068,6 +1075,15 @@ public final class StubAdapter implements NeomacrosAdapter {
             return byUuid(uuid)
                     .<java.util.Map<String, Object>>map(
                             s -> new java.util.LinkedHashMap<>(entityState))
+                    .orElse(java.util.Map.of());
+        }
+
+        @Override
+        public java.util.Map<String, Object> speciesState(UUID uuid) {
+            return byUuid(uuid)
+                    .<java.util.Map<String, Object>>map(
+                            s -> new java.util.LinkedHashMap<>(
+                                    species.getOrDefault(uuid, java.util.Map.of())))
                     .orElse(java.util.Map.of());
         }
 
