@@ -1169,6 +1169,11 @@ public final class StubAdapter implements NeomacrosAdapter {
     public static final class StubPlayer implements PlayerPort {
         volatile PlayerSnapshot self;
         volatile List<ink.tuanzi.neomacros.port.model.EffectSnapshot> effects = List.of();
+        volatile int expLevel;
+        volatile float expProgress;
+        volatile int expTotal;
+        volatile List<ink.tuanzi.neomacros.port.model.ItemStackData> armor = List.of();
+        volatile UUID vehicle;
         final List<Function<BlockInteraction, Boolean>> attackBlockSinks = new CopyOnWriteArrayList<>();
         final List<Function<EntitySnapshot, Boolean>> attackEntitySinks = new CopyOnWriteArrayList<>();
         final List<Function<BlockInteraction, Boolean>> interactBlockSinks = new CopyOnWriteArrayList<>();
@@ -1242,6 +1247,23 @@ public final class StubAdapter implements NeomacrosAdapter {
             this.effects = List.copyOf(effects);
         }
 
+        /** Sets the canned experience level, progress and total points. */
+        public void setExp(int level, float progress, int total) {
+            this.expLevel = level;
+            this.expProgress = progress;
+            this.expTotal = total;
+        }
+
+        /** Sets the four armor slots in feet, legs, chest, head order. */
+        public void setArmor(List<ink.tuanzi.neomacros.port.model.ItemStackData> armor) {
+            this.armor = List.copyOf(armor);
+        }
+
+        /** Sets the ridden entity UUID ({@code null} = on foot). */
+        public void setVehicle(UUID vehicle) {
+            this.vehicle = vehicle;
+        }
+
         /** Fires the attack-block interaction; returns the cancel verdict. */
         public boolean fireAttackBlock(BlockInteraction hit) {
             return fireAll(attackBlockSinks, hit);
@@ -1291,6 +1313,31 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public List<ink.tuanzi.neomacros.port.model.EffectSnapshot> activeEffects() {
             return effects;
+        }
+
+        @Override
+        public int expLevel() {
+            return expLevel;
+        }
+
+        @Override
+        public float expProgress() {
+            return expProgress;
+        }
+
+        @Override
+        public int expTotal() {
+            return expTotal;
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.ItemStackData> armorSlots() {
+            return armor;
+        }
+
+        @Override
+        public Optional<UUID> vehicleUuid() {
+            return Optional.ofNullable(vehicle);
         }
 
         @Override
