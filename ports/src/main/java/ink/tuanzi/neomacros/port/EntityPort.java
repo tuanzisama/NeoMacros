@@ -150,11 +150,28 @@ public interface EntityPort {
     }
 
     /**
+     * Whether the animal accepts the item with the id as food (the id is
+     * already namespaced); false for unknown ids, non-animals, or a gone
+     * entity.
+     */
+    default boolean isFood(java.util.UUID uuid, String itemId) {
+        return false;
+    }
+
+    /**
      * Whether nothing blocks the view from the entity to the target. The
      * simple cast tests three points only; the extended cast additionally
      * samples four pillars around the target.
      */
     default boolean canSee(java.util.UUID uuid, java.util.UUID target, boolean simpleCast) {
+        return false;
+    }
+
+    /**
+     * Whether the game's mating check accepts the other animal for this one;
+     * false when either handle is gone or either side is not an animal.
+     */
+    default boolean canBreedWith(java.util.UUID uuid, java.util.UUID other) {
         return false;
     }
 

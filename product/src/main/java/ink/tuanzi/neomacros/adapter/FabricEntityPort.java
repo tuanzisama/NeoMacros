@@ -211,6 +211,7 @@ public final class FabricEntityPort implements EntityPort {
         }
         if (entity instanceof Wolf wolf) {
             state.put("collarColor", namespaced(wolf.getCollarColor()));
+            state.put("begging", wolf.isInterested());
             //? if <26.1 {
             /*
             state.put("angry", wolf.getRemainingPersistentAngerTime() > 0);
@@ -262,6 +263,13 @@ public final class FabricEntityPort implements EntityPort {
             state.put("carriedBlock", carried != null
                     ? BuiltInRegistries.BLOCK.getKey(carried.getBlock()).toString() : null);
             state.put("screaming", enderman.isCreepy());
+            state.put("provoked", enderman.hasBeenStaredAt());
+            state.put("heldBlock", carried != null
+                    ? new ink.tuanzi.neomacros.port.model.BlockData(
+                            BuiltInRegistries.BLOCK.getKey(carried.getBlock()).toString(),
+                            new Pos3d(entity.getX(), entity.getY(), entity.getZ()),
+                            statePropertiesOf(carried))
+                    : null);
         }
         if (entity instanceof net.minecraft.world.entity.monster.Phantom phantom) {
             state.put("size", phantom.getPhantomSize());
@@ -273,11 +281,15 @@ public final class FabricEntityPort implements EntityPort {
             state.put("tamed", horse.isTamed());
             state.put("eating", horse.isEating());
             state.put("bred", horse.isBred());
+            state.put("standing", horse.isStanding());
             state.put("inventorySize", horse.getInventorySize());
             state.put("saddled", !horse.getItemBySlot(
                     net.minecraft.world.entity.EquipmentSlot.SADDLE).isEmpty());
             var ownerRef = horse.getOwnerReference();
             state.put("owner", ownerRef != null ? ownerRef.getUUID().toString() : null);
+        }
+        if (entity instanceof net.minecraft.world.entity.animal.equine.AbstractChestedHorse chested) {
+            state.put("hasChest", chested.hasChest());
         }
         if (entity instanceof net.minecraft.world.entity.animal.equine.Horse horse2) {
             state.put("variant", namespaced(horse2.getVariant()));
@@ -291,6 +303,7 @@ public final class FabricEntityPort implements EntityPort {
         }
         if (entity instanceof net.minecraft.world.entity.animal.axolotl.Axolotl axolotl) {
             state.put("variant", serialName(axolotl.getVariant()));
+            state.put("variantId", axolotl.getVariant().getId());
             state.put("playingDead", axolotl.isPlayingDead());
             state.put("fromBucket", axolotl.fromBucket());
         }
@@ -388,6 +401,7 @@ public final class FabricEntityPort implements EntityPort {
         }
         if (entity instanceof net.minecraft.world.entity.boss.wither.WitherBoss wither) {
             state.put("invulnerableTicks", wither.getInvulnerableTicks());
+            state.put("powered", wither.isPowered());
         }
         if (entity instanceof net.minecraft.world.entity.animal.allay.Allay allay) {
             state.put("dancing", allay.isDancing());
@@ -431,6 +445,15 @@ public final class FabricEntityPort implements EntityPort {
             state.put("pattern", namespaced(tropicalFish.getPattern()));
             state.put("baseColor", namespaced(tropicalFish.getBaseColor()));
             state.put("patternColor", namespaced(tropicalFish.getPatternColor()));
+            state.put("size", tropicalFish.getPattern().base().name()
+                    .toLowerCase(java.util.Locale.ROOT));
+            // Same packing as the vanilla TropicalFish.packVariant helper:
+            // pattern in the low 16 bits, base colour at 16, pattern colour
+            // at 24.
+            state.put("varietyId",
+                    (tropicalFish.getPattern().getPackedId() & 0xFFFF)
+                            | ((tropicalFish.getBaseColor().getId() & 0xFF) << 16)
+                            | ((tropicalFish.getPatternColor().getId() & 0xFF) << 24));
         }
         if (entity instanceof net.minecraft.world.entity.monster.piglin.AbstractPiglin abstractPiglin) {
             state.put("converting", abstractPiglin.isConverting());
@@ -482,6 +505,12 @@ public final class FabricEntityPort implements EntityPort {
         if (entity instanceof net.minecraft.world.entity.item.FallingBlockEntity fallingBlock) {
             var blockState = fallingBlock.getBlockState();
             state.put("block", BuiltInRegistries.BLOCK.getKey(blockState.getBlock()).toString());
+            state.put("blockState", new ink.tuanzi.neomacros.port.model.BlockData(
+                    BuiltInRegistries.BLOCK.getKey(blockState.getBlock()).toString(),
+                    new Pos3d(entity.getX(), entity.getY(), entity.getZ()),
+                    statePropertiesOf(blockState)));
+            var start = fallingBlock.getStartPos();
+            state.put("startPos", new Pos3d(start.getX(), start.getY(), start.getZ()));
         }
         if (entity instanceof net.minecraft.world.entity.decoration.ItemFrame itemFrame) {
             state.put("item", FabricInventoryPort.stackDataOf(itemFrame.getItem()));
@@ -493,6 +522,11 @@ public final class FabricEntityPort implements EntityPort {
             state.put("waitTime", effectCloud.getWaitTime());
             state.put("particle", BuiltInRegistries.PARTICLE_TYPE
                     .getKey(effectCloud.getParticle().getType()).toString());
+            state.put("color", effectCloud.getParticle()
+                    instanceof net.minecraft.core.particles.ColorParticleOption colored
+                    ? net.minecraft.util.ARGB.colorFromFloat(colored.getAlpha(),
+                            colored.getRed(), colored.getGreen(), colored.getBlue())
+                    : -1);
         }
 
         // Projectiles.
@@ -520,6 +554,7 @@ public final class FabricEntityPort implements EntityPort {
         // Vehicles.
         if (entity instanceof net.minecraft.world.entity.vehicle.boat.AbstractBoat boat) {
             state.put("underWater", boat.isUnderWater());
+            state.put("boatItem", stackData(boat.getPickResult()));
         }
         if (entity instanceof net.minecraft.world.entity.vehicle.minecart.MinecartTNT tntCart) {
             state.put("fuse", tntCart.getFuse());
@@ -617,9 +652,11 @@ public final class FabricEntityPort implements EntityPort {
             var laserTarget = guardian.getActiveAttackTarget();
             state.put("activeTarget", laserTarget != null
                     ? laserTarget.getUUID().toString() : null);
+            state.put("moving", guardian.isMoving());
         }
         if (entity instanceof net.minecraft.world.entity.monster.illager.AbstractIllager illager) {
             state.put("armPose", illager.getArmPose().name().toLowerCase(java.util.Locale.ROOT));
+            state.put("celebrating", illager.isCelebrating());
         }
         if (entity instanceof net.minecraft.world.entity.monster.illager.SpellcasterIllager spellcaster) {
             state.put("castingSpell", spellcaster.isCastingSpell());
@@ -879,6 +916,24 @@ public final class FabricEntityPort implements EntityPort {
     }
 
     @Override
+    public boolean isFood(UUID uuid, String itemId) {
+        Boolean eats = MainThread.run(() -> {
+            Entity self = findEntity(uuid);
+            if (!(self instanceof net.minecraft.world.entity.animal.Animal animal)
+                    || itemId == null) {
+                return false;
+            }
+            var item = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .getOptional(net.minecraft.resources.Identifier.tryParse(itemId));
+            if (item.isEmpty()) {
+                return false;
+            }
+            return animal.isFood(new net.minecraft.world.item.ItemStack(item.get()));
+        });
+        return Boolean.TRUE.equals(eats);
+    }
+
+    @Override
     public boolean canSee(UUID uuid, UUID target, boolean simpleCast) {
         Boolean visible = MainThread.run(() -> {
             Entity self = findEntity(uuid);
@@ -919,6 +974,18 @@ public final class FabricEntityPort implements EntityPort {
             return false;
         });
         return Boolean.TRUE.equals(visible);
+    }
+
+    @Override
+    public boolean canBreedWith(UUID uuid, UUID other) {
+        Boolean mates = MainThread.run(() -> {
+            Entity self = findEntity(uuid);
+            Entity partner = findEntity(other);
+            return self instanceof net.minecraft.world.entity.animal.Animal animal
+                    && partner instanceof net.minecraft.world.entity.animal.Animal mate
+                    && animal.canMate(mate);
+        });
+        return Boolean.TRUE.equals(mates);
     }
 
     /** Fills the armor slots and the trait entries of the living extras. */
