@@ -33,7 +33,9 @@ class AnnotatedClassScannerTest {
     void findsLifecycleRecords() {
         List<Class<?>> found = AnnotatedClassScanner.scan(LIFECYCLE_PACKAGE, ApiEvent.class,
                 AnnotatedClassScannerTest.class.getClassLoader());
-        assertEquals(4, found.size());
+        assertEquals(5, found.size());
+        assertTrue(found.stream().anyMatch(
+                t -> t.getSimpleName().equals("GameResourcePackEvent")));
     }
 
     @Test

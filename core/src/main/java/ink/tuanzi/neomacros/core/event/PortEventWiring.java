@@ -7,6 +7,7 @@ import ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatSendEvent;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatTitleEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent;
+import ink.tuanzi.neomacros.core.event.def.lifecycle.GameResourcePackEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldJoinEvent;
 import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldLeaveEvent;
@@ -188,6 +189,12 @@ public final class PortEventWiring {
             bus.publish("world:leave", new WorldLeaveEvent());
             phase(moduleRunner, () -> modules.unloadPhase(ScriptMeta.Lifecycle.WORLD));
         });
+        // A resource reload completes after game:start in production (the
+        // fabric client-started hook runs while the boot loading overlay is
+        // still up), so the startup pack list already has subscribers.
+        adapter.lifecycle().onResourcePackLoaded(data ->
+                bus.publish("game:resourcePack", new GameResourcePackEvent(
+                        data.isGameStart(), data.loadedPacks())));
         adapter.chat().onChatReceive(message ->
                 bus.publish("chat:receive", new ChatReceiveEvent(message)));
         adapter.chat().onChatSend(message -> {
@@ -307,6 +314,7 @@ public final class PortEventWiring {
         private long lastTime;
         private boolean timeInitialized;
         private final java.util.Map<java.util.UUID, Double> entityHealth = new java.util.HashMap<>();
+        private final java.util.Map<java.util.UUID, String> lastCustomNames = new java.util.HashMap<>();
         private final java.util.Map<String, ink.tuanzi.neomacros.port.model.EffectSnapshot>
                 lastEffects = new java.util.HashMap<>();
         private String lastGamemode;
@@ -360,7 +368,11 @@ public final class PortEventWiring {
             }
             last = now;
             emitWorld(adapter, now);
-            emitEntityHealth(adapter, now);
+            List<EntitySnapshot> nearby = adapter.entity().inRadius(now.pos(),
+                    ENTITY_HEALTH_RANGE,
+                    entity -> !entity.uuid().equals(now.uuid()));
+            emitEntityHealth(nearby);
+            emitEntityNameChanges(adapter, now, nearby);
             emitDerived(adapter, now);
             emitRiding(adapter);
             emitArmor(adapter);
@@ -382,6 +394,7 @@ public final class PortEventWiring {
             lastDimension = null;
             timeInitialized = false;
             entityHealth.clear();
+            lastCustomNames.clear();
             lastEffects.clear();
             lastVehicle = null;
             lastArmor = null;
@@ -486,14 +499,12 @@ public final class PortEventWiring {
         }
 
         /**
-         * Diffs nearby entity health against the previous tick and publishes
-         * entity:damage / entity:heal. Entities leaving the radius are
-         * forgotten so re-entering them does not replay a stale delta.
+         * Diffs the health of the given nearby entities against the previous
+         * tick and publishes entity:damage / entity:heal. Entities leaving
+         * the radius are forgotten so re-entering them does not replay a
+         * stale delta.
          */
-        private void emitEntityHealth(NeomacrosAdapter adapter, PlayerSnapshot self) {
-            List<EntitySnapshot> nearby = adapter.entity().inRadius(
-                    self.pos(), ENTITY_HEALTH_RANGE,
-                    entity -> !entity.uuid().equals(self.uuid()));
+        private void emitEntityHealth(List<EntitySnapshot> nearby) {
             java.util.Set<java.util.UUID> present = new java.util.HashSet<>();
             for (EntitySnapshot entity : nearby) {
                 present.add(entity.uuid());
@@ -513,6 +524,44 @@ public final class PortEventWiring {
                 }
             }
             entityHealth.keySet().removeIf(uuid -> !present.contains(uuid));
+        }
+
+        /**
+         * Diffs the custom name of the local player and every nearby entity
+         * against the previous tick and publishes entity:customName only on
+         * actual changes; the first sample per entity is a baseline and
+         * entities leaving the radius are forgotten so re-entry cannot
+         * replay a stale name. Diff gating is the high-traffic suppression:
+         * no-op sync echoes never publish, and the per-entity rate is
+         * bounded by the observed rename rate.
+         */
+        private void emitEntityNameChanges(NeomacrosAdapter adapter, PlayerSnapshot self,
+                List<EntitySnapshot> nearby) {
+            java.util.Set<java.util.UUID> present = new java.util.HashSet<>();
+            present.add(self.uuid());
+            diffCustomName(adapter, self.uuid());
+            for (EntitySnapshot entity : nearby) {
+                present.add(entity.uuid());
+                diffCustomName(adapter, entity.uuid());
+            }
+            lastCustomNames.keySet().removeIf(uuid -> !present.contains(uuid));
+        }
+
+        /** Publishes one entity's custom-name edge when the value actually moved. */
+        private void diffCustomName(NeomacrosAdapter adapter, java.util.UUID uuid) {
+            Object value = adapter.entity().entityState(uuid).get("customName");
+            String current = value instanceof String text ? text : null;
+            if (!lastCustomNames.containsKey(uuid)) {
+                lastCustomNames.put(uuid, current);
+                return;
+            }
+            String previous = lastCustomNames.put(uuid, current);
+            if (java.util.Objects.equals(previous, current)) {
+                return;
+            }
+            bus.publish("entity:customName",
+                    new ink.tuanzi.neomacros.core.event.def.entity.EntityCustomNameEvent(
+                            uuid, previous, current));
         }
 
         /**

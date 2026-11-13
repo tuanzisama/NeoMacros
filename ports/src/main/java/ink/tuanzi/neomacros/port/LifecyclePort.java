@@ -29,6 +29,19 @@ public interface LifecyclePort {
     /** Registers a sink invoked when the player leaves a world. */
     void onWorldLeave(Runnable sink);
 
+    /**
+     * Registers a sink invoked when a client resource reload completes
+     * (boot load or a later F3+T / pack / language reload); the payload
+     * carries the boot-load flag and the selected pack identifiers copied
+     * at completion. Implementations without a reload source never invoke
+     * the sink.
+     *
+     * @zh 注册客户端资源重载完成（启动加载或后续 F3+T / 资源包 / 语言重载）时调用的接收器；载荷携带启动加载标记与完成时复制的已选中资源包标识。无重载来源的实现永不调用。
+     */
+    default void onResourcePackLoaded(
+            java.util.function.Consumer<ink.tuanzi.neomacros.port.model.ResourcePackLoadData> sink) {
+    }
+
     /** Supplies whether the player is currently in a loaded world. */
     Supplier<Boolean> inWorld();
 

@@ -89,6 +89,7 @@ class EventBusWildcardTest {
         assertTrue(ignores.contains("sound:*"));
         assertTrue(ignores.contains("world:blockUpdate"));
         assertTrue(ignores.contains("entity:metadata"));
+        assertTrue(ignores.contains("entity:customName"));
     }
 
     @Test

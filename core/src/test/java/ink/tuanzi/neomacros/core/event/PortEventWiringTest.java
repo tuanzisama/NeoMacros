@@ -39,6 +39,7 @@ import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -376,6 +377,74 @@ class PortEventWiringTest {
         adapter.entityPort.nearby = List.of(entity(zombie, 15.0));
         fireTicks(adapter, clock, 1);
         assertTrue(published.stream().noneMatch(p -> p.name().startsWith("entity:")),
+                "events were: " + names(published));
+        runtime.close();
+    }
+
+    @Test
+    void resourcePackAndCustomNamePublishFromTheirSources() {
+        var published = new ArrayList<Published>();
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var clock = new TickClock();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-g016")), clock);
+        recordAll(published, bus, catalog);
+
+        // The lifecycle resource-pack sink publishes the boot flag and list.
+        adapter.lifecyclePort.fireResourcePackLoaded(true, List.of("vanilla", "file/g016"));
+        var pack = published.stream()
+                .filter(p -> p.name().equals("game:resourcePack")).findFirst().orElseThrow();
+        var packPayload = (ink.tuanzi.neomacros.core.event.def.lifecycle.GameResourcePackEvent)
+                pack.payload();
+        assertTrue(packPayload.isGameStart());
+        assertEquals(List.of("vanilla", "file/g016"), packPayload.loadedPacks());
+
+        // Custom names: the first sample is a baseline; every real edge publishes.
+        published.clear();
+        adapter.playerPort.self = snapshot(20.0);
+        var zombie = java.util.UUID.randomUUID();
+        adapter.entityPort.nearby = List.of(entity(zombie, 20.0));
+        fireTicks(adapter, clock, 1);
+        assertTrue(published.stream().noneMatch(p -> p.name().equals("entity:customName")),
+                "first sight must not fire a name change: " + names(published));
+
+        published.clear();
+        adapter.entityPort.state.put("customName", "Bob");
+        fireTicks(adapter, clock, 1);
+        var set = published.stream()
+                .filter(p -> p.name().equals("entity:customName")).findFirst().orElseThrow();
+        var setPayload = (ink.tuanzi.neomacros.core.event.def.entity.EntityCustomNameEvent)
+                set.payload();
+        assertEquals(zombie, setPayload.uuid());
+        assertNull(setPayload.oldName(), "no previous custom name reads as null");
+        assertEquals("Bob", setPayload.newName());
+
+        published.clear();
+        adapter.entityPort.state.put("customName", "Robert");
+        fireTicks(adapter, clock, 1);
+        var rename = published.stream()
+                .filter(p -> p.name().equals("entity:customName")).findFirst().orElseThrow();
+        var renamePayload = (ink.tuanzi.neomacros.core.event.def.entity.EntityCustomNameEvent)
+                rename.payload();
+        assertEquals(zombie, renamePayload.uuid());
+        assertEquals("Bob", renamePayload.oldName());
+        assertEquals("Robert", renamePayload.newName());
+
+        published.clear();
+        adapter.entityPort.state.remove("customName");
+        fireTicks(adapter, clock, 1);
+        var clear = published.stream()
+                .filter(p -> p.name().equals("entity:customName")).findFirst().orElseThrow();
+        var clearPayload = (ink.tuanzi.neomacros.core.event.def.entity.EntityCustomNameEvent)
+                clear.payload();
+        assertEquals("Robert", clearPayload.oldName());
+        assertNull(clearPayload.newName(), "a cleared name reads as null");
+
+        // The same name twice publishes nothing.
+        published.clear();
+        fireTicks(adapter, clock, 1);
+        assertTrue(published.stream().noneMatch(p -> p.name().equals("entity:customName")),
                 "events were: " + names(published));
         runtime.close();
     }
@@ -1014,6 +1083,8 @@ class PortEventWiringTest {
     private static final class StubLifecycle implements LifecyclePort {
         final List<Consumer<Long>> ticks = new CopyOnWriteArrayList<>();
         final List<Runnable> leaves = new CopyOnWriteArrayList<>();
+        final List<Consumer<ink.tuanzi.neomacros.port.model.ResourcePackLoadData>>
+                resourcePacks = new CopyOnWriteArrayList<>();
         volatile java.util.Optional<ScreenInfo> screen = java.util.Optional.empty();
 
         void fireTick(long tick) {
@@ -1024,6 +1095,12 @@ class PortEventWiringTest {
             leaves.forEach(Runnable::run);
         }
 
+        void fireResourcePackLoaded(boolean isGameStart, List<String> loadedPacks) {
+            var data = new ink.tuanzi.neomacros.port.model.ResourcePackLoadData(
+                    isGameStart, loadedPacks);
+            resourcePacks.forEach(s -> s.accept(data));
+        }
+
         @Override
         public java.util.Optional<ScreenInfo> screenInfo() {
             return screen;
@@ -1032,6 +1109,12 @@ class PortEventWiringTest {
         @Override
         public void onTick(Consumer<Long> sink) {
             ticks.add(sink);
+        }
+
+        @Override
+        public void onResourcePackLoaded(
+                Consumer<ink.tuanzi.neomacros.port.model.ResourcePackLoadData> sink) {
+            resourcePacks.add(sink);
         }
 
         @Override
@@ -1163,10 +1246,19 @@ class PortEventWiringTest {
 
     private static final class StubEntity implements EntityPort {
         volatile List<EntitySnapshot> nearby = List.of();
+        final java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
 
         @Override
         public Optional<EntitySnapshot> byUuid(UUID uuid) {
             return nearby.stream().filter(e -> e.uuid().equals(uuid)).findFirst();
+        }
+
+        @Override
+        public java.util.Map<String, Object> entityState(UUID uuid) {
+            return byUuid(uuid)
+                    .<java.util.Map<String, Object>>map(
+                            s -> new java.util.LinkedHashMap<>(state))
+                    .orElse(java.util.Map.of());
         }
 
         @Override
