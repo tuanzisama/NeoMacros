@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.port;
 
 import ink.tuanzi.neomacros.port.model.BlockData;
+import ink.tuanzi.neomacros.port.model.BlockTypeData;
 import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
 import ink.tuanzi.neomacros.port.model.LightData;
@@ -158,6 +159,51 @@ public interface WorldPort {
      * chunk is not loaded.
      */
     default java.util.Optional<ChunkData> chunkAt(Pos3d pos) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the registry-level facts of one block type (identifier,
+     * display name, tags, physics multipliers, default state, all states,
+     * item form), or empty for an unknown identifier.
+     */
+    default java.util.Optional<BlockTypeData> blockType(String blockId) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Whether the block state present at {@code pos} allows spawning the
+     * given entity type in the loaded world; empty without a world, false
+     * for an unknown entity identifier.
+     */
+    default java.util.Optional<Boolean> allowsSpawningAt(Pos3d pos, String entityId) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Whether the block state present at {@code pos} suffocates entities
+     * inside it in the loaded world; empty without a world.
+     */
+    default java.util.Optional<Boolean> suffocatesAt(Pos3d pos) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Whether the loaded chunk contains the requested block ids (all when
+     * {@code requireAll}, any otherwise); empty without a world. An
+     * unresolvable id never matches and fails {@code requireAll} outright.
+     */
+    default java.util.Optional<Boolean> chunkContains(int chunkX, int chunkZ,
+            java.util.List<String> blockIds, boolean requireAll) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the raw host block entity at the position (opaque to core,
+     * the real game object in the adapter), or empty when unloaded or the
+     * block carries none.
+     */
+    default java.util.Optional<Object> rawBlockEntityByPos(Pos3d pos) {
         return java.util.Optional.empty();
     }
 

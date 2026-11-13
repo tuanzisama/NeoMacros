@@ -14,6 +14,7 @@ import ink.tuanzi.neomacros.port.PlayerPort;
 import ink.tuanzi.neomacros.port.WorldPort;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
+import ink.tuanzi.neomacros.port.model.BlockTypeData;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
 import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.LightData;
@@ -785,6 +786,18 @@ public final class StubAdapter implements NeomacrosAdapter {
         ChunkData chunk;
         public Pos3d respawnPos;
         public LightData light;
+        /** Canned registry-level block type facts (null = unknown block). */
+        public BlockTypeData blockType;
+        /** Canned answer for containsAny queries (null = no world). */
+        public Boolean chunkContainsAny;
+        /** Canned answer for containsAll queries (null = no world). */
+        public Boolean chunkContainsAll;
+        /** Canned allowsSpawning answer (null = no world). */
+        public Boolean allowsSpawning;
+        /** Canned shouldSuffocate answer (null = no world). */
+        public Boolean suffocates;
+        /** Canned raw block entity object (null = none / no world). */
+        public Object rawBlockEntity;
         public final java.util.List<Pos3d> foundBlocks = new ArrayList<>();
         /** Paths recorded by playSoundFile, in call order. */
         public final java.util.List<String> playedSoundFiles = new ArrayList<>();
@@ -804,6 +817,33 @@ public final class StubAdapter implements NeomacrosAdapter {
             this.raycastHit = hit;
         }
 
+        /** Sets the canned chunk (null = no world). */
+        public void setChunk(ChunkData data) {
+            this.chunk = data;
+        }
+
+        /** Sets the canned block type facts (null = unknown block). */
+        public void setBlockType(BlockTypeData data) {
+            this.blockType = data;
+        }
+
+        /** Sets the canned containsAny/containsAll answers. */
+        public void setChunkContains(Boolean any, Boolean all) {
+            this.chunkContainsAny = any;
+            this.chunkContainsAll = all;
+        }
+
+        /** Sets the canned allowsSpawning/shouldSuffocate answers. */
+        public void setStateQueries(Boolean spawning, Boolean suffocating) {
+            this.allowsSpawning = spawning;
+            this.suffocates = suffocating;
+        }
+
+        /** Sets the canned raw block entity object (null = none). */
+        public void setRawBlockEntity(Object entity) {
+            this.rawBlockEntity = entity;
+        }
+
         /** Sets the canned respawn position (null = no world). */
         public void setRespawnPos(Pos3d pos) {
             this.respawnPos = pos;
@@ -812,6 +852,38 @@ public final class StubAdapter implements NeomacrosAdapter {
         /** Sets the canned light levels (null = no world). */
         public void setLight(LightData data) {
             this.light = data;
+        }
+
+        @Override
+        public Optional<BlockTypeData> blockType(String blockId) {
+            return java.util.Optional.ofNullable(blockType);
+        }
+
+        @Override
+        public Optional<ChunkData> chunkAt(Pos3d pos) {
+            return java.util.Optional.ofNullable(chunk);
+        }
+
+        @Override
+        public java.util.Optional<Boolean> allowsSpawningAt(Pos3d pos, String entityId) {
+            return java.util.Optional.ofNullable(allowsSpawning);
+        }
+
+        @Override
+        public java.util.Optional<Boolean> suffocatesAt(Pos3d pos) {
+            return java.util.Optional.ofNullable(suffocates);
+        }
+
+        @Override
+        public java.util.Optional<Boolean> chunkContains(int chunkX, int chunkZ,
+                List<String> blockIds, boolean requireAll) {
+            return java.util.Optional.ofNullable(
+                    requireAll ? chunkContainsAll : chunkContainsAny);
+        }
+
+        @Override
+        public java.util.Optional<Object> rawBlockEntityByPos(Pos3d pos) {
+            return java.util.Optional.ofNullable(rawBlockEntity);
         }
 
         @Override

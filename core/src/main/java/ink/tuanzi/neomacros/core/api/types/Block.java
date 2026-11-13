@@ -113,6 +113,164 @@ public final class Block implements ScriptHandle {
         return snapshot().isPresent();
     }
 
+    /** The registered default state of the block type, or undefined when unloaded.
+     * @zh 方块类型的注册默认状态；未加载时为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public BlockState getDefaultState() {
+        return type().map(data -> new BlockState(data.id(), data.defaultState()))
+                .orElse(null);
+    }
+
+    /** The item form of the block as a stack of one, or undefined when the block has no item.
+     * @zh 方块的物品形态（数量 1）；方块无物品形态时为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public ink.tuanzi.neomacros.core.api.types.ItemStack getDefaultItemStack() {
+        return type().flatMap(data -> java.util.Optional.ofNullable(data.defaultItemStack()))
+                .map(ink.tuanzi.neomacros.core.api.types.ItemStack::of)
+                .orElse(null);
+    }
+
+    /** Whether mobs can spawn inside the block's default state (non-solid, non-liquid).
+     * @zh 生物是否可在该方块默认状态内生成（非固体且非液体）。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean canMobSpawnInside() {
+        return type().map(ink.tuanzi.neomacros.port.model.BlockTypeData::canMobSpawnInside)
+                .orElse(null);
+    }
+
+    /** Whether the block's shape is marked dynamic.
+     * @zh 该方块的碰撞形状是否标记为动态。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean hasDynamicBounds() {
+        return type().map(ink.tuanzi.neomacros.port.model.BlockTypeData::hasDynamicBounds)
+                .orElse(null);
+    }
+
+    /** The block's explosion resistance factor.
+     * @zh 方块的爆炸抗性系数。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Float getBlastResistance() {
+        return type().map(ink.tuanzi.neomacros.port.model.BlockTypeData::blastResistance)
+                .orElse(null);
+    }
+
+    /** The jump boost multiplier applied when standing on the block.
+     * @zh 站在该方块上时的跳跃增益倍率。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Float getJumpVelocityMultiplier() {
+        return type().map(ink.tuanzi.neomacros.port.model.BlockTypeData::jumpVelocityMultiplier)
+                .orElse(null);
+    }
+
+    /** The friction (slipperiness) value of the block.
+     * @zh 方块的摩擦（滑动）系数。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Float getSlipperiness() {
+        return type().map(ink.tuanzi.neomacros.port.model.BlockTypeData::slipperiness)
+                .orElse(null);
+    }
+
+    /** The entity movement speed factor of the block.
+     * @zh 方块上的实体移动速度倍率。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Float getVelocityMultiplier() {
+        return type().map(ink.tuanzi.neomacros.port.model.BlockTypeData::velocityMultiplier)
+                .orElse(null);
+    }
+
+    /** The full block tag identifiers assigned to the block, empty when unloaded or untagged.
+     * @zh 该方块所属的全部方块标签标识；未加载或无标签时为空数组。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public java.util.List<String> getTags() {
+        return type().map(data -> java.util.List.copyOf(data.tags())).orElse(null);
+    }
+
+    /**
+     * Whether the block belongs to the block tag. Unknown tags and tags of
+     * other registries answer false; an unloaded world answers undefined.
+     *
+     * @zh 该方块是否属于指定方块标签；未知标签或其他注册表的标签为 false，未加载世界为 undefined。
+     * @zh-param tag 标签名，可带 {@code #} 前缀、可省略命名空间
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean hasTag(String tag) {
+        ink.tuanzi.neomacros.port.model.BlockTypeData data = type().orElse(null);
+        if (data == null) {
+            return null;
+        }
+        return data.tags().contains(normalizeTag(tag));
+    }
+
+    /** Every possible state defined for the block, or undefined when unloaded.
+     * @zh 该方块定义的全部可能状态；未加载时为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public java.util.List<BlockState> getStates() {
+        return type().map(data -> data.states().stream()
+                .map(props -> new BlockState(data.id(), props))
+                .toList()).orElse(null);
+    }
+
+    /** The block's translated display name.
+     * @zh 方块的翻译显示名称。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getName() {
+        return type().map(ink.tuanzi.neomacros.port.model.BlockTypeData::name).orElse(null);
+    }
+
+    /**
+     * Escape hatch: the raw host block entity object at this position, or
+     * undefined when unloaded or the block carries none. Requires the
+     * {@code java} permission.
+     *
+     * @zh 穿透口：此处的原始宿主方块实体对象（需 java 权限）；未加载或无方块实体时为 undefined。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiPermission("java")
+    @ApiType("JavaObject")
+    public Object getRawBlockEntity() {
+        return ScriptApiEnvironment.adapter().world()
+                .rawBlockEntityByPos(new ink.tuanzi.neomacros.port.model.Pos3d(
+                        pos.getX(), pos.getY(), pos.getZ())).orElse(null);
+    }
+
     /** Human-readable form.
      * @zh 人类可读形式。 */
     @Override
@@ -131,5 +289,17 @@ public final class Block implements ScriptHandle {
     private Optional<ink.tuanzi.neomacros.port.model.BlockData> snapshot(BlockPos at) {
         return ScriptApiEnvironment.adapter().world().blockAt(
                 new ink.tuanzi.neomacros.port.model.Pos3d(at.getX(), at.getY(), at.getZ()));
+    }
+
+    /** The registry-level facts of the block currently at the position, or empty. */
+    private Optional<ink.tuanzi.neomacros.port.model.BlockTypeData> type() {
+        return snapshot().flatMap(data ->
+                ScriptApiEnvironment.adapter().world().blockType(data.id()));
+    }
+
+    /** Normalizes one tag reference: an optional {@code #} prefix and a default namespace. */
+    private static String normalizeTag(String tag) {
+        String id = tag.startsWith("#") ? tag.substring(1) : tag;
+        return id.indexOf(':') >= 0 ? id : "minecraft:" + id;
     }
 }

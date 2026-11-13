@@ -108,6 +108,23 @@ public final class RayHit implements ScriptHandle {
                 .orElse(false);
     }
 
+    /**
+     * Whether the block hit landed strictly inside the block bounds rather
+     * than on its surface; undefined on entity hits and misses.
+     *
+     * @zh 方块命中是否落在方块边界内部而非表面；命中实体或未命中时为 undefined。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean isInsideBlock() {
+        return snapshot()
+                .filter(hit -> hit.block() != null)
+                .map(hit -> hit.block().inside())
+                .orElse(null);
+    }
+
     /** Re-runs the raycast for the live members. */
     private Optional<ink.tuanzi.neomacros.port.model.RayHit> snapshot() {
         var from = new ink.tuanzi.neomacros.port.model.Pos3d(

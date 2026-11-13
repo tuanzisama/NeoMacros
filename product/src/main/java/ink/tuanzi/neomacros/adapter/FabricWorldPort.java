@@ -119,7 +119,7 @@ public final class FabricWorldPort implements WorldPort {
             BlockPos blockPos = blockHit.getBlockPos();
             BlockState state = level.getBlockState(blockPos);
             var block = new BlockInteraction(blockId(state), toPos3d(blockPos),
-                    blockHit.getDirection().getName());
+                    blockHit.getDirection().getName(), blockHit.isInside());
             return Optional.of(new RayHit(block, null, toPos3dFrom(blockHit.getLocation()), blockDist));
         });
     }
@@ -538,10 +538,171 @@ public final class FabricWorldPort implements WorldPort {
         extras.put("pistonBehaviour", base.getPistonPushReaction()
                 .name().toLowerCase(java.util.Locale.ROOT));
         extras.put("suffocating", base.isSuffocating(level(), pos));
-        extras.put("fluid", base.getFluidState().isEmpty() ? null
-                : net.minecraft.core.registries.BuiltInRegistries.FLUID
-                        .getKey(base.getFluidState().getType()).toString());
+        // A dry state carries no key: BlockData copies extras through
+        // Map.copyOf, which rejects null values (the old unconditional
+        // put("fluid", null) failed every blockAt on a dry block).
+        if (!base.getFluidState().isEmpty()) {
+            extras.put("fluid", net.minecraft.core.registries.BuiltInRegistries.FLUID
+                    .getKey(base.getFluidState().getType()).toString());
+        }
+        extras.putAll(stateFlags(state));
         return extras;
+    }
+
+    /**
+     * The position-independent physics flags of one block state: the
+     * exceeds-cube shape, the comparator output, the legacy movement
+     * blocking flag (cobweb/bamboo-sapling excluded, inlined because
+     * {@code blocksMotion()} is gone on 26.x), and the legacy solid flag.
+     */
+    private static Map<String, Object> stateFlags(BlockState state) {
+        var base = (net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase) state;
+        Map<String, Object> flags = new LinkedHashMap<>();
+        flags.put("exceedsCube", base.hasLargeCollisionShape());
+        flags.put("hasComparatorOutput", base.hasAnalogOutputSignal());
+        var block = state.getBlock();
+        flags.put("blocksMovement",
+                block != net.minecraft.world.level.block.Blocks.COBWEB
+                && block != net.minecraft.world.level.block.Blocks.BAMBOO_SAPLING
+                && base.isSolid());
+        flags.put("isSolid", base.isSolid());
+        return flags;
+    }
+
+    @Override
+    public java.util.Optional<ink.tuanzi.neomacros.port.model.BlockTypeData> blockType(
+            String blockId) {
+        Identifier id = resolveIdentifier(blockId);
+        if (id == null) {
+            return java.util.Optional.empty();
+        }
+        var block = BuiltInRegistries.BLOCK.getValue(id);
+        if (block == null) {
+            return java.util.Optional.empty();
+        }
+        java.util.List<String> tags = new ArrayList<>();
+        block.builtInRegistryHolder().tags()
+                .forEach(tag -> tags.add(tag.location().toString()));
+        BlockState defaultState = block.defaultBlockState();
+        java.util.List<Map<String, String>> states = new ArrayList<>();
+        for (BlockState state : block.getStateDefinition().getPossibleStates()) {
+            states.add(stateProperties(state));
+        }
+        var stack = block.asItem().getDefaultInstance();
+        ink.tuanzi.neomacros.port.model.ItemStackData item =
+                stack.isEmpty() ? null : FabricInventoryPort.stackDataOf(stack);
+        return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.BlockTypeData(
+                BuiltInRegistries.BLOCK.getKey(block).toString(),
+                block.getName().getString(), tags,
+                block.getExplosionResistance(), block.getJumpFactor(),
+                block.getFriction(), block.getSpeedFactor(),
+                block.isPossibleToRespawnInThis(defaultState), block.hasDynamicShape(),
+                stateProperties(defaultState), states, item));
+    }
+
+    @Override
+    public java.util.Optional<Boolean> allowsSpawningAt(Pos3d pos, String entityId) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return java.util.Optional.empty();
+            }
+            BlockPos blockPos = BlockPos.containing(pos.x(), pos.y(), pos.z());
+            Identifier type = resolveIdentifier(entityId);
+            var entityType = type == null ? null : BuiltInRegistries.ENTITY_TYPE.getValue(type);
+            if (entityType == null) {
+                return java.util.Optional.of(false);
+            }
+            return java.util.Optional.of(
+                    level.getBlockState(blockPos).isValidSpawn(level, blockPos, entityType));
+        });
+    }
+
+    @Override
+    public java.util.Optional<Boolean> suffocatesAt(Pos3d pos) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return java.util.Optional.empty();
+            }
+            BlockPos blockPos = BlockPos.containing(pos.x(), pos.y(), pos.z());
+            return java.util.Optional.of(
+                    level.getBlockState(blockPos).isSuffocating(level, blockPos));
+        });
+    }
+
+    @Override
+    public java.util.Optional<Boolean> chunkContains(int chunkX, int chunkZ,
+            java.util.List<String> blockIds, boolean requireAll) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return java.util.Optional.empty();
+            }
+            var chunk = level.getChunkAt(
+                    new BlockPos(chunkX * 16 + 8, 64, chunkZ * 16 + 8));
+            java.util.Set<net.minecraft.world.level.block.Block> targets =
+                    new java.util.HashSet<>();
+            for (String raw : blockIds) {
+                Identifier id = resolveIdentifier(raw);
+                var block = id == null ? null : BuiltInRegistries.BLOCK.getValue(id);
+                if (block == null) {
+                    // An unresolvable id can never be present; it fails an
+                    // all-of request outright and never matches any-of.
+                    if (requireAll) {
+                        return java.util.Optional.of(false);
+                    }
+                    continue;
+                }
+                targets.add(block);
+            }
+            if (targets.isEmpty()) {
+                return java.util.Optional.of(requireAll);
+            }
+            if (requireAll) {
+                java.util.Set<net.minecraft.world.level.block.Block> remaining =
+                        new java.util.HashSet<>(targets);
+                for (var section : chunk.getSections()) {
+                    if (section.hasOnlyAir()) {
+                        continue;
+                    }
+                    for (var candidate : java.util.List.copyOf(remaining)) {
+                        if (section.maybeHas(state -> state.getBlock() == candidate)) {
+                            remaining.remove(candidate);
+                        }
+                    }
+                    if (remaining.isEmpty()) {
+                        break;
+                    }
+                }
+                return java.util.Optional.of(remaining.isEmpty());
+            }
+            for (var section : chunk.getSections()) {
+                if (section.hasOnlyAir()) {
+                    continue;
+                }
+                if (section.maybeHas(state -> targets.contains(state.getBlock()))) {
+                    return java.util.Optional.of(true);
+                }
+            }
+            return java.util.Optional.of(false);
+        });
+    }
+
+    @Override
+    public java.util.Optional<Object> rawBlockEntityByPos(Pos3d pos) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return java.util.Optional.empty();
+            }
+            var blockPos = new BlockPos((int) Math.floor(pos.x()),
+                    (int) Math.floor(pos.y()), (int) Math.floor(pos.z()));
+            var blockEntity = level.getBlockEntity(blockPos);
+            return blockEntity == null
+                    ? java.util.Optional.empty()
+                    : java.util.Optional.<Object>of(blockEntity);
+        });
     }
 
     /** The client level for state queries. */
