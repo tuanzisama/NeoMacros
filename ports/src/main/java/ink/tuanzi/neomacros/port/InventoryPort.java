@@ -313,4 +313,122 @@ public interface InventoryPort {
     default java.util.concurrent.CompletableFuture<Void> setRecipeBookOpen(boolean open) {
         throw new UnsupportedOperationException("inventory actions");
     }
+
+    // === container menu face ===
+
+    /**
+     * The rename-box text of the open anvil screen, or empty without an
+     * anvil screen. This is box text, not a guarantee that the anvil
+     * produces a result.
+     */
+    default java.util.Optional<String> anvilItemName() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Writes the rename-box text of the open anvil screen, re-running the
+     * menu's result and cost computation; a no-op without an anvil screen.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setAnvilItemName(String name) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Whether the stack burns as furnace fuel in the current level, or
+     * {@code null} when no level is loaded.
+     */
+    default Boolean isFuel(ItemStackData stack) {
+        return null;
+    }
+
+    /**
+     * Whether the open furnace menu accepts the stack as a smelting input,
+     * or {@code null} without an open furnace-family menu.
+     */
+    default Boolean isSmeltable(ItemStackData stack) {
+        return null;
+    }
+
+    /**
+     * The level's fuel values keyed by item id with burn ticks as the
+     * value; an empty map when the level does not expose them.
+     */
+    default java.util.Map<String, Integer> fuelValues() {
+        return java.util.Map.of();
+    }
+
+    /**
+     * Whether the stack holds a potion type used as the result of a brewing
+     * recipe, or {@code null} when brewing recipes are unavailable.
+     */
+    default Boolean isBrewablePotion(ItemStackData potion) {
+        return null;
+    }
+
+    /**
+     * Whether the stack is a valid brewing ingredient, or {@code null} when
+     * brewing recipes are unavailable.
+     */
+    default Boolean isValidIngredient(ItemStackData ingredient) {
+        return null;
+    }
+
+    /**
+     * Whether the potion and the ingredient can be brewed together, or
+     * {@code null} when brewing recipes are unavailable.
+     */
+    default Boolean isValidRecipe(ItemStackData potion, ItemStackData ingredient) {
+        return null;
+    }
+
+    /**
+     * The stack the potion becomes when the ingredient is brewed into it,
+     * or empty when no mix applies.
+     */
+    default java.util.Optional<ItemStackData> previewPotion(
+            ItemStackData potion, ItemStackData ingredient) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Highlights the primary effect on the open beacon screen (client-side
+     * until applied); resolves {@code false} when the id matches nothing
+     * reachable at the current beacon level.
+     */
+    default java.util.concurrent.CompletableFuture<Boolean> selectBeaconPrimaryEffect(String id) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Highlights the secondary effect on the open beacon screen (client-side
+     * until applied); resolves {@code false} when the id matches nothing
+     * reachable at the current beacon level.
+     */
+    default java.util.concurrent.CompletableFuture<Boolean> selectBeaconSecondaryEffect(String id) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Sends the beacon's selected effects to the server and closes the
+     * screen; resolves {@code false} when the payment slot is empty.
+     */
+    default java.util.concurrent.CompletableFuture<Boolean> applyBeaconEffects() {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Requests the enchanting table to buy one of its three options;
+     * resolves {@code false} when the local menu check refuses the index.
+     */
+    default java.util.concurrent.CompletableFuture<Boolean> doEnchant(int index) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Selects one of the stonecutter's currently visible recipes by index;
+     * an out-of-range index is a no-op.
+     */
+    default java.util.concurrent.CompletableFuture<Void> selectStonecutterRecipe(int index) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
 }

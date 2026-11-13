@@ -97,11 +97,46 @@ public final class FabricInventoryPort implements InventoryPort {
         // them as ItemStack.damage/maxDamage (previously hardcoded to 0).
         Integer damage = stack.get(net.minecraft.core.component.DataComponents.DAMAGE);
         Integer maxDamage = stack.get(net.minecraft.core.component.DataComponents.MAX_DAMAGE);
+        // The potion type rides in extras so brewing reads can rebuild a
+        // stack from a neutral snapshot without carrying MC components.
+        var potion = stack.get(net.minecraft.core.component.DataComponents.POTION_CONTENTS);
+        if (potion != null) {
+            potion.potion().ifPresent(holder -> extras.put("potion", holder.getRegisteredName()));
+        }
         return new ItemStackData(idOf(stack), stack.getCount(),
                 stack.getItemName().getString(),
                 damage != null ? damage : 0,
                 maxDamage != null ? maxDamage : 0,
                 java.util.List.of(), java.util.List.of(), extras);
+    }
+
+    /**
+     * Rebuilds one MC stack from a neutral snapshot: item and count carry
+     * over, and a potion type recorded in the extras goes back onto the
+     * {@code POTION_CONTENTS} component so brewing queries see it.
+     */
+    static net.minecraft.world.item.ItemStack mcStack(ink.tuanzi.neomacros.port.model.ItemStackData data) {
+        if (data == null) {
+            return net.minecraft.world.item.ItemStack.EMPTY;
+        }
+        var location = net.minecraft.resources.Identifier.tryParse(data.id());
+        var item = location == null ? null
+                : net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(location);
+        if (item == null) {
+            return net.minecraft.world.item.ItemStack.EMPTY;
+        }
+        net.minecraft.world.item.ItemStack stack =
+                new net.minecraft.world.item.ItemStack(item, Math.max(0, data.count()));
+        if (data.extras().get("potion") instanceof String potionId) {
+            var potion = net.minecraft.resources.Identifier.tryParse(potionId);
+            var holder = potion == null ? null
+                    : net.minecraft.core.registries.BuiltInRegistries.POTION.get(potion).orElse(null);
+            if (holder != null) {
+                stack.set(net.minecraft.core.component.DataComponents.POTION_CONTENTS,
+                        new net.minecraft.world.item.alchemy.PotionContents(holder));
+            }
+        }
+        return stack;
     }
 
     private static String idOf(ItemStack stack) {
@@ -214,12 +249,26 @@ public final class FabricInventoryPort implements InventoryPort {
                 state.put("isLit", furnace.isLit());
                 state.put("burnProgress", furnace.getBurnProgress());
                 state.put("litProgress", furnace.getLitProgress());
+                // Raw data slots: 0 remaining burn, 1 total burn, 2 cook
+                // progress, 3 cook total, all in ticks.
+                var data = ((ink.tuanzi.neomacros.adapter.mixin.AbstractFurnaceMenuAccessor) furnace)
+                        .neomacros$data();
+                state.put("fuelTime", data.get(0));
+                state.put("fuelTimeTotal", data.get(1));
+                state.put("smeltingTime", data.get(2));
+                state.put("smeltingTimeTotal", data.get(3));
+                return state;
+            }
+            if (menu instanceof net.minecraft.world.inventory.AnvilMenu anvil) {
+                java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+                state.put("cost", anvil.getCost());
                 return state;
             }
             if (menu instanceof net.minecraft.world.inventory.EnchantmentMenu enchanting) {
                 java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
                 state.put("costs", enchanting.costs.clone());
                 state.put("goldCount", enchanting.getGoldCount());
+                state.put("enchantments", enchantmentClues(enchanting));
                 return state;
             }
             if (menu instanceof net.minecraft.world.inventory.StonecutterMenu stonecutter) {
@@ -227,6 +276,12 @@ public final class FabricInventoryPort implements InventoryPort {
                 state.put("selectedRecipeIndex", stonecutter.getSelectedRecipeIndex());
                 state.put("recipeCount", stonecutter.getNumberOfVisibleRecipes());
                 state.put("hasInput", stonecutter.hasInputItem());
+                state.put("recipes", stonecutterResults(stonecutter));
+                return state;
+            }
+            if (menu instanceof net.minecraft.world.inventory.GrindstoneMenu) {
+                java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+                state.put("simulatedXp", simulatedGrindXp(menu));
                 return state;
             }
             if (menu instanceof net.minecraft.world.inventory.LoomMenu loom) {
@@ -238,10 +293,25 @@ public final class FabricInventoryPort implements InventoryPort {
             if (menu instanceof net.minecraft.world.inventory.BeaconMenu beacon) {
                 java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
                 state.put("levels", beacon.getLevels());
-                state.put("primaryEffect", beacon.getPrimaryEffect() != null
-                        ? beacon.getPrimaryEffect().getRegisteredName() : null);
-                state.put("secondaryEffect", beacon.getSecondaryEffect() != null
-                        ? beacon.getSecondaryEffect().getRegisteredName() : null);
+                // The screen keeps the selection the user (or a script)
+                // highlighted until it is applied; it wins over the synced
+                // menu value so a select reads back immediately.
+                net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> primary =
+                        beacon.getPrimaryEffect();
+                net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> secondary =
+                        beacon.getSecondaryEffect();
+                var screen = FabricLifecyclePort.currentScreen();
+                if (screen instanceof net.minecraft.client.gui.screens.inventory.BeaconScreen) {
+                    var layout = (ink.tuanzi.neomacros.adapter.mixin.BeaconScreenAccessor) screen;
+                    if (layout.neomacros$primary() != null) {
+                        primary = layout.neomacros$primary();
+                    }
+                    if (layout.neomacros$secondary() != null) {
+                        secondary = layout.neomacros$secondary();
+                    }
+                }
+                state.put("primaryEffect", primary != null ? effectId(primary) : null);
+                state.put("secondaryEffect", secondary != null ? effectId(secondary) : null);
                 state.put("hasPayment", beacon.hasPayment());
                 return state;
             }
@@ -249,6 +319,15 @@ public final class FabricInventoryPort implements InventoryPort {
                 java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
                 state.put("fuel", brewing.getFuel());
                 state.put("brewingTicks", brewing.getBrewingTicks());
+                //? if >=26.3 {
+                state.put("totalFuel", brewing.getTotalFuel());
+                state.put("totalBrewingTicks", brewing.getTotalBrewingTicks());
+                //?} else {
+                /* state.put("totalFuel",
+                        net.minecraft.world.level.block.entity.BrewingStandBlockEntity.FUEL_USES);
+                state.put("totalBrewingTicks",
+                        net.minecraft.world.item.alchemy.PotionBrewing.BREWING_TIME_SECONDS * 20); */
+                //?}
                 return state;
             }
             if (menu instanceof net.minecraft.world.inventory.MerchantMenu merchant) {
@@ -281,6 +360,70 @@ public final class FabricInventoryPort implements InventoryPort {
             }
             return java.util.Map.of();
         });
+    }
+
+    /**
+     * The enchanting table's three clues as {@code {id, level}} entries in
+     * option order; an unresolved clue reads as {@code null}.
+     */
+    private static java.util.List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchantmentClues(
+            net.minecraft.world.inventory.EnchantmentMenu menu) {
+        var connection = Minecraft.getInstance().getConnection();
+        net.minecraft.core.Registry<net.minecraft.world.item.enchantment.Enchantment> registry =
+                connection == null ? null
+                        : connection.registryAccess().lookupOrThrow(
+                                net.minecraft.core.registries.Registries.ENCHANTMENT);
+        java.util.List<ink.tuanzi.neomacros.port.model.EnchantmentData> out =
+                new java.util.ArrayList<>(3);
+        for (int i = 0; i < 3; i++) {
+            final int option = i;
+            if (registry == null) {
+                out.add(null);
+                continue;
+            }
+            out.add(registry.get(menu.enchantClue[option])
+                    .map(holder -> new ink.tuanzi.neomacros.port.model.EnchantmentData(
+                            holder.getRegisteredName(), menu.levelClue[option]))
+                    .orElse(null));
+        }
+        return out;
+    }
+
+    /** The stonecutter's visible recipe results, in selection-index order. */
+    private static java.util.List<ItemStackData> stonecutterResults(
+            net.minecraft.world.inventory.StonecutterMenu menu) {
+        var level = Minecraft.getInstance().level;
+        if (level == null) {
+            return java.util.List.of();
+        }
+        var context = net.minecraft.world.item.crafting.display.SlotDisplayContext.fromLevel(level);
+        java.util.List<ItemStackData> out = new java.util.ArrayList<>();
+        for (var entry : menu.getVisibleRecipes().entries()) {
+            out.add(stackDataOf(entry.recipe().optionDisplay().resolveForFirstStack(context)));
+        }
+        return out;
+    }
+
+    /** The lower bound of the experience a grindstone run would award. */
+    private static int simulatedGrindXp(net.minecraft.world.inventory.AbstractContainerMenu menu) {
+        if (menu.getItems().size() < 2) {
+            return 0;
+        }
+        int total = grindXp(menu.getItems().get(0)) + grindXp(menu.getItems().get(1));
+        return total > 0 ? (int) Math.ceil(total / 2.0) : 0;
+    }
+
+    /** Sums the minimum cost of every non-curse enchantment on one stack. */
+    private static int grindXp(net.minecraft.world.item.ItemStack stack) {
+        int total = 0;
+        var enchants = net.minecraft.world.item.enchantment.EnchantmentHelper
+                .getEnchantmentsForCrafting(stack);
+        for (var entry : enchants.entrySet()) {
+            if (!entry.getKey().is(net.minecraft.tags.EnchantmentTags.CURSE)) {
+                total += entry.getKey().value().getMinCost(entry.getIntValue());
+            }
+        }
+        return total;
     }
 
     @Override
@@ -541,6 +684,434 @@ public final class FabricInventoryPort implements InventoryPort {
             //?}
         });
     }
+
+    // === container menu face ===
+
+    @Override
+    public java.util.Optional<String> anvilItemName() {
+        return java.util.Optional.ofNullable(MainThread.run(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AnvilScreen anvil)) {
+                return null;
+            }
+            return ((ink.tuanzi.neomacros.adapter.mixin.AnvilScreenAccessor) anvil)
+                    .neomacros$name().getValue();
+        }));
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setAnvilItemName(String name) {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AnvilScreen anvil)) {
+                return;
+            }
+            ((ink.tuanzi.neomacros.adapter.mixin.AnvilScreenAccessor) anvil)
+                    .neomacros$name().setValue(name == null ? "" : name);
+        });
+    }
+
+    @Override
+    public Boolean isFuel(ItemStackData stack) {
+        if (stack == null) {
+            return null;
+        }
+        return MainThread.run(() -> {
+            var menu = openMenu();
+            if (!(menu instanceof net.minecraft.world.inventory.AbstractFurnaceMenu furnace)) {
+                return null;
+            }
+            return ((ink.tuanzi.neomacros.adapter.mixin.AbstractFurnaceMenuAccessor) furnace)
+                    .neomacros$isFuel(mcStack(stack));
+        });
+    }
+
+    @Override
+    public Boolean isSmeltable(ItemStackData stack) {
+        if (stack == null) {
+            return null;
+        }
+        return MainThread.run(() -> {
+            var menu = openMenu();
+            if (!(menu instanceof net.minecraft.world.inventory.AbstractFurnaceMenu furnace)) {
+                return null;
+            }
+            return ((ink.tuanzi.neomacros.adapter.mixin.AbstractFurnaceMenuAccessor) furnace)
+                    .neomacros$canSmelt(mcStack(stack));
+        });
+    }
+
+    @Override
+    public java.util.Map<String, Integer> fuelValues() {
+        //? if <26.3 {
+        /* return MainThread.run(() -> {
+            var level = Minecraft.getInstance().level;
+            if (level == null) {
+                return java.util.Map.<String, Integer>of();
+            }
+            var values = level.fuelValues();
+            java.util.Map<String, Integer> out = new java.util.LinkedHashMap<>();
+            for (net.minecraft.world.item.Item item : values.fuelItems()) {
+                out.put(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).toString(),
+                        values.burnDuration(new net.minecraft.world.item.ItemStack(item)));
+            }
+            return out;
+        }); */
+        //?}
+        //? if >=26.3 {
+        return MainThread.run(FabricInventoryPort::fuelValuesFromComponents);
+        //?}
+    }
+
+    @Override
+    public Boolean isBrewablePotion(ItemStackData potion) {
+        if (potion == null) {
+            return null;
+        }
+        return MainThread.run(() -> {
+            var contents = mcStack(potion)
+                    .get(net.minecraft.core.component.DataComponents.POTION_CONTENTS);
+            if (contents == null || contents.potion().isEmpty()) {
+                return Boolean.FALSE;
+            }
+            //? if >=26.3 {
+            var recipes = brewingRecipes();
+            if (recipes.isEmpty()) {
+                return null;
+            }
+            return recipes.stream().anyMatch(recipe -> {
+                var output = recipe.getOutput().create()
+                        .get(net.minecraft.core.component.DataComponents.POTION_CONTENTS);
+                return output != null && output.potion().equals(contents.potion());
+            });
+            //?} else {
+            /* var connection = Minecraft.getInstance().getConnection();
+            if (connection == null) {
+                return null;
+            }
+            return connection.potionBrewing().isBrewablePotion(contents.potion().get()); */
+            //?}
+        });
+    }
+
+    @Override
+    public Boolean isValidIngredient(ItemStackData ingredient) {
+        if (ingredient == null) {
+            return null;
+        }
+        return MainThread.run(() -> {
+            var stack = mcStack(ingredient);
+            //? if >=26.3 {
+            var recipes = brewingRecipes();
+            if (recipes.isEmpty()) {
+                return null;
+            }
+            return recipes.stream().anyMatch(recipe -> recipe.getReagent().test(stack));
+            //?} else {
+            /* var connection = Minecraft.getInstance().getConnection();
+            if (connection == null) {
+                return null;
+            }
+            return connection.potionBrewing().isIngredient(stack); */
+            //?}
+        });
+    }
+
+    @Override
+    public Boolean isValidRecipe(ItemStackData potion, ItemStackData ingredient) {
+        if (potion == null || ingredient == null) {
+            return null;
+        }
+        return MainThread.run(() -> {
+            var potionStack = mcStack(potion);
+            var ingredientStack = mcStack(ingredient);
+            //? if >=26.3 {
+            var recipes = brewingRecipes();
+            if (recipes.isEmpty()) {
+                return null;
+            }
+            var input = new net.minecraft.world.item.crafting.BrewingInput(
+                    potionStack, ingredientStack);
+            return recipes.stream().anyMatch(recipe -> recipe.matches(input));
+            //?} else {
+            /* var connection = Minecraft.getInstance().getConnection();
+            if (connection == null) {
+                return null;
+            }
+            return connection.potionBrewing().hasMix(potionStack, ingredientStack); */
+            //?}
+        });
+    }
+
+    @Override
+    public java.util.Optional<ItemStackData> previewPotion(
+            ItemStackData potion, ItemStackData ingredient) {
+        if (potion == null || ingredient == null) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.ofNullable(MainThread.run(() -> {
+            var potionStack = mcStack(potion);
+            var ingredientStack = mcStack(ingredient);
+            net.minecraft.world.item.ItemStack result;
+            //? if >=26.3 {
+            var recipes = brewingRecipes();
+            if (recipes.isEmpty()) {
+                return null;
+            }
+            var input = new net.minecraft.world.item.crafting.BrewingInput(
+                    potionStack, ingredientStack);
+            result = recipes.stream().filter(recipe -> recipe.matches(input))
+                    .findFirst()
+                    .map(recipe -> recipe.assemble(input))
+                    .orElse(potionStack);
+            //?} else {
+            /* var connection = Minecraft.getInstance().getConnection();
+            if (connection == null) {
+                return null;
+            }
+            result = connection.potionBrewing().mix(ingredientStack, potionStack); */
+            //?}
+            return stackDataOf(result);
+        }));
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> selectBeaconPrimaryEffect(String id) {
+        return dispatchValue(() -> selectBeaconEffect(id, false));
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> selectBeaconSecondaryEffect(String id) {
+        return dispatchValue(() -> selectBeaconEffect(id, true));
+    }
+
+    /**
+     * Mirrors the beacon screen's own effect search for one selection slot:
+     * the primary searches the tiers the level unlocks up to the second, the
+     * secondary needs level 3 or above and otherwise mirrors the primary.
+     * The change stays on the screen until the effects are applied.
+     */
+    private static boolean selectBeaconEffect(String id, boolean secondary) {
+        if (id == null) {
+            return false;
+        }
+        var screen = FabricLifecyclePort.currentScreen();
+        if (!(screen instanceof net.minecraft.client.gui.screens.inventory.BeaconScreen beacon)
+                || !(openMenu() instanceof net.minecraft.world.inventory.BeaconMenu menu)) {
+            return false;
+        }
+        var layout = (ink.tuanzi.neomacros.adapter.mixin.BeaconScreenAccessor) beacon;
+        int level = menu.getLevels();
+        if (!secondary) {
+            for (int tier = 0; tier < Math.min(level, 2); tier++) {
+                var match = beaconEffect(tier, id);
+                if (match != null) {
+                    layout.neomacros$primary(match);
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (level < 3) {
+            return false;
+        }
+        var primary = layout.neomacros$primary();
+        if (primary != null && id.equals(effectId(primary))) {
+            layout.neomacros$secondary(primary);
+            return true;
+        }
+        int tiers = Math.min(level,
+                net.minecraft.world.level.block.entity.BeaconBlockEntity.BEACON_EFFECTS.size());
+        for (int tier = 0; tier < tiers; tier++) {
+            var match = beaconEffect(tier, id);
+            if (match == null) {
+                continue;
+            }
+            if (primary != null && "minecraft:regeneration".equals(effectId(match))) {
+                layout.neomacros$primary(match);
+            } else {
+                layout.neomacros$primary(match);
+                layout.neomacros$secondary(match);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** One effect of the given beacon tier matching the registry id. */
+    private static net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> beaconEffect(
+            int tier, String id) {
+        var tiers = net.minecraft.world.level.block.entity.BeaconBlockEntity.BEACON_EFFECTS;
+        if (tier < 0 || tier >= tiers.size()) {
+            return null;
+        }
+        return tiers.get(tier).stream()
+                .filter(effect -> id.equals(effectId(effect)))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /** The registry id of one effect holder, or an empty string when unregistered. */
+    private static String effectId(net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> holder) {
+        var key = net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.getKey(holder.value());
+        return key == null ? "" : key.toString();
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> applyBeaconEffects() {
+        return dispatchValue(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen instanceof net.minecraft.client.gui.screens.inventory.BeaconScreen beacon)
+                    || !(openMenu() instanceof net.minecraft.world.inventory.BeaconMenu menu)
+                    || !menu.hasPayment()) {
+                return Boolean.FALSE;
+            }
+            var connection = Minecraft.getInstance().getConnection();
+            if (connection == null) {
+                return Boolean.FALSE;
+            }
+            var layout = (ink.tuanzi.neomacros.adapter.mixin.BeaconScreenAccessor) beacon;
+            connection.send(new net.minecraft.network.protocol.game.ServerboundSetBeaconPacket(
+                    java.util.Optional.ofNullable(layout.neomacros$primary()),
+                    java.util.Optional.ofNullable(layout.neomacros$secondary())));
+            var player = player();
+            if (player != null) {
+                player.closeContainer();
+            }
+            return Boolean.TRUE;
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> doEnchant(int index) {
+        return dispatchValue(() -> {
+            var menu = openMenu();
+            if (!(menu instanceof net.minecraft.world.inventory.EnchantmentMenu)) {
+                return Boolean.FALSE;
+            }
+            var player = player();
+            var gameMode = Minecraft.getInstance().gameMode;
+            if (player == null || gameMode == null || !menu.clickMenuButton(player, index)) {
+                return Boolean.FALSE;
+            }
+            gameMode.handleInventoryButtonClick(menu.containerId, index);
+            return Boolean.TRUE;
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> selectStonecutterRecipe(int index) {
+        return dispatch(() -> {
+            var menu = openMenu();
+            if (!(menu instanceof net.minecraft.world.inventory.StonecutterMenu stonecutter)) {
+                return;
+            }
+            if (index < 0 || index >= stonecutter.getNumberOfVisibleRecipes()) {
+                return;
+            }
+            var player = player();
+            var gameMode = Minecraft.getInstance().gameMode;
+            if (player == null || gameMode == null) {
+                return;
+            }
+            stonecutter.clickMenuButton(player, index);
+            gameMode.handleInventoryButtonClick(menu.containerId, index);
+        });
+    }
+
+    //? if >=26.3 {
+    /** The vanilla brewing recipe set, generated once from the bundled provider. */
+    private static volatile java.util.List<net.minecraft.world.item.crafting.BrewingRecipe> brewingRecipeCache;
+
+    private static java.util.List<net.minecraft.world.item.crafting.BrewingRecipe> brewingRecipes() {
+        var cached = brewingRecipeCache;
+        if (cached != null) {
+            return cached;
+        }
+        java.util.List<net.minecraft.world.item.crafting.BrewingRecipe> out = new java.util.ArrayList<>();
+        try {
+            new net.minecraft.data.recipes.packs.VanillaBrewingProvider(
+                    new net.minecraft.data.recipes.RecipeOutput() {
+                        @Override
+                        public void accept(
+                                net.minecraft.resources.ResourceKey<
+                                        net.minecraft.world.item.crafting.Recipe<?>> key,
+                                net.minecraft.world.item.crafting.Recipe<?> recipe,
+                                net.minecraft.advancements.AdvancementHolder advancement) {
+                            if (recipe instanceof net.minecraft.world.item.crafting.BrewingRecipe brewing) {
+                                out.add(brewing);
+                            }
+                        }
+
+                        @Override
+                        public net.minecraft.advancements.Advancement.Builder advancement() {
+                            return net.minecraft.advancements.Advancement.Builder.recipeAdvancement();
+                        }
+
+                        @Override
+                        public <S> net.minecraft.core.HolderGetter<S> lookup(
+                                net.minecraft.resources.ResourceKey<
+                                        ? extends net.minecraft.core.Registry<? extends S>> key) {
+                            throw new UnsupportedOperationException(
+                                    "brewing recipes carry no registry lookups");
+                        }
+
+                        @Override
+                        public <S> java.util.stream.Stream<net.minecraft.core.Holder.Reference<S>>
+                                listContextElements(net.minecraft.resources.ResourceKey<
+                                        ? extends net.minecraft.core.Registry<? extends S>> key) {
+                            throw new UnsupportedOperationException(
+                                    "brewing recipes carry no registry lookups");
+                        }
+                    }) {
+            }.buildRecipes();
+        } catch (RuntimeException e) {
+            return java.util.List.of();
+        }
+        brewingRecipeCache = java.util.List.copyOf(out);
+        return brewingRecipeCache;
+    }
+
+    /**
+     * Resolves fuel burn ticks from item components, which on 26.3 carry a
+     * data-driven provider tree that needs a loot context. Remote servers
+     * expose no server level to build that context with, so they read back
+     * as an empty map.
+     */
+    private static java.util.Map<String, Integer> fuelValuesFromComponents() {
+        var server = Minecraft.getInstance().getSingleplayerServer();
+        if (server == null) {
+            return java.util.Map.of();
+        }
+        try {
+            var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(server.overworld())
+                    .withParameter(
+                            net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE,
+                            net.minecraft.world.level.block.Blocks.FURNACE.defaultBlockState())
+                    .withOptionalParameter(
+                            net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN,
+                            net.minecraft.world.phys.Vec3.ZERO)
+                    .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK);
+            var context = new net.minecraft.world.level.storage.loot.LootContext.Builder(params)
+                    .create(java.util.Optional.empty());
+            java.util.Map<String, Integer> out = new java.util.LinkedHashMap<>();
+            for (net.minecraft.world.item.Item item : net.minecraft.core.registries.BuiltInRegistries.ITEM) {
+                var fuel = item.components().get(net.minecraft.core.component.DataComponents.COOKING_FUEL);
+                if (fuel == null) {
+                    continue;
+                }
+                int ticks = fuel.burnTime().get(context, 0);
+                if (ticks > 0) {
+                    out.put(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).toString(),
+                            ticks);
+                }
+            }
+            return out;
+        } catch (RuntimeException e) {
+            return java.util.Map.of();
+        }
+    }
+    //?}
 
     // === actions ===
 
