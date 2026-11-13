@@ -160,7 +160,25 @@ class ClientGapExpansionsTest {
                 1920, 1080,
                 "en_us", Boolean.FALSE,
                 List.of("vanilla"), List.of("vanilla"),
-                false, null);
+                false, null,
+                "full", true, true, true,
+                1.0, 0.5, 1.0, 0.0,
+                0.0, 1.0, 1.0, 0.4436,
+                "off", true, false, false,
+                0.5, false, 1.0, false,
+                false, true,
+                false, false, false,
+                false, false,
+                false, false);
+    }
+
+    /** The canned key-mapping catalog served to the control group reads. */
+    static ink.tuanzi.neomacros.port.model.KeybindCatalogData cannedKeybinds() {
+        return new ink.tuanzi.neomacros.port.model.KeybindCatalogData(
+                List.of("key.forward", "key.back", "key.left", "key.right"),
+                List.of("key.categories.movement"),
+                java.util.Map.of("key.categories.movement", java.util.Map.of(
+                        "Forward", "W", "Back", "S", "Left", "A", "Right", "D")));
     }
 
     /** Client port with canned fields the tests mutate directly. */

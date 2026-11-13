@@ -45,6 +45,35 @@ import java.util.List;
  * @param enabledResourcePacks    selected resource-pack identifiers
  * @param serverPacksDisabled     whether server-provided resource packs are rejected
  * @param fullscreenResolution    configured fullscreen video mode string; {@code null} when none
+ * @param chatVisibility          chat visibility ({@code full}, {@code system}, {@code hidden})
+ * @param chatColors              whether chat colors are shown
+ * @param chatLinks               whether chat web links open
+ * @param chatLinksPrompt         whether opening a chat web link asks first
+ * @param chatOpacity             chat background opacity
+ * @param textBackgroundOpacity   text background opacity
+ * @param chatScale               chat text scale
+ * @param chatLineSpacing         spacing between chat lines
+ * @param chatDelay               delay before chat messages appear, in seconds
+ * @param chatWidth               chat width scale
+ * @param chatHeightFocused       chat height scale while chat is focused
+ * @param chatHeightUnfocused     chat height scale while chat is unfocused
+ * @param narrator                narrator mode ({@code off}, {@code chat}, {@code system}, {@code all})
+ * @param autoSuggestions         whether command suggestions are shown while typing
+ * @param hideMatchedNames        whether messages from blocked players are hidden
+ * @param reducedDebugInfo        whether the debug overlay is reduced
+ * @param sensitivity             mouse sensitivity
+ * @param invertMouseY            whether the vertical mouse axis is inverted
+ * @param mouseWheelSensitivity   mouse wheel sensitivity
+ * @param discreteMouseScroll     whether the mouse wheel scrolls in discrete steps
+ * @param touchscreen             whether touchscreen mode is on; always {@code false} from 26.2
+ * @param rawMouseInput           whether raw mouse input is on; always {@code true} from 26.3
+ * @param autoJump                whether auto-jump is enabled
+ * @param toggleCrouch            whether sneak uses toggle behaviour
+ * @param toggleSprint            whether sprint uses toggle behaviour
+ * @param showSubtitles           whether subtitle captions are shown
+ * @param backgroundForChatOnly   whether text backgrounds render behind chat only
+ * @param darkMojangStudiosBackground whether the dark Mojang Studios background is used
+ * @param hideLightningFlash      whether lightning flashes are hidden
  */
 public record OptionsData(
         int fov,
@@ -78,7 +107,36 @@ public record OptionsData(
         List<String> resourcePacks,
         List<String> enabledResourcePacks,
         boolean serverPacksDisabled,
-        String fullscreenResolution) {
+        String fullscreenResolution,
+        String chatVisibility,
+        boolean chatColors,
+        boolean chatLinks,
+        boolean chatLinksPrompt,
+        double chatOpacity,
+        double textBackgroundOpacity,
+        double chatScale,
+        double chatLineSpacing,
+        double chatDelay,
+        double chatWidth,
+        double chatHeightFocused,
+        double chatHeightUnfocused,
+        String narrator,
+        boolean autoSuggestions,
+        boolean hideMatchedNames,
+        boolean reducedDebugInfo,
+        double sensitivity,
+        boolean invertMouseY,
+        double mouseWheelSensitivity,
+        boolean discreteMouseScroll,
+        boolean touchscreen,
+        boolean rawMouseInput,
+        boolean autoJump,
+        boolean toggleCrouch,
+        boolean toggleSprint,
+        boolean showSubtitles,
+        boolean backgroundForChatOnly,
+        boolean darkMojangStudiosBackground,
+        boolean hideLightningFlash) {
 
     /**
      * Returns the value of one component by its option name, or {@code null}

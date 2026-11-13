@@ -112,6 +112,15 @@ public interface ClientPort {
     }
 
     /**
+     * Returns the vanilla key-mapping catalog (bind names, category keys and
+     * binds grouped by category), or empty when the options face is
+     * unavailable.
+     */
+    default Optional<ink.tuanzi.neomacros.port.model.KeybindCatalogData> keybindCatalog() {
+        return Optional.empty();
+    }
+
+    /**
      * Returns one game option value by its option name (Boolean, Double, or
      * String), or empty when the name is unknown on this node.
      */
