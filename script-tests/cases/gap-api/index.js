@@ -280,6 +280,138 @@ function start() {
   } else {
     g022Absent('g022.textDisplay');
   }
+  // G-023 species small-gap face: shape checks per species; a world
+  // without the species reads absent and still counts as present.
+  const g023ByType = (id) => g022Near.find((e) => e.type === id);
+  const g023Absent = (key) => check(key + '-absent', true);
+  const g023First = (...ids) => ids.map(g023ByType).find(Boolean);
+  const g023Wither = g023ByType('minecraft:wither');
+  if (g023Wither) {
+    check('g023.wither',
+        typeof g023Wither.powered === 'boolean'
+        && typeof g023Wither.invulnerableTicks === 'number');
+  } else {
+    g023Absent('g023.wither');
+  }
+  const g023Enderman = g023ByType('minecraft:enderman');
+  if (g023Enderman) {
+    const g023Held = g023Enderman.heldBlock;
+    check('g023.enderman',
+        typeof g023Enderman.provoked === 'boolean'
+        && (g023Held === undefined || g023Held === null
+            || (typeof g023Held.id === 'string'
+                && typeof g023Held.props === 'object')));
+  } else {
+    g023Absent('g023.enderman');
+  }
+  const g023Guardian = g023First('minecraft:guardian', 'minecraft:elder_guardian');
+  if (g023Guardian) {
+    check('g023.guardian', typeof g023Guardian.moving === 'boolean');
+  } else {
+    g023Absent('g023.guardian');
+  }
+  const g023Illager = g023First('minecraft:vindicator', 'minecraft:pillager',
+      'minecraft:evoker');
+  if (g023Illager) {
+    check('g023.illager',
+        typeof g023Illager.celebrating === 'boolean'
+        && typeof g023Illager.armPose === 'string');
+  } else {
+    g023Absent('g023.illager');
+  }
+  const g023Falling = g023ByType('minecraft:falling_block');
+  if (g023Falling) {
+    const g023State = g023Falling.blockState;
+    const g023Start = g023Falling.startPos;
+    check('g023.fallingBlock',
+        typeof g023State === 'object' && g023State !== null
+        && typeof g023State.id === 'string'
+        && typeof g023Start === 'object' && g023Start !== null
+        && typeof g023Start.x === 'number');
+  } else {
+    g023Absent('g023.fallingBlock');
+  }
+  const g023Horse = g023First('minecraft:horse', 'minecraft:donkey',
+      'minecraft:mule', 'minecraft:llama');
+  if (g023Horse) {
+    check('g023.horse', typeof g023Horse.standing === 'boolean');
+  } else {
+    g023Absent('g023.horse');
+  }
+  const g023Chested = g023First('minecraft:donkey', 'minecraft:mule',
+      'minecraft:llama');
+  if (g023Chested) {
+    check('g023.chestedHorse', typeof g023Chested.hasChest() === 'boolean');
+  } else {
+    g023Absent('g023.chestedHorse');
+  }
+  const g023Axolotl = g023ByType('minecraft:axolotl');
+  if (g023Axolotl) {
+    check('g023.axolotl',
+        typeof g023Axolotl.variantId === 'number'
+        && typeof g023Axolotl.variant === 'string');
+  } else {
+    g023Absent('g023.axolotl');
+  }
+  const g023Fish = g023ByType('minecraft:tropical_fish');
+  if (g023Fish) {
+    check('g023.tropicalFish',
+        typeof g023Fish.size === 'string'
+        && typeof g023Fish.varietyId === 'number'
+        && typeof g023Fish.pattern === 'string');
+  } else {
+    g023Absent('g023.tropicalFish');
+  }
+  const g023Wolf = g023ByType('minecraft:wolf');
+  if (g023Wolf) {
+    check('g023.wolf', typeof g023Wolf.begging === 'boolean');
+  } else {
+    g023Absent('g023.wolf');
+  }
+  const g023Boat = g023First('minecraft:oak_boat', 'minecraft:oak_chest_boat',
+      'minecraft:bamboo_raft');
+  if (g023Boat) {
+    const g023BoatItem = g023Boat.boatItem;
+    check('g023.boat',
+        typeof g023Boat.underWater === 'boolean'
+        && (g023BoatItem === undefined || g023BoatItem === null
+            || (typeof g023BoatItem.id === 'string'
+                && typeof g023BoatItem.count === 'number')));
+  } else {
+    g023Absent('g023.boat');
+  }
+  const g023Animal = g023First('minecraft:cow', 'minecraft:sheep', 'minecraft:pig');
+  if (g023Animal) {
+    check('g023.animal',
+        typeof g023Animal.isFood('minecraft:wheat') === 'boolean'
+        && typeof g023Animal.canBreedWith(g023Animal) === 'boolean');
+  } else {
+    g023Absent('g023.animal');
+  }
+  const g023Cloud = g023ByType('minecraft:area_effect_cloud');
+  if (g023Cloud) {
+    check('g023.effectCloud',
+        typeof g023Cloud.color === 'number'
+        && typeof g023Cloud.particle === 'string');
+  } else {
+    g023Absent('g023.effectCloud');
+  }
+  const g023Shulker = g023ByType('minecraft:shulker');
+  if (g023Shulker) {
+    check('g023.shulker',
+        typeof g023Shulker.peek === 'number'
+        && typeof g023Shulker.attachFace === 'string');
+  } else {
+    g023Absent('g023.shulker');
+  }
+  const g023Drowned = g023ByType('minecraft:drowned');
+  if (g023Drowned) {
+    const g023Hand = g023Drowned.heldItem;
+    check('g023.drowned', g023Hand === undefined || g023Hand === null
+        || typeof g023Hand.is('minecraft:trident') === 'boolean');
+  } else {
+    g023Absent('g023.drowned');
+  }
   try {
     const handle = neo.fs.open('neomacro-test-gap.txt');
     check('fs.open-handle', typeof handle.readBytes === 'function'

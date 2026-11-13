@@ -12,7 +12,9 @@ import ink.tuanzi.neomacros.port.NeomacrosAdapter;
 import ink.tuanzi.neomacros.port.PlayerPort;
 import ink.tuanzi.neomacros.port.RenderPort;
 import ink.tuanzi.neomacros.port.WorldPort;
+import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
+import ink.tuanzi.neomacros.port.model.ItemStackData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.Rot2d;
 import org.junit.jupiter.api.AfterEach;
@@ -452,6 +454,218 @@ class SpeciesWrapTest {
         assertEquals(true, pig.isSaddled());
     }
 
+    @Test
+    void witherCarriesPoweredPhaseFlag() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, living(id, "minecraft:wither", "Wither", 5, 5, 300));
+        entities.species.put(id, Map.of("invulnerableTicks", 0, "powered", true));
+        SpeciesEntities.WitherBossEntity wither =
+                (SpeciesEntities.WitherBossEntity) EntityApi.wrap(id);
+        assertEquals(true, wither.isPowered());
+        assertEquals(0, wither.getInvulnerableTicks().intValue());
+    }
+
+    @Test
+    void endermanCarriesProvokedAndHeldBlockState() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, living(id, "minecraft:enderman", "Enderman", 6, 6, 40));
+        entities.species.put(id, Map.of(
+                "provoked", true,
+                "screaming", false,
+                "carriedBlock", "minecraft:sand",
+                "heldBlock", new BlockData("minecraft:sand", new Pos3d(6, 64, 6),
+                        Map.of("falling_block", "true"))));
+        SpeciesEntities.EndermanEntity enderman =
+                (SpeciesEntities.EndermanEntity) EntityApi.wrap(id);
+        assertEquals(true, enderman.isProvoked());
+        assertEquals(false, enderman.isScreaming());
+        var held = enderman.getHeldBlock();
+        assertEquals("minecraft:sand", held.getId());
+        assertEquals("true", held.getProps().get("falling_block"));
+    }
+
+    @Test
+    void endermanHeldBlockReadsBackUndefinedWithoutState() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, living(id, "minecraft:enderman", "Enderman", 6, 7, 40));
+        entities.species.put(id, Map.of());
+        SpeciesEntities.EndermanEntity enderman =
+                (SpeciesEntities.EndermanEntity) EntityApi.wrap(id);
+        assertNull(enderman.getHeldBlock());
+    }
+
+    @Test
+    void guardianCarriesMovingFlag() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, living(id, "minecraft:guardian", "Guardian", 7, 7, 30));
+        entities.species.put(id, Map.of("moving", true));
+        SpeciesEntities.GuardianEntity guardian =
+                (SpeciesEntities.GuardianEntity) EntityApi.wrap(id);
+        assertEquals(true, guardian.isMoving());
+        assertNull(guardian.getActiveTarget());
+    }
+
+    @Test
+    void illagerCarriesCelebratingFlag() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, living(id, "minecraft:vindicator", "Vindicator", 8, 8, 24));
+        entities.species.put(id, Map.of("armPose", "crossed", "celebrating", true));
+        SpeciesEntities.AbstractIllagerEntity illager =
+                (SpeciesEntities.AbstractIllagerEntity) EntityApi.wrap(id);
+        assertEquals("crossed", illager.getArmPose());
+        assertEquals(true, illager.isCelebrating());
+    }
+
+    @Test
+    void effectCloudCarriesPackedColor() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, living(id, "minecraft:area_effect_cloud", "Cloud", 9, 9, 10));
+        entities.species.put(id, Map.of(
+                "radius", 3.0, "waiting", false, "waitTime", 0,
+                "particle", "minecraft:entity_effect", "color", 0x80FF00FF));
+        SpeciesEntities.AreaEffectCloudEntity cloud =
+                (SpeciesEntities.AreaEffectCloudEntity) EntityApi.wrap(id);
+        assertEquals(0x80FF00FF, cloud.getColor().intValue());
+        assertEquals("minecraft:entity_effect", cloud.getParticle());
+        assertEquals(3.0, cloud.getRadius().doubleValue());
+    }
+
+    @Test
+    void fallingBlockCarriesOriginAndFullState() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, living(id, "minecraft:falling_block", "Falling", 10, 10, 10));
+        entities.species.put(id, Map.of(
+                "block", "minecraft:sand",
+                "blockState", new BlockData("minecraft:sand", new Pos3d(10, 64, 10),
+                        Map.of("falling_block", "true")),
+                "startPos", new Pos3d(12, 70, 14)));
+        SpeciesEntities.FallingBlockEntity falling =
+                (SpeciesEntities.FallingBlockEntity) EntityApi.wrap(id);
+        assertEquals("minecraft:sand", falling.getBlockState().getId());
+        assertEquals("true", falling.getBlockState().getProps().get("falling_block"));
+        var start = falling.getStartPos();
+        assertEquals(12.0, start.getX());
+        assertEquals(70.0, start.getY());
+        assertEquals(14.0, start.getZ());
+    }
+
+    @Test
+    void horseAndChestedCarryStandingAndChestState() {
+        UUID horseId = UUID.randomUUID();
+        entities.entities.put(horseId, living(horseId, "minecraft:horse", "Horse", 11, 11, 30));
+        entities.species.put(horseId, Map.of("tamed", true, "standing", true, "saddled", false));
+        SpeciesEntities.HorseEntity horse =
+                (SpeciesEntities.HorseEntity) EntityApi.wrap(horseId);
+        assertEquals(true, horse.isStanding());
+        assertEquals(true, horse.isTamed());
+
+        UUID donkeyId = UUID.randomUUID();
+        entities.entities.put(donkeyId, living(donkeyId, "minecraft:donkey", "Donkey", 12, 12, 30));
+        entities.species.put(donkeyId, Map.of("tamed", false, "standing", false, "hasChest", true));
+        SpeciesEntities.DonkeyEntity donkey =
+                (SpeciesEntities.DonkeyEntity) EntityApi.wrap(donkeyId);
+        assertEquals(true, donkey.hasChest());
+        assertEquals(false, donkey.isStanding());
+    }
+
+    @Test
+    void axolotlCarriesVariantId() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, living(id, "minecraft:axolotl", "Axolotl", 13, 13, 14));
+        entities.species.put(id, Map.of(
+                "variant", "minecraft:lucy", "variantId", 0, "playingDead", false));
+        SpeciesEntities.AxolotlEntity axolotl = (SpeciesEntities.AxolotlEntity) EntityApi.wrap(id);
+        assertEquals("minecraft:lucy", axolotl.getVariant());
+        assertEquals(0, axolotl.getVariantId().intValue());
+    }
+
+    @Test
+    void tropicalFishCarriesSizeAndVarietyId() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, living(id, "minecraft:tropical_fish", "Fish", 14, 14, 3));
+        entities.species.put(id, Map.of(
+                "pattern", "minecraft:kob", "baseColor", "minecraft:white",
+                "patternColor", "minecraft:orange", "size", "large",
+                "varietyId", 0x01020304));
+        SpeciesEntities.TropicalFishEntity fish =
+                (SpeciesEntities.TropicalFishEntity) EntityApi.wrap(id);
+        assertEquals("large", fish.getSize());
+        assertEquals(0x01020304, fish.getVarietyId().intValue());
+        assertEquals("minecraft:kob", fish.getPattern());
+    }
+
+    @Test
+    void wolfCarriesBeggingFlag() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, living(id, "minecraft:wolf", "Wolf", 15, 15, 20));
+        entities.species.put(id, Map.of(
+                "collarColor", "minecraft:red", "begging", true, "angry", false, "wet", false));
+        SpeciesEntities.WolfEntity wolf = (SpeciesEntities.WolfEntity) EntityApi.wrap(id);
+        assertEquals(true, wolf.isBegging());
+        assertEquals(false, wolf.isAngry());
+    }
+
+    @Test
+    void boatCarriesPickResultStack() {
+        UUID id = UUID.randomUUID();
+        entities.entities.put(id, plain(id, "minecraft:oak_boat", "Boat", 16, 16));
+        entities.species.put(id, Map.of(
+                "underWater", false,
+                "boatItem", new ItemStackData("minecraft:oak_boat", 1, "Oak Boat")));
+        SpeciesEntities.BoatEntity boat = (SpeciesEntities.BoatEntity) EntityApi.wrap(id);
+        var item = boat.getBoatItem();
+        assertEquals("minecraft:oak_boat", item.getId());
+        assertEquals(1, item.getCount());
+        assertEquals(false, boat.isUnderWater());
+    }
+
+    @Test
+    void animalPredicatesReachThePort() {
+        UUID selfId = UUID.randomUUID();
+        UUID otherId = UUID.randomUUID();
+        entities.entities.put(selfId, living(selfId, "minecraft:cow", "Cow", 17, 17, 10));
+        entities.entities.put(otherId, living(otherId, "minecraft:cow", "Cow", 18, 18, 10));
+        entities.foodResult = true;
+        entities.breedResult = true;
+        SpeciesEntities.CowEntity self = (SpeciesEntities.CowEntity) EntityApi.wrap(selfId);
+        SpeciesEntities.CowEntity other = (SpeciesEntities.CowEntity) EntityApi.wrap(otherId);
+        assertTrue(self.isFood("wheat"));
+        assertEquals("minecraft:wheat", entities.lastFoodId);
+        entities.foodResult = false;
+        assertFalse(self.isFood("wheat"));
+        assertTrue(self.canBreedWith(other));
+        entities.breedResult = false;
+        assertFalse(self.canBreedWith(other));
+        assertFalse(self.canBreedWith(null));
+    }
+
+    @Test
+    void traderLlamaAndGlowFrameWrapByType() {
+        UUID llamaId = UUID.randomUUID();
+        entities.entities.put(llamaId, living(llamaId, "minecraft:trader_llama", "TraderLlama",
+                19, 19, 22));
+        entities.species.put(llamaId, Map.of("strength", 3, "llamaVariant", "minecraft:creamy"));
+        assertTrue(EntityApi.wrap(llamaId) instanceof SpeciesEntities.LlamaEntity);
+
+        UUID frameId = UUID.randomUUID();
+        entities.entities.put(frameId, plain(frameId, "minecraft:glow_item_frame", "Frame",
+                20, 20));
+        assertTrue(EntityApi.wrap(frameId) instanceof SpeciesEntities.ItemFrameEntity);
+
+        UUID muleId = UUID.randomUUID();
+        entities.entities.put(muleId, living(muleId, "minecraft:mule", "Mule", 21, 21, 30));
+        entities.species.put(muleId, Map.of("hasChest", true));
+        SpeciesEntities.AbstractChestedHorseEntity mule =
+                (SpeciesEntities.AbstractChestedHorseEntity) EntityApi.wrap(muleId);
+        assertEquals(true, mule.hasChest());
+    }
+
+    /** Minimal non-living snapshot factory (plain entity kinds). */
+    private static EntitySnapshot plain(UUID uuid, String type, String name, double x,
+            double z) {
+        return new EntitySnapshot(uuid, type, name, new Pos3d(x, 64, z), 0);
+    }
+
     /** Minimal living snapshot factory (the compat ctor leaves living=false). */
     private static EntitySnapshot living(UUID uuid, String type, String name, double x,
             double z, double health) {
@@ -466,6 +680,9 @@ class SpeciesWrapTest {
     static final class CannedEntities implements EntityPort {
         final Map<UUID, EntitySnapshot> entities = new java.util.LinkedHashMap<>();
         final Map<UUID, Map<String, Object>> species = new java.util.LinkedHashMap<>();
+        boolean foodResult;
+        boolean breedResult;
+        String lastFoodId;
 
         @Override
         public Optional<EntitySnapshot> byUuid(UUID uuid) {
@@ -481,6 +698,17 @@ class SpeciesWrapTest {
         @Override
         public Map<String, Object> speciesState(UUID uuid) {
             return species.getOrDefault(uuid, Map.of());
+        }
+
+        @Override
+        public boolean isFood(UUID uuid, String itemId) {
+            lastFoodId = itemId;
+            return foodResult;
+        }
+
+        @Override
+        public boolean canBreedWith(UUID uuid, UUID other) {
+            return breedResult;
         }
     }
 

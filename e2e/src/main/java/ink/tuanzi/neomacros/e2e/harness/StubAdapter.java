@@ -1035,6 +1035,9 @@ public final class StubAdapter implements NeomacrosAdapter {
         public volatile boolean canAttackResult;
         public volatile boolean canBeAffectedResult;
         public volatile boolean canSeeResult;
+        public volatile boolean isFoodResult;
+        public volatile boolean canBreedWithResult;
+        public volatile String lastFoodId;
         public volatile boolean lastSimpleCast = true;
 
         /** Replaces the canned entity population. */
@@ -1146,6 +1149,17 @@ public final class StubAdapter implements NeomacrosAdapter {
         public boolean canSee(UUID uuid, UUID target, boolean simpleCast) {
             lastSimpleCast = simpleCast;
             return canSeeResult;
+        }
+
+        @Override
+        public boolean isFood(UUID uuid, String itemId) {
+            lastFoodId = itemId;
+            return isFoodResult;
+        }
+
+        @Override
+        public boolean canBreedWith(UUID uuid, UUID other) {
+            return canBreedWithResult;
         }
 
         @Override

@@ -53,6 +53,16 @@ public final class SpeciesEntities {
                 : null;
     }
 
+    /**
+     * The entity port behind the species tree, for the members that take an
+     * argument and therefore cannot read the per-entity state map.
+     *
+     * @zh 物种树背后的实体端口，供带参成员使用（此类成员无法读取按实体的状态映射）。
+     */
+    private static ink.tuanzi.neomacros.port.EntityPort entityPort() {
+        return ink.tuanzi.neomacros.core.api.ScriptApiEnvironment.adapter().entity();
+    }
+
     /** Static holder: the JVM loads the tree once. */
     private static final class Registry {
         private static final Map<String, Function<UUID, EntityApi.Entity>> HANDLES =
@@ -74,6 +84,8 @@ public final class SpeciesEntities {
             put(map, "minecraft:horse", HorseEntity::new);
             put(map, "minecraft:iron_golem", IronGolemEntity::new);
             put(map, "minecraft:llama", LlamaEntity::new);
+            put(map, "minecraft:trader_llama", LlamaEntity::new);
+            put(map, "minecraft:mule", AbstractChestedHorseEntity::new);
             put(map, "minecraft:phantom", PhantomEntity::new);
             put(map, "minecraft:spider", SpiderEntity::new);
             put(map, "minecraft:zombified_piglin", ZombifiedPiglinEntity::new);
@@ -120,6 +132,7 @@ public final class SpeciesEntities {
             put(map, "minecraft:armor_stand", ArmorStandEntity::new);
             put(map, "minecraft:falling_block", FallingBlockEntity::new);
             put(map, "minecraft:item_frame", ItemFrameEntity::new);
+            put(map, "minecraft:glow_item_frame", ItemFrameEntity::new);
             put(map, "minecraft:area_effect_cloud", AreaEffectCloudEntity::new);
             put(map, "minecraft:pig", PigEntity::new);
             put(map, "minecraft:arrow", ArrowEntity::new);
@@ -224,6 +237,46 @@ public final class SpeciesEntities {
         /** Creates the handle for one animal UUID. */
         public AnimalEntity(UUID uuid) {
             super(uuid);
+        }
+
+        /**
+         * Whether this animal accepts the item with the id as food; the
+         * namespace defaults to {@code minecraft}. Unknown ids answer false.
+         *
+         * @zh 该动物是否以指定 id 的物品为食；命名空间默认 {@code minecraft}。未知 id 返回 false。
+         * @zh-param itemId 物品 id（命名空间可省略）
+         * @zh-return 是否为该动物的食物
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public boolean isFood(String itemId) {
+            if (itemId == null) {
+                return false;
+            }
+            String wanted = itemId.startsWith("minecraft:") ? itemId : "minecraft:" + itemId;
+            return entityPort().isFood(uuid, wanted);
+        }
+
+        /**
+         * Whether the game's mating check accepts the other animal for this
+         * one; false when either handle is gone or either side is not an
+         * animal.
+         *
+         * @zh 繁殖判定是否接受对方为配偶；任一句柄失效或任一侧非动物时为 false。
+         * @zh-param other 另一只动物句柄
+         * @zh-return 是否可繁殖
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public boolean canBreedWith(SpeciesEntities.AnimalEntity other) {
+            if (other == null || other.uuid == null || uuid == null) {
+                return false;
+            }
+            return entityPort().canBreedWith(uuid, other.uuid);
         }
     }
 
@@ -423,6 +476,20 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public String getArmor() {
             return speciesString("armor");
+        }
+
+        /**
+         * Whether the wolf is begging (its interested flag, set while a
+         * player nearby holds something it wants).
+         *
+         * @zh 狼是否在乞食（兴趣旗标，附近玩家手持它想要的物品时置位）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isBegging() {
+            return speciesBool("begging");
         }
     }
 
@@ -777,6 +844,39 @@ public final class SpeciesEntities {
         public Boolean isScreaming() {
             return speciesBool("screaming");
         }
+
+        /**
+         * Whether a player's stare has provoked this enderman; the stare
+         * goal sets it before a target is assigned, so it can be true while
+         * {@link #isScreaming()} is false.
+         *
+         * @zh 是否已被玩家注视激怒；注视目标在分配攻击目标前置位，故可能先于嘶鸣为 true。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isProvoked() {
+            return speciesBool("provoked");
+        }
+
+        /**
+         * The carried block state (identifier plus vanilla properties), or
+         * undefined when carrying nothing.
+         *
+         * @zh 搬起的方块状态（标识符加原版属性）；未搬起时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.BlockState getHeldBlock() {
+            Object data = speciesState().get("heldBlock");
+            return data instanceof ink.tuanzi.neomacros.port.model.BlockData state
+                    ? new ink.tuanzi.neomacros.core.api.types.BlockState(
+                            state.id(), state.properties())
+                    : null;
+        }
     }
 
     /** A phantom: its size tier.
@@ -894,6 +994,20 @@ public final class SpeciesEntities {
             return speciesBool("saddled");
         }
 
+        /**
+         * Whether the animal is rearing up on its hind legs (the standing
+         * flag; it is a pose, not an anger state).
+         *
+         * @zh 是否正在以后腿站立（standing 旗标，属姿态而非愤怒状态）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isStanding() {
+            return speciesBool("standing");
+        }
+
         /** The owning player handle, or undefined when ownerless.
          * @zh 主人玩家的实体句柄；无主时为 undefined。 */
         @ApiSince("0.5.0")
@@ -930,9 +1044,8 @@ public final class SpeciesEntities {
         }
     }
 
-    /** The chested-horse base (donkeys, mules, llamas); the chest state
-     * accessor is not public and rides the follow-up batch.
-     * @zh 驮箱马基类（驴、骡、羊驼）；原版未公开箱子状态访问器，随后随批。 */
+    /** The chested-horse base (donkeys, mules, llamas) with the chest state.
+     * @zh 驮箱马基类（驴、骡、羊驼）与驮箱状态。 */
     @ApiClass(name = "AbstractChestedHorseEntity", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.entity.animal.equine.AbstractChestedHorse")
     @ApiSince("0.2.0")
@@ -943,6 +1056,19 @@ public final class SpeciesEntities {
         /** Creates the handle for one chested horse UUID. */
         public AbstractChestedHorseEntity(UUID uuid) {
             super(uuid);
+        }
+
+        /**
+         * Whether a chest is attached to this animal.
+         *
+         * @zh 该动物是否装有驮箱。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasChest() {
+            return speciesBool("hasChest");
         }
     }
 
@@ -1161,6 +1287,16 @@ public final class SpeciesEntities {
         public Integer getInvulnerableTicks() {
             return speciesInt("invulnerableTicks");
         }
+
+        /** Whether the wither is in its powered (half-health) phase.
+         * @zh 凋灵是否处于充能（半血）阶段。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isPowered() {
+            return speciesBool("powered");
+        }
     }
 
     /** An axolotl: variant, playing-dead state, and bucket origin.
@@ -1185,6 +1321,19 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public String getVariant() {
             return speciesString("variant");
+        }
+
+        /**
+         * The numeric variant id matching the variant name.
+         *
+         * @zh 与变体名对应的数字变体 id。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getVariantId() {
+            return speciesInt("variantId");
         }
 
         /** Whether the axolotl is playing dead.
@@ -2436,6 +2585,33 @@ public final class SpeciesEntities {
         public String getPatternColor() {
             return speciesString("patternColor");
         }
+
+        /**
+         * The body size carried by the pattern, {@code small} or
+         * {@code large}.
+         *
+         * @zh 花纹附带的体型，{@code small} 或 {@code large}。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getSize() {
+            return speciesString("size");
+        }
+
+        /**
+         * The packed variant integer encoding pattern and both colors.
+         *
+         * @zh 打包的变体整数，编码花纹与两种颜色。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getVarietyId() {
+            return speciesInt("varietyId");
+        }
     }
 
     /** A piglin: barterer growth and zombification state.
@@ -2917,6 +3093,42 @@ public final class SpeciesEntities {
         public String getBlock() {
             return speciesString("block");
         }
+
+        /**
+         * The full block state (identifier plus vanilla properties) this
+         * entity carries; undefined once the entity is gone.
+         *
+         * @zh 该实体携带的完整方块状态（标识符加原版属性）；实体消失后为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.BlockState getBlockState() {
+            Object data = speciesState().get("blockState");
+            return data instanceof ink.tuanzi.neomacros.port.model.BlockData state
+                    ? new ink.tuanzi.neomacros.core.api.types.BlockState(
+                            state.id(), state.properties())
+                    : null;
+        }
+
+        /**
+         * The block position recorded when the entity started falling,
+         * which is distinct from its current position.
+         *
+         * @zh 开始下落时记录的方块坐标；与其当前位置不同。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.BlockPos getStartPos() {
+            Object value = speciesState().get("startPos");
+            return value instanceof ink.tuanzi.neomacros.port.model.Pos3d pos
+                    ? new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                            pos.x(), pos.y(), pos.z())
+                    : null;
+        }
     }
 
     /**
@@ -3033,6 +3245,20 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public String getParticle() {
             return speciesString("particle");
+        }
+
+        /**
+         * The packed {@code 0xAARRGGBB} particle colour, or {@code -1} when
+         * the particle carries no colour.
+         *
+         * @zh 粒子打包颜色（{@code 0xAARRGGBB}）；粒子不带颜色时为 {@code -1}。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getColor() {
+            return speciesInt("color");
         }
     }
 
@@ -3228,6 +3454,21 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public Boolean isUnderWater() {
             return speciesBool("underWater");
+        }
+
+        /**
+         * The boat's pick-result stack (the boat item), with a count of one.
+         *
+         * @zh 船的选取结果物品堆（船物品），数量为 1。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.ItemStack getBoatItem() {
+            Object data = speciesState().get("boatItem");
+            return data instanceof ink.tuanzi.neomacros.port.model.ItemStackData stack
+                    ? ink.tuanzi.neomacros.core.api.types.ItemStack.of(stack) : null;
         }
     }
 
@@ -3810,6 +4051,20 @@ public final class SpeciesEntities {
         public EntityApi.Entity getActiveTarget() {
             return speciesEntity("activeTarget");
         }
+
+        /**
+         * Whether the guardian is moving, which is the movement state that
+         * retracts its spikes.
+         *
+         * @zh 守卫者是否在移动；该移动状态即棘刺收回状态。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isMoving() {
+            return speciesBool("moving");
+        }
     }
 
     /** Illager base: the arm pose shared by pillagers, vindicators,
@@ -3837,6 +4092,19 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public String getArmPose() {
             return speciesString("armPose");
+        }
+
+        /**
+         * Whether the illager is celebrating (raid victory celebration).
+         *
+         * @zh 灾厄村民是否正在庆祝（袭击胜利庆祝）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isCelebrating() {
+            return speciesBool("celebrating");
         }
     }
 
