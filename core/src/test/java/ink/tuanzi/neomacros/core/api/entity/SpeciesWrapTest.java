@@ -246,6 +246,141 @@ class SpeciesWrapTest {
     }
 
     @Test
+    void armorStandCarriesVisibilityAndSixPoseTriples() {
+        UUID standId = UUID.randomUUID();
+        entities.entities.put(standId,
+                living(standId, "minecraft:armor_stand", "Stand", 20, 20, 20));
+        Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("marker", false);
+        state.put("small", true);
+        state.put("invisible", true);
+        state.put("showArms", true);
+        state.put("showBasePlate", false);
+        state.put("bodyPose", new ink.tuanzi.neomacros.port.model.Pos3d(0, 22.5, 0));
+        state.put("headPose", new ink.tuanzi.neomacros.port.model.Pos3d(-10, 5, 0));
+        state.put("leftArmPose", new ink.tuanzi.neomacros.port.model.Pos3d(-90, 0, 0));
+        state.put("rightArmPose", new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0));
+        state.put("leftLegPose", new ink.tuanzi.neomacros.port.model.Pos3d(0, 0, 0));
+        state.put("rightLegPose", new ink.tuanzi.neomacros.port.model.Pos3d(1, 2, 3));
+        entities.species.put(standId, state);
+
+        EntityApi.Entity handle = EntityApi.wrap(standId);
+        assertTrue(handle instanceof SpeciesEntities.ArmorStandEntity,
+                "armor stand wraps as ArmorStand");
+        SpeciesEntities.ArmorStandEntity stand =
+                (SpeciesEntities.ArmorStandEntity) handle;
+        assertEquals(true, stand.isInvisible());
+        assertEquals(true, stand.showArms());
+        assertEquals(false, stand.showBasePlate());
+        assertEquals(true, stand.isSmall());
+        assertEquals(new ink.tuanzi.neomacros.core.api.types.Pos3D(0, 22.5, 0),
+                stand.getBodyPose());
+        assertEquals(new ink.tuanzi.neomacros.core.api.types.Pos3D(-10, 5, 0),
+                stand.getHeadPose());
+        assertEquals(new ink.tuanzi.neomacros.core.api.types.Pos3D(-90, 0, 0),
+                stand.getLeftArmPose());
+        assertEquals(new ink.tuanzi.neomacros.core.api.types.Pos3D(0, 0, 0),
+                stand.getRightArmPose());
+        assertEquals(new ink.tuanzi.neomacros.core.api.types.Pos3D(0, 0, 0),
+                stand.getLeftLegPose());
+        assertEquals(new ink.tuanzi.neomacros.core.api.types.Pos3D(1, 2, 3),
+                stand.getRightLegPose());
+    }
+
+    @Test
+    void armorStandPoseReadsBackUndefinedWithoutState() {
+        UUID standId = UUID.randomUUID();
+        entities.entities.put(standId,
+                living(standId, "minecraft:armor_stand", "Stand", 21, 21, 20));
+        SpeciesEntities.ArmorStandEntity stand =
+                (SpeciesEntities.ArmorStandEntity) EntityApi.wrap(standId);
+        assertNull(stand.isInvisible());
+        assertNull(stand.showArms());
+        assertNull(stand.showBasePlate());
+        assertNull(stand.getHeadPose());
+        assertNull(stand.getBodyPose());
+    }
+
+    @Test
+    void pandaCarriesGeneRecessiveFlags() {
+        UUID pandaId = UUID.randomUUID();
+        entities.entities.put(pandaId,
+                living(pandaId, "minecraft:panda", "Panda", 22, 22, 20));
+        entities.species.put(pandaId, Map.of(
+                "mainGene", "minecraft:brown",
+                "hiddenGene", "minecraft:normal",
+                "mainGeneRecessive", true,
+                "hiddenGeneRecessive", false));
+        SpeciesEntities.PandaEntity panda =
+                (SpeciesEntities.PandaEntity) EntityApi.wrap(pandaId);
+        assertEquals("minecraft:brown", panda.getMainGene());
+        assertEquals("minecraft:normal", panda.getHiddenGene());
+        assertEquals(true, panda.isMainGeneRecessive());
+        assertEquals(false, panda.isHiddenGeneRecessive());
+    }
+
+    @Test
+    void displaysCarryVisibilityBoxTransformAndTextData() {
+        UUID blockId = UUID.randomUUID();
+        entities.entities.put(blockId,
+                living(blockId, "minecraft:block_display", "Block", 23, 23, 1));
+        Map<String, Object> blockState = new java.util.LinkedHashMap<>();
+        blockState.put("billboard", "vertical");
+        blockState.put("visibilityBoundingBox", new ink.tuanzi.neomacros.port.model.BoundingBoxData(
+                new ink.tuanzi.neomacros.port.model.Pos3d(-0.5, 64, -0.5),
+                new ink.tuanzi.neomacros.port.model.Pos3d(0.5, 65, 0.5)));
+        blockState.put("block", "minecraft:stone");
+        blockState.put("blockState", new ink.tuanzi.neomacros.port.model.BlockData(
+                "minecraft:stone",
+                new ink.tuanzi.neomacros.port.model.Pos3d(0, 64, 0),
+                Map.of("facing", "north")));
+        entities.species.put(blockId, blockState);
+        SpeciesEntities.BlockDisplayEntity blockDisplay =
+                (SpeciesEntities.BlockDisplayEntity) EntityApi.wrap(blockId);
+        assertEquals("vertical", blockDisplay.getBillboard());
+        assertEquals("minecraft:stone", blockDisplay.getBlock());
+        ink.tuanzi.neomacros.core.api.types.BlockState rendered =
+                blockDisplay.getBlockState();
+        assertEquals("minecraft:stone", rendered.getId());
+        assertEquals("north", rendered.getProps().get("facing"));
+        EntityApi.BoundingBox box = blockDisplay.getVisibilityBoundingBox();
+        assertEquals(new ink.tuanzi.neomacros.core.api.types.Pos3D(-0.5, 64, -0.5),
+                box.min());
+        assertEquals(new ink.tuanzi.neomacros.core.api.types.Pos3D(0.5, 65, 0.5),
+                box.max());
+
+        UUID itemId = UUID.randomUUID();
+        entities.entities.put(itemId,
+                living(itemId, "minecraft:item_display", "Item", 24, 24, 1));
+        entities.species.put(itemId, Map.of(
+                "billboard", "fixed",
+                "transform", "ground"));
+        SpeciesEntities.ItemDisplayEntity itemDisplay =
+                (SpeciesEntities.ItemDisplayEntity) EntityApi.wrap(itemId);
+        assertEquals("ground", itemDisplay.getTransform());
+
+        UUID textId = UUID.randomUUID();
+        entities.entities.put(textId,
+                living(textId, "minecraft:text_display", "Text", 25, 25, 1));
+        Map<String, Object> textState = new java.util.LinkedHashMap<>();
+        textState.put("lineWidth", 200);
+        textState.put("textOpacity", -1);
+        textState.put("shadow", true);
+        textState.put("seeThrough", false);
+        textState.put("defaultBackground", true);
+        textState.put("alignment", "left");
+        entities.species.put(textId, textState);
+        SpeciesEntities.TextDisplayEntity textDisplay =
+                (SpeciesEntities.TextDisplayEntity) EntityApi.wrap(textId);
+        assertEquals(200, textDisplay.getLineWidth());
+        assertEquals(-1, textDisplay.getTextOpacity());
+        assertEquals(true, textDisplay.hasShadow());
+        assertEquals(false, textDisplay.hasSeeThrough());
+        assertEquals(true, textDisplay.hasDefaultBackground());
+        assertEquals("left", textDisplay.getAlignment());
+    }
+
+    @Test
     void tntMinecartCarriesFuse() {
         UUID cartId = UUID.randomUUID();
         entities.entities.put(cartId, living(cartId, "minecraft:tnt_minecart", "TntCart", 13, 13, 10));

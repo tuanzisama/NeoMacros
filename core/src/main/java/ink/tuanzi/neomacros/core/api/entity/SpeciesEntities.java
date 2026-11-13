@@ -38,6 +38,21 @@ public final class SpeciesEntities {
         return Registry.HANDLES;
     }
 
+    /**
+     * Reads one pose entry from a species state map as a rotation triple,
+     * or null when the entry is absent or not a triple.
+     *
+     * @zh 从物种状态映射读取一个姿态条目为旋转三元组；条目缺席或形状不符时为 null。
+     */
+    private static ink.tuanzi.neomacros.core.api.types.Pos3D poseOf(
+            Map<String, Object> state, String key) {
+        Object value = state.get(key);
+        return value instanceof ink.tuanzi.neomacros.port.model.Pos3d pose
+                ? new ink.tuanzi.neomacros.core.api.types.Pos3D(
+                        pose.x(), pose.y(), pose.z())
+                : null;
+    }
+
     /** Static holder: the JVM loads the tree once. */
     private static final class Registry {
         private static final Map<String, Function<UUID, EntityApi.Entity>> HANDLES =
@@ -1546,6 +1561,26 @@ public final class SpeciesEntities {
         public Boolean isScared() {
             return speciesBool("scared");
         }
+
+        /** Whether the main gene is recessive; only brown and weak are.
+         * @zh 主基因是否为隐性；仅 brown 与 weak 为隐性。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isMainGeneRecessive() {
+            return speciesBool("mainGeneRecessive");
+        }
+
+        /** Whether the hidden gene is recessive; only brown and weak are.
+         * @zh 隐性基因是否为隐性；仅 brown 与 weak 为隐性。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isHiddenGeneRecessive() {
+            return speciesBool("hiddenGeneRecessive");
+        }
     }
 
     /** A parrot: variant and party state.
@@ -2734,6 +2769,123 @@ public final class SpeciesEntities {
         public Boolean isSmall() {
             return speciesBool("small");
         }
+
+        /**
+         * Whether the stand is invisible (the vanilla invisible flag).
+         *
+         * @zh 盔甲架是否隐形（原版隐形标记）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isInvisible() {
+            return speciesBool("invisible");
+        }
+
+        /**
+         * Whether the stand displays arms.
+         *
+         * @zh 盔甲架是否显示手臂。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean showArms() {
+            return speciesBool("showArms");
+        }
+
+        /**
+         * Whether the stand displays its base plate.
+         *
+         * @zh 盔甲架是否显示底座。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean showBasePlate() {
+            return speciesBool("showBasePlate");
+        }
+
+        /**
+         * The body pose rotation triple (x, y, z) in degrees.
+         *
+         * @zh 身体姿态旋转三元组（x、y、z，单位度）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.Pos3D getBodyPose() {
+            return poseOf(speciesState(), "bodyPose");
+        }
+
+        /**
+         * The head pose rotation triple (x, y, z) in degrees.
+         *
+         * @zh 头部姿态旋转三元组（x、y、z，单位度）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.Pos3D getHeadPose() {
+            return poseOf(speciesState(), "headPose");
+        }
+
+        /**
+         * The left arm pose rotation triple (x, y, z) in degrees.
+         *
+         * @zh 左臂姿态旋转三元组（x、y、z，单位度）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.Pos3D getLeftArmPose() {
+            return poseOf(speciesState(), "leftArmPose");
+        }
+
+        /**
+         * The right arm pose rotation triple (x, y, z) in degrees.
+         *
+         * @zh 右臂姿态旋转三元组（x、y、z，单位度）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.Pos3D getRightArmPose() {
+            return poseOf(speciesState(), "rightArmPose");
+        }
+
+        /**
+         * The left leg pose rotation triple (x, y, z) in degrees.
+         *
+         * @zh 左腿姿态旋转三元组（x、y、z，单位度）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.Pos3D getLeftLegPose() {
+            return poseOf(speciesState(), "leftLegPose");
+        }
+
+        /**
+         * The right leg pose rotation triple (x, y, z) in degrees.
+         *
+         * @zh 右腿姿态旋转三元组（x、y、z，单位度）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.Pos3D getRightLegPose() {
+            return poseOf(speciesState(), "rightLegPose");
+        }
     }
 
     /**
@@ -3414,6 +3566,24 @@ public final class SpeciesEntities {
         public Double getShadowStrength() {
             return speciesDouble("shadowStrength");
         }
+
+        /** The culling (visibility) box at the current position, sized by
+         * the display width and height; undefined once the entity is gone.
+         * @zh 当前位置的剔除（可见性）包围盒，按显示宽高取尺寸；实体消失后为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public EntityApi.BoundingBox getVisibilityBoundingBox() {
+            Object data = speciesState().get("visibilityBoundingBox");
+            return data instanceof ink.tuanzi.neomacros.port.model.BoundingBoxData box
+                    ? new EntityApi.BoundingBox(
+                            new ink.tuanzi.neomacros.core.api.types.Pos3D(
+                                    box.min().x(), box.min().y(), box.min().z()),
+                            new ink.tuanzi.neomacros.core.api.types.Pos3D(
+                                    box.max().x(), box.max().y(), box.max().z()))
+                    : null;
+        }
     }
 
     /** A block display: the rendered block id.
@@ -3438,6 +3608,21 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public String getBlock() {
             return speciesString("block");
+        }
+
+        /** The full block state (identifier plus vanilla properties) the
+         * display renders; undefined once the entity is gone.
+         * @zh 展示的完整方块状态（标识符加原版属性）；实体消失后为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.BlockState getBlockState() {
+            Object data = speciesState().get("blockState");
+            return data instanceof ink.tuanzi.neomacros.port.model.BlockData state
+                    ? new ink.tuanzi.neomacros.core.api.types.BlockState(
+                            state.id(), state.properties())
+                    : null;
         }
     }
 
@@ -3465,6 +3650,17 @@ public final class SpeciesEntities {
             Object data = speciesState().get("item");
             return data instanceof ink.tuanzi.neomacros.port.model.ItemStackData stack
                     ? ink.tuanzi.neomacros.core.api.types.ItemStack.of(stack) : null;
+        }
+
+        /** The serialized item display transform (e.g. {@code fixed},
+         * {@code gui}, {@code ground}).
+         * @zh 序列化的物品展示变换（如 {@code fixed}、{@code gui}、{@code ground}）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getTransform() {
+            return speciesString("transform");
         }
     }
 
@@ -3500,6 +3696,69 @@ public final class SpeciesEntities {
         @ApiReadOnly
         public Integer getBackgroundColor() {
             return speciesInt("backgroundColor");
+        }
+
+        /** The maximum line width in font pixels before wrapping
+         * (the vanilla default is 200).
+         * @zh 换行前的最大行宽（字体像素，原版默认 200）。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getLineWidth() {
+            return speciesInt("lineWidth");
+        }
+
+        /** The text opacity: 0 transparent, 255 opaque, -1 the opaque
+         * default; affects the text, not the background.
+         * @zh 文本不透明度：0 透明、255 不透明、-1 为不透明默认值；只影响文本，不影响背景。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getTextOpacity() {
+            return speciesInt("textOpacity");
+        }
+
+        /** Whether the text is drawn with a drop shadow.
+         * @zh 文本是否带投影绘制。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasShadow() {
+            return speciesBool("shadow");
+        }
+
+        /** Whether text and background use the see-through rendering mode.
+         * @zh 文本与背景是否使用透视渲染模式。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasSeeThrough() {
+            return speciesBool("seeThrough");
+        }
+
+        /** Whether the default background box is used.
+         * @zh 是否使用默认背景框。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean hasDefaultBackground() {
+            return speciesBool("defaultBackground");
+        }
+
+        /** The text alignment ({@code left}, {@code center} or
+         * {@code right}); left wins when both alignment bits are set.
+         * @zh 文本对齐方式（{@code left}、{@code center} 或 {@code right}）；两个对齐位同时设置时 left 优先。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getAlignment() {
+            return speciesString("alignment");
         }
     }
 
