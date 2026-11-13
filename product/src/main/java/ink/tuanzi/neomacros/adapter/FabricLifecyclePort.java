@@ -29,7 +29,12 @@ public final class FabricLifecyclePort implements LifecyclePort {
     private final List<Runnable> gameQuitSinks = new CopyOnWriteArrayList<>();
     private final List<Runnable> worldJoinSinks = new CopyOnWriteArrayList<>();
     private final List<Runnable> worldLeaveSinks = new CopyOnWriteArrayList<>();
+    private final List<Consumer<ink.tuanzi.neomacros.port.model.ResourcePackLoadData>>
+            resourcePackSinks = new CopyOnWriteArrayList<>();
     private final AtomicLong tickCount = new AtomicLong();
+    /** Marks the first observed client resource reload as the boot load. */
+    private final java.util.concurrent.atomic.AtomicBoolean firstResourceReload =
+            new java.util.concurrent.atomic.AtomicBoolean(true);
 
     /** Creates the port and hooks the Fabric client events feeding the sinks. */
     public FabricLifecyclePort() {
@@ -61,6 +66,52 @@ public final class FabricLifecyclePort implements LifecyclePort {
             TabListTracker.clear();
             BossbarHub.clear();
         });
+        registerResourcePackListener();
+    }
+
+    /**
+     * Hooks the fabric client-resource reload listener: it runs on the
+     * reload's apply stage (the game thread for client reloads) once every
+     * pack has landed, which is the point the loading overlay begins fading
+     * out. The first observed reload since construction is the boot load.
+     */
+    @SuppressWarnings("deprecation") // the v0 helper is the only registration API on every node
+    private void registerResourcePackListener() {
+        net.fabricmc.fabric.api.resource.ResourceManagerHelper
+                .get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
+                .registerReloadListener(new PackLoadedListener());
+    }
+
+    /** One completed client resource reload forwarded to the port sinks. */
+    private final class PackLoadedListener implements
+            net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener,
+            net.minecraft.server.packs.resources.ResourceManagerReloadListener {
+
+        @Override
+        public net.minecraft.resources.Identifier getFabricId() {
+            return net.minecraft.resources.Identifier.fromNamespaceAndPath(
+                    "neomacros", "resource_pack_loaded");
+        }
+
+        @Override
+        public void onResourceManagerReload(
+                net.minecraft.server.packs.resources.ResourceManager manager) {
+            boolean gameStart = firstResourceReload.getAndSet(false);
+            List<String> packs;
+            try {
+                packs = List.copyOf(Minecraft.getInstance().getResourcePackRepository()
+                        .getSelectedIds());
+            } catch (RuntimeException e) {
+                LOGGER.warn("neomacros: resource pack list unavailable on reload", e);
+                packs = List.of();
+            }
+            var data = new ink.tuanzi.neomacros.port.model.ResourcePackLoadData(
+                    gameStart, packs);
+            for (Consumer<ink.tuanzi.neomacros.port.model.ResourcePackLoadData> sink
+                    : resourcePackSinks) {
+                runSafely("resource-pack-loaded", () -> sink.accept(data));
+            }
+        }
     }
 
     /** Runs one sink, downgrading any failure to a log record. */
@@ -95,6 +146,12 @@ public final class FabricLifecyclePort implements LifecyclePort {
     @Override
     public void onWorldLeave(Runnable sink) {
         worldLeaveSinks.add(sink);
+    }
+
+    @Override
+    public void onResourcePackLoaded(
+            Consumer<ink.tuanzi.neomacros.port.model.ResourcePackLoadData> sink) {
+        resourcePackSinks.add(sink);
     }
 
     @Override

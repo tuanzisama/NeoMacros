@@ -695,6 +695,8 @@ public final class StubAdapter implements NeomacrosAdapter {
         final List<Runnable> quitSinks = new CopyOnWriteArrayList<>();
         final List<Runnable> joinSinks = new CopyOnWriteArrayList<>();
         final List<Runnable> leaveSinks = new CopyOnWriteArrayList<>();
+        final List<Consumer<ink.tuanzi.neomacros.port.model.ResourcePackLoadData>>
+                resourcePackSinks = new CopyOnWriteArrayList<>();
         final AtomicBooleanHolder inWorld = new AtomicBooleanHolder();
         volatile java.util.Optional<LifecyclePort.ScreenInfo> screen =
                 java.util.Optional.empty();
@@ -744,6 +746,16 @@ public final class StubAdapter implements NeomacrosAdapter {
             }
         }
 
+        /** Fires the resource-pack-loaded sink with the given payload. */
+        public void fireResourcePackLoaded(boolean isGameStart, List<String> loadedPacks) {
+            var data = new ink.tuanzi.neomacros.port.model.ResourcePackLoadData(
+                    isGameStart, loadedPacks);
+            for (Consumer<ink.tuanzi.neomacros.port.model.ResourcePackLoadData> sink
+                    : resourcePackSinks) {
+                sink.accept(data);
+            }
+        }
+
         /** Sets the in-world answer. */
         public void setInWorld(boolean value) {
             inWorld.value = value;
@@ -752,6 +764,12 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public void onTick(Consumer<Long> sink) {
             tickSinks.add(sink);
+        }
+
+        @Override
+        public void onResourcePackLoaded(
+                Consumer<ink.tuanzi.neomacros.port.model.ResourcePackLoadData> sink) {
+            resourcePackSinks.add(sink);
         }
 
         @Override

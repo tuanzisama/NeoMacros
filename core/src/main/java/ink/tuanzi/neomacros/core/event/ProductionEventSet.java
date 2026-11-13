@@ -53,6 +53,7 @@ public final class ProductionEventSet {
                 // lifecycle
                 ink.tuanzi.neomacros.core.event.def.lifecycle.GameStartEvent.class,
                 ink.tuanzi.neomacros.core.event.def.lifecycle.GameQuitEvent.class,
+                ink.tuanzi.neomacros.core.event.def.lifecycle.GameResourcePackEvent.class,
                 ink.tuanzi.neomacros.core.event.def.lifecycle.WorldJoinEvent.class,
                 ink.tuanzi.neomacros.core.event.def.lifecycle.WorldLeaveEvent.class,
                 // player
@@ -83,6 +84,7 @@ public final class ProductionEventSet {
                 ink.tuanzi.neomacros.core.event.def.entity.EntityUnloadEvent.class,
                 ink.tuanzi.neomacros.core.event.def.entity.EntityDamageEvent.class,
                 ink.tuanzi.neomacros.core.event.def.entity.EntityHealEvent.class,
+                ink.tuanzi.neomacros.core.event.def.entity.EntityCustomNameEvent.class,
                 // world extras
                 ink.tuanzi.neomacros.core.event.def.world.WorldSoundEvent.class,
                 // player extras
