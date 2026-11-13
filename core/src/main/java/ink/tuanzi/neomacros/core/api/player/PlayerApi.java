@@ -1334,15 +1334,110 @@ public final class PlayerApi {
     /**
      * The local player's own inventory: the always-available inventory
      * session (what {@code player.inventory} resolves to while the inventory
-     * screen is open and when no container screen is open).
+     * screen is open and when no container screen is open). Equipment and
+     * offhand reads use the player inventory order (36 boots ... 39 helmet,
+     * 40 offhand); the craft-grid reads address the player menu itself.
      *
-     * @zh 本地玩家自己的物品栏：恒可用的物品栏会话（物品栏界面打开或未开容器时 {@code player.inventory} 解析到的句柄）。
+     * @zh 本地玩家自己的物品栏：恒可用的物品栏会话（物品栏界面打开或未开容器时 {@code player.inventory} 解析到的句柄）。装备与副手按玩家物品栏序号读取（36 靴子 ... 39 头盔、40 副手）；合成格读取直接面向玩家菜单。
      */
     @ApiClass(name = "PlayerInventory", kind = ApiClassKind.HANDLE)
-    public static final class PlayerInventory extends Inventory {
+    public static final class PlayerInventory extends RecipeInventory {
 
         PlayerInventory() {
             super("Inventory", "player", 0);
+        }
+
+        /** The player menu reports a fixed 2x2 craft grid.
+         * @zh 玩家菜单的合成格恒为 2x2。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        @Override
+        public int getCraftingWidth() {
+            return 2;
+        }
+
+        /** The player menu reports a fixed 2x2 craft grid.
+         * @zh 玩家菜单的合成格恒为 2x2。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        @Override
+        public int getCraftingHeight() {
+            return 2;
+        }
+
+        /** Craft cells read the player menu itself, whatever screen is open.
+         * @zh 合成格直接读取玩家菜单，与当前打开的界面无关。 */
+        @Override
+        protected ItemStack craftCell(int index) {
+            return inventoryPort().playerMenuSlot(index).map(ItemStack::of).orElse(null);
+        }
+
+        /**
+         * Whether a player inventory slot is the hotbar or the offhand
+         * (player inventory order: 0-8 hotbar, 40 offhand).
+         *
+         * @zh 判断玩家物品栏槽位是否为快捷栏或副手（玩家物品栏序号：0-8 快捷栏、40 副手）。
+         * @zh-param slot 玩家物品栏槽位号
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public boolean isInHotbar(int slot) {
+            return (slot >= 0 && slot <= 8) || slot == 40;
+        }
+
+        /** The offhand stack, or {@code undefined} when empty.
+         * @zh 副手物品；为空时 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getOffhand() {
+            return slot(40);
+        }
+
+        /** The helmet stack, or {@code undefined} when empty.
+         * @zh 头盔物品；为空时 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getHelmet() {
+            return slot(39);
+        }
+
+        /** The chestplate stack, or {@code undefined} when empty.
+         * @zh 胸甲物品；为空时 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getChestplate() {
+            return slot(38);
+        }
+
+        /** The leggings stack, or {@code undefined} when empty.
+         * @zh 护腿物品；为空时 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getLeggings() {
+            return slot(37);
+        }
+
+        /** The boots stack, or {@code undefined} when empty.
+         * @zh 靴子物品；为空时 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getBoots() {
+            return slot(36);
         }
     }
 
@@ -1491,6 +1586,159 @@ public final class PlayerApi {
     }
 
     /**
+     * The recipe-book family face shared by the crafting-capable screens:
+     * grid dimensions, the input grid, and the recipe-book visibility. Grid
+     * reads answer for the menu open right now, so a stale handle reports
+     * whatever menu is currently open.
+     *
+     * @zh 配方书家族的共享面：合成格尺寸、输入格与配方书可见性。格子读取回答当前打开的菜单，过期句柄读到的是此刻打开的菜单。
+     */
+    @ApiClass(name = "RecipeInventory", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.inventory.RecipeBookMenu")
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static class RecipeInventory extends Inventory {
+
+        RecipeInventory(String title, String kind, int size) {
+            super(title, kind, size);
+        }
+
+        /** Reads one input-grid cell by menu index, or {@code undefined}. */
+        protected ItemStack craftCell(int index) {
+            return inventoryPort().menuSlot(index).map(ItemStack::of).orElse(null);
+        }
+
+        /** The open recipe menu's grid width, or {@code 0} without one.
+         * @zh 打开的配方菜单的合成格宽度；无则为 0。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public int getCraftingWidth() {
+            return inventoryPort().craftingWidth();
+        }
+
+        /** The open recipe menu's grid height, or {@code 0} without one.
+         * @zh 打开的配方菜单的合成格高度；无则为 0。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public int getCraftingHeight() {
+            return inventoryPort().craftingHeight();
+        }
+
+        /** The grid cell count (width x height), or {@code 0} without an
+         * open recipe menu.
+         * @zh 合成格总数（宽 x 高）；无打开的配方菜单时为 0。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public int getCraftingSlotCount() {
+            return getCraftingWidth() * getCraftingHeight();
+        }
+
+        /** The input grid cell count (width x height), or {@code 0}.
+         * @zh 输入格总数（宽 x 高）；无则为 0。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public int getInputSize() {
+            return getCraftingWidth() * getCraftingHeight();
+        }
+
+        /**
+         * One input-grid cell by column ({@code x}) and row ({@code z}), or
+         * {@code undefined} outside the grid or when empty.
+         *
+         * @zh 按列（x）与行（z）读取一个输入格；越界或为空时为 undefined。
+         * @zh-param x 列号（0 起）
+         * @zh-param z 行号（0 起）
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public ItemStack getInput(int x, int z) {
+            int width = getCraftingWidth();
+            int height = getCraftingHeight();
+            if (width <= 0 || height <= 0 || x < 0 || x >= width || z < 0 || z >= height) {
+                return null;
+            }
+            return craftCell(1 + x + z * width);
+        }
+
+        /**
+         * The whole input grid indexed as {@code [x][z]}; empty cells read as
+         * {@code undefined}. A menu without a grid yields an empty grid.
+         *
+         * @zh 整个输入格，按 {@code [x][z]} 索引；空格为 undefined。菜单没有格子时返回空网格。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        @ApiType("ItemStack[][]")
+        public List<List<ItemStack>> getInput() {
+            int width = getCraftingWidth();
+            int height = getCraftingHeight();
+            List<List<ItemStack>> out = new java.util.ArrayList<>();
+            for (int x = 0; x < width; x++) {
+                List<ItemStack> column = new java.util.ArrayList<>();
+                for (int z = 0; z < height; z++) {
+                    column.add(getInput(x, z));
+                }
+                out.add(column);
+            }
+            return out;
+        }
+
+        /**
+         * Whether the open recipe-book screen shows its recipe book, or
+         * {@code undefined} without one.
+         *
+         * @zh 打开的配方书界面是否展开配方书；无则为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Boolean isRecipeBookOpened() {
+            return inventoryPort().recipeBookOpen();
+        }
+
+        /**
+         * Shows or hides the recipe book of the open recipe-book screen; a
+         * no-op without one or when the state already matches.
+         *
+         * @zh 展开或收起打开的配方书；无配方书界面或状态已一致时为无操作。
+         * @zh-param open 是否展开
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> setRecipeBook(boolean open) {
+            return inventoryPort().setRecipeBookOpen(open);
+        }
+
+        /**
+         * Toggles the recipe book of the open recipe-book screen; a no-op
+         * without one.
+         *
+         * @zh 切换打开的配方书；无配方书界面时为无操作。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> toggleRecipeBook() {
+            Boolean open = inventoryPort().recipeBookOpen();
+            return inventoryPort().setRecipeBookOpen(open == null || !open);
+        }
+    }
+
+    /**
      * A crafting table screen: the 3x3 grid and the result slot.
      *
      * @zh 工作台界面：3x3 格与结果槽。
@@ -1500,7 +1748,7 @@ public final class PlayerApi {
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static final class CraftingInventory extends Inventory {
+    public static final class CraftingInventory extends RecipeInventory {
 
         CraftingInventory(String title, String kind, int size) {
             super(title, kind, size);
@@ -2266,7 +2514,14 @@ public final class PlayerApi {
      * Live inventory handle: slot reads re-query the inventory port on every
      * access; actions dispatch on the main thread and resolve once processed.
      *
-     * @zh 物品栏句柄：槽位读取每次都重新查询物品栏端口；操作在主线程派发，处理完成后落定。
+     * <p>Two slot index spaces stay distinct: {@link #slot(int)},
+     * {@link #findAll(String)} and the equipment getters take the player
+     * inventory order (0-8 hotbar, 9-35 main, 36-39 armor, 40 offhand),
+     * while {@link #regionOf(int)}, {@link #getSlotPos(int)} and
+     * {@link #getSlotUnderMouse()} take whole-screen menu indices
+     * (container rows first, player rows last).</p>
+     *
+     * @zh 物品栏句柄：槽位读取每次都重新查询物品栏端口；操作在主线程派发，处理完成后落定。两套槽位序号并存：{@code slot/findAll} 与装备读取用玩家物品栏序号（0-8 快捷栏、9-35 主背包、36-39 护甲、40 副手）；{@code regionOf/slotPos/slotUnderMouse} 用整屏菜单序号（容器行在前、玩家行在后）。
      */
     @ApiClass(name = "Inventory", kind = ApiClassKind.HANDLE)
     public static class Inventory implements ink.tuanzi.neomacros.core.api.ScriptHandle {
@@ -2583,6 +2838,98 @@ public final class PlayerApi {
                 out.add(number.intValue());
             }
             return out;
+        }
+
+        /**
+         * Opens this inventory's screen on the client: the survival inventory
+         * for the player handle, while container handles need their own
+         * screen to still be open (the server owns container openings).
+         *
+         * @zh 在客户端打开此物品栏界面：玩家句柄打开生存背包；容器句柄要求其界面仍处于打开状态（容器的开启动作归服务端）。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> open() {
+            return inventoryPort().open(kind);
+        }
+
+        /**
+         * The menu slot index under the mouse, or {@code undefined} without
+         * a container screen or when the pointer sits over no slot.
+         *
+         * @zh 鼠标下的菜单槽位号；未开容器界面或未悬停任何槽位时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getSlotUnderMouse() {
+            return inventoryPort().slotUnderMouse().orElse(null);
+        }
+
+        /**
+         * The named region one menu slot belongs to (whole-screen slot
+         * order), or {@code undefined} for an index outside the open menu.
+         *
+         * @zh 一个菜单槽位所属的逻辑区名（整屏槽位序号）；越界时为 undefined。
+         * @zh-param slot 菜单槽位号
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public String regionOf(int slot) {
+            return inventoryPort().regionOf(slot).orElse(null);
+        }
+
+        /**
+         * The screen-space top-left corner of one menu slot (whole-screen
+         * slot order), or {@code undefined} without a container screen or
+         * for an out-of-range index.
+         *
+         * @zh 一个菜单槽位的屏幕左上角坐标（整屏槽位序号）；未开容器界面或越界时为 undefined。
+         * @zh-param slot 菜单槽位号
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public ink.tuanzi.neomacros.core.api.types.Pos2D getSlotPos(int slot) {
+            return inventoryPort().slotPos(slot)
+                    .map(pos -> new ink.tuanzi.neomacros.core.api.types.Pos2D(pos.x(), pos.y()))
+                    .orElse(null);
+        }
+
+        /**
+         * The network sync id of the open menu ({@code 0} for the player's
+         * own menu), or {@code undefined} outside a world.
+         *
+         * @zh 打开菜单的网络同步 id（玩家自己的菜单为 0）；不在世界内时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getContainerId() {
+            return inventoryPort().openedContainer()
+                    .map(info -> info.containerId())
+                    .orElse(null);
+        }
+
+        /**
+         * The open container menu as a raw host object behind this handle's
+         * {@code wraps} target; {@code undefined} outside a world. Requires
+         * the {@code java} permission.
+         *
+         * @zh 句柄 {@code wraps} 背后的原始打开菜单宿主对象（需 java 权限）；不在世界内时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        @ApiPermission("java")
+        @ApiType("JavaObject")
+        public Object getRaw() {
+            return inventoryPort().rawContainer().orElse(null);
         }
     }
 

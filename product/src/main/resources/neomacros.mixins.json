@@ -21,6 +21,7 @@
     ,"InventoryClickMixin"
     ,"DropPacketMixin"
     ,"DialogScreenAccessor"
+    ,"AbstractContainerScreenAccessor"
     ,"ChatScreenAccessor"
     ,"BookEditScreenAccessor"
     ,"AbstractSignEditScreenAccessor"
