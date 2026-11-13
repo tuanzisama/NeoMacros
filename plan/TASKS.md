@@ -138,5 +138,5 @@
 |---|---|---|---|---|---|---|
 | G-001 | 设计 spike：hud.layer 与 Draw2D 元素模型 | W0 | **done**（2026-11-13，设计稿待需求方确认） | session-g001 | g-001-hud-layer-design @9b5393c 合 main | [报告](reports/G-001.md)；保留式场景图+每帧重投（无 per-frame guest 回调）；端口只补 setLayerZ；旧成员糖化冻结；§11 有 8 个拍板点（①组件命名②Builder 折叠③owner 隔离④颜色双形⑤删 ids()⑥纹理层开关） |
 | G-002 | 设计 spike：packet 管线与信任门 | W0 | **done**（2026-11-13，设计稿待需求方确认） | session-g002 | g-002-packet-trust-design @304542f 合 main | [报告](reports/G-002.md)；packet:receive 不可取消/packet:send 可取消；接线点偏离任务卡=新 ConnectionMixin（ClientPacketListenerMixin 不动）；缓冲区事件作用域 cell+写窗口；三层过滤；157 签名预判 B121/A6/D30；§14 拍板点（①send 信任门甲乙丙②receive 可取消性③默认抑制名单④receivePacket 判 D）为 G-031 开工前置 |
-| G-003 | 设计 spike：脚本 GUI 构建器 | W0 | in-progress | session-g003 | g-003-script-gui-design | 设计稿交付后待需求方确认；与 G-019 共享 PlayerApi 须串行 |
+| G-003 | 设计 spike：脚本 GUI 构建器 | W0 | **done**（2026-11-13，设计稿待需求方确认） | session-g003 | g-003-script-gui-design @1dda947 合 main | [报告](reports/G-003.md)；声明式 player.buildScreen(ScreenSpec)+BuiltScreen 会话句柄；G-035 52 签名逐组映射；同步回调+看门狗+truthy=消费；新 ScreenPort（PlayerApi 仅 ~10 行，与 G-019/G-037 串行）；三处版本差异 javap 实证；§13 拍板点（①入口命名②同步豁免③screen 只读④回调语义⑤类名组）为 G-035 开工前置；现状修正=/neomacros open\|edit 已删除 |
 | G-004 | compat 回桥波：216 个兼容壳桩回桥（230 签名） | W0 | in-progress | session-g004 | —（jsmacros-compat 无 git） | 验收 = npm test 20/20 + audit 绿 + missing-apis 重生成 |
