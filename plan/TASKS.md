@@ -141,6 +141,6 @@
 | G-003 | 设计 spike：脚本 GUI 构建器 | W0 | **done**（2026-11-13，设计稿待需求方确认） | session-g003 | g-003-script-gui-design @1dda947 合 main | [报告](reports/G-003.md)；声明式 player.buildScreen(ScreenSpec)+BuiltScreen 会话句柄；G-035 52 签名逐组映射；同步回调+看门狗+truthy=消费；新 ScreenPort（PlayerApi 仅 ~10 行，与 G-019/G-037 串行）；三处版本差异 javap 实证；§13 拍板点（①入口命名②同步豁免③screen 只读④回调语义⑤类名组）为 G-035 开工前置；现状修正=/neomacros open\|edit 已删除 |
 | G-004 | compat 回桥波：216 个兼容壳桩回桥（230 签名） | W0 | **deferred**（2026-11-13 需求方指示：compat 侧本波不做，改期自做） | —（需求方自做） | —（jsmacros-compat 无 git） | 协调会话已停掉执行 agent；本波编排范围收窄为仅 neomacros |
 | G-012 | 实体基类状态面（52 签名/5 类） | W1 | in-progress | session-g012 | g-012-entity-basestate | 2a 批 ∥；EntityApi 泳道单 owner |
-| G-013 | 背包事件 payload 字段（8 签名/5 事件） | W1 | in-progress | session-g013 | g-013-inventory-event-payload | 2a 批 ∥；inventory domain + ports/model 新 record |
+| G-013 | 背包事件 payload 字段（8 签名/5 事件） | W1 | **done**（2026-11-13） | session-g013 | g-013-inventory-event-payload @42c075d 合 main | [报告](reports/G-013.md)；落地 2 字段（inventory:open/update 的 screen=MC 类名）；D 6 成员（getInventory×5 冻结载荷禁活句柄、type=BaseEvent 保留键）已回写 13 §6.2/12 §5.3；mutable 白名单保持仅取消；遗留=@ApiSince 字段级无注解目标待拍板、chest 槽读面依赖 G-019 |
 | G-019 | 容器通用面（29 签名/4 类） | W1 | in-progress | session-g019 | g-019-container-common | 2a 批 ∥；PlayerApi/InventoryPort 泳道单 owner（G-003 设计已标注串行，G-003 零代码无实际冲突） |
-| G-010 | FWorld 世界查询补全（4 签名） | W1 | in-progress | session-g010 | g-010-world-query | 2a 批 ∥；光照双实现版本敏感 |
+| G-010 | FWorld 世界查询补全（4 签名） | W1 | **done**（2026-11-13） | session-g010 | g-010-world-query @d54f85a 合 main | [报告](reports/G-010.md)；4/4 落地：world.respawnPos（//? 双实现 getSharedSpawnPos↔getRespawnData）、world.lightAt(x,y,z).{sky,block}（2:1 合并，javap 证两代签名一致无换支）、world.playSoundFile（与 playSound 形态不同判 B，Clip 停止句柄=L1 遗留）；四节点编译绿 |
