@@ -300,6 +300,10 @@ class PortEventWiringTest {
         assertEquals(1, state.get("x"));
         assertEquals(Boolean.TRUE, state.get("front"));
         assertEquals(java.util.List.of("a", "b", "", ""), state.get("lines"));
+        var signPos = (ink.tuanzi.neomacros.core.api.types.BlockPos) state.get("pos");
+        assertEquals(1.0, signPos.getX(), 0.0001);
+        assertEquals(64.0, signPos.getY(), 0.0001);
+        assertEquals(2.0, signPos.getZ(), 0.0001);
         runtime.close();
     }
 

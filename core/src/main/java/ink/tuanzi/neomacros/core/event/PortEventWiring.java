@@ -213,7 +213,9 @@ public final class PortEventWiring {
         adapter.player().onSignEdit(data -> {
             var result = bus.publish("screen:signEdit",
                     new ScreenSignEditEvent(data.x(), data.y(), data.z(),
-                            data.front(), data.lines(), false));
+                            data.front(), data.lines(), false,
+                            new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                                    data.x(), data.y(), data.z())));
             return signEditVerdict(result.canceled(), result.verdict());
         });
 
