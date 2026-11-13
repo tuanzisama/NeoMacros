@@ -300,6 +300,248 @@ public final class FabricInventoryPort implements InventoryPort {
         return player != null ? player.getInventory().getSelectedSlot() : null;
     }
 
+    // === container common face ===
+
+    @Override
+    public java.util.Optional<Object> rawContainer() {
+        return MainThread.run(() -> {
+            LocalPlayer player = player();
+            return java.util.Optional.ofNullable(player != null ? player.containerMenu : null);
+        });
+    }
+
+    @Override
+    public java.util.Optional<Integer> slotUnderMouse() {
+        return MainThread.run(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> container)) {
+                return java.util.Optional.empty();
+            }
+            var slot = ((ink.tuanzi.neomacros.adapter.mixin.AbstractContainerScreenAccessor) container)
+                    .neomacros$hoveredSlot();
+            if (slot == null) {
+                return java.util.Optional.empty();
+            }
+            int index = container.getMenu().slots.indexOf(slot);
+            if (index < 0) {
+                return java.util.Optional.empty();
+            }
+            return java.util.Optional.of(index);
+        });
+    }
+
+    @Override
+    public java.util.Optional<ink.tuanzi.neomacros.port.model.Pos2d> slotPos(int slot) {
+        return MainThread.run(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> container)) {
+                return java.util.Optional.empty();
+            }
+            var slots = container.getMenu().slots;
+            if (slot < 0 || slot >= slots.size()) {
+                return java.util.Optional.empty();
+            }
+            var layout = (ink.tuanzi.neomacros.adapter.mixin.AbstractContainerScreenAccessor) container;
+            var target = slots.get(slot);
+            return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.Pos2d(
+                    layout.neomacros$leftPos() + target.x, layout.neomacros$topPos() + target.y));
+        });
+    }
+
+    @Override
+    public java.util.Optional<String> regionOf(int slot) {
+        return MainThread.run(() -> {
+            LocalPlayer player = player();
+            var menu = player != null ? player.containerMenu : null;
+            if (menu == null) {
+                return java.util.Optional.empty();
+            }
+            int size = menu.getItems().size();
+            if (slot < 0 || slot >= size) {
+                return java.util.Optional.empty();
+            }
+            return java.util.Optional.ofNullable(regionName(menuKind(menu), size, slot));
+        });
+    }
+
+    /**
+     * Maps one menu slot onto its region name: the player rows sit at the end
+     * of every menu (last 36), and the leading container rows are keyed per
+     * menu family. The player's own menu reports its fixed 46-slot layout.
+     * Names follow the established InvMapId vocabulary so region strings
+     * carry across tooling unchanged.
+     */
+    private static String regionName(String kind, int size, int slot) {
+        if ("player".equals(kind)) {
+            if (slot == 0) {
+                return "craft_out";
+            }
+            if (slot <= 4) {
+                return "crafting_in";
+            }
+            if (slot == 5) {
+                return "helmet";
+            }
+            if (slot == 6) {
+                return "chestplate";
+            }
+            if (slot == 7) {
+                return "leggings";
+            }
+            if (slot == 8) {
+                return "boots";
+            }
+            if (slot <= 35) {
+                return "main";
+            }
+            if (slot <= 44) {
+                return "hotbar";
+            }
+            // The creative screen appends its delete slot past the offhand.
+            if (slot == 46 && size > 46) {
+                return "delete";
+            }
+            return "offhand";
+        }
+        if (size > 36) {
+            if (slot >= size - 9) {
+                return "hotbar";
+            }
+            if (slot >= size - 36) {
+                return "main";
+            }
+        }
+        return switch (kind) {
+            case "crafting" -> slot == size - 46 ? "output" : "input";
+            case "furnace" -> slot == size - 37 ? "output" : slot == size - 38 ? "fuel" : "input";
+            case "brewing" -> slot == size - 37 ? "fuel" : slot == size - 38 ? "input" : "output";
+            case "enchanting" -> slot == size - 37 ? "lapis" : "item";
+            case "loom" -> switch (slot - (size - 40)) {
+                case 0 -> "banner";
+                case 1 -> "dye";
+                case 2 -> "pattern";
+                default -> "output";
+            };
+            case "stonecutter", "anvil", "villager", "smithing", "grindstone", "cartography" ->
+                    slot == size - 37 ? "output" : "input";
+            case "beacon" -> "slot";
+            case "horse" -> {
+                if (slot == 0) {
+                    yield "saddle";
+                }
+                if (slot == 1) {
+                    yield "armor";
+                }
+                yield "container";
+            }
+            default -> "container";
+        };
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> open(String kind) {
+        return dispatch(() -> {
+            LocalPlayer player = player();
+            if (player == null) {
+                throw new IllegalStateException("no local player");
+            }
+            var screen = FabricLifecyclePort.currentScreen();
+            if ("player".equals(kind)) {
+                if (!(screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen)) {
+                    Minecraft.getInstance().gui.setScreen(
+                            new net.minecraft.client.gui.screens.inventory.InventoryScreen(player));
+                }
+                return;
+            }
+            if (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen) {
+                return;
+            }
+            throw new IllegalStateException(
+                    "container screen is closed; reopen the container before opening this handle");
+        });
+    }
+
+    @Override
+    public Optional<ItemStackData> playerMenuSlot(int index) {
+        return MainThread.run(() -> {
+            LocalPlayer player = player();
+            var menu = player != null ? player.inventoryMenu : null;
+            if (menu == null || index < 0 || index >= menu.getItems().size()) {
+                return Optional.empty();
+            }
+            var stack = menu.getItems().get(index);
+            if (stack.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(stackDataOf(stack));
+        });
+    }
+
+    @Override
+    public int craftingWidth() {
+        return craftingDimension(true);
+    }
+
+    @Override
+    public int craftingHeight() {
+        return craftingDimension(false);
+    }
+
+    /** Reads the open crafting menu's reported grid size, or 0 without one. */
+    private int craftingDimension(boolean width) {
+        Integer value = MainThread.run(() -> {
+            var menu = player() != null ? player().containerMenu : null;
+            if (!(menu instanceof net.minecraft.world.inventory.AbstractCraftingMenu crafting)) {
+                return 0;
+            }
+            return width ? crafting.getGridWidth() : crafting.getGridHeight();
+        });
+        return value != null ? value : 0;
+    }
+
+    @Override
+    public Boolean recipeBookOpen() {
+        return MainThread.run(() -> {
+            LocalPlayer player = player();
+            var screen = FabricLifecyclePort.currentScreen();
+            if (player == null
+                    || !(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen)
+                    || !(player.containerMenu instanceof net.minecraft.world.inventory.RecipeBookMenu menu)) {
+                return null;
+            }
+            return player.getRecipeBook().isOpen(menu.getRecipeBookType());
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> setRecipeBookOpen(boolean open) {
+        return dispatch(() -> {
+            LocalPlayer player = player();
+            var screen = FabricLifecyclePort.currentScreen();
+            if (player == null
+                    || !(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen)
+                    || !(player.containerMenu instanceof net.minecraft.world.inventory.RecipeBookMenu menu)) {
+                return;
+            }
+            var book = player.getRecipeBook();
+            var type = menu.getRecipeBookType();
+            if (book.isOpen(type) == open) {
+                return;
+            }
+            // Mirror the recipe-book button: persist the setting, tell the
+            // server, then re-run the screen init so the widget and the
+            // container origin pick the new state up.
+            book.setOpen(type, open);
+            player.connection.send(new net.minecraft.network.protocol.game
+                    .ServerboundRecipeBookChangeSettingsPacket(type, open, book.isFiltering(type)));
+            //? if >=26.1 {
+            screen.resize(screen.width, screen.height);
+            //?} else {
+            /* screen.resize(Minecraft.getInstance(), screen.width, screen.height); */
+            //?}
+        });
+    }
+
     // === actions ===
 
     /** Dispatches one action on the main thread; failures settle the future. */

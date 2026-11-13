@@ -11,8 +11,21 @@ import java.util.function.Supplier;
  * Inventory queries and actions over the local player: hotbar and main
  * inventory slots, the currently held item, and clicks over the open menu.
  *
- * <p>Slot indices follow the vanilla container order (0-8 hotbar, 9-35 main).
- * Reads answer on the calling thread with a point-in-time snapshot; callers
+ * <p>Two slot index spaces stay distinct and every member documents which one
+ * it takes:</p>
+ * <ul>
+ *   <li><b>Player inventory order</b> ({@link #slot(int)}, {@link #allItems()}):
+ *       vanilla {@code net.minecraft.world.entity.player.Inventory} order -
+ *       0-8 hotbar, 9-35 main, 36-39 armor (36 boots ... 39 helmet), 40
+ *       offhand, 41-42 body/saddle on builds whose inventory reports 43 slots
+ *       (verified identical on 1.21.6 and 26.1.2/26.2/26.3).</li>
+ *   <li><b>Whole-screen menu order</b> ({@link #menuSlot(int)},
+ *       {@link #regionOf(int)}, {@link #slotPos(int)}, {@link #slotUnderMouse()}):
+ *       indices into the open menu's slot list, container rows first and the
+ *       player rows last; the player's own menu is 46 slots (0 result, 1-4
+ *       2x2 craft, 5-8 armor, 9-35 main, 36-44 hotbar, 45 offhand).</li>
+ * </ul>
+ * <p>Reads answer on the calling thread with a point-in-time snapshot; callers
  * needing main-thread isolation marshal through the lifecycle port's
  * main-thread bridge. Actions dispatch on the main thread and resolve once
  * processed.</p>
@@ -199,5 +212,105 @@ public interface InventoryPort {
      */
     default java.util.concurrent.CompletableFuture<Void> split(int slot1, int slot2) {
         return click(slot1, 1, false).thenCompose(v -> click(slot2, 0, false));
+    }
+
+    // === container common face ===
+
+    /**
+     * The open container menu behind the {@code raw} escape hatch, or empty
+     * outside a world. Handles are live views, so this answers for the menu
+     * open right now rather than the one a handle was created against.
+     */
+    default java.util.Optional<Object> rawContainer() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * The menu slot index under the mouse, or empty when no container screen
+     * is open or the pointer sits over no slot.
+     */
+    default java.util.Optional<Integer> slotUnderMouse() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * The screen-space top-left corner of one menu slot, or empty when no
+     * container screen is open or the index is out of range.
+     *
+     * @param slot menu slot index (whole-screen slot order)
+     */
+    default java.util.Optional<ink.tuanzi.neomacros.port.model.Pos2d> slotPos(int slot) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * The named region a menu slot belongs to, or empty for an index outside
+     * the open menu. Vocabulary by menu family:
+     * <ul>
+     *   <li>player rows (every menu): {@code hotbar}, {@code main}; the
+     *       player's own menu adds {@code offhand}, {@code helmet},
+     *       {@code chestplate}, {@code leggings}, {@code boots},
+     *       {@code crafting_in}, {@code craft_out}, and {@code delete} on the
+     *       creative screen;</li>
+     *   <li>container rows: {@code container}; furnace: {@code input},
+     *       {@code fuel}, {@code output}; brewing: {@code input},
+     *       {@code fuel}, {@code output}; crafting: {@code input},
+     *       {@code output}; enchanting: {@code item}, {@code lapis}; loom:
+     *       {@code banner}, {@code dye}, {@code pattern}, {@code output};
+     *       stonecutter/anvil/smithing/grindstone/cartography/villager:
+     *       {@code input}, {@code output}; beacon: {@code slot}; horse:
+     *       {@code saddle}, {@code armor}, {@code container}.</li>
+     * </ul>
+     *
+     * @param slot menu slot index (whole-screen slot order)
+     */
+    default java.util.Optional<String> regionOf(int slot) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Opens this inventory's screen on the client thread; {@code kind} picks
+     * the target ({@code player} opens the survival inventory, other kinds
+     * require their container screen to still be open).
+     */
+    default java.util.concurrent.CompletableFuture<Void> open(String kind) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Reads one slot of the player's own inventory menu (result slot and 2x2
+     * craft grid) independent of the container open right now, or empty when
+     * out of range or empty.
+     *
+     * @param index player inventory menu slot index
+     */
+    default Optional<ItemStackData> playerMenuSlot(int index) {
+        return Optional.empty();
+    }
+
+    /** The open recipe menu's reported crafting grid width, or 0 without one. */
+    default int craftingWidth() {
+        return 0;
+    }
+
+    /** The open recipe menu's reported crafting grid height, or 0 without one. */
+    default int craftingHeight() {
+        return 0;
+    }
+
+    /**
+     * Whether the open recipe-book screen shows its recipe book, or
+     * {@code null} when no recipe-book screen is open.
+     */
+    default Boolean recipeBookOpen() {
+        return null;
+    }
+
+    /**
+     * Shows or hides the recipe book of the open recipe-book screen; a no-op
+     * when no recipe-book screen is open or the state already matches.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setRecipeBookOpen(boolean open) {
+        throw new UnsupportedOperationException("inventory actions");
     }
 }

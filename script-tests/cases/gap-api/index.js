@@ -51,11 +51,39 @@ function start() {
   check('chat.getWidth', typeof neo.chat.getWidth('hello') === 'number');
   const self = neo.player.self;
   check('player.self-null-or-handle', self === undefined || typeof self === 'object');
+  const inv = neo.player.inventory;
+  check('player.inventory-undefined-or-handle',
+      inv === undefined || (typeof inv === 'object'
+          && typeof inv.regionOf === 'function'
+          && typeof inv.getSlotPos === 'function'
+          && typeof inv.open === 'function'));
+  if (inv) {
+    check('player.inventory-slotUnderMouse',
+        inv.slotUnderMouse === undefined || typeof inv.slotUnderMouse === 'number');
+    check('player.inventory-containerId',
+        inv.containerId === undefined || typeof inv.containerId === 'number');
+  }
   if (self) {
     check('player.statistics', self.statistics === null || typeof self.statistics === 'object');
     check('player.interactionRange', typeof self.blockInteractionRange === 'number'
         && typeof self.entityInteractionRange === 'number');
     check('player.isBreakingBlock', typeof self.isBreakingBlock === 'boolean');
+    const selfInv = self.inventory;
+    check('player.self-inventory-craft-grid',
+        typeof selfInv === 'object' && selfInv.craftingWidth === 2
+        && selfInv.craftingHeight === 2 && selfInv.craftingSlotCount === 4
+        && selfInv.inputSize === 4);
+    check('player.self-inventory-isInHotbar',
+        typeof selfInv === 'object' && selfInv.isInHotbar(3) === true
+        && selfInv.isInHotbar(40) === true && selfInv.isInHotbar(9) === false);
+    check('player.self-inventory-equipment',
+        typeof selfInv === 'object'
+        && (selfInv.offhand === undefined || typeof selfInv.offhand === 'object')
+        && (selfInv.helmet === undefined || typeof selfInv.helmet === 'object'));
+    check('player.self-inventory-recipeBook',
+        typeof selfInv === 'object'
+        && (selfInv.recipeBookOpened === undefined
+            || typeof selfInv.recipeBookOpened === 'boolean'));
   }
   try {
     const handle = neo.fs.open('neomacro-test-gap.txt');

@@ -224,11 +224,80 @@ public final class StubAdapter implements NeomacrosAdapter {
         public volatile ink.tuanzi.neomacros.port.model.ItemStackData carried = null;
         /** The canned open container ({@code empty} = no container screen). */
         public volatile java.util.Optional<ContainerInfo> opened = java.util.Optional.empty();
+        /** The canned raw menu object behind {@code raw} ({@code null} = none). */
+        public volatile Object rawMenu = null;
+        /** The canned menu slot under the mouse ({@code null} = none). */
+        public volatile Integer underMouse = null;
+        /** Canned screen-space slot corners: menu slot → top-left point. */
+        public final java.util.Map<Integer, ink.tuanzi.neomacros.port.model.Pos2d> slotPositions =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        /** Canned region names: menu slot → region. */
+        public final java.util.Map<Integer, String> regions =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        /** Canned player-menu stacks (result/craft/equipment rows). */
+        public final java.util.Map<Integer, ink.tuanzi.neomacros.port.model.ItemStackData> playerMenu =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        /** The canned open recipe menu's grid width ({@code 0} = none). */
+        public volatile int craftingW = 0;
+        /** The canned open recipe menu's grid height ({@code 0} = none). */
+        public volatile int craftingH = 0;
+        /** The canned recipe-book visibility ({@code null} = no book screen). */
+        public volatile Boolean recipeBook = null;
         final List<String> actions = new CopyOnWriteArrayList<>();
 
         @Override
         public java.util.Optional<ContainerInfo> openedContainer() {
             return opened;
+        }
+
+        @Override
+        public java.util.Optional<Object> rawContainer() {
+            return java.util.Optional.ofNullable(rawMenu);
+        }
+
+        @Override
+        public java.util.Optional<Integer> slotUnderMouse() {
+            return java.util.Optional.ofNullable(underMouse);
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.Pos2d> slotPos(int slot) {
+            return java.util.Optional.ofNullable(slotPositions.get(slot));
+        }
+
+        @Override
+        public java.util.Optional<String> regionOf(int slot) {
+            return java.util.Optional.ofNullable(regions.get(slot));
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> open(String kind) {
+            return record("open:" + kind);
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> playerMenuSlot(int index) {
+            return java.util.Optional.ofNullable(playerMenu.get(index));
+        }
+
+        @Override
+        public int craftingWidth() {
+            return craftingW;
+        }
+
+        @Override
+        public int craftingHeight() {
+            return craftingH;
+        }
+
+        @Override
+        public Boolean recipeBookOpen() {
+            return recipeBook;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setRecipeBookOpen(boolean open) {
+            return record("recipeBook:" + open);
         }
 
         /** Records one script-driven action. */
