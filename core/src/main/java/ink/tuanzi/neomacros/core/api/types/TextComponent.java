@@ -8,6 +8,8 @@ import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
+import ink.tuanzi.neomacros.port.model.EntityHoverData;
 import ink.tuanzi.neomacros.port.model.ItemStackData;
 import ink.tuanzi.neomacros.port.model.TextSegmentData;
 
@@ -47,14 +49,15 @@ public final class TextComponent implements ScriptHandle {
     final Boolean obfuscated;
     final String hoverText;
     final ItemStackData hoverItem;
+    final EntityHoverData hoverEntity;
     final String clickAction;
     final String clickValue;
     final List<TextComponent> children;
 
     TextComponent(String content, String color, Boolean bold, Boolean italic,
             Boolean underlined, Boolean strikethrough, Boolean obfuscated,
-            String hoverText, ItemStackData hoverItem, String clickAction,
-            String clickValue, List<TextComponent> children) {
+            String hoverText, ItemStackData hoverItem, EntityHoverData hoverEntity,
+            String clickAction, String clickValue, List<TextComponent> children) {
         this.content = content == null ? "" : content;
         this.color = color;
         this.bold = bold;
@@ -64,6 +67,7 @@ public final class TextComponent implements ScriptHandle {
         this.obfuscated = obfuscated;
         this.hoverText = hoverText;
         this.hoverItem = hoverItem;
+        this.hoverEntity = hoverEntity;
         this.clickAction = clickAction;
         this.clickValue = clickValue;
         this.children = List.copyOf(children);
@@ -74,7 +78,7 @@ public final class TextComponent implements ScriptHandle {
     @ApiInternal
     public static TextComponent of(String plain) {
         return new TextComponent(plain == null ? "" : plain, null, null, null,
-                null, null, null, null, null, null, null, List.of());
+                null, null, null, null, null, null, null, null, List.of());
     }
 
     /**
@@ -94,7 +98,7 @@ public final class TextComponent implements ScriptHandle {
         return new TextComponent(component.text(), component.color(),
                 component.bold(), component.italic(), component.underlined(),
                 component.strikethrough(), component.obfuscated(),
-                null, null, null, null, mapped);
+                null, null, null, null, null, mapped);
     }
 
     /**
@@ -147,6 +151,85 @@ public final class TextComponent implements ScriptHandle {
         return out.toString();
     }
 
+    /**
+     * The color set on this node: a vanilla formatting name or
+     * {@code #rrggbb}; undefined when this node leaves the color to its
+     * parent. Read on this node alone — children resolve inheritance when
+     * the tree is rendered.
+     *
+     * @zh 本节点设置的颜色：原版格式色名或 {@code #rrggbb}；未设置（交给父节点）时为 undefined。只读本节点自身的值——子节点的继承在渲染时解析。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getColor() {
+        return color;
+    }
+
+    /**
+     * The click action target set on this node ({@code undefined} when this
+     * node has no click action). The action name itself is implied by the
+     * builder call that set it.
+     *
+     * @zh 本节点的点击动作目标；本节点无点击动作时为 undefined。动作名由设置它的构建调用决定。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getClickValue() {
+        return clickValue;
+    }
+
+    /**
+     * The hover action set on this node: {@code show_text},
+     * {@code show_item}, or {@code show_entity}; undefined when this node
+     * has no hover.
+     *
+     * @zh 本节点的悬停动作：{@code show_text}、{@code show_item} 或 {@code show_entity}；无悬停时为 undefined。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getHoverAction() {
+        if (hoverText != null) {
+            return "show_text";
+        }
+        if (hoverItem != null) {
+            return "show_item";
+        }
+        return hoverEntity != null ? "show_entity" : null;
+    }
+
+    /**
+     * The hover value set on this node, shaped by {@link #getHoverAction()}:
+     * a {@link TextComponent} for show-text, an {@link ItemStack} for
+     * show-item, an entity handle for show-entity; undefined when this node
+     * has no hover.
+     *
+     * @zh 本节点的悬停值，形态由 {@link #getHoverAction()} 决定：show-text 为 {@link TextComponent}、show-item 为 {@link ItemStack}、show-entity 为实体句柄；无悬停时为 undefined。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    @ApiType("TextComponent | ItemStack | Entity | undefined")
+    public Object getHoverValue() {
+        if (hoverText != null) {
+            return TextComponent.of(hoverText);
+        }
+        if (hoverItem != null) {
+            return ItemStack.of(hoverItem);
+        }
+        if (hoverEntity != null) {
+            return new ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity(
+                    java.util.UUID.fromString(hoverEntity.uuid()));
+        }
+        return null;
+    }
+
     /** Flattens the tree into render segments; child nodes inherit this
      * node's color, decorations, hover, and click unless they set their own.
      * @zh 将树拍平为渲染分段；子节点继承本节点的颜色、装饰、悬停与点击，除非自行设置。 */
@@ -154,14 +237,14 @@ public final class TextComponent implements ScriptHandle {
     public List<TextSegmentData> flatten() {
         List<TextSegmentData> out = new ArrayList<>();
         flattenInto(this, null, null, null, null, null, null,
-                null, null, null, null, out);
+                null, null, null, null, null, out);
         return out;
     }
 
     private static void flattenInto(TextComponent node,
             String color, Boolean bold, Boolean italic, Boolean underlined,
             Boolean strikethrough, Boolean obfuscated,
-            String hoverText, ItemStackData hoverItem,
+            String hoverText, ItemStackData hoverItem, EntityHoverData hoverEntity,
             String clickAction, String clickValue, List<TextSegmentData> out) {
         String ownColor = node.color != null ? node.color : color;
         Boolean ownBold = node.bold != null ? node.bold : bold;
@@ -171,17 +254,19 @@ public final class TextComponent implements ScriptHandle {
         Boolean ownObfuscated = node.obfuscated != null ? node.obfuscated : obfuscated;
         String ownHoverText = node.hoverText != null ? node.hoverText : hoverText;
         ItemStackData ownHoverItem = node.hoverItem != null ? node.hoverItem : hoverItem;
+        EntityHoverData ownHoverEntity = node.hoverEntity != null ? node.hoverEntity : hoverEntity;
         String ownClickAction = node.clickAction != null ? node.clickAction : clickAction;
         String ownClickValue = node.clickValue != null ? node.clickValue : clickValue;
         if (!node.content.isEmpty()) {
             out.add(new TextSegmentData(node.content, ownColor, ownBold, ownItalic,
                     ownUnderlined, ownStrikethrough, ownObfuscated,
-                    ownHoverText, ownHoverItem, ownClickAction, ownClickValue));
+                    ownHoverText, ownHoverItem, ownClickAction, ownClickValue,
+                    ownHoverEntity));
         }
         for (TextComponent child : node.children) {
             flattenInto(child, ownColor, ownBold, ownItalic, ownUnderlined,
                     ownStrikethrough, ownObfuscated, ownHoverText, ownHoverItem,
-                    ownClickAction, ownClickValue, out);
+                    ownHoverEntity, ownClickAction, ownClickValue, out);
         }
     }
 
@@ -228,6 +313,16 @@ public final class TextComponent implements ScriptHandle {
             contents.put("count", hoverItem.count());
             Map<String, Object> hover = new LinkedHashMap<>();
             hover.put("action", "show_item");
+            hover.put("contents", contents);
+            view.put("hoverEvent", hover);
+        }
+        if (hoverEntity != null) {
+            Map<String, Object> contents = new LinkedHashMap<>();
+            contents.put("type", hoverEntity.type());
+            contents.put("id", hoverEntity.uuid());
+            contents.put("name", Map.of("text", hoverEntity.name()));
+            Map<String, Object> hover = new LinkedHashMap<>();
+            hover.put("action", "show_entity");
             hover.put("contents", contents);
             view.put("hoverEvent", hover);
         }

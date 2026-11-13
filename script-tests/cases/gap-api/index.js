@@ -94,6 +94,34 @@ function start() {
   check('g017.ray-insideBlock', g017ray === undefined
       || g017ray.insideBlock === undefined
       || typeof g017ray.insideBlock === 'boolean');
+  // G-017B position/text/math face: shape checks only.
+  const g017bPos = new neo.Pos2D(1, 2);
+  check('g017b.pos-compare',
+      typeof g017bPos.compare(new neo.Pos2D(1, 3)) === 'number'
+      && g017bPos.compare(new neo.Pos2D(1, 2)) === 0);
+  check('g017b.pos-floor', new neo.Pos3D(1.7, 64.2, -3.1).floor().x === 1
+      && new neo.Pos3D(1.7, 64.2, -3.1).floor().z === -4);
+  const g017bLink = new neo.Component('gap').color('red').hover('t').build();
+  const g017bHover = g017bLink.hoverValue;
+  check('g017b.text-style-readback', g017bLink.color === 'red'
+      && g017bLink.hoverAction === 'show_text'
+      && g017bHover !== undefined && g017bHover.plain === 't');
+  const g017bDraft = new neo.Component('gap');
+  if (typeof g017bDraft.click === 'function') {
+    check('g017b.text-generic-click',
+        new neo.Component('gap').click('change_page', '3').build().clickValue === '3');
+    let g017bRejected = false;
+    try {
+      new neo.Component('gap').click('custom', 'x');
+    } catch (e) {
+      g017bRejected = true;
+    }
+    check('g017b.text-click-validation', g017bRejected);
+  }
+  if (typeof g017bDraft.style === 'function') {
+    check('g017b.text-style-merge',
+        g017bDraft.style(g017bLink).build().color === 'red');
+  }
   check('client.mods-array', Array.isArray(neo.client.mods));
   check('client.isDevEnv', typeof neo.client.isDevEnv === 'boolean');
   check('client.window', neo.client.window === null || typeof neo.client.window === 'object');

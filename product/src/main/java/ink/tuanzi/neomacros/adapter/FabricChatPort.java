@@ -162,6 +162,22 @@ public final class FabricChatPort implements ChatPort {
                         showItemPayload(segment.hoverItem())));
             }
             //?}
+            if (segment.hoverEntity() != null) {
+                var hover = segment.hoverEntity();
+                var entityType = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE
+                        .getOptional(net.minecraft.resources.Identifier.parse(hover.type()))
+                        .orElse(null);
+                if (entityType != null) {
+                    // ShowEntity and EntityTooltipInfo keep the same shape on
+                    // every node, so this branch needs no version gate.
+                    style = style.withHoverEvent(
+                            new net.minecraft.network.chat.HoverEvent.ShowEntity(
+                                    new net.minecraft.network.chat.HoverEvent.EntityTooltipInfo(
+                                            entityType, java.util.UUID.fromString(hover.uuid()),
+                                            net.minecraft.network.chat.Component.literal(
+                                                    hover.name()))));
+                }
+            }
             if (segment.clickAction() != null) {
                 style = style.withClickEvent(clickEvent(segment.clickAction(), segment.clickValue()));
             }
@@ -178,6 +194,9 @@ public final class FabricChatPort implements ChatPort {
                     java.net.URI.create(value));
             case "suggest_command" -> new net.minecraft.network.chat.ClickEvent.SuggestCommand(value);
             case "copy_to_clipboard" -> new net.minecraft.network.chat.ClickEvent.CopyToClipboard(value);
+            case "change_page" -> new net.minecraft.network.chat.ClickEvent.ChangePage(
+                    Integer.parseInt(value.trim()));
+            case "open_file" -> new net.minecraft.network.chat.ClickEvent.OpenFile(value);
             default -> throw new IllegalArgumentException("unknown click action: " + action);
         };
     }

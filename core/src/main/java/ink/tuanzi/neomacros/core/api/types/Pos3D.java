@@ -227,8 +227,10 @@ public class Pos3D implements ScriptHandle, SelfConstructing {
         return new Pos3D(x, y, value);
     }
 
-    /** Floors the coordinates onto the block grid.
-     * @zh 将坐标向下取整到方块网格。 */
+    /** Floors the coordinates onto the block grid. This is the block-grid
+     * conversion of a position; raw Minecraft coordinate types stay behind
+     * the {@code neo.java} penetration layer rather than in this signature.
+     * @zh 将坐标向下取整到方块网格。这是位置到方块网格的转换；原版 Minecraft 坐标类型走 {@code neo.java} 穿透层，不进本签名。 */
     @ApiSince("0.1.0")
     @ApiLoader("*")
     @ApiMC("*")
