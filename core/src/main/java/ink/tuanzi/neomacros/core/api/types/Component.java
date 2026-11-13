@@ -10,6 +10,7 @@ import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
+import ink.tuanzi.neomacros.port.model.EntityHoverData;
 import ink.tuanzi.neomacros.port.model.ItemStackData;
 
 import java.util.ArrayList;
@@ -20,10 +21,10 @@ import java.util.List;
  * construction path for script-made styled text. Style setters mutate the
  * draft in place and return the same builder; {@code build()} is
  * non-destructive, so the draft stays reusable for further chaining.
- * Click actions and hover content are mutually exclusive — the latest call
- * wins.
+ * Hover content is single-valued: the text, item, and entity hovers replace
+ * one another, latest call wins.
  *
- * @zh 不可变 {@link TextComponent} 的构建器；脚本富文本的唯一构造路径。样式方法就地修改草稿并返回同一 builder；{@code build()} 非破坏——草稿可继续链式修改后再次产出。点击动作与悬停内容互斥，后设的覆盖先设的。
+ * @zh 不可变 {@link TextComponent} 的构建器；脚本富文本的唯一构造路径。样式方法就地修改草稿并返回同一 builder；{@code build()} 非破坏——草稿可继续链式修改后再次产出。悬停内容单值：文本/物品/实体悬停互相覆盖，后设的覆盖先设的。
  * @zh-example const comp = new Component("警告：")
  *   .color("red")
  *   .bold(true)
@@ -46,6 +47,7 @@ public final class Component implements ScriptHandle, SelfConstructing {
     private Boolean obfuscated;
     private String hoverText;
     private ItemStackData hoverItem;
+    private EntityHoverData hoverEntity;
     private String clickAction;
     private String clickValue;
     private final List<TextComponent> children = new ArrayList<>();
@@ -131,8 +133,8 @@ public final class Component implements ScriptHandle, SelfConstructing {
         return this;
     }
 
-    /** Sets a show-text hover; replaces any item hover.
-     * @zh 设置文本悬停；覆盖已有的物品悬停。
+    /** Sets a show-text hover; replaces any item or entity hover.
+     * @zh 设置文本悬停；覆盖已有的物品与实体悬停。
      * @zh-param text 悬停文本 */
     @ApiSince("0.4.0")
     @ApiMC("*")
@@ -140,12 +142,13 @@ public final class Component implements ScriptHandle, SelfConstructing {
     public Component hover(String text) {
         this.hoverText = text;
         this.hoverItem = null;
+        this.hoverEntity = null;
         return this;
     }
 
-    /** Sets a show-item hover; replaces any text hover. A string is the item
+    /** Sets a show-item hover; replaces any text or entity hover. A string is the item
      * id (count 1); an ItemStack rides its full snapshot.
-     * @zh 设置物品悬停；覆盖已有的文本悬停。字符串按物品 id（数量 1）；ItemStack 按完整快照。
+     * @zh 设置物品悬停；覆盖已有的文本与实体悬停。字符串按物品 id（数量 1）；ItemStack 按完整快照。
      * @zh-param item 物品 id 或 ItemStack */
     @ApiSince("0.4.0")
     @ApiMC("*")
@@ -154,6 +157,7 @@ public final class Component implements ScriptHandle, SelfConstructing {
         if (item instanceof ItemStack stack) {
             this.hoverItem = stack.toData();
             this.hoverText = null;
+            this.hoverEntity = null;
             return this;
         }
         if (item instanceof String id) {
@@ -162,9 +166,40 @@ public final class Component implements ScriptHandle, SelfConstructing {
             }
             this.hoverItem = new ItemStackData(ItemStack.namespaced(id), 1, "");
             this.hoverText = null;
+            this.hoverEntity = null;
             return this;
         }
         throw new IllegalArgumentException("hoverItem expects an ItemStack or item id");
+    }
+
+    /**
+     * Sets a show-entity hover; replaces any text or item hover. The entity
+     * type and display name are captured now, so a later unload keeps the
+     * tooltip the hover was built with.
+     *
+     * @zh 设置实体悬停；覆盖已有的文本与物品悬停。实体类型与显示名在此刻捕获，之后实体卸载也保留建立悬停时的提示。
+     * @zh-param entity 实体句柄 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Component hoverEntity(ink.tuanzi.neomacros.core.api.entity.EntityApi.Entity entity) {
+        if (entity == null) {
+            throw new IllegalArgumentException("hoverEntity expects an entity handle");
+        }
+        String type = entity.getType();
+        if (type == null) {
+            throw new IllegalArgumentException(
+                    "hoverEntity needs an entity present in the world (type read at call time)");
+        }
+        String uuid = entity.getUuid();
+        if (uuid == null || uuid.isBlank()) {
+            throw new IllegalArgumentException("hoverEntity needs an entity with a UUID");
+        }
+        String name = entity.getName();
+        this.hoverEntity = new EntityHoverData(uuid, type, name == null ? "" : name);
+        this.hoverText = null;
+        this.hoverItem = null;
+        return this;
     }
 
     /** Click opens the URL in the browser (vanilla confirmation applies).
@@ -207,9 +242,72 @@ public final class Component implements ScriptHandle, SelfConstructing {
         return click("copy_to_clipboard", text);
     }
 
-    private Component click(String action, String value) {
-        this.clickAction = action;
+    /**
+     * Sets any built-in click action by name; the action is matched
+     * case-insensitively and the value is checked against the action.
+     * Supported: {@code open_url}, {@code run_command},
+     * {@code suggest_command}, {@code copy_to_clipboard},
+     * {@code change_page} (decimal page number), {@code open_file}.
+     *
+     * @zh 按名称设置任一内置点击动作；动作名大小写不敏感，取值按动作校验。支持 {@code open_url}、{@code run_command}、{@code suggest_command}、{@code copy_to_clipboard}、{@code change_page}（十进制页码）、{@code open_file}。
+     * @zh-param action 原版点击动作名
+     * @zh-param value 动作目标 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Component click(String action, String value) {
+        if (action == null || action.isBlank()) {
+            throw new IllegalArgumentException("click action is required");
+        }
+        if (value == null) {
+            throw new IllegalArgumentException("click action value is required");
+        }
+        String normalized = action.toLowerCase(java.util.Locale.ROOT);
+        switch (normalized) {
+            case "open_url", "run_command", "suggest_command", "copy_to_clipboard",
+                    "open_file" -> {
+                // value carries the target as-is
+            }
+            case "change_page" -> {
+                try {
+                    Integer.parseInt(value.trim());
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException(
+                            "change_page expects a decimal page number, got: " + value);
+                }
+            }
+            default -> throw new IllegalArgumentException("unsupported click action: " + action);
+        }
+        this.clickAction = normalized;
         this.clickValue = value;
+        return this;
+    }
+
+    /**
+     * Replaces this section's whole style — color, decorations, hover, and
+     * click — with the style of an existing value; content and children are
+     * untouched.
+     *
+     * @zh 用现有组件的样式整体替换本节样式——颜色、装饰、悬停与点击——内容与子节点不变。
+     * @zh-param source 提供样式的组件 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Component style(TextComponent source) {
+        if (source == null) {
+            throw new IllegalArgumentException("style source is required");
+        }
+        this.color = source.color;
+        this.bold = source.bold;
+        this.italic = source.italic;
+        this.underlined = source.underlined;
+        this.strikethrough = source.strikethrough;
+        this.obfuscated = source.obfuscated;
+        this.hoverText = source.hoverText;
+        this.hoverItem = source.hoverItem;
+        this.hoverEntity = source.hoverEntity;
+        this.clickAction = source.clickAction;
+        this.clickValue = source.clickValue;
         return this;
     }
 
@@ -258,6 +356,7 @@ public final class Component implements ScriptHandle, SelfConstructing {
         this.obfuscated = other.obfuscated;
         this.hoverText = other.hoverText;
         this.hoverItem = other.hoverItem;
+        this.hoverEntity = other.hoverEntity;
         this.clickAction = other.clickAction;
         this.clickValue = other.clickValue;
         this.children.clear();
@@ -272,7 +371,7 @@ public final class Component implements ScriptHandle, SelfConstructing {
     @ApiLoader("*")
     public TextComponent build() {
         return new TextComponent(content, color, bold, italic, underlined,
-                strikethrough, obfuscated, hoverText, hoverItem,
+                strikethrough, obfuscated, hoverText, hoverItem, hoverEntity,
                 clickAction, clickValue, children);
     }
 
