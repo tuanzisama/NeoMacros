@@ -16,6 +16,7 @@ import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
 import ink.tuanzi.neomacros.port.model.ChunkData;
+import ink.tuanzi.neomacros.port.model.LightData;
 import ink.tuanzi.neomacros.port.model.ChatComponent;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
@@ -701,7 +702,13 @@ public final class StubAdapter implements NeomacrosAdapter {
         ScoreboardData scoreboard;
         TpsData tps;
         ChunkData chunk;
+        public Pos3d respawnPos;
+        public LightData light;
         public final java.util.List<Pos3d> foundBlocks = new ArrayList<>();
+        /** Paths recorded by playSoundFile, in call order. */
+        public final java.util.List<String> playedSoundFiles = new ArrayList<>();
+        /** Volume recorded by the last playSoundFile call. */
+        public double lastSoundFileVolume;
         final List<BossBarSnapshot> bossBars = new ArrayList<>();
         final List<String> playedSounds = new ArrayList<>();
         final List<String> spawnedParticles = new ArrayList<>();
@@ -714,6 +721,16 @@ public final class StubAdapter implements NeomacrosAdapter {
         /** Sets the canned raycast result (null = miss). */
         public void setRaycastHit(BlockInteraction hit) {
             this.raycastHit = hit;
+        }
+
+        /** Sets the canned respawn position (null = no world). */
+        public void setRespawnPos(Pos3d pos) {
+            this.respawnPos = pos;
+        }
+
+        /** Sets the canned light levels (null = no world). */
+        public void setLight(LightData data) {
+            this.light = data;
         }
 
         @Override
@@ -774,8 +791,26 @@ public final class StubAdapter implements NeomacrosAdapter {
         }
 
         @Override
+        public Optional<Pos3d> respawnPos() {
+            return Optional.ofNullable(respawnPos);
+        }
+
+        @Override
+        public Optional<LightData> lightAt(Pos3d pos) {
+            return Optional.ofNullable(light);
+        }
+
+        @Override
         public void playSound(String soundId, Pos3d pos, double volume, double pitch) {
             playedSounds.add(soundId);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> playSoundFile(String path,
+                double volume) {
+            playedSoundFiles.add(path);
+            lastSoundFileVolume = volume;
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
         }
 
         @Override

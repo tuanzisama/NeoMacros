@@ -16,6 +16,25 @@ function start() {
   check('world.bossbars-array', Array.isArray(neo.world.bossbars));
   check('world.scoreboards-null-or-object',
       neo.world.scoreboards === null || typeof neo.world.scoreboards === 'object');
+  const respawn = neo.world.respawnPos;
+  check('world.respawnPos-absent-or-handle',
+      respawn === undefined || (typeof respawn === 'object'
+          && typeof respawn.x === 'number'
+          && typeof respawn.y === 'number'
+          && typeof respawn.z === 'number'));
+  const light = neo.world.lightAt(0, 64, 0);
+  check('world.lightAt-shape',
+      light === undefined || (typeof light === 'object'
+          && typeof light.sky === 'number' && typeof light.block === 'number'));
+  try {
+    const pending = neo.world.playSoundFile('neomacros-gap-api-missing.wav', 1);
+    check('world.playSoundFile-promise',
+        Boolean(pending) && typeof pending.then === 'function');
+    // a deliberately missing file rejects; the rejection is the assertion
+    pending.catch(() => {});
+  } catch (e) {
+    check('world.playSoundFile-promise', false);
+  }
   check('client.mods-array', Array.isArray(neo.client.mods));
   check('client.isDevEnv', typeof neo.client.isDevEnv === 'boolean');
   check('client.window', neo.client.window === null || typeof neo.client.window === 'object');

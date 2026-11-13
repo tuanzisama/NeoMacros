@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.port;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
+import ink.tuanzi.neomacros.port.model.LightData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.RayHit;
 import ink.tuanzi.neomacros.port.model.RayOptions;
@@ -109,6 +110,34 @@ public interface WorldPort {
      */
     default java.util.Optional<TpsData> tps() {
         return java.util.Optional.empty();
+    }
+
+    /** Returns the world spawn or respawn-data position, empty without a world. */
+    default java.util.Optional<Pos3d> respawnPos() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the sky-light and block-light levels at the position, or empty
+     * when no world is loaded. Each layer reads 0 to 15.
+     */
+    default java.util.Optional<LightData> lightAt(Pos3d pos) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Plays an audio file through the host sound mixer and completes when
+     * playback starts. A relative path resolves against the game directory;
+     * an absolute path is used as-is. Completes exceptionally when the file
+     * cannot be read, decoded, or played. Volume is {@code 0..1} mapped onto
+     * the mixer's master-gain range.
+     */
+    default java.util.concurrent.CompletableFuture<Void> playSoundFile(String path, double volume) {
+        java.util.concurrent.CompletableFuture<Void> future =
+                new java.util.concurrent.CompletableFuture<>();
+        future.completeExceptionally(
+                new UnsupportedOperationException("playSoundFile is not supported here"));
+        return future;
     }
 
     /**

@@ -5,6 +5,7 @@ import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
 import ink.tuanzi.neomacros.port.model.ChunkData;
+import ink.tuanzi.neomacros.port.model.LightData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.RayHit;
 import ink.tuanzi.neomacros.port.model.RayOptions;
@@ -214,6 +215,36 @@ public final class FabricWorldPort implements WorldPort {
     }
 
     @Override
+    public java.util.Optional<Pos3d> respawnPos() {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return java.util.Optional.empty();
+            }
+            //? if <1.21.9 {
+            /* return java.util.Optional.of(toPos3d(level.getSharedSpawnPos())); */
+            //?}
+            //? if >=1.21.9 {
+            return java.util.Optional.of(toPos3d(level.getRespawnData().pos()));
+            //?}
+        });
+    }
+
+    @Override
+    public java.util.Optional<LightData> lightAt(Pos3d pos) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return java.util.Optional.empty();
+            }
+            BlockPos blockPos = BlockPos.containing(pos.x(), pos.y(), pos.z());
+            return java.util.Optional.of(new LightData(
+                    level.getBrightness(net.minecraft.world.level.LightLayer.SKY, blockPos),
+                    level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, blockPos)));
+        });
+    }
+
+    @Override
     public Optional<TabListData> tabList() {
         return MainThread.run(() -> {
             ClientLevel level = Minecraft.getInstance().level;
@@ -295,6 +326,56 @@ public final class FabricWorldPort implements WorldPort {
             }
             return null;
         });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> playSoundFile(String path, double volume) {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            java.nio.file.Path file = resolveSoundFile(path);
+            try (var stream = javax.sound.sampled.AudioSystem
+                    .getAudioInputStream(file.toFile())) {
+                javax.sound.sampled.Clip clip = javax.sound.sampled.AudioSystem.getClip();
+                clip.open(stream);
+                applyPlaybackVolume(clip, volume);
+                clip.addLineListener(event -> {
+                    if (event.getType() == javax.sound.sampled.LineEvent.Type.STOP) {
+                        clip.close();
+                    }
+                });
+                clip.start();
+            } catch (javax.sound.sampled.UnsupportedAudioFileException
+                    | java.io.IOException e) {
+                throw new IllegalStateException("cannot play sound file: " + path, e);
+            } catch (javax.sound.sampled.LineUnavailableException e) {
+                throw new IllegalStateException("audio line unavailable: " + path, e);
+            }
+            return null;
+        });
+    }
+
+    /** Resolves one playback path: absolute as-is, relative to the game directory. */
+    private static java.nio.file.Path resolveSoundFile(String path) {
+        if (path == null || path.isBlank()) {
+            throw new IllegalArgumentException("sound file path is required");
+        }
+        java.nio.file.Path candidate = java.nio.file.Path.of(path);
+        return candidate.isAbsolute()
+                ? candidate
+                : net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir()
+                        .resolve(candidate);
+    }
+
+    /** Maps a 0..1 volume onto the clip master-gain range when supported. */
+    private static void applyPlaybackVolume(javax.sound.sampled.Clip clip, double volume) {
+        if (!clip.isControlSupported(javax.sound.sampled.FloatControl.Type.MASTER_GAIN)) {
+            return;
+        }
+        var control = (javax.sound.sampled.FloatControl)
+                clip.getControl(javax.sound.sampled.FloatControl.Type.MASTER_GAIN);
+        double clamped = Math.max(0, Math.min(1, volume));
+        float gain = (float) (control.getMinimum()
+                + (control.getMaximum() - control.getMinimum()) * clamped);
+        control.setValue(gain);
     }
 
     @Override
