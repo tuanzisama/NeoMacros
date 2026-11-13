@@ -139,6 +139,12 @@ public final class PlayerApi {
         return ScriptApiEnvironment.adapter().inventory();
     }
 
+    /** Reads one integer from the container state channel, or {@code null}. */
+    private static Integer stateInt(String key) {
+        Object value = inventoryPort().containerState().get(key);
+        return value instanceof Integer i ? i : null;
+    }
+
     /** The lifecycle port behind the screen face (screen reads, close). */
     private static ink.tuanzi.neomacros.port.LifecyclePort lifecyclePort() {
         return ScriptApiEnvironment.adapter().lifecycle();
@@ -1442,17 +1448,20 @@ public final class PlayerApi {
     }
 
     /**
-     * A furnace-family container screen: input/fuel/output slots plus the
-     * live burn state read from the open menu.
+     * A furnace-family container screen: input/fuel/output slots, the live
+     * burn and cook state read from the open menu, and the recipe-book face
+     * inherited from {@link RecipeInventory}. The furnace input grid is the
+     * single smelting slot, so {@code input(x, z)} reads it regardless of
+     * the coordinates.
      *
-     * @zh 熔炉族容器界面：输入/燃料/输出槽位与打开菜单的实时燃烧状态。
+     * @zh 熔炉族容器界面：输入/燃料/输出槽位、打开菜单的实时燃烧与冶炼状态，以及继承自 {@link RecipeInventory} 的配方书面。熔炉输入格为单个冶炼槽，故 {@code input(x, z)} 无视坐标读取该槽。
      */
     @ApiClass(name = "FurnaceInventory", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.world.inventory.AbstractFurnaceMenu")
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static final class FurnaceInventory extends Inventory {
+    public static final class FurnaceInventory extends RecipeInventory {
 
         FurnaceInventory(String title, String kind, int size) {
             super(title, kind, size);
@@ -1472,7 +1481,7 @@ public final class PlayerApi {
         @ApiMC("*")
         @ApiLoader("*")
         @ApiReadOnly
-        public ItemStack getInput() {
+        public ItemStack getSmeltedItem() {
             return menuStack(0);
         }
 
@@ -1551,6 +1560,137 @@ public final class PlayerApi {
         private Double floatState(String key) {
             Object value = inventoryPort().containerState().get(key);
             return value instanceof Number n ? n.doubleValue() : null;
+        }
+
+        /** The furnace input grid is the single smelting slot.
+         * @zh 熔炉输入格即单个冶炼槽。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        @Override
+        public int getCraftingWidth() {
+            return 1;
+        }
+
+        /** The furnace input grid is one slot tall.
+         * @zh 熔炉输入格高度为 1。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        @Override
+        public int getCraftingHeight() {
+            return 1;
+        }
+
+        /** The furnace input slot count, excluding fuel and result.
+         * @zh 熔炉输入槽数量，不含燃料与产出。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        @Override
+        public int getCraftingSlotCount() {
+            return 1;
+        }
+
+        /**
+         * The smelting input, ignoring the coordinates; the furnace has one
+         * input slot.
+         *
+         * @zh 冶炼输入物品，忽略坐标参数；熔炉只有一个输入槽。
+         * @zh-param x 列号（忽略）
+         * @zh-param z 行号（忽略）
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @Override
+        public ItemStack getInput(int x, int z) {
+            return menuStack(0);
+        }
+
+        /**
+         * Whether the stack burns as furnace fuel, or {@code undefined}
+         * without an open furnace-family menu.
+         *
+         * @zh 该物品能否作为熔炉燃料；未打开熔炉族菜单时为 undefined。
+         * @zh-param stack 待检查的物品
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public Boolean isFuel(ItemStack stack) {
+            return stack == null ? null : inventoryPort().isFuel(stack.toData());
+        }
+
+        /**
+         * Whether the open furnace menu accepts the stack as a smelting
+         * input, or {@code undefined} without one.
+         *
+         * @zh 打开的熔炉菜单是否接受该物品作为冶炼输入；未打开时为 undefined。
+         * @zh-param stack 待检查的物品
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public Boolean isSmeltable(ItemStack stack) {
+            return stack == null ? null : inventoryPort().isSmeltable(stack.toData());
+        }
+
+        /**
+         * The level's fuel values as item id to burn ticks; an empty map
+         * when the level does not expose them.
+         *
+         * @zh 当前世界的燃料表（物品 id → 燃烧 tick）；无法取得时为空对象。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Map<String, Integer> getFuelValues() {
+            return inventoryPort().fuelValues();
+        }
+
+        /** The remaining fuel burn time in ticks, or undefined.
+         * @zh 剩余燃料燃烧 tick；无则为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getFuelTime() {
+            return stateInt("fuelTime");
+        }
+
+        /** The total fuel burn time in ticks, or undefined.
+         * @zh 燃料总燃烧 tick；无则为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getFuelTimeTotal() {
+            return stateInt("fuelTimeTotal");
+        }
+
+        /** The smelting progress in ticks, or undefined.
+         * @zh 已进行的冶炼 tick；无则为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getSmeltingTime() {
+            return stateInt("smeltingTime");
+        }
+
+        /** The total smelting time in ticks, or undefined.
+         * @zh 冶炼总 tick；无则为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getSmeltingTimeTotal() {
+            return stateInt("smeltingTimeTotal");
         }
     }
 
@@ -1844,6 +1984,46 @@ public final class PlayerApi {
             Object value = inventoryPort().containerState().get("cost");
             return value instanceof Integer i ? i : null;
         }
+
+        /**
+         * The text currently in the anvil rename box, or {@code undefined}
+         * without an anvil screen. This is box text, not a guarantee that
+         * the anvil produces a result.
+         *
+         * @zh 铁砧重命名框中的当前文本；未打开铁砧界面时为 undefined。这是输入框文本，不代表铁砧一定有产出。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getItemName() {
+            return inventoryPort().anvilItemName().orElse(null);
+        }
+
+        /**
+         * Writes the anvil rename box, re-running the menu's result and
+         * cost computation; a no-op without an anvil screen. The rename is
+         * applied by taking the result.
+         *
+         * @zh 写入铁砧重命名框，同步重算菜单的产出与费用；未打开铁砧界面时为无操作。改名在取出产出时生效。
+         * @zh-param name 新的名称文本
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> setItemName(String name) {
+            return inventoryPort().setAnvilItemName(name == null ? "" : name);
+        }
+
+        /** The fixed anvil cost threshold of 40 levels.
+         * @zh 铁砧费用的固定上限 40 级。 */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public int getCostLimit() {
+            return 40;
+        }
     }
 
     /**
@@ -1888,9 +2068,16 @@ public final class PlayerApi {
         @ApiMC("*")
         @ApiLoader("*")
         @ApiReadOnly
-        public int[] getCosts() {
+        public List<Integer> getCosts() {
             Object value = inventoryPort().containerState().get("costs");
-            return value instanceof int[] array ? array.clone() : new int[0];
+            if (!(value instanceof int[] array)) {
+                return List.of();
+            }
+            List<Integer> out = new java.util.ArrayList<>(array.length);
+            for (int cost : array) {
+                out.add(cost);
+            }
+            return out;
         }
 
         /** The lapis count the table reports.
@@ -1902,6 +2089,65 @@ public final class PlayerApi {
         public Integer getGoldCount() {
             Object value = inventoryPort().containerState().get("goldCount");
             return value instanceof Integer i ? i : null;
+        }
+
+        /**
+         * The three offered enchantments as {@code {id, level}} entries in
+         * option order; an option the table does not offer reads as
+         * {@code undefined}.
+         *
+         * @zh 三档可选附魔，按 {@code {id, level}} 形态、按选项顺序返回；附魔台未提供的选项为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public List<ink.tuanzi.neomacros.port.model.EnchantmentData> getEnchantments() {
+            Object value = inventoryPort().containerState().get("enchantments");
+            if (!(value instanceof List<?> list)) {
+                return List.of();
+            }
+            List<ink.tuanzi.neomacros.port.model.EnchantmentData> out = new java.util.ArrayList<>();
+            for (Object entry : list) {
+                out.add(entry instanceof ink.tuanzi.neomacros.port.model.EnchantmentData data
+                        ? data : null);
+            }
+            return out;
+        }
+
+        /**
+         * The registry id of each offered enchantment, in option order; an
+         * option the table does not offer reads as {@code undefined}.
+         *
+         * @zh 各档可选附魔的注册 id，按选项顺序返回；附魔台未提供的选项为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public List<String> getEnchantmentIds() {
+            List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchants = getEnchantments();
+            List<String> out = new java.util.ArrayList<>(3);
+            for (int i = 0; i < 3; i++) {
+                out.add(i < enchants.size() && enchants.get(i) != null
+                        ? enchants.get(i).id() : null);
+            }
+            return out;
+        }
+
+        /**
+         * Asks the table to buy one of its three options (0-2); resolves
+         * {@code false} when the local menu check refuses the index, and
+         * {@code false} without an open enchanting table.
+         *
+         * @zh 请求附魔台购买三档之一（0-2）；本地菜单校验拒绝该序号时落定为 false，未打开附魔台时同样为 false。
+         * @zh-param index 选项序号（0-2）
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Boolean> doEnchant(int index) {
+            return inventoryPort().doEnchant(index);
         }
     }
 
@@ -1955,6 +2201,22 @@ public final class PlayerApi {
         public ItemStack getResult() {
             return menuStack(2);
         }
+
+        /**
+         * The lower bound of the experience a grindstone run would award
+         * for the two inputs; the real award is random between this value
+         * and twice it minus one. Reads as {@code undefined} without an open
+         * grindstone.
+         *
+         * @zh 两个输入槽去魔可获得的经验下界；实际奖励在该值到两倍减一之间随机。未打开砂轮时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer xpEstimate() {
+            return stateInt("simulatedXp");
+        }
     }
 
     /**
@@ -2003,6 +2265,62 @@ public final class PlayerApi {
         public Integer getRecipeCount() {
             Object value = inventoryPort().containerState().get("recipeCount");
             return value instanceof Integer i ? i : null;
+        }
+
+        /**
+         * Selects one of the currently visible recipes by its zero-based
+         * index; an out-of-range index is a no-op, as is a call without an
+         * open stonecutter.
+         *
+         * @zh 按从 0 起的序号选择当前可见配方之一；序号越界或未打开切石机时为无操作。
+         * @zh-param idx 配方序号
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> selectRecipe(int idx) {
+            return inventoryPort().selectStonecutterRecipe(idx);
+        }
+
+        /**
+         * The displayed result of each currently visible recipe, in
+         * selection-index order; empty without an open stonecutter.
+         *
+         * @zh 当前每个可见配方的展示产出，按选择序号排列；未打开切石机时为空列表。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public List<ItemStack> getRecipes() {
+            Object value = inventoryPort().containerState().get("recipes");
+            if (!(value instanceof List<?> list)) {
+                return List.of();
+            }
+            List<ItemStack> out = new java.util.ArrayList<>();
+            for (Object entry : list) {
+                out.add(entry instanceof ink.tuanzi.neomacros.port.model.ItemStackData data
+                        ? ItemStack.of(data) : null);
+            }
+            return out;
+        }
+
+        /**
+         * Whether the menu has an input item, or {@code undefined} without
+         * an open stonecutter.
+         *
+         * @zh 菜单是否放有输入物品；未打开切石机时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public Boolean canCraft() {
+            var info = inventoryPort().openedContainer().orElse(null);
+            if (info == null || !"stonecutter".equals(info.kind())) {
+                return null;
+            }
+            Object value = inventoryPort().containerState().get("hasInput");
+            return value instanceof Boolean b ? b : null;
         }
     }
 
@@ -2178,6 +2496,51 @@ public final class PlayerApi {
             Object value = inventoryPort().containerState().get("secondaryEffect");
             return value instanceof String v ? v : null;
         }
+
+        /**
+         * Highlights a primary effect reachable at the current beacon level;
+         * the selection stays on the screen until {@link #applyEffects()}
+         * sends it. Resolves {@code false} when the id matches nothing.
+         *
+         * @zh 高亮当前信标能级可达的主效果；选择停留在界面上，直到 {@link #applyEffects()} 发送。id 无匹配时落定为 false。
+         * @zh-param id 效果标识（如 {@code minecraft:haste}）
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Boolean> selectPrimary(String id) {
+            return inventoryPort().selectBeaconPrimaryEffect(id);
+        }
+
+        /**
+         * Highlights a secondary effect reachable at the current beacon
+         * level (level 3 or above); the selection stays on the screen until
+         * {@link #applyEffects()} sends it. Resolves {@code false} when the
+         * id matches nothing.
+         *
+         * @zh 高亮当前信标能级可达的副效果（需能级 3 以上）；选择停留在界面上，直到 {@link #applyEffects()} 发送。id 无匹配时落定为 false。
+         * @zh-param id 效果标识（如 {@code minecraft:resistance}）
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Boolean> selectSecondary(String id) {
+            return inventoryPort().selectBeaconSecondaryEffect(id);
+        }
+
+        /**
+         * Sends the selected effects to the server and closes the screen;
+         * resolves {@code false} when the payment slot is empty or no beacon
+         * screen is open.
+         *
+         * @zh 将所选效果发送给服务端并关闭界面；付费槽为空或未打开信标界面时落定为 false。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Boolean> applyEffects() {
+            return inventoryPort().applyBeaconEffects();
+        }
     }
 
     /**
@@ -2277,6 +2640,147 @@ public final class PlayerApi {
         public Integer getTotalBrewingTicks() {
             Object value = inventoryPort().containerState().get("totalBrewingTicks");
             return value instanceof Integer i ? i : null;
+        }
+
+        /**
+         * Whether the stack holds a potion type used as the result of a
+         * brewing recipe, or {@code undefined} when brewing recipes are
+         * unavailable.
+         *
+         * @zh 该物品是否为酿造配方的产出药水类型；无法取得酿造配方时为 undefined。
+         * @zh-param potion 待检查的药水物品
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public Boolean isBrewablePotion(ItemStack potion) {
+            return potion == null ? null
+                    : inventoryPort().isBrewablePotion(potion.toData());
+        }
+
+        /**
+         * Whether the stack is a valid brewing ingredient, or {@code
+         * undefined} when brewing recipes are unavailable.
+         *
+         * @zh 该物品是否为合法的酿造原料；无法取得酿造配方时为 undefined。
+         * @zh-param ingredient 待检查的原料
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public Boolean isValidIngredient(ItemStack ingredient) {
+            return ingredient == null ? null
+                    : inventoryPort().isValidIngredient(ingredient.toData());
+        }
+
+        /**
+         * Whether the potion and the ingredient can be brewed together, or
+         * {@code undefined} when brewing recipes are unavailable.
+         *
+         * @zh 该药水与原料能否一起酿造；无法取得酿造配方时为 undefined。
+         * @zh-param potion 待酿造的药水
+         * @zh-param ingredient 酿造原料
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public Boolean isValidRecipe(ItemStack potion, ItemStack ingredient) {
+            if (potion == null || ingredient == null) {
+                return null;
+            }
+            return inventoryPort().isValidRecipe(potion.toData(), ingredient.toData());
+        }
+
+        /**
+         * Whether the stand could brew right now: a valid ingredient with at
+         * least one potion slot that matches it. Fuel and brew progress are
+         * not considered. {@code undefined} without an open brewing stand or
+         * when brewing recipes are unavailable.
+         *
+         * @zh 酿造台此刻能否酿造：原料合法且至少一个药水槽有匹配配方。不考虑燃料与酿造进度。未打开酿造台或无法取得配方时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public Boolean canBrewCurrentInput() {
+            if (!brewingOpen()) {
+                return null;
+            }
+            ItemStack ingredient = getIngredient();
+            if (ingredient == null) {
+                return false;
+            }
+            Boolean ingredientOk = isValidIngredient(ingredient);
+            if (ingredientOk == null) {
+                return null;
+            }
+            if (!ingredientOk) {
+                return false;
+            }
+            for (ItemStack potion : getBottles()) {
+                if (potion == null) {
+                    continue;
+                }
+                Boolean match = isValidRecipe(potion, ingredient);
+                if (match == null) {
+                    return null;
+                }
+                if (match) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** Whether a brewing stand menu is open behind this handle. */
+        private boolean brewingOpen() {
+            var info = inventoryPort().openedContainer().orElse(null);
+            return info != null && "brewing".equals(info.kind());
+        }
+
+        /**
+         * The stack the potion becomes when the ingredient is brewed into
+         * it; a potion with no matching mix reads back unchanged, and
+         * {@code undefined} when brewing recipes are unavailable.
+         *
+         * @zh 药水与原料酿造后的产物；无匹配配方时原样返回，无法取得酿造配方时为 undefined。
+         * @zh-param potion 待酿造的药水
+         * @zh-param ingredient 酿造原料
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public ItemStack previewPotion(ItemStack potion, ItemStack ingredient) {
+            if (potion == null || ingredient == null) {
+                return null;
+            }
+            return inventoryPort().previewPotion(potion.toData(), ingredient.toData())
+                    .map(ItemStack::of)
+                    .orElse(null);
+        }
+
+        /**
+         * The three potion slots after brewing with the current ingredient,
+         * in slot order; empty without an open brewing stand. Slots that
+         * cannot change (empty, or no ingredient loaded) read back as they
+         * are.
+         *
+         * @zh 当前原料酿造后三个药水槽的结果，按槽序；未打开酿造台时为空列表。无法变化的槽（空槽或未放原料）原样返回。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public List<ItemStack> previewPotions() {
+            if (!brewingOpen()) {
+                return List.of();
+            }
+            ItemStack ingredient = getIngredient();
+            List<ItemStack> out = new java.util.ArrayList<>();
+            for (ItemStack potion : getBottles()) {
+                out.add(potion == null || ingredient == null
+                        ? potion : previewPotion(potion, ingredient));
+            }
+            return out;
         }
     }
 

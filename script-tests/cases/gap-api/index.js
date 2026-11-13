@@ -149,6 +149,30 @@ function start() {
         inv.slotUnderMouse === undefined || typeof inv.slotUnderMouse === 'number');
     check('player.inventory-containerId',
         inv.containerId === undefined || typeof inv.containerId === 'number');
+    // G-020 menu-face observations: each member is only present on its own
+    // container handle, so every shape check accepts undefined.
+    check('player.inventory-itemName',
+        inv.itemName === undefined || typeof inv.itemName === 'string');
+    check('player.inventory-costLimit',
+        inv.costLimit === undefined || typeof inv.costLimit === 'number');
+    check('player.inventory-fuelValues',
+        inv.fuelValues === undefined || typeof inv.fuelValues === 'object');
+    check('player.inventory-furnace-times',
+        inv.fuelTime === undefined || typeof inv.fuelTime === 'number');
+    check('player.inventory-smeltedItem',
+        inv.smeltedItem === undefined || typeof inv.smeltedItem.id === 'string');
+    check('player.inventory-enchantments',
+        inv.enchantments === undefined || Array.isArray(inv.enchantments));
+    check('player.inventory-enchantmentIds',
+        inv.enchantmentIds === undefined || Array.isArray(inv.enchantmentIds));
+    check('player.inventory-recipes',
+        inv.recipes === undefined || Array.isArray(inv.recipes));
+    check('player.inventory-xpEstimate',
+        inv.xpEstimate === undefined
+            || inv.xpEstimate() === undefined || typeof inv.xpEstimate() === 'number');
+    check('player.inventory-canCraft',
+        inv.canCraft === undefined
+            || inv.canCraft() === undefined || typeof inv.canCraft() === 'boolean');
   }
   if (self) {
     check('player.statistics', self.statistics === null || typeof self.statistics === 'object');

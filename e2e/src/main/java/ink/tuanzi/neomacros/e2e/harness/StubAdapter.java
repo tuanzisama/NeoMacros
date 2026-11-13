@@ -238,12 +238,35 @@ public final class StubAdapter implements NeomacrosAdapter {
         /** Canned player-menu stacks (result/craft/equipment rows). */
         public final java.util.Map<Integer, ink.tuanzi.neomacros.port.model.ItemStackData> playerMenu =
                 new java.util.concurrent.ConcurrentHashMap<>();
+        /** Canned menu-order stacks (container rows of the open menu). */
+        public final java.util.Map<Integer, ink.tuanzi.neomacros.port.model.ItemStackData> menuSlots =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        /** The canned open-menu state channel keyed by member name. */
+        public final java.util.Map<String, Object> state =
+                new java.util.concurrent.ConcurrentHashMap<>();
         /** The canned open recipe menu's grid width ({@code 0} = none). */
         public volatile int craftingW = 0;
         /** The canned open recipe menu's grid height ({@code 0} = none). */
         public volatile int craftingH = 0;
         /** The canned recipe-book visibility ({@code null} = no book screen). */
         public volatile Boolean recipeBook = null;
+        /** The canned anvil rename-box text ({@code null} = no anvil screen). */
+        public volatile String anvilName = null;
+        /** The canned fuel-value table ({@code null} = the level hides it). */
+        public volatile java.util.Map<String, Integer> fuelValues = null;
+        /** The canned furnace fuel/smelt answers ({@code null} = undefined). */
+        public volatile Boolean fuelAnswer = null;
+        public volatile Boolean smeltableAnswer = null;
+        /** The canned brewing recipe answers ({@code null} = undefined). */
+        public volatile Boolean brewableAnswer = null;
+        public volatile Boolean ingredientAnswer = null;
+        public volatile Boolean recipeAnswer = null;
+        /** The canned brewing preview result ({@code null} = undefined). */
+        public volatile ink.tuanzi.neomacros.port.model.ItemStackData previewResult = null;
+        /** The canned answers for the beacon/enchant write actions. */
+        public volatile Boolean beaconSelectAnswer = Boolean.TRUE;
+        public volatile Boolean beaconApplyAnswer = Boolean.TRUE;
+        public volatile Boolean enchantAnswer = Boolean.TRUE;
         final List<String> actions = new CopyOnWriteArrayList<>();
 
         @Override
@@ -299,6 +322,93 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public java.util.concurrent.CompletableFuture<Void> setRecipeBookOpen(boolean open) {
             return record("recipeBook:" + open);
+        }
+
+        @Override
+        public Optional<ink.tuanzi.neomacros.port.model.ItemStackData> menuSlot(int index) {
+            return Optional.ofNullable(menuSlots.get(index));
+        }
+
+        @Override
+        public java.util.Map<String, Object> containerState() {
+            return state;
+        }
+
+        @Override
+        public java.util.Optional<String> anvilItemName() {
+            return java.util.Optional.ofNullable(anvilName);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setAnvilItemName(String name) {
+            return record("anvilName:" + name);
+        }
+
+        @Override
+        public Boolean isFuel(ink.tuanzi.neomacros.port.model.ItemStackData stack) {
+            return fuelAnswer;
+        }
+
+        @Override
+        public Boolean isSmeltable(ink.tuanzi.neomacros.port.model.ItemStackData stack) {
+            return smeltableAnswer;
+        }
+
+        @Override
+        public java.util.Map<String, Integer> fuelValues() {
+            return fuelValues == null ? java.util.Map.of() : fuelValues;
+        }
+
+        @Override
+        public Boolean isBrewablePotion(ink.tuanzi.neomacros.port.model.ItemStackData potion) {
+            return brewableAnswer;
+        }
+
+        @Override
+        public Boolean isValidIngredient(ink.tuanzi.neomacros.port.model.ItemStackData ingredient) {
+            return ingredientAnswer;
+        }
+
+        @Override
+        public Boolean isValidRecipe(ink.tuanzi.neomacros.port.model.ItemStackData potion,
+                ink.tuanzi.neomacros.port.model.ItemStackData ingredient) {
+            return recipeAnswer;
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> previewPotion(
+                ink.tuanzi.neomacros.port.model.ItemStackData potion,
+                ink.tuanzi.neomacros.port.model.ItemStackData ingredient) {
+            return java.util.Optional.ofNullable(previewResult);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Boolean> selectBeaconPrimaryEffect(String id) {
+            actions.add("beaconPrimary:" + id);
+            return java.util.concurrent.CompletableFuture.completedFuture(beaconSelectAnswer);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Boolean> selectBeaconSecondaryEffect(String id) {
+            actions.add("beaconSecondary:" + id);
+            return java.util.concurrent.CompletableFuture.completedFuture(beaconSelectAnswer);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Boolean> applyBeaconEffects() {
+            actions.add("beaconApply");
+            return java.util.concurrent.CompletableFuture.completedFuture(beaconApplyAnswer);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Boolean> doEnchant(int index) {
+            actions.add("enchant:" + index);
+            return java.util.concurrent.CompletableFuture.completedFuture(enchantAnswer);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> selectStonecutterRecipe(int index) {
+            return record("stonecutter:" + index);
         }
 
         /** Records one script-driven action. */
