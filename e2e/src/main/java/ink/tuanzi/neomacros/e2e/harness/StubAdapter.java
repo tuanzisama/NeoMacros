@@ -425,6 +425,19 @@ public final class StubAdapter implements NeomacrosAdapter {
         public volatile Boolean beaconSelectAnswer = Boolean.TRUE;
         public volatile Boolean beaconApplyAnswer = Boolean.TRUE;
         public volatile Boolean enchantAnswer = Boolean.TRUE;
+        /** The canned creative tabs in display order. */
+        public final List<InventoryPort.CreativeTab> creativeTabs =
+                new CopyOnWriteArrayList<>();
+        /** The canned creative item list (empty stacks allowed as air data). */
+        public final List<ink.tuanzi.neomacros.port.model.ItemStackData> shownItems =
+                new CopyOnWriteArrayList<>();
+        /** The canned loom pattern offers, in selection order. */
+        public final List<String> loomPatternIds = new CopyOnWriteArrayList<>();
+        /** The canned saved-hotbar stacks (empty list = unset slot). */
+        public final List<ink.tuanzi.neomacros.port.model.ItemStackData> savedHotbar =
+                new CopyOnWriteArrayList<>();
+        /** The canned loom pattern-selection answer. */
+        public volatile Boolean loomSelectAnswer = Boolean.TRUE;
         final List<String> actions = new CopyOnWriteArrayList<>();
 
         @Override
@@ -567,6 +580,85 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public java.util.concurrent.CompletableFuture<Void> selectStonecutterRecipe(int index) {
             return record("stonecutter:" + index);
+        }
+
+        @Override
+        public List<InventoryPort.CreativeTab> creativeTabs() {
+            return creativeTabs;
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.ItemStackData> creativeShownItems() {
+            return shownItems;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> creativeScrollBy(double amount) {
+            return record("scrollBy:" + amount);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> creativeScrollTo(double position) {
+            return record("scrollTo:" + position);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> creativeSearch(String text) {
+            return record("search:" + text);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> creativeSelectTab(int index) {
+            return record("selectTab:" + index);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> creativeDestroyHeld() {
+            return record("destroyHeld");
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> creativeDestroyAll() {
+            return record("destroyAll");
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> creativeSetCursor(
+                ink.tuanzi.neomacros.port.model.ItemStackData stack) {
+            return record("setCursor:"
+                    + (stack == null ? "none" : stack.id()));
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> creativeSaveHotbar(int index) {
+            return record("saveHotbar:" + index);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> creativeRestoreHotbar(int index) {
+            return record("restoreHotbar:" + index);
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.ItemStackData> creativeSavedHotbar(
+                int index) {
+            return index == 0 ? savedHotbar : List.of();
+        }
+
+        @Override
+        public List<String> loomPatterns() {
+            return loomPatternIds;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Boolean> loomSelectPattern(int index) {
+            actions.add("loomPattern:" + index);
+            return java.util.concurrent.CompletableFuture.completedFuture(loomSelectAnswer);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> selectVillagerTrade(int index) {
+            return record("selectTrade:" + index);
         }
 
         /** Records one script-driven action. */

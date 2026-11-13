@@ -151,6 +151,15 @@ public final class FabricInventoryPort implements InventoryPort {
             if (menu == null) {
                 return java.util.Optional.empty();
             }
+            // The creative screen drives its own item-picker menu while the
+            // player menu stays open underneath, so the screen decides the
+            // kind here.
+            var screen = FabricLifecyclePort.currentScreen();
+            if (screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen) {
+                return java.util.Optional.of(new ContainerInfo(
+                        screenTitle(), "creative", menu.getItems().size(), menu.containerId));
+            }
             return java.util.Optional.of(new ContainerInfo(
                     screenTitle(), menuKind(menu), menu.getItems().size(), menu.containerId));
         });
@@ -356,6 +365,32 @@ public final class FabricInventoryPort implements InventoryPort {
                     trades.add(trade);
                 }
                 state.put("trades", trades);
+                state.put("canRestock", merchant.canRestock());
+                state.put("leveled", merchant.showProgressBar());
+                return state;
+            }
+            if (menu instanceof net.minecraft.world.inventory.HorseInventoryMenu) {
+                java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+                var mount = ((ink.tuanzi.neomacros.adapter.mixin.HorseMenuAccessor) menu)
+                        .neomacros$mount();
+                if (mount instanceof net.minecraft.world.entity.animal.equine.AbstractHorse horse) {
+                    state.put("canBeSaddled", horse.canUseSlot(
+                            net.minecraft.world.entity.EquipmentSlot.SADDLE));
+                    state.put("isSaddled", !horse.getItemBySlot(
+                            net.minecraft.world.entity.EquipmentSlot.SADDLE).isEmpty());
+                    state.put("hasArmorSlot", horse.canUseSlot(
+                            net.minecraft.world.entity.EquipmentSlot.BODY));
+                    boolean chested = horse
+                            instanceof net.minecraft.world.entity.animal.equine.AbstractChestedHorse;
+                    state.put("hasChest", chested
+                            && ((net.minecraft.world.entity.animal.equine.AbstractChestedHorse) horse)
+                                    .hasChest());
+                    state.put("inventorySize", chested
+                            ? ((net.minecraft.world.entity.animal.equine.AbstractChestedHorse) horse)
+                                    .getInventoryColumns() * 3
+                            : 0);
+                    state.put("horse", horse.getUUID().toString());
+                }
                 return state;
             }
             return java.util.Map.of();
@@ -429,6 +464,16 @@ public final class FabricInventoryPort implements InventoryPort {
     @Override
     public Optional<ItemStackData> carriedItem() {
         return MainThread.run(() -> {
+            // The creative screen carries its cursor on its own menu, not
+            // the player menu underneath it.
+            var screen = FabricLifecyclePort.currentScreen();
+            if (screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen creative) {
+                var carried = creative.getMenu().getCarried();
+                return carried.isEmpty()
+                        ? Optional.empty()
+                        : Optional.of(stackDataOf(carried));
+            }
             var menu = openMenu();
             if (menu == null || menu.getCarried().isEmpty()) {
                 return Optional.empty();
@@ -1017,6 +1062,272 @@ public final class FabricInventoryPort implements InventoryPort {
             stonecutter.clickMenuButton(player, index);
             gameMode.handleInventoryButtonClick(menu.containerId, index);
         });
+    }
+
+    // === container specialized face ===
+
+    @Override
+    public List<ink.tuanzi.neomacros.port.InventoryPort.CreativeTab> creativeTabs() {
+        return MainThread.run(() -> {
+            List<ink.tuanzi.neomacros.port.InventoryPort.CreativeTab> out = new ArrayList<>();
+            for (net.minecraft.world.item.CreativeModeTab tab
+                    : net.minecraft.world.item.CreativeModeTabs.allTabs()) {
+                out.add(new ink.tuanzi.neomacros.port.InventoryPort.CreativeTab(
+                        tab.getDisplayName().getString(), tab.getType().name()));
+            }
+            return out;
+        });
+    }
+
+    @Override
+    public List<ItemStackData> creativeShownItems() {
+        return MainThread.run(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen creative)) {
+                return List.of();
+            }
+            List<ItemStackData> out = new ArrayList<>();
+            for (ItemStack stack : creative.getMenu().items) {
+                out.add(stackDataOf(stack));
+            }
+            return out;
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> creativeScrollBy(double amount) {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen creative)) {
+                return;
+            }
+            var layout = (ink.tuanzi.neomacros.adapter.mixin.CreativeScreenAccessor) creative;
+            if (!layout.neomacros$canScroll()) {
+                return;
+            }
+            float target = clamp01(layout.neomacros$scrollOffs() + (float) amount);
+            layout.neomacros$scrollOffs(target);
+            creative.getMenu().scrollTo(target);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> creativeScrollTo(double position) {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen creative)) {
+                return;
+            }
+            var layout = (ink.tuanzi.neomacros.adapter.mixin.CreativeScreenAccessor) creative;
+            if (!layout.neomacros$canScroll()) {
+                return;
+            }
+            float target = clamp01(position);
+            layout.neomacros$scrollOffs(target);
+            creative.getMenu().scrollTo(target);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> creativeSearch(String text) {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen creative)) {
+                return;
+            }
+            var layout = (ink.tuanzi.neomacros.adapter.mixin.CreativeScreenAccessor) creative;
+            var tab = layout.neomacros$selectedTab();
+            if (tab == null
+                    || tab.getType() != net.minecraft.world.item.CreativeModeTab.Type.SEARCH) {
+                return;
+            }
+            var box = layout.neomacros$searchBox();
+            if (box == null) {
+                return;
+            }
+            box.setValue(text == null ? "" : text);
+            layout.neomacros$refreshSearchResults();
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> creativeSelectTab(int index) {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen creative)) {
+                return;
+            }
+            var tabs = net.minecraft.world.item.CreativeModeTabs.allTabs();
+            if (index < 0 || index >= tabs.size()) {
+                return;
+            }
+            ((ink.tuanzi.neomacros.adapter.mixin.CreativeScreenAccessor) creative)
+                    .neomacros$selectTab(tabs.get(index));
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> creativeDestroyHeld() {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen creative)) {
+                return;
+            }
+            creative.getMenu().setCarried(ItemStack.EMPTY);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> creativeDestroyAll() {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen)) {
+                return;
+            }
+            var player = player();
+            var gameMode = Minecraft.getInstance().gameMode;
+            if (player == null || gameMode == null) {
+                return;
+            }
+            var inventoryMenu = player.inventoryMenu;
+            for (int i = 0; i < inventoryMenu.getItems().size(); i++) {
+                inventoryMenu.getSlot(i).set(ItemStack.EMPTY);
+                gameMode.handleCreativeModeItemAdd(ItemStack.EMPTY, i);
+            }
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> creativeSetCursor(ItemStackData stack) {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen creative)) {
+                return;
+            }
+            creative.getMenu().setCarried(mcStack(stack));
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> creativeSaveHotbar(int index) {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen)
+                    || index < 0 || index > 8) {
+                return;
+            }
+            net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen
+                    .handleHotbarLoadOrSave(Minecraft.getInstance(), index, false, true);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> creativeRestoreHotbar(int index) {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen
+                    instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen)
+                    || index < 0 || index > 8) {
+                return;
+            }
+            net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen
+                    .handleHotbarLoadOrSave(Minecraft.getInstance(), index, true, false);
+        });
+    }
+
+    @Override
+    public List<ItemStackData> creativeSavedHotbar(int index) {
+        return MainThread.run(() -> {
+            if (index < 0 || index > 8) {
+                return List.of();
+            }
+            var mc = Minecraft.getInstance();
+            var connection = mc.getConnection();
+            if (connection == null) {
+                return List.of();
+            }
+            List<ItemStackData> out = new ArrayList<>();
+            for (ItemStack stack : mc.getHotbarManager().get(index)
+                    .load(connection.registryAccess())) {
+                out.add(stackDataOf(stack));
+            }
+            return out;
+        });
+    }
+
+    @Override
+    public List<String> loomPatterns() {
+        return MainThread.run(() -> {
+            var menu = openMenu();
+            if (!(menu instanceof net.minecraft.world.inventory.LoomMenu loom)) {
+                return List.of();
+            }
+            var connection = Minecraft.getInstance().getConnection();
+            if (connection == null) {
+                return List.of();
+            }
+            var registry = connection.registryAccess().lookupOrThrow(
+                    net.minecraft.core.registries.Registries.BANNER_PATTERN);
+            List<String> out = new ArrayList<>();
+            for (var holder : loom.getSelectablePatterns()) {
+                var key = registry.getKey(holder.value());
+                out.add(key != null ? key.toString() : "");
+            }
+            return out;
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> loomSelectPattern(int index) {
+        return dispatchValue(() -> {
+            var menu = openMenu();
+            if (!(menu instanceof net.minecraft.world.inventory.LoomMenu loom)
+                    || index < 0 || index >= loom.getSelectablePatterns().size()) {
+                return Boolean.FALSE;
+            }
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen instanceof net.minecraft.client.gui.screens.inventory.LoomScreen)
+                    || !((ink.tuanzi.neomacros.adapter.mixin.LoomScreenAccessor) screen)
+                            .neomacros$displayPatterns()) {
+                return Boolean.FALSE;
+            }
+            var player = player();
+            var gameMode = Minecraft.getInstance().gameMode;
+            if (player == null || gameMode == null || !loom.clickMenuButton(player, index)) {
+                return Boolean.FALSE;
+            }
+            gameMode.handleInventoryButtonClick(menu.containerId, index);
+            return Boolean.TRUE;
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> selectVillagerTrade(int index) {
+        return dispatch(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen instanceof net.minecraft.client.gui.screens.inventory.MerchantScreen)
+                    || !(openMenu() instanceof net.minecraft.world.inventory.MerchantMenu menu)
+                    || index < 0 || index >= menu.getOffers().size()) {
+                return;
+            }
+            var layout = (ink.tuanzi.neomacros.adapter.mixin.MerchantScreenAccessor) screen;
+            layout.neomacros$shopItem(index);
+            layout.neomacros$postButtonClick();
+        });
+    }
+
+    /** Clamps a scroll fraction into {@code 0..1}. */
+    private static float clamp01(double value) {
+        return (float) Math.max(0.0, Math.min(1.0, value));
     }
 
     //? if >=26.3 {

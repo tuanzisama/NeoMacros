@@ -231,6 +231,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("VillagerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.VillagerInventory.class);
         registry.registerGuestType("TradeOffer", ink.tuanzi.neomacros.core.api.player.PlayerApi.TradeOffer.class);
         registry.registerGuestType("HorseInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.HorseInventory.class);
+        registry.registerGuestType("LoomInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.LoomInventory.class);
+        registry.registerGuestType("CreativeInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.CreativeInventory.class);
         registry.registerGuestType("Abilities", ink.tuanzi.neomacros.core.api.player.PlayerApi.Abilities.class);
         registry.registerGuestType("AxolotlEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.AxolotlEntity.class);
         registry.registerGuestType("BeeEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.BeeEntity.class);

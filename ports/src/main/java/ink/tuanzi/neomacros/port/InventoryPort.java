@@ -431,4 +431,120 @@ public interface InventoryPort {
     default java.util.concurrent.CompletableFuture<Void> selectStonecutterRecipe(int index) {
         throw new UnsupportedOperationException("inventory actions");
     }
+
+    // === container specialized face ===
+
+    /** One creative tab: its localized display name and tab type label. */
+    record CreativeTab(String name, String type) {
+    }
+
+    /**
+     * The creative tabs in display order; empty without an open creative
+     * screen.
+     */
+    default List<CreativeTab> creativeTabs() {
+        return List.of();
+    }
+
+    /**
+     * The stacks the open creative list currently holds, in display order;
+     * empty entries surface as air stacks. Empty without an open creative
+     * screen.
+     */
+    default List<ItemStackData> creativeShownItems() {
+        return List.of();
+    }
+
+    /**
+     * Scrolls the creative item list by a relative amount; a no-op without
+     * a scrollable creative screen.
+     */
+    default java.util.concurrent.CompletableFuture<Void> creativeScrollBy(double amount) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Sets the creative item list's scroll position (clamped to {@code 0..1});
+     * a no-op without a scrollable creative screen.
+     */
+    default java.util.concurrent.CompletableFuture<Void> creativeScrollTo(double position) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Replaces the creative search box text and refreshes the results; a
+     * no-op unless the search tab is selected.
+     */
+    default java.util.concurrent.CompletableFuture<Void> creativeSearch(String text) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Selects the creative tab at its display-order index; an unknown index
+     * is a no-op.
+     */
+    default java.util.concurrent.CompletableFuture<Void> creativeSelectTab(int index) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /** Clears the stack carried by the creative menu cursor. */
+    default java.util.concurrent.CompletableFuture<Void> creativeDestroyHeld() {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Clears every player inventory slot through the creative item-add
+     * operation (the vanilla trash-all path).
+     */
+    default java.util.concurrent.CompletableFuture<Void> creativeDestroyAll() {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /** Sets the stack carried by the creative menu cursor. */
+    default java.util.concurrent.CompletableFuture<Void> creativeSetCursor(ItemStackData stack) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /** Saves the current hotbar into a saved-hotbar slot (0-8). */
+    default java.util.concurrent.CompletableFuture<Void> creativeSaveHotbar(int index) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /** Restores a saved-hotbar slot (0-8) onto the current hotbar. */
+    default java.util.concurrent.CompletableFuture<Void> creativeRestoreHotbar(int index) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * The stacks stored in a saved-hotbar slot (0-8), hotbar order; an
+     * empty list for an out-of-range index.
+     */
+    default List<ItemStackData> creativeSavedHotbar(int index) {
+        return List.of();
+    }
+
+    /**
+     * The banner pattern registry ids the open loom offers for the pattern
+     * slot item, in selection order; empty without an open loom.
+     */
+    default List<String> loomPatterns() {
+        return List.of();
+    }
+
+    /**
+     * Applies the offered loom pattern at its zero-based position and asks
+     * the server to apply it; resolves {@code false} when the index is out
+     * of range or the pattern list is not displayed.
+     */
+    default java.util.concurrent.CompletableFuture<Boolean> loomSelectPattern(int index) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
+    /**
+     * Selects a villager trade by its zero-based offer position; an
+     * out-of-range index or a closed trader screen is a no-op.
+     */
+    default java.util.concurrent.CompletableFuture<Void> selectVillagerTrade(int index) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
 }
