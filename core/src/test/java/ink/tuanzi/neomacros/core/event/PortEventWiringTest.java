@@ -125,15 +125,28 @@ class PortEventWiringTest {
         fireTicks(adapter, clock, 1);
         assertTrue(published.stream().anyMatch(p -> p.name().equals("player:damage")),
                 "events were: " + names(published));
-        assertTrue(published.stream().anyMatch(p -> p.name().equals("player:health")));
+        var healthPayload = (ink.tuanzi.neomacros.core.event.def.player.PlayerHealthEvent)
+                published.stream().filter(p -> p.name().equals("player:health"))
+                        .findFirst().orElseThrow().payload();
+        assertEquals(-0.5, healthPayload.change(), 0.0001,
+                "player:health carries the signed delta against the previous sample");
         assertTrue(published.stream().anyMatch(p -> p.name().equals("player:hunger")));
 
-        // Death edge.
+        // Death edge: the payload names the death block and the inventory snapshot.
         published.clear();
+        adapter.inventoryItems = List.of(new InventoryPort.IndexedStack(3,
+                new ink.tuanzi.neomacros.port.model.ItemStackData(
+                        "minecraft:diamond_sword", 1, "Sword", 0, 1561, List.of(), List.of(),
+                        java.util.Map.of())));
         adapter.playerPort.self = snapshot(0.0);
         fireTicks(adapter, clock, 1);
-        assertTrue(published.stream().anyMatch(p -> p.name().equals("player:death")),
-                "events were: " + names(published));
+        var death = published.stream()
+                .filter(p -> p.name().equals("player:death")).findFirst().orElseThrow();
+        var deathPayload = (ink.tuanzi.neomacros.core.event.def.player.PlayerDeathEvent)
+                death.payload();
+        assertEquals(64.0, deathPayload.deathPos().getY(), 0.0001);
+        assertEquals(1, deathPayload.inventory().size());
+        assertEquals("minecraft:diamond_sword", deathPayload.inventory().get(0).id());
 
         // Respawn edge.
         published.clear();
@@ -331,6 +344,8 @@ class PortEventWiringTest {
         var damagePayload = (ink.tuanzi.neomacros.core.event.def.entity.EntityDamageEvent) damage.payload();
         assertEquals(zombie, damagePayload.entity().uuid());
         assertEquals(7.0f, damagePayload.amount(), 0.001f);
+        assertEquals(13.0f, damagePayload.health(), 0.001f,
+                "entity:damage carries the post-damage health");
 
         // Health recovery fires entity:heal; the local player never appears.
         published.clear();
@@ -338,9 +353,11 @@ class PortEventWiringTest {
         fireTicks(adapter, clock, 1);
         var heal = published.stream()
                 .filter(p -> p.name().equals("entity:heal")).findFirst().orElseThrow();
-        assertEquals(zombie,
-                ((ink.tuanzi.neomacros.core.event.def.entity.EntityHealEvent) heal.payload())
-                        .entity().uuid());
+        var healPayload = (ink.tuanzi.neomacros.core.event.def.entity.EntityHealEvent)
+                heal.payload();
+        assertEquals(zombie, healPayload.entity().uuid());
+        assertEquals(15.0f, healPayload.health(), 0.001f,
+                "entity:heal carries the post-heal health");
 
         // The same health twice publishes nothing.
         published.clear();
@@ -382,12 +399,19 @@ class PortEventWiringTest {
         assertEquals("minecraft:speed", gainPayload.effectId());
         assertTrue(gainPayload.added());
         assertEquals(0, gainPayload.amplifier());
+        assertEquals(null, gainPayload.previousEffect(),
+                "a gain has no previous effect snapshot");
 
         // An amplifier change fires added=true with the new amplifier.
         published.clear();
         adapter.playerPort.effects = List.of(effect("minecraft:speed", 1));
         fireTicks(adapter, clock, 1);
         assertEquals(1, published.stream().filter(p -> p.name().equals("player:effect")).count());
+        var upgrade = (ink.tuanzi.neomacros.core.event.def.player.PlayerEffectEvent)
+                published.stream().filter(p -> p.name().equals("player:effect"))
+                        .findFirst().orElseThrow().payload();
+        assertEquals(0, upgrade.previousEffect().amplifier(),
+                "the upgrade reports the replaced amplifier");
 
         // Losing the effect fires added=false with the last known amplifier.
         published.clear();
@@ -399,6 +423,8 @@ class PortEventWiringTest {
         assertEquals("minecraft:speed", lossPayload.effectId());
         assertEquals(false, lossPayload.added());
         assertEquals(1, lossPayload.amplifier());
+        assertEquals(1, lossPayload.previousEffect().amplifier(),
+                "the removal reports the removed effect snapshot");
 
         // No change publishes nothing.
         published.clear();
@@ -406,6 +432,107 @@ class PortEventWiringTest {
         assertTrue(published.stream().noneMatch(p -> p.name().equals("player:effect")),
                 "events were: " + names(published));
         runtime.close();
+    }
+
+    @Test
+    void expHeldItemArmorAndRidingCarryTheirNewFields() {
+        var published = new ArrayList<Published>();
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var clock = new TickClock();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus, silentModules(runtime, dir.resolve("scripts-l")), clock);
+        recordAll(published, bus, catalog);
+
+        // The first sample only establishes the baselines.
+        adapter.playerPort.self = snapshot(1.0);
+        adapter.held = Optional.of(stack("minecraft:stick", 0));
+        adapter.offhand = stack("minecraft:torch", 0);
+        adapter.playerPort.armor = List.of(stack("minecraft:iron_boots", 0),
+                stack("minecraft:air", 0), stack("minecraft:iron_chestplate", 0),
+                stack("minecraft:air", 0));
+        fireTicks(adapter, clock, 1);
+        assertTrue(published.stream().noneMatch(p -> p.name().equals("player:armor")
+                        || p.name().equals("player:heldItem")
+                        || p.name().equals("player:exp")),
+                "the first sample publishes no change edge: " + names(published));
+
+        // Experience carries the total and the previous triple.
+        adapter.playerPort.expLevel = 5;
+        adapter.playerPort.expProgress = 0.25f;
+        adapter.playerPort.expTotal = 120;
+        fireTicks(adapter, clock, 1);
+        var exp = (ink.tuanzi.neomacros.core.event.def.player.PlayerExpEvent)
+                lastPayload(published, "player:exp");
+        assertEquals(5, exp.level());
+        assertEquals(0.25f, exp.progress(), 0.0001f);
+        assertEquals(120, exp.total());
+        assertEquals(5, exp.change());
+        assertEquals(0, exp.prevLevel());
+        assertEquals(0.0f, exp.prevProgress(), 0.0001f);
+        assertEquals(0, exp.prevTotal());
+
+        // Armor reports the changed slot with both stacks around the change.
+        adapter.playerPort.armor = List.of(stack("minecraft:iron_boots", 0),
+                stack("minecraft:air", 0), stack("minecraft:diamond_chestplate", 0),
+                stack("minecraft:air", 0));
+        fireTicks(adapter, clock, 1);
+        var armor = (ink.tuanzi.neomacros.core.event.def.player.PlayerArmorEvent)
+                lastPayload(published, "player:armor");
+        assertEquals("chest", armor.slot());
+        assertEquals("minecraft:diamond_chestplate", armor.item().id());
+        assertEquals("minecraft:iron_chestplate", armor.oldItem().id());
+        assertEquals(1, published.stream().filter(p -> p.name().equals("player:armor")).count());
+
+        // The main hand and the off hand are tracked separately.
+        adapter.held = Optional.of(stack("minecraft:diamond_sword", 0));
+        fireTicks(adapter, clock, 1);
+        var mainHand = (ink.tuanzi.neomacros.core.event.def.player.PlayerHeldItemEvent)
+                lastPayload(published, "player:heldItem");
+        assertFalse(mainHand.offHand());
+        assertEquals("minecraft:stick", mainHand.previous().id());
+        assertEquals("minecraft:diamond_sword", mainHand.current().id());
+
+        adapter.offhand = stack("minecraft:shield", 0);
+        fireTicks(adapter, clock, 1);
+        var offHand = (ink.tuanzi.neomacros.core.event.def.player.PlayerHeldItemEvent)
+                lastPayload(published, "player:heldItem");
+        assertTrue(offHand.offHand());
+        assertEquals("minecraft:torch", offHand.previous().id());
+        assertEquals("minecraft:shield", offHand.current().id());
+
+        // Riding carries the vehicle and the vehicle left behind.
+        var mount = UUID.randomUUID();
+        adapter.entityPort.nearby = List.of(entity(mount, 20.0));
+        adapter.playerPort.vehicle = mount;
+        fireTicks(adapter, clock, 1);
+        var mountEvent = (ink.tuanzi.neomacros.core.event.def.player.PlayerRidingEvent)
+                lastPayload(published, "player:riding");
+        assertEquals(mount, mountEvent.vehicle().uuid());
+        assertEquals(null, mountEvent.previousVehicle());
+
+        adapter.playerPort.vehicle = null;
+        fireTicks(adapter, clock, 1);
+        var dismountEvent = (ink.tuanzi.neomacros.core.event.def.player.PlayerRidingEvent)
+                lastPayload(published, "player:riding");
+        assertEquals(null, dismountEvent.vehicle());
+        assertEquals(mount, dismountEvent.previousVehicle().uuid());
+        runtime.close();
+    }
+
+    /** The payload of the most recently published event with that name. */
+    private static Object lastPayload(List<Published> published, String name) {
+        List<Published> matches = published.stream()
+                .filter(p -> p.name().equals(name)).toList();
+        if (matches.isEmpty()) {
+            throw new AssertionError("no " + name + " event published");
+        }
+        return matches.get(matches.size() - 1).payload();
+    }
+
+    private static ink.tuanzi.neomacros.port.model.ItemStackData stack(String id, int damage) {
+        return new ink.tuanzi.neomacros.port.model.ItemStackData(id, 1, id, damage, 0,
+                List.of(), List.of(), java.util.Map.of());
     }
 
     @Test
@@ -674,6 +801,8 @@ class PortEventWiringTest {
         final InventorySinks inventorySinks = new InventorySinks();
         volatile java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> held =
                 java.util.Optional.empty();
+        volatile ink.tuanzi.neomacros.port.model.ItemStackData offhand;
+        volatile List<InventoryPort.IndexedStack> inventoryItems = List.of();
         volatile java.util.Optional<ink.tuanzi.neomacros.port.InventoryPort.ContainerInfo> container =
                 java.util.Optional.empty();
 
@@ -712,12 +841,13 @@ class PortEventWiringTest {
 
                 @Override
                 public java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> slot(int index) {
-                    return java.util.Optional.empty();
+                    return index == 40 ? java.util.Optional.ofNullable(offhand)
+                            : java.util.Optional.empty();
                 }
 
                 @Override
                 public java.util.function.Supplier<List<IndexedStack>> allItems() {
-                    return List::of;
+                    return () -> inventoryItems;
                 }
 
                 @Override
@@ -1086,6 +1216,11 @@ class PortEventWiringTest {
 
         volatile PlayerSnapshot self;
         volatile List<ink.tuanzi.neomacros.port.model.EffectSnapshot> effects = List.of();
+        volatile int expLevel;
+        volatile float expProgress;
+        volatile int expTotal;
+        volatile List<ink.tuanzi.neomacros.port.model.ItemStackData> armor = List.of();
+        volatile UUID vehicle;
         final List<Function<BlockInteraction, Boolean>> attackBlocks = new CopyOnWriteArrayList<>();
         final List<Function<EntitySnapshot, Boolean>> attackEntities = new CopyOnWriteArrayList<>();
         final List<Function<BlockInteraction, Boolean>> interactBlocks = new CopyOnWriteArrayList<>();
@@ -1101,6 +1236,31 @@ class PortEventWiringTest {
         @Override
         public List<ink.tuanzi.neomacros.port.model.EffectSnapshot> activeEffects() {
             return effects;
+        }
+
+        @Override
+        public int expLevel() {
+            return expLevel;
+        }
+
+        @Override
+        public float expProgress() {
+            return expProgress;
+        }
+
+        @Override
+        public int expTotal() {
+            return expTotal;
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.ItemStackData> armorSlots() {
+            return armor;
+        }
+
+        @Override
+        public Optional<UUID> vehicleUuid() {
+            return Optional.ofNullable(vehicle);
         }
 
         @Override

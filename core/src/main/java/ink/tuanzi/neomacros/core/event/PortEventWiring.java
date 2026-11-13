@@ -294,6 +294,9 @@ public final class PortEventWiring {
         /** Radius around the player polled for entity health changes. */
         private static final double ENTITY_HEALTH_RANGE = 32.0;
 
+        /** Player-inventory slot index of the off hand (vanilla order). */
+        private static final int OFFHAND_SLOT = 40;
+
         private final EventBus bus;
         private boolean seen;
         private boolean dead;
@@ -302,12 +305,21 @@ public final class PortEventWiring {
         private long lastTime;
         private boolean timeInitialized;
         private final java.util.Map<java.util.UUID, Double> entityHealth = new java.util.HashMap<>();
-        private final java.util.Map<String, Integer> effectAmplifiers = new java.util.HashMap<>();
+        private final java.util.Map<String, ink.tuanzi.neomacros.port.model.EffectSnapshot>
+                lastEffects = new java.util.HashMap<>();
         private String lastGamemode;
         private int lastExpLevel = -1;
+        private float lastExpProgress;
+        private int lastExpTotal;
         private boolean lastRaining;
         private boolean weatherInitialized;
         private String lastHeldItemId;
+        private ink.tuanzi.neomacros.port.model.ItemStackData lastHeldStack;
+        private boolean heldSampled;
+        private String lastOffhandItemId;
+        private ink.tuanzi.neomacros.port.model.ItemStackData lastOffhandStack;
+        private boolean offhandSampled;
+        private List<ink.tuanzi.neomacros.port.model.ItemStackData> lastArmor;
         private boolean lastScreenOpen;
         private String lastScreenClass;
         private String lastScreenTitle;
@@ -342,7 +354,7 @@ public final class PortEventWiring {
                 bus.publish("player:join", new PlayerJoinEvent(entityOf(now)));
                 bus.publish("player:spawn", new PlayerSpawnEvent(entityOf(now)));
             } else {
-                emitVitals(now);
+                emitVitals(adapter, now);
             }
             last = now;
             emitWorld(adapter, now);
@@ -368,9 +380,9 @@ public final class PortEventWiring {
             lastDimension = null;
             timeInitialized = false;
             entityHealth.clear();
-            effectAmplifiers.clear();
+            lastEffects.clear();
             lastVehicle = null;
-            lastArmorSignature = "";
+            lastArmor = null;
             lastDurabilityIds.clear();
             lastDurabilityValues.clear();
             lastScreenOpen = false;
@@ -389,25 +401,48 @@ public final class PortEventWiring {
             if (java.util.Objects.equals(vehicle, lastVehicle)) {
                 return;
             }
+            EntitySnapshot previous = lastVehicle == null
+                    ? null : adapter.entity().byUuid(lastVehicle).orElse(null);
             lastVehicle = vehicle;
             EntitySnapshot snapshot = vehicle == null
                     ? null : adapter.entity().byUuid(vehicle).orElse(null);
-            bus.publish("player:riding", new PlayerRidingEvent(snapshot));
+            bus.publish("player:riding", new PlayerRidingEvent(snapshot, previous));
         }
 
-        /** Diffs the four armor slots and publishes player:armor. */
+        /**
+         * Diffs the four armor slots and publishes one player:armor event per
+         * slot whose stack identity (id + count) moved; the first sample only
+         * establishes the baseline. Durability-only moves stay with
+         * item:damage.
+         */
         private void emitArmor(NeomacrosAdapter adapter) {
             List<ink.tuanzi.neomacros.port.model.ItemStackData> armor =
                     adapter.player().armorSlots();
-            StringBuilder signature = new StringBuilder();
-            for (ink.tuanzi.neomacros.port.model.ItemStackData stack : armor) {
-                signature.append(stack.id()).append('x').append(stack.count()).append(',');
-            }
-            if (signature.toString().equals(lastArmorSignature)) {
+            List<ink.tuanzi.neomacros.port.model.ItemStackData> previous = lastArmor;
+            lastArmor = armor;
+            if (previous == null) {
                 return;
             }
-            lastArmorSignature = signature.toString();
-            bus.publish("player:armor", new PlayerArmorEvent(armor));
+            String[] labels = {"feet", "legs", "chest", "head"};
+            for (int i = 0; i < labels.length && i < armor.size(); i++) {
+                ink.tuanzi.neomacros.port.model.ItemStackData stack = armor.get(i);
+                ink.tuanzi.neomacros.port.model.ItemStackData before =
+                        i < previous.size() ? previous.get(i) : null;
+                if (sameStackIdentity(stack, before)) {
+                    continue;
+                }
+                bus.publish("player:armor", new PlayerArmorEvent(armor, labels[i], stack, before));
+            }
+        }
+
+        /** Whether two stacks carry the same item id and count (damage ignored). */
+        private static boolean sameStackIdentity(
+                ink.tuanzi.neomacros.port.model.ItemStackData a,
+                ink.tuanzi.neomacros.port.model.ItemStackData b) {
+            if (a == null || b == null) {
+                return a == b;
+            }
+            return a.id().equals(b.id()) && a.count() == b.count();
         }
 
         /**
@@ -468,11 +503,11 @@ public final class PortEventWiring {
                 if (delta < 0) {
                     bus.publish("entity:damage",
                             new ink.tuanzi.neomacros.core.event.def.entity.EntityDamageEvent(
-                                    entity, (float) -delta));
+                                    entity, (float) -delta, (float) entity.health()));
                 } else {
                     bus.publish("entity:heal",
                             new ink.tuanzi.neomacros.core.event.def.entity.EntityHealEvent(
-                                    entity, (float) delta));
+                                    entity, (float) delta, (float) entity.health()));
                 }
             }
             entityHealth.keySet().removeIf(uuid -> !present.contains(uuid));
@@ -603,49 +638,70 @@ public final class PortEventWiring {
             }
 
             int expLevel = adapter.player().expLevel();
-            if (lastExpLevel >= 0 && expLevel != lastExpLevel) {
-                bus.publish("player:exp", new PlayerExpEvent(expLevel,
-                        adapter.player().expProgress(), expLevel - lastExpLevel));
+            float expProgress = adapter.player().expProgress();
+            int expTotal = adapter.player().expTotal();
+            if (lastExpLevel >= 0 && (expLevel != lastExpLevel || expTotal != lastExpTotal)) {
+                bus.publish("player:exp", new PlayerExpEvent(expLevel, expProgress,
+                        expLevel - lastExpLevel, expTotal, lastExpProgress, lastExpTotal,
+                        lastExpLevel));
             }
             lastExpLevel = expLevel;
+            lastExpProgress = expProgress;
+            lastExpTotal = expTotal;
 
             var held = adapter.inventory().heldItem().get();
             String heldId = held.map(ink.tuanzi.neomacros.port.model.ItemStackData::id).orElse(null);
-            if (lastHeldItemId != null && !lastHeldItemId.equals(heldId)) {
-                bus.publish("player:heldItem", new PlayerHeldItemEvent(null, held.orElse(null)));
+            if (heldSampled && !java.util.Objects.equals(lastHeldItemId, heldId)) {
+                bus.publish("player:heldItem",
+                        new PlayerHeldItemEvent(lastHeldStack, held.orElse(null), false));
             }
+            heldSampled = true;
             lastHeldItemId = heldId;
+            lastHeldStack = held.orElse(null);
+
+            var offhand = adapter.inventory().slot(OFFHAND_SLOT);
+            String offhandId = offhand
+                    .map(ink.tuanzi.neomacros.port.model.ItemStackData::id).orElse(null);
+            if (offhandSampled && !java.util.Objects.equals(lastOffhandItemId, offhandId)) {
+                bus.publish("player:heldItem",
+                        new PlayerHeldItemEvent(lastOffhandStack, offhand.orElse(null), true));
+            }
+            offhandSampled = true;
+            lastOffhandItemId = offhandId;
+            lastOffhandStack = offhand.orElse(null);
         }
 
         /**
          * Diffs the player's active status effects against the previous tick
          * and publishes player:effect for additions, removals, and
-         * amplifier changes.
+         * amplifier changes; each event carries the replaced effect snapshot.
          */
         private void emitEffectChanges(NeomacrosAdapter adapter) {
             java.util.Set<String> active = new java.util.HashSet<>();
             for (ink.tuanzi.neomacros.port.model.EffectSnapshot effect : adapter.player().activeEffects()) {
                 active.add(effect.effectId());
-                Integer previous = effectAmplifiers.put(effect.effectId(), effect.amplifier());
-                if (previous == null || previous != effect.amplifier()) {
+                ink.tuanzi.neomacros.port.model.EffectSnapshot previous =
+                        lastEffects.put(effect.effectId(), effect);
+                if (previous == null || previous.amplifier() != effect.amplifier()) {
                     bus.publish("player:effect",
                             new ink.tuanzi.neomacros.core.event.def.player.PlayerEffectEvent(
-                                    effect.effectId(), true, effect.amplifier()));
+                                    effect.effectId(), true, effect.amplifier(), previous));
                 }
             }
-            effectAmplifiers.entrySet().removeIf(entry -> {
+            lastEffects.entrySet().removeIf(entry -> {
                 if (active.contains(entry.getKey())) {
                     return false;
                 }
+                ink.tuanzi.neomacros.port.model.EffectSnapshot removed = entry.getValue();
                 bus.publish("player:effect",
                         new ink.tuanzi.neomacros.core.event.def.player.PlayerEffectEvent(
-                                entry.getKey(), false, entry.getValue()));
+                                removed.effectId(), false, removed.amplifier(), removed));
                 return true;
             });
         }
 
         /** Emits health/hunger/air deltas and death/respawn edges. */
-        private void emitVitals(PlayerSnapshot now) {
+        private void emitVitals(NeomacrosAdapter adapter, PlayerSnapshot now) {
             double health = now.health();
             double previous = last.health();
             if (health != previous) {
@@ -654,11 +710,12 @@ public final class PortEventWiring {
                 } else {
                     bus.publish("player:heal", new PlayerHealEvent(health - previous, health));
                 }
-                bus.publish("player:health", new PlayerHealthEvent(health));
+                bus.publish("player:health", new PlayerHealthEvent(health, health - previous));
             }
             if (health <= 0 && !dead && previous > 0) {
                 dead = true;
-                bus.publish("player:death", new PlayerDeathEvent(entityOf(now)));
+                bus.publish("player:death", new PlayerDeathEvent(entityOf(now),
+                        deathBlockPos(now), inventorySnapshot(adapter)));
             } else if (health > 0 && dead) {
                 dead = false;
                 bus.publish("player:respawn", new PlayerRespawnEvent(entityOf(now)));
@@ -712,6 +769,23 @@ public final class PortEventWiring {
         private static EntitySnapshot entityOf(PlayerSnapshot snapshot) {
             return new EntitySnapshot(snapshot.uuid(), "minecraft:player", snapshot.name(),
                     snapshot.pos(), snapshot.health());
+        }
+
+        /** The block-grid position of the observed death sample. */
+        private static ink.tuanzi.neomacros.core.api.types.BlockPos deathBlockPos(
+                PlayerSnapshot snapshot) {
+            return new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                    snapshot.pos().x(), snapshot.pos().y(), snapshot.pos().z());
+        }
+
+        /** The non-empty inventory stacks at the death sample, ordered by slot. */
+        private static List<ink.tuanzi.neomacros.port.model.ItemStackData> inventorySnapshot(
+                NeomacrosAdapter adapter) {
+            return adapter.inventory().allItems().get().stream()
+                    .sorted(java.util.Comparator.comparingInt(
+                            ink.tuanzi.neomacros.port.InventoryPort.IndexedStack::slot))
+                    .map(ink.tuanzi.neomacros.port.InventoryPort.IndexedStack::stack)
+                    .toList();
         }
     }
 }
