@@ -34,6 +34,15 @@ public interface NeomacrosAdapter {
     /** Returns the inventory query port. */
     InventoryPort inventory();
 
+    /**
+     * Returns the item face port (creative tabs, registry lookups, tool and
+     * cooldown queries). Defaulted so adapters written before the port keep
+     * compiling and answer every query as unsupported (script undefined).
+     */
+    default ItemPort item() {
+        return ItemPort.NONE;
+    }
+
     /** Returns the dialog port (dialog reads, actions, script dialogs). */
     DialogPort dialog();
 

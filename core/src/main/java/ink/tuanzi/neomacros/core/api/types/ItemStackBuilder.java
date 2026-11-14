@@ -40,6 +40,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     private int damage;
     private int maxDamage;
     private boolean unbreakable;
+    private Map<String, Object> baseExtras = Map.of();
 
     /** Creates the builder for one item id (namespace optional).
      * @zh 为某物品 id 创建构建器（命名空间可省略）。 */
@@ -173,6 +174,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
         this.lore.addAll(stack.getLore());
         this.enchantments.clear();
         this.enchantments.addAll(stack.getEnchantments());
+        this.baseExtras = stack.extrasView();
         return this;
     }
 
@@ -186,7 +188,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
             throw new IllegalStateException("item id is required");
         }
         return new ItemStack(id, count, name == null ? "" : name, damage, maxDamage,
-                lore, enchantments, unbreakable, java.util.Map.of());
+                lore, enchantments, unbreakable, baseExtras);
     }
 
     @Override

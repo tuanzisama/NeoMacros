@@ -122,6 +122,81 @@ function start() {
     check('g017b.text-style-merge',
         g017bDraft.style(g017bLink).build().color === 'red');
   }
+  // G-027 item face: shape checks over a builder stack. Offline facts and
+  // unsupported queries read undefined; every face accepts undefined or its
+  // designed type.
+  const g027 = new neo.ItemStackBuilder('minecraft:diamond_sword').build();
+  check('g027.stack-tool',
+      g027.tool === undefined || typeof g027.tool === 'boolean');
+  check('g027.stack-wearable',
+      g027.wearable === undefined || typeof g027.wearable === 'boolean');
+  check('g027.stack-fireproof',
+      g027.fireproof === undefined || typeof g027.fireproof === 'boolean');
+  check('g027.stack-blockItem',
+      g027.blockItem === undefined || typeof g027.blockItem === 'boolean');
+  check('g027.stack-block',
+      g027.block === undefined || typeof g027.block.id === 'string');
+  check('g027.stack-enchantability',
+      g027.enchantability === undefined || typeof g027.enchantability === 'number');
+  check('g027.stack-canFitInsideContainerItems',
+      g027.canFitInsideContainerItems() === undefined
+          || typeof g027.canFitInsideContainerItems() === 'boolean');
+  check('g027.stack-hidden-flags',
+      (g027.enchantmentsHidden === undefined
+          || typeof g027.enchantmentsHidden === 'boolean')
+      && (g027.modifiersHidden === undefined
+          || typeof g027.modifiersHidden === 'boolean')
+      && (g027.unbreakableHidden === undefined
+          || typeof g027.unbreakableHidden === 'boolean')
+      && (g027.canDestroyHidden === undefined
+          || typeof g027.canDestroyHidden === 'boolean')
+      && (g027.canPlaceHidden === undefined
+          || typeof g027.canPlaceHidden === 'boolean')
+      && (g027.dyeHidden === undefined || typeof g027.dyeHidden === 'boolean'));
+  check('g027.stack-restrictions',
+      (g027.hasDestroyRestrictions() === undefined
+          || typeof g027.hasDestroyRestrictions() === 'boolean')
+      && (g027.destroyRestrictions === undefined
+          || Array.isArray(g027.destroyRestrictions))
+      && (g027.hasPlaceRestrictions() === undefined
+          || typeof g027.hasPlaceRestrictions() === 'boolean')
+      && (g027.placeRestrictions === undefined
+          || Array.isArray(g027.placeRestrictions)));
+  check('g027.stack-creativeTab',
+      g027.creativeTab === undefined || Array.isArray(g027.creativeTab));
+  check('g027.stack-groupIcon',
+      g027.groupIcon === undefined || Array.isArray(g027.groupIcon));
+  check('g027.stack-tags',
+      g027.tags === undefined || Array.isArray(g027.tags));
+  check('g027.stack-defaultStack',
+      g027.defaultStack === undefined
+          || typeof g027.defaultStack.id === 'string');
+  check('g027.stack-remainder',
+      g027.recipeRemainder === undefined
+          || typeof g027.recipeRemainder.id === 'string');
+  check('g027.stack-hasRecipeRemainder',
+      g027.hasRecipeRemainder() === undefined
+          || typeof g027.hasRecipeRemainder() === 'boolean');
+  check('g027.stack-attackDamage',
+      g027.attackDamage === undefined || typeof g027.attackDamage === 'number');
+  check('g027.stack-cooldown',
+      (g027.onCooldown === undefined || typeof g027.onCooldown === 'boolean')
+      && (g027.cooldownProgress === undefined
+          || typeof g027.cooldownProgress === 'number'));
+  const g027Material = new neo.ItemStackBuilder('minecraft:iron_ingot').build();
+  check('g027.stack-repair',
+      g027.canBeRepairedWith(g027Material) === undefined
+          || typeof g027.canBeRepairedWith(g027Material) === 'boolean');
+  const g027Block = neo.world.blockAt(0, 64, 0);
+  if (g027Block === undefined) {
+    check('g027.stack-tool-evaluation', true);
+  } else {
+    const g027Speed = g027.getDestroySpeed(g027Block.state);
+    const g027Suit = g027.isCorrectToolForDrops(g027Block);
+    check('g027.stack-tool-evaluation',
+        (g027Speed === undefined || typeof g027Speed === 'number')
+        && (g027Suit === undefined || typeof g027Suit === 'boolean'));
+  }
   check('client.mods-array', Array.isArray(neo.client.mods));
   check('client.isDevEnv', typeof neo.client.isDevEnv === 'boolean');
   check('client.window', neo.client.window === null || typeof neo.client.window === 'object');

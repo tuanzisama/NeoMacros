@@ -35,6 +35,7 @@
     ,"EntityGlowMixin"
     ,"DownloadedPackSourceAccessor"
     ,"ServerPackPromptAccessor"
+    ,"AdventureModePredicateAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
