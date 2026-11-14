@@ -638,6 +638,24 @@ public final class PlayerApi {
         }
 
         /**
+         * The interaction override handle: the crosshair-target, block-break
+         * and held-use overrides plus the crosshair-driven use/break actions
+         * that read them (JsMacros {@code Player.interactions()} parity);
+         * {@code null} without a world.
+         *
+         * @zh 交互覆盖句柄：准星目标、方块破坏与按住使用三类覆盖，以及读取这些覆盖的准星驱动使用/破坏动作（对齐 JsMacros {@code Player.interactions()}）；无世界时为 null。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Interactions getInteractions() {
+            // Qualified: the bare name would resolve to the inherited
+            // entity-lookup current(), not the local-player snapshot.
+            return PlayerApi.current().map(s -> new Interactions()).orElse(null);
+        }
+
+        /**
          * The client-known advancements: tree queries plus per-advancement
          * progress. {@code null} without a server connection.
          *
@@ -1252,7 +1270,8 @@ public final class PlayerApi {
     @ApiSince("0.3.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static final class Target {
+    public static final class Target
+            implements ink.tuanzi.neomacros.core.api.ScriptHandle {
 
         /** Reads the live crosshair pick, or empty on a miss or without a world. */
         private Optional<RayHit> pick() {
@@ -1337,6 +1356,473 @@ public final class PlayerApi {
                     .map(hit -> hit.block() != null || hit.entity() != null)
                     .orElse(false);
         }
+    }
+
+    /**
+     * Interaction override handle: the client-side crosshair-target override,
+     * the block-break outcome override and the held-use override that
+     * JsMacros groups behind {@code Player.getInteractionManager()} and
+     * {@code InteractionProxy}.
+     *
+     * <p><b>Override semantics.</b> These three overrides are shared
+     * client-side state for the whole game, not per-player state, and they
+     * never grant server reach:</p>
+     * <ul>
+     *   <li><b>Target</b> — once stored, {@code player.target} (and every
+     *       crosshair-driven action on this handle, {@code interact()} and
+     *       {@code breakBlock()}) reads the override instead of the real
+     *       pick until {@link #clearTarget()} or a failing check removes it.
+     *       The vanilla crosshair itself is left alone, so vanilla code
+     *       keeps acting on what the player actually aims at.</li>
+     *   <li><b>Break</b> — arming tracks one block position and settles the
+     *       pending {@link #breakBlock} promise with a
+     *       {@link BreakBlockResult}; a reason code reports why it ended.
+     *       Client-side outcomes only, never server confirmation.</li>
+     *   <li><b>Interact</b> — while held, the client re-issues the use
+     *       action every few ticks until stopped, the use key is pressed or
+     *       the world unloads.</li>
+     * </ul>
+     *
+     * <p>{@link #reset()} restores all three to their defaults, which is what
+     * the game itself does on world join and disconnect.</p>
+     *
+     * @zh 交互覆盖句柄：JsMacros 归在 {@code Player.getInteractionManager()}
+     * 与 {@code InteractionProxy} 下的客户端准星目标覆盖、方块破坏结果覆盖与
+     * 按住使用覆盖。三者都是全客户端共享状态（非按玩家），且绝不授予服务端
+     * 触达：目标覆盖只改写 {@code player.target} 与本句柄上准星驱动动作的读取
+     * 结果，原版准星不受影响；破坏覆盖只结算客户端结果，不代表服务端确认；
+     * {@link #reset()} 恢复三者默认值（等同游戏在进世界/断开时的重置）。
+     */
+    @ApiClass(name = "Interactions", kind = ApiClassKind.HANDLE)
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class Interactions
+            implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+
+        Interactions() {
+        }
+
+        /**
+         * Stores a block target override at the block center on the named
+         * face ({@code up}/{@code down}/{@code north}/{@code south}/
+         * {@code east}/{@code west}; defaults to {@code down}, the JsMacros
+         * default). Unknown faces throw.
+         *
+         * @zh 在指定面（默认 {@code down}，沿 JsMacros 默认）上把方块中心存为目标覆盖；未知面抛错。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setTarget(
+                ink.tuanzi.neomacros.core.api.types.BlockPos pos,
+                @ApiOptional String face) {
+            if (pos == null) {
+                return adapter().clearTargetOverride();
+            }
+            return adapter().setTargetOverride(pos.getIntX(), pos.getIntY(), pos.getIntZ(),
+                    overrideFace(face));
+        }
+
+        /**
+         * Stores an entity target override; the entity handle must be loaded
+         * (the same contract as {@link LocalPlayer#attack}).
+         *
+         * @zh 把实体句柄存为目标覆盖；实体句柄必须已加载（与 {@link LocalPlayer#attack} 同契约）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setTargetEntity(EntityApi.Entity entity) {
+            if (entity == null) {
+                return adapter().clearTargetOverride();
+            }
+            EntitySnapshot snapshot = entity.snapshot();
+            if (snapshot == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalStateException("target entity is not loaded"));
+            }
+            return adapter().setTargetEntityOverride(snapshot.uuid());
+        }
+
+        /**
+         * Stores a fixed miss override: the pick reports nothing at all
+         * until the override is cleared. A stored miss passes the range
+         * check.
+         *
+         * @zh 存入固定未命中覆盖：在覆盖被清除前准星一律读作未命中；未命中恒过距离检查。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setTargetMissed() {
+            return adapter().setTargetMissedOverride();
+        }
+
+        /**
+         * Clears the target override so {@code player.target} reads the real
+         * crosshair pick again. Clearing can settle a pending break with
+         * {@code TARGET_LOST}.
+         *
+         * @zh 清除目标覆盖，{@code player.target} 重新读取真实准星；清除可能以 {@code TARGET_LOST} 结算挂起的破坏。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> clearTarget() {
+            return adapter().clearTargetOverride();
+        }
+
+        /**
+         * Whether a target override is stored, including a stored miss.
+         * Reading does not revalidate it.
+         *
+         * @zh 是否存有目标覆盖（含未命中覆盖）；读取不会重新校验。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public boolean isTargetOverride() {
+            return adapter().hasTargetOverride();
+        }
+
+        /**
+         * Configures the reach check: {@code enabled} runs it while the
+         * override is read (defaults true), {@code autoClear} drops an
+         * out-of-range override instead of rendering it as a miss
+         * (defaults true).
+         *
+         * @zh 配置距离检查：{@code enabled} 在读取覆盖时执行（默认 true），{@code autoClear} 为 true 时超距直接清除覆盖、否则渲染为未命中（默认 true）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setRangeCheck(boolean enabled, boolean autoClear) {
+            return adapter().setTargetRangeCheck(enabled, autoClear);
+        }
+
+        /**
+         * Configures the air check: {@code enabled} rejects an air block
+         * target (defaults false), {@code autoClear} drops it instead of
+         * rendering it as a miss (defaults false).
+         *
+         * @zh 配置空气检查：{@code enabled} 拒绝空气方块目标（默认 false），{@code autoClear} 为 true 时清除、否则渲染为未命中（默认 false）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setAirCheck(boolean enabled, boolean autoClear) {
+            return adapter().setTargetAirCheck(enabled, autoClear);
+        }
+
+        /**
+         * Configures the empty-shape check: {@code enabled} rejects a block
+         * whose collision shape is empty (defaults true, air excluded),
+         * {@code autoClear} drops it instead of rendering it as a miss
+         * (defaults false).
+         *
+         * @zh 配置空形状检查：{@code enabled} 拒绝碰撞形状为空的方块（默认 true，空气除外），{@code autoClear} 为 true 时清除、否则渲染为未命中（默认 false）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setShapeCheck(boolean enabled, boolean autoClear) {
+            return adapter().setTargetShapeCheck(enabled, autoClear);
+        }
+
+        /**
+         * Restores the three checks to their defaults (range on and clearing,
+         * air off and retaining, shape on and rendering a miss). The stored
+         * target is neither cleared nor immediately revalidated.
+         *
+         * @zh 把三项检查恢复默认（距离开且清除、空气关且保留、形状开且渲染为未命中）；不清除也不立即重验已存目标。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> resetChecks() {
+            return adapter().resetTargetChecks();
+        }
+
+        /**
+         * Whether the stored target override passes the client interaction
+         * reach at the interpolation fraction (0 when omitted). False with
+         * no override; a stored miss always passes. This is a query: it
+         * never clears the override.
+         *
+         * @zh 已存目标覆盖在指定插值分数（缺省 0）下是否落在客户端交互距离内；无覆盖为 false，未命中恒过；只查询不清除。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public boolean isTargetInRange(@ApiOptional Double tickDelta) {
+            return adapter().targetInRange((float) (tickDelta == null ? 0.0 : tickDelta));
+        }
+
+        /**
+         * Breaks the block at the position, or the block the pick currently
+         * reports when the position is omitted, and resolves with the
+         * outcome: {@code SUCCESS} carries the broken position, every other
+         * reason ({@code CANCELLED} {@code RESET} {@code NO_TARGET}
+         * {@code TARGET_LOST} {@code TARGET_CHANGE} {@code IS_AIR}
+         * {@code NOT_BREAKING}) reports why it ended and carries no
+         * position. Instant-break blocks resolve at once; harder blocks
+         * advance through the game's own destroy path while this call holds
+         * the break override. The outcome is client-side only.
+         *
+         * @zh 破坏坐标处方块（省略坐标时破坏当前准星指向的方块）并以结果落定：{@code SUCCESS} 携带被破坏位置，其余理由码（{@code CANCELLED}/{@code RESET}/{@code NO_TARGET}/{@code TARGET_LOST}/{@code TARGET_CHANGE}/{@code IS_AIR}/{@code NOT_BREAKING}）只说明结束原因、不带位置。瞬挖方块立即落定；更硬的方块在本调用持有破坏覆盖期间沿游戏自身的破坏流程推进。结果仅为客户端侧。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<BreakBlockResult>")
+        public CompletableFuture<BreakBlockResult> breakBlock(
+                @ApiOptional ink.tuanzi.neomacros.core.api.types.BlockPos pos) {
+            CompletableFuture<ink.tuanzi.neomacros.port.model.BreakBlockResult> future =
+                    pos == null ? adapter().breakBlock()
+                            : adapter().breakBlockAt(pos.getIntX(), pos.getIntY(), pos.getIntZ());
+            return future.thenApply(PlayerApi::toBreakResult);
+        }
+
+        /**
+         * Whether the break override is armed and still valid. The client
+         * validates it every tick, so reading never has to end it.
+         *
+         * @zh 破坏覆盖是否已武装且仍然有效；客户端每 tick 校验，读取无需结束它。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public boolean isBreakOverride() {
+            return adapter().hasBreakBlockOverride();
+        }
+
+        /**
+         * Arms or disarms the break override. Disabling reports {@code reason}
+         * (a pending break settles with it and no position), stops
+         * client-side breaking while the attack key is up, and resets the
+         * tracked position; enabling only arms it and starts no break action.
+         *
+         * @zh 武装或解除破坏覆盖：解除时以 {@code reason} 上报（挂起的破坏以该理由且无位置结算）、攻击键未按下时停止客户端破坏并重置跟踪位置；武装只置位、不发起任何破坏动作。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> setBreakOverride(boolean value,
+                @ApiOptional String reason) {
+            return adapter().setBreakOverride(value, reason);
+        }
+
+        /**
+         * Cancels the active break override, settling a pending break with
+         * {@code CANCELLED}.
+         *
+         * @zh 取消活动的破坏覆盖，挂起的破坏以 {@code CANCELLED} 结算。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> cancelBreak() {
+            return adapter().cancelBreakBlock();
+        }
+
+        /**
+         * Reports a client-side destruction call result to the active break
+         * override: {@code broken} true ends it and settles a pending break
+         * with {@code SUCCESS} at the position; false leaves it unchanged.
+         * The game's own break path already feeds this, so scripts normally
+         * never call it.
+         *
+         * @zh 向活动的破坏覆盖上报一次客户端破坏调用结果：{@code broken} 为 true 时结束覆盖并以该位置的 {@code SUCCESS} 结算挂起破坏，为 false 时不改动。游戏自身的破坏路径已自动上报，脚本通常无需调用。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> onBreakBlock(
+                ink.tuanzi.neomacros.core.api.types.BlockPos pos, boolean broken) {
+            if (pos == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalArgumentException("pos is required"));
+            }
+            return adapter().reportBreakBlock(pos.getIntX(), pos.getIntY(), pos.getIntZ(), broken);
+        }
+
+        /**
+         * Queues a one-shot outcome callback for the next break-override
+         * settlement and optionally arms the break override: {@code breaking}
+         * true resets the tracked position and starts no break action, false
+         * leaves the override unchanged. The callback receives the outcome as
+         * a scalar tuple {@code (reason, x, y, z)} — the position coordinates
+         * are {@code null} unless the reason is {@code SUCCESS} (the
+         * handle-path guest-function contract passes neutral scalars; use
+         * {@link #breakBlock} promises for the typed result record).
+         * Callbacks run once on the game main thread when an outcome
+         * settles, then the queue clears; an exception in one callback does
+         * not stop the others (JsMacros {@code Break.addCallback} parity).
+         *
+         * @zh 排入一个一次性破坏结果回调（下一次覆盖结算时触发一次），并可选择同时武装破坏覆盖：{@code breaking} 为 true 时重置跟踪位置、不发起任何破坏动作，为 false 时不改动覆盖。回调以标量元组 {@code (reason, x, y, z)} 收到结果——理由非 {@code SUCCESS} 时坐标为 null（句柄路径的 guest 函数契约只传中性标量；带类型的结果记录用 {@link #breakBlock} 的 Promise）。回调在游戏主线程结算时执行一次随后清空队列；单个回调抛错不影响其余回调（对齐 JsMacros {@code Break.addCallback}）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public void addBreakCallback(
+                @ApiType("(reason: string, x: number | null, y: number | null, z: number | null) => void")
+                java.util.function.Consumer<Object[]> callback, boolean breaking) {
+            adapter().addBreakCallback(
+                    callback == null ? null
+                            : result -> {
+                                var pos = result == null ? null : result.pos();
+                                callback.accept(new Object[]{
+                                        result == null ? null : result.reason(),
+                                        pos == null ? null : pos.x(),
+                                        pos == null ? null : pos.y(),
+                                        pos == null ? null : pos.z()});
+                            },
+                    breaking);
+        }
+
+        /**
+         * Uses (right-clicks) whatever the pick currently reports — the
+         * target override when one is set, otherwise the real crosshair:
+         * a block face, an entity, or the held item in the air. The named
+         * hand defaults to {@code main}.
+         *
+         * @zh 对当前准星（存有目标覆盖时即该覆盖，否则真实准星）执行使用（右键）：方块面、实体或手持物品对空气；手默认 {@code main}。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> interact(@ApiOptional String hand) {
+            String normalized = normalizedHand(hand);
+            var hit = adapter().target().orElse(null);
+            if (hit == null) {
+                return adapter().useItem(normalized);
+            }
+            if (hit.block() != null) {
+                return adapter().useBlock(hit.block(), normalized);
+            }
+            if (hit.entity() != null) {
+                return adapter().useEntity(hit.entity(), normalized);
+            }
+            return adapter().useItem(normalized);
+        }
+
+        /**
+         * Starts ({@code holding} true) or stops the continuous held-use
+         * override: while held the client re-issues the use action every few
+         * ticks until stopped, the use key is pressed or the world unloads.
+         * {@code awaitFirstClick} is accepted for JsMacros parity; this
+         * face always settles once the override has been applied, never on
+         * a server round trip.
+         *
+         * @zh 启动（{@code holding} 为 true）或停止按住使用覆盖：保持期间客户端每隔数 tick 重发使用动作，直到停止、按下使用键或离开世界。{@code awaitFirstClick} 为 JsMacros 对齐保留参数；本面恒在覆盖应用后落定，绝不等待服务端往返。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> holdInteract(boolean holding,
+                @ApiOptional Boolean awaitFirstClick) {
+            return adapter().setHoldInteract(holding);
+        }
+
+        /**
+         * Holds the use override for up to {@code ticks} unpaused ticks and
+         * then releases it ({@code stopOnPause} defaults true: paused ticks
+         * do not count, the hold stops as soon as the game pauses). Resolves
+         * with the ticks that did not elapse — {@code 0} for a full run,
+         * nonzero when the hold stopped early.
+         *
+         * @zh 保持按住使用覆盖至多 {@code ticks} 个未暂停 tick 后释放（{@code stopOnPause} 默认 true：暂停 tick 不计数，游戏一暂停即停止）；以未走完的 tick 数落定——完整走完为 0，提前停止为非 0。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<number>")
+        public CompletableFuture<Integer> holdInteractFor(int ticks,
+                @ApiOptional Boolean stopOnPause) {
+            return adapter().holdInteractFor(ticks,
+                    stopOnPause == null || stopOnPause);
+        }
+
+        /**
+         * Whether the held-use override is currently active (the flag only;
+         * it does not query the physical use key or the item being used).
+         *
+         * @zh 按住使用覆盖当前是否活动（只是旗标，不查询物理使用键或正在使用的物品）。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public boolean isInteractOverride() {
+            return adapter().hasInteractOverride();
+        }
+
+        /**
+         * Restores every override to its default: the three target checks,
+         * the target override, the break override (a pending break settles
+         * with {@code RESET}) and the held-use override. The game runs the
+         * same reset on world join and disconnect.
+         *
+         * @zh 把全部覆盖恢复默认：三项目标检查、目标覆盖、破坏覆盖（挂起的破坏以 {@code RESET} 结算）与按住使用覆盖。游戏在进世界与断开时执行同一重置。
+         */
+        @ApiSince("0.5.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Promise<void>")
+        public CompletableFuture<Void> reset() {
+            return adapter().resetTargetChecks()
+                    .thenCompose(ignored -> adapter().clearTargetOverride())
+                    .thenCompose(ignored -> adapter().setBreakOverride(false, "RESET"))
+                    .thenCompose(ignored -> adapter().setHoldInteract(false));
+        }
+    }
+
+    /**
+     * Outcome of a client-side block-break attempt: a diagnostic reason code
+     * and the position it applies to ({@code null} unless the reason is
+     * {@code SUCCESS}).
+     *
+     * @zh 客户块破坏尝试的结果：诊断理由码与其适用位置（理由非 {@code SUCCESS} 时位置为 null）。
+     */
+    @ApiClass(name = "BreakBlockResult", kind = ApiClassKind.DATA)
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public record BreakBlockResult(String reason,
+            ink.tuanzi.neomacros.core.api.types.BlockPos pos) {
+    }
+
+    /** Normalizes the override face name, defaulting to down (JsMacros parity). */
+    static String overrideFace(String face) {
+        return normalizedFace(face == null ? "down" : face);
+    }
+
+    /** Lifts a port break outcome onto the script-facing record. */
+    private static BreakBlockResult toBreakResult(
+            ink.tuanzi.neomacros.port.model.BreakBlockResult result) {
+        if (result == null) {
+            return null;
+        }
+        return new BreakBlockResult(result.reason(),
+                result.pos() == null ? null
+                        : new ink.tuanzi.neomacros.core.api.types.BlockPos(
+                                result.pos().x(), result.pos().y(), result.pos().z()));
     }
 
     /**
