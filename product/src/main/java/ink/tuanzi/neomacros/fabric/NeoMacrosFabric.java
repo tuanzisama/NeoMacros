@@ -187,6 +187,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("Enchantment", ink.tuanzi.neomacros.core.api.types.Enchantment.class);
         registry.registerGuestType("Image", ink.tuanzi.neomacros.core.api.types.Image.class);
         registry.registerGuestType("CustomImage", ink.tuanzi.neomacros.core.api.types.CustomImage.class);
+        registry.registerGuestType("HudLayer", ink.tuanzi.neomacros.core.api.render.HudLayer.class);
+        registry.registerGuestType("Draw2DElement", ink.tuanzi.neomacros.core.api.render.components.Draw2DElement.class);
         registry.registerGuestType("FileHandle",
                 ink.tuanzi.neomacros.core.api.FsApi.FileHandle.class);
         registry.registerGuestType("Ws", ink.tuanzi.neomacros.core.api.NetApi.Ws.class);
@@ -332,7 +334,15 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         ink.tuanzi.neomacros.core.api.types.CustomImage.installRoot(new ConfigDirFsBridge());
         registry.registerInstance(new NetApi(ioExecutor));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.HudApi(
-                new ink.tuanzi.neomacros.adapter.FabricHudRegistry(adapter.render(), Minecraft.getInstance()::execute)));
+                adapter.render(), Minecraft.getInstance()::execute, () -> {
+                    var window = Minecraft.getInstance().getWindow();
+                    if (window == null) {
+                        return new ink.tuanzi.neomacros.port.model.WindowData(0, 0, 0, 0);
+                    }
+                    return new ink.tuanzi.neomacros.port.model.WindowData(
+                            window.getWidth(), window.getHeight(),
+                            window.getGuiScaledWidth(), window.getGuiScaledHeight());
+                }));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.render.RenderApi(
                 adapter.draw3d()));
         var inputDelayer = new java.util.concurrent.ScheduledThreadPoolExecutor(1, run -> {

@@ -842,6 +842,37 @@ function start() {
     g030Update.catch(() => {});
   }
 
+  // G-032 Draw2D container: layer/element lifecycle shape checks on the
+  // real engine (frame replay and unload auto-clear are e2e-A covered by
+  // HudLayerScenariosTest over the stub render port).
+  const g032 = neo.hud.layer('gap-api-g032');
+  check('g032.layer-shape', g032.id === 'gap-api-g032'
+      && typeof g032.zIndex === 'number'
+      && typeof g032.width === 'number' && typeof g032.height === 'number'
+      && g032.disposed === false && g032.visible === true);
+  const g032El = g032.text('hello', 'hi', {x: 4, y: 4, color: 'white'});
+  g032.rect('box', {x: 8, y: 8, w: 4, h: 4, color: '#80ff4040'});
+  check('g032.upsert', g032.ids.length === 2 && g032.ids[0] === 'hello'
+      && g032.ids[1] === 'box' && g032.elements.length === 2
+      && g032El.id === 'hello' && g032El.disposed === false);
+  check('g032.element-lookup', g032.element('hello') !== undefined
+      && g032.element('missing') === undefined);
+  g032.remove('hello');
+  check('g032.remove', g032El.disposed === true && g032.ids.length === 1);
+  let g032Reserved = false;
+  try { neo.hud.layer('$reserved'); } catch (e) { g032Reserved = true; }
+  check('g032.reserved-id', g032Reserved);
+  const g032List = neo.hud.layers;
+  check('g032.layers-list', typeof g032List === 'object' && g032List !== null
+      && typeof g032List.length === 'number' && g032List.length >= 1);
+  const g032Add = neo.hud.addText('g032-greet', 'gap', 2, 2, 0xFF00FF00);
+  check('g032.addText-promise',
+      Boolean(g032Add) && typeof g032Add.then === 'function');
+  g032Add.catch(() => {});
+  neo.hud.removeText('g032-greet');
+  neo.hud.removeLayer('gap-api-g032');
+  check('g032.remove-layer', g032.disposed === true);
+
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
     neo.chat.log('[E2E] ' + key + '=' + value);

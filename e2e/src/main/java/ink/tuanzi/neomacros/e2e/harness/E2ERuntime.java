@@ -129,6 +129,16 @@ public final class E2ERuntime implements AutoCloseable {
         // can dispatch typed commands exactly like the Fabric port does.
         var commands = new StubCommandRegistry();
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.CommandApi(commands));
+        // The HUD module rides the stub render port with a synchronous
+        // executor and a fixed 640x360 viewport so layer/element scenarios
+        // assert deterministic frames (G-001 §5.4).
+        registry.registerInstance(new ink.tuanzi.neomacros.core.api.HudApi(
+                adapter.render(), Runnable::run,
+                () -> new ink.tuanzi.neomacros.port.model.WindowData(640, 360, 640, 360)));
+        registry.registerGuestType("HudLayer",
+                ink.tuanzi.neomacros.core.api.render.HudLayer.class);
+        registry.registerGuestType("Draw2DElement",
+                ink.tuanzi.neomacros.core.api.render.components.Draw2DElement.class);
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);

@@ -1216,9 +1216,11 @@ public final class StubAdapter implements NeomacrosAdapter {
     }
 
     /**
-     * HUD render recorder: layer registrations and texture uploads are
-     * recorded for assertions (the frame-painting face lands with the
-     * Draw2D layer task and extends this stub).
+     * HUD render recorder: layer registrations, z changes, fired frames,
+     * and texture uploads are all recorded for assertions. Firing a frame
+     * replays every painter in {@code (z, id)} order into one
+     * {@link RecordingDrawContext2d}, mirroring the resident-element
+     * pipeline of the Fabric adapter.
      */
     public static final class StubRenderPort implements RenderPort {
         /** One recorded texture upload (a fresh pixel snapshot). */
@@ -1234,35 +1236,127 @@ public final class StubAdapter implements NeomacrosAdapter {
             }
         }
 
+        /** One neutral primitive drawn during a fired frame. */
+        public record Prim(String kind, int a, int b, int c, int d, int color,
+                String text) {
+        }
+
+        /** Accumulates the primitives of one fired frame, in draw order. */
+        public static final class RecordingDrawContext2d
+                implements ink.tuanzi.neomacros.port.model.DrawContext2d {
+            private final List<Prim> prims = new CopyOnWriteArrayList<>();
+
+            @Override
+            public void text(int x, int y, String text) {
+                text(x, y, text, 0xFFFFFFFF);
+            }
+
+            @Override
+            public void text(int x, int y, String text, int color) {
+                prims.add(new Prim("text", x, y, 0, 0, color, text));
+            }
+
+            @Override
+            public void rect(int x, int y, int width, int height, int color) {
+                prims.add(new Prim("rect", x, y, width, height, color, null));
+            }
+
+            @Override
+            public void outline(int x, int y, int width, int height, int color) {
+                prims.add(new Prim("outline", x, y, width, height, color, null));
+            }
+
+            @Override
+            public void sprite(int x, int y, int width, int height, String textureId) {
+                prims.add(new Prim("sprite", x, y, width, height, 0, textureId));
+            }
+
+            /** The primitives drawn so far, in draw order. */
+            public List<Prim> prims() {
+                return List.copyOf(prims);
+            }
+        }
+
         private final java.util.Map<String, java.util.function.BiConsumer<Integer,
                 ink.tuanzi.neomacros.port.model.DrawContext2d>> layers =
                 new java.util.concurrent.ConcurrentHashMap<>();
+        private final java.util.Map<String, Integer> zs =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        private final List<String> events = new CopyOnWriteArrayList<>();
         private final List<TextureUpload> uploads = new CopyOnWriteArrayList<>();
+        private final List<Prim> lastFrame = new CopyOnWriteArrayList<>();
 
         /** Every texture upload in call order. */
         public List<TextureUpload> uploads() {
             return List.copyOf(uploads);
         }
 
-        /** Identifiers of layers currently registered. */
+        /** Identifiers of layers currently registered, in render order. */
         public List<String> registeredLayers() {
-            return List.copyOf(layers.keySet());
+            return layerIds().get();
+        }
+
+        /** The ordered port-call log: {@code add:id:z}, {@code setz:id:z}, {@code remove:id}. */
+        public List<String> events() {
+            return List.copyOf(events);
+        }
+
+        /** The primitives produced by the most recent {@link #fireFrame}. */
+        public List<Prim> lastFrame() {
+            return List.copyOf(lastFrame);
         }
 
         @Override
         public void addLayer(String id, int z, java.util.function.BiConsumer<Integer,
                 ink.tuanzi.neomacros.port.model.DrawContext2d> painter) {
             layers.put(id, painter);
+            zs.put(id, z);
+            events.add("add:" + id + ":" + z);
         }
 
         @Override
         public void removeLayer(String id) {
-            layers.remove(id);
+            if (layers.remove(id) != null) {
+                zs.remove(id);
+                events.add("remove:" + id);
+            }
+        }
+
+        @Override
+        public void setLayerZ(String id, int z) {
+            if (layers.containsKey(id)) {
+                zs.put(id, z);
+                events.add("setz:" + id + ":" + z);
+            }
         }
 
         @Override
         public Supplier<List<String>> layerIds() {
-            return this::registeredLayers;
+            return () -> layers.keySet().stream()
+                    .sorted(java.util.Comparator
+                            .comparingInt((String id) -> zs.getOrDefault(id, 0))
+                            .thenComparing(java.util.Comparator.naturalOrder()))
+                    .toList();
+        }
+
+        /**
+         * Fires one frame: every registered painter runs in
+         * {@code (z, id)} order against a fresh recording context.
+         *
+         * @param tick tick count handed to the painters
+         * @return the primitives drawn during this frame, in draw order
+         */
+        public List<Prim> fireFrame(int tick) {
+            RecordingDrawContext2d context = new RecordingDrawContext2d();
+            for (String id : layerIds().get()) {
+                var painter = layers.get(id);
+                if (painter != null) {
+                    painter.accept(tick, context);
+                }
+            }
+            lastFrame.clear();
+            lastFrame.addAll(context.prims());
+            return context.prims();
         }
 
         @Override

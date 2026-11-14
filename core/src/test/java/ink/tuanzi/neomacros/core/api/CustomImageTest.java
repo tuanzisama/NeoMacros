@@ -420,6 +420,11 @@ class CustomImageTest {
         }
 
         @Override
+        public void setLayerZ(String id, int z) {
+            // layer painting is out of scope for this canvas test
+        }
+
+        @Override
         public Supplier<List<String>> layerIds() {
             return List::of;
         }
