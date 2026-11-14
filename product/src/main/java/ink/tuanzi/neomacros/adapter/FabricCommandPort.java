@@ -26,7 +26,13 @@ public final class FabricCommandPort implements CommandRegistry {
 
     private final Map<String, Entry> commands = new LinkedHashMap<>();
 
-    private record Entry(String description, Consumer<String[]> handler) {
+    /**
+     * One registered command. The handler is the wrapped consumer
+     * {@code CommandApi.register} installs: it takes an {@code Object[]}
+     * whose first element is the raw remainder string after the command
+     * name, parses the typed slots and forwards the context to the script.
+     */
+    private record Entry(String description, Consumer<Object[]> handler) {
     }
 
     /** Creates the port and hooks the session replay + startup dispatch. */
@@ -52,15 +58,14 @@ public final class FabricCommandPort implements CommandRegistry {
             String name, Entry entry) {
         return literal(name)
                 .executes(ctx -> {
-                    String remainder = ctx.getInput().substring(name.length()).trim();
-                    entry.handler().accept(remainder.isEmpty() ? new String[0]
-                            : remainder.split("\\s+"));
+                    String input = ctx.getInput();
+                    String remainder = input.length() > name.length()
+                            ? input.substring(name.length()).trim() : "";
+                    // Raw remainder (not a token array): the wrapped handler
+                    // reads args[0] as the whole remainder string.
+                    entry.handler().accept(new Object[]{remainder});
                     return Command.SINGLE_SUCCESS;
-                })
-                .build()
-                .getRequirement() == null
-                ? literal(name)
-                : literal(name);
+                });
     }
 
     @Override
@@ -68,7 +73,7 @@ public final class FabricCommandPort implements CommandRegistry {
         String name = String.valueOf(spec.get("name"));
         String description = String.valueOf(spec.getOrDefault("description", ""));
         @SuppressWarnings("unchecked")
-        Consumer<String[]> handler = (Consumer<String[]>) spec.get("handler");
+        Consumer<Object[]> handler = (Consumer<Object[]>) spec.get("handler");
         if (name == null || handler == null) {
             throw new IllegalArgumentException("command spec needs 'name' and 'handler'");
         }
