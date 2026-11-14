@@ -697,6 +697,61 @@ function start() {
       Boolean(g027bPending) && typeof g027bPending.then === 'function');
   g027bPending.catch(() => {});
 
+  // G-025 registry spectrum: shape checks only; lookups answer undefined
+  // without a loaded registry or connection and still count as present.
+  const g025Item = neo.client.getItem('minecraft:stone');
+  check('g025.item-shape', g025Item === undefined
+      || (typeof g025Item === 'object' && typeof g025Item.id === 'string'));
+  check('g025.item-unknown',
+      neo.client.getItem('neomacros:definitely_missing_item') === undefined);
+  const g025Stack = neo.client.getItemStack('minecraft:stone');
+  check('g025.stack-shape', g025Stack === undefined
+      || (typeof g025Stack === 'object' && typeof g025Stack.id === 'string'));
+  const g025Block = neo.client.getBlock('minecraft:stone');
+  check('g025.block-shape', g025Block === undefined
+      || (typeof g025Block === 'object' && typeof g025Block.id === 'string'));
+  check('g025.block-unknown',
+      neo.client.getBlock('neomacros:definitely_missing_block') === undefined);
+  const g025State = neo.client.getBlockState('minecraft:oak_stairs');
+  check('g025.blockState-shape', g025State === undefined
+      || (typeof g025State === 'object' && typeof g025State.id === 'string'
+          && g025State.props !== undefined));
+  const g025Effect = neo.client.getStatusEffect('minecraft:speed');
+  check('g025.effect-shape', g025Effect === undefined
+      || (typeof g025Effect === 'object' && g025Effect.id === 'minecraft:speed'
+          && typeof g025Effect.duration === 'number'));
+  check('g025.effect-unknown',
+      neo.client.getStatusEffect('neomacros:definitely_missing_effect') === undefined);
+  check('g025.effects-array', Array.isArray(neo.client.statusEffects));
+  const g025Ench = neo.client.getEnchantment('minecraft:sharpness', 2);
+  check('g025.enchantment-shape', g025Ench === undefined
+      || (typeof g025Ench === 'object'
+          && g025Ench.id === 'minecraft:sharpness'
+          && typeof g025Ench.level === 'number'));
+  check('g025.enchantment-unknown',
+      neo.client.getEnchantment('neomacros:definitely_missing_enchantment', 1)
+          === undefined);
+  check('g025.enchantmentIds-array', Array.isArray(neo.client.enchantmentIds));
+  check('g025.paintingIds-array', Array.isArray(neo.client.paintingIds));
+  check('g025.featureIds-array', Array.isArray(neo.client.featureIds));
+  check('g025.items-array', Array.isArray(neo.client.items));
+  check('g025.blocks-array', Array.isArray(neo.client.blocks));
+  check('g025.entityTypeIds-bridge',
+      Array.isArray(neo.client.registryIds('entity_type')));
+  check('g025.fluid-bridge',
+      neo.client.registryLookup('fluid', 'water') === 'minecraft:water');
+  check('g025.fluid-unknown',
+      neo.client.registryLookup('fluid', 'neomacros_missing_fluid') === undefined);
+  check('g025.parseNameSpace', neo.client.parseNameSpace('stone')
+      === 'minecraft:stone');
+  check('g025.parseIdentifier', neo.client.parseIdentifier('stone')
+      === 'minecraft:stone');
+  let g025ParseRejected = false;
+  try { neo.client.parseIdentifier('Bad:ID'); } catch (e) {
+    g025ParseRejected = true;
+  }
+  check('g025.parseIdentifier-rejects', g025ParseRejected);
+
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
     neo.chat.log('[E2E] ' + key + '=' + value);

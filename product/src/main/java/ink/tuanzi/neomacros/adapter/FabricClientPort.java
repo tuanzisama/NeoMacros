@@ -4,6 +4,8 @@ import ink.tuanzi.neomacros.adapter.mixin.DownloadedPackSourceAccessor;
 import ink.tuanzi.neomacros.adapter.mixin.OptionsKeyMappingsAccessor;
 import ink.tuanzi.neomacros.adapter.mixin.ServerPackPromptAccessor;
 import ink.tuanzi.neomacros.port.ClientPort;
+import ink.tuanzi.neomacros.port.model.BlockStateData;
+import ink.tuanzi.neomacros.port.model.ItemStackData;
 import ink.tuanzi.neomacros.port.model.KeybindCatalogData;
 import ink.tuanzi.neomacros.port.model.ModData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
@@ -16,8 +18,17 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
+import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.commands.arguments.item.ItemInput;
+import net.minecraft.commands.arguments.item.ItemParser;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -804,6 +815,171 @@ public final class FabricClientPort implements ClientPort {
             return Optional.empty();
         }
         return Optional.of(resolved.toString());
+    }
+
+    @Override
+    public Optional<BlockStateData> blockState(String id, String props) {
+        Identifier resolved = resolveId(id);
+        if (resolved == null || !BuiltInRegistries.BLOCK.containsKey(resolved)) {
+            return Optional.empty();
+        }
+        if (props == null || props.isBlank()) {
+            return Optional.of(
+                    defaultStateData(BuiltInRegistries.BLOCK.getValue(resolved)));
+        }
+        try {
+            BlockState state = BlockStateParser
+                    .parseForBlock(BuiltInRegistries.BLOCK,
+                            resolveName(id) + props.trim(), false)
+                    .blockState();
+            return Optional.of(new BlockStateData(
+                    BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString(),
+                    stateProperties(state)));
+        } catch (CommandSyntaxException error) {
+            throw new IllegalArgumentException(
+                    "invalid block state: " + id + props, error);
+        }
+    }
+
+    @Override
+    public List<BlockStateData> blockStates() {
+        List<BlockStateData> out = new ArrayList<>();
+        for (String id : sortedKeys(BuiltInRegistries.BLOCK)) {
+            out.add(defaultStateData(
+                    BuiltInRegistries.BLOCK.getValue(Identifier.parse(id))));
+        }
+        return out;
+    }
+
+    @Override
+    public Optional<ItemStackData> itemStack(String id, String components) {
+        Identifier resolved = resolveId(id);
+        if (resolved == null || !BuiltInRegistries.ITEM.containsKey(resolved)) {
+            return Optional.empty();
+        }
+        if (components == null || components.isBlank()) {
+            return Optional.of(FabricInventoryPort.stackDataOf(
+                    BuiltInRegistries.ITEM.getValue(resolved).getDefaultInstance()));
+        }
+        var connection = Minecraft.getInstance().getConnection();
+        if (connection == null) {
+            // Component syntax reads the connected server's registries.
+            return Optional.empty();
+        }
+        try {
+            ItemParser reader = new ItemParser(connection.registryAccess());
+            //? if >=26.1 {
+            ItemInput itemInput = reader.parse(
+                    new StringReader(resolveName(id) + components.trim()));
+            ItemStack stack = itemInput.createItemStack(1);
+            //?} else {
+            /* ItemParser.ItemResult itemResult = reader.parse(
+                    new StringReader(resolveName(id) + components.trim()));
+            ItemStack stack = new ItemStack(
+                    itemResult.item(), 1, itemResult.components()); */
+            //?}
+            return Optional.of(FabricInventoryPort.stackDataOf(stack));
+        } catch (CommandSyntaxException error) {
+            throw new IllegalArgumentException(
+                    "invalid item components: " + id + components, error);
+        }
+    }
+
+    @Override
+    public List<ItemStackData> defaultItemStacks() {
+        List<ItemStackData> out = new ArrayList<>();
+        for (String id : sortedKeys(BuiltInRegistries.ITEM)) {
+            out.add(FabricInventoryPort.stackDataOf(
+                    BuiltInRegistries.ITEM.getValue(Identifier.parse(id))
+                            .getDefaultInstance()));
+        }
+        return out;
+    }
+
+    @Override
+    public List<String> enchantmentIds() {
+        return connectionRegistryIds(net.minecraft.core.registries.Registries.ENCHANTMENT);
+    }
+
+    @Override
+    public List<String> paintingIds() {
+        return connectionRegistryIds(net.minecraft.core.registries.Registries.PAINTING_VARIANT);
+    }
+
+    @Override
+    public List<String> featureIds() {
+        //? if >=26.3 {
+        var registry = BuiltInRegistries.FEATURE_TYPE;
+        //?} else {
+        /* var registry = BuiltInRegistries.FEATURE; */
+        //?}
+        List<String> out = new ArrayList<>();
+        for (Identifier id : registry.keySet()) {
+            out.add(id.toString());
+        }
+        out.sort(String::compareTo);
+        return out;
+    }
+
+    /**
+     * The identifiers of one connection-backed registry (data-driven
+     * entries such as enchantments live on the connection, not in the
+     * built-in registries); empty without a connection.
+     */
+    private static List<String> connectionRegistryIds(
+            net.minecraft.resources.ResourceKey<? extends net.minecraft.core.Registry<?>> key) {
+        var connection = Minecraft.getInstance().getConnection();
+        if (connection == null) {
+            return List.of();
+        }
+        var registry = connection.registryAccess().lookupOrThrow(key);
+        List<String> out = new ArrayList<>();
+        for (Identifier id : registry.keySet()) {
+            out.add(id.toString());
+        }
+        out.sort(String::compareTo);
+        return out;
+    }
+
+    /** The sorted identifiers of one built-in registry, as strings. */
+    private static List<String> sortedKeys(net.minecraft.core.Registry<?> registry) {
+        List<String> out = new ArrayList<>();
+        for (Identifier id : registry.keySet()) {
+            out.add(id.toString());
+        }
+        out.sort(String::compareTo);
+        return out;
+    }
+
+    /** The default state of one block as neutral data. */
+    private static BlockStateData defaultStateData(Block block) {
+        BlockState state = block.defaultBlockState();
+        return new BlockStateData(
+                BuiltInRegistries.BLOCK.getKey(block).toString(),
+                stateProperties(state));
+    }
+
+    /** Flattens the vanilla state property values into a string map. */
+    private static java.util.Map<String, String> stateProperties(BlockState state) {
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        state.getProperties().forEach(property ->
+                out.put(property.getName(), String.valueOf(state.getValue(property))));
+        return out;
+    }
+
+    /** Parses a script identifier, defaulting the namespace to minecraft. */
+    private static Identifier resolveId(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return raw.indexOf(':') >= 0
+                ? Identifier.tryParse(raw)
+                : Identifier.withDefaultNamespace(raw);
+    }
+
+    /** The namespaced form of one identifier, for parser input. */
+    private static String resolveName(String raw) {
+        return raw.indexOf(':') >= 0 ? raw : "minecraft:" + raw;
     }
 
     @Override

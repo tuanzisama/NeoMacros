@@ -386,6 +386,99 @@ public final class StubAdapter implements NeomacrosAdapter {
         public void sendSyncedOptions() {
             actions.add("sync");
         }
+
+        // ---- G-025 registry spectrum (canned read faces) ----
+
+        @Override
+        public List<String> registryIds(String kind) {
+            return switch (kind) {
+                case "item" -> List.of("minecraft:air", "minecraft:stone");
+                case "block" -> List.of("minecraft:air", "minecraft:oak_stairs");
+                case "mob_effect" -> List.of("minecraft:speed", "minecraft:slowness");
+                case "fluid" -> List.of("minecraft:water");
+                case "entity_type" -> List.of("minecraft:cow", "minecraft:pig");
+                case "menu" -> List.of("minecraft:generic_9x3");
+                default -> throw new IllegalArgumentException(
+                        "unknown registry kind: " + kind);
+            };
+        }
+
+        @Override
+        public Optional<String> registryLookup(String kind, String id) {
+            String full = id != null && id.indexOf(':') >= 0
+                    ? id : "minecraft:" + id;
+            return registryIds(kind).contains(full)
+                    ? Optional.of(full) : Optional.empty();
+        }
+
+        @Override
+        public Optional<ink.tuanzi.neomacros.port.model.BlockStateData> blockState(
+                String id, String props) {
+            String full = id != null && id.indexOf(':') >= 0
+                    ? id : "minecraft:" + id;
+            if (!"minecraft:oak_stairs".equals(full)) {
+                return Optional.empty();
+            }
+            if (props != null && props.contains("bogus")) {
+                throw new IllegalArgumentException("invalid block state: " + id + props);
+            }
+            if (props == null || props.isBlank()) {
+                return Optional.of(new ink.tuanzi.neomacros.port.model.BlockStateData(
+                        full, java.util.Map.of("facing", "north")));
+            }
+            return Optional.of(new ink.tuanzi.neomacros.port.model.BlockStateData(
+                    full, java.util.Map.of("facing", "south")));
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.BlockStateData> blockStates() {
+            return List.of(new ink.tuanzi.neomacros.port.model.BlockStateData(
+                    "minecraft:oak_stairs", java.util.Map.of("facing", "north")));
+        }
+
+        @Override
+        public Optional<ink.tuanzi.neomacros.port.model.ItemStackData> itemStack(
+                String id, String components) {
+            String full = id != null && id.indexOf(':') >= 0
+                    ? id : "minecraft:" + id;
+            if (!"minecraft:stone".equals(full) && !"minecraft:air".equals(full)) {
+                return Optional.empty();
+            }
+            if (components != null && components.contains("bogus")) {
+                throw new IllegalArgumentException(
+                        "invalid item components: " + id + components);
+            }
+            if (components != null && components.contains("damage=12")) {
+                return Optional.of(new ink.tuanzi.neomacros.port.model.ItemStackData(
+                        full, 1, "Stone", 12, 0, List.of(), List.of()));
+            }
+            return Optional.of(new ink.tuanzi.neomacros.port.model.ItemStackData(
+                    full, 1, "Stone"));
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.ItemStackData> defaultItemStacks() {
+            return List.of(
+                    new ink.tuanzi.neomacros.port.model.ItemStackData(
+                            "minecraft:air", 1, "Air"),
+                    new ink.tuanzi.neomacros.port.model.ItemStackData(
+                            "minecraft:stone", 1, "Stone"));
+        }
+
+        @Override
+        public List<String> enchantmentIds() {
+            return List.of("minecraft:sharpness");
+        }
+
+        @Override
+        public List<String> paintingIds() {
+            return List.of("minecraft:kebab");
+        }
+
+        @Override
+        public List<String> featureIds() {
+            return List.of("minecraft:ore");
+        }
     }
 
     public ink.tuanzi.neomacros.port.InputPort input() {

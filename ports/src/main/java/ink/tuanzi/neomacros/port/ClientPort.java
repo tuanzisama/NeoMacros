@@ -1,5 +1,7 @@
 package ink.tuanzi.neomacros.port;
 
+import ink.tuanzi.neomacros.port.model.BlockStateData;
+import ink.tuanzi.neomacros.port.model.ItemStackData;
 import ink.tuanzi.neomacros.port.model.ModData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
 import ink.tuanzi.neomacros.port.model.Pos2d;
@@ -236,6 +238,71 @@ public interface ClientPort {
      */
     default Optional<String> registryLookup(String kind, String id) {
         return Optional.empty();
+    }
+
+    /**
+     * Returns one registered block state: the default state of the block
+     * when {@code props} is null or blank, otherwise the state parsed from
+     * vanilla command property syntax (e.g. {@code [facing=north]}).
+     * Unknown identifiers answer empty; malformed property syntax rejects
+     * with {@link IllegalArgumentException}.
+     */
+    default Optional<BlockStateData> blockState(String id, String props) {
+        return Optional.empty();
+    }
+
+    /**
+     * Returns the default state of every registered block, sorted by
+     * identifier.
+     */
+    default List<BlockStateData> blockStates() {
+        return List.of();
+    }
+
+    /**
+     * Returns one item stack: the default instance when {@code components}
+     * is null or blank, otherwise the stack parsed from vanilla item
+     * command component syntax (e.g. {@code [damage=12]}). Unknown
+     * identifiers answer empty; malformed component syntax rejects with
+     * {@link IllegalArgumentException}; component parsing needs a
+     * connection and answers empty without one.
+     */
+    default Optional<ItemStackData> itemStack(String id, String components) {
+        return Optional.empty();
+    }
+
+    /**
+     * Returns the default stack of every registered item, sorted by
+     * identifier.
+     */
+    default List<ItemStackData> defaultItemStacks() {
+        return List.of();
+    }
+
+    /**
+     * Returns the identifiers of the connected server's enchantment
+     * registry (data-driven, not part of the built-in registries); empty
+     * without a connection.
+     */
+    default List<String> enchantmentIds() {
+        return List.of();
+    }
+
+    /**
+     * Returns the identifiers of the connected server's painting variant
+     * registry (data-driven); empty without a connection.
+     */
+    default List<String> paintingIds() {
+        return List.of();
+    }
+
+    /**
+     * Returns the identifiers of the world-generation feature registry;
+     * the registry name moved between nodes ({@code worldgen/feature}
+     * before 26.3, {@code worldgen/feature_type} from 26.3 on).
+     */
+    default List<String> featureIds() {
+        return List.of();
     }
 
     /** A rejected future naming the unsupported operation. */
