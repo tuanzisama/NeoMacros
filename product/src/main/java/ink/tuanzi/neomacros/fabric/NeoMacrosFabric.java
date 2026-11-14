@@ -117,6 +117,9 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         configManager.register(options);
         configManager.load();
         configManager.createIfMissing();
+        // The packet hub reads packetIgnore off this instance on every fire,
+        // so config reloads take effect without re-binding (G-002 §3).
+        ink.tuanzi.neomacros.adapter.PacketHub.configure(options);
 
         macrosDir = options.macrosDir.isEmpty()
                 ? configDir.resolve("macros") : Path.of(options.macrosDir);
@@ -135,6 +138,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         catalog.registerAll(ProductionEventSet.records());
         var pool = new ScriptThreadPool(Runtime.getRuntime().availableProcessors());
         var bus = new EventBus(catalog, pool.workers());
+        // Behind the packet hub's hasDispatchTarget fast path (G-002 §3).
+        ink.tuanzi.neomacros.adapter.PacketHub.bind(bus);
         var registry = new BindingRegistry(mcVersion());
 
         var ioExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
@@ -186,6 +191,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("ItemStackBuilder", ink.tuanzi.neomacros.core.api.types.ItemStackBuilder.class);
         registry.registerGuestType("Enchantment", ink.tuanzi.neomacros.core.api.types.Enchantment.class);
         registry.registerGuestType("Image", ink.tuanzi.neomacros.core.api.types.Image.class);
+        registry.registerGuestType("PacketBuffer",
+                ink.tuanzi.neomacros.core.api.types.PacketBuffer.class);
         registry.registerGuestType("FileHandle",
                 ink.tuanzi.neomacros.core.api.FsApi.FileHandle.class);
         registry.registerGuestType("Ws", ink.tuanzi.neomacros.core.api.NetApi.Ws.class);

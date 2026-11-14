@@ -26,6 +26,54 @@ public final class CoreOptions implements ConfigSection {
     @Option(description = "Additional events skipped by wildcard subscriptions")
     public List<String> wildcardIgnoresExtra = List.of();
 
+    /**
+     * The shipped packet suppression list: high-traffic packet ids that are
+     * never turned into {@code packet:receive} / {@code packet:send} events.
+     * The config value replaces this list wholesale (an explicit empty list
+     * lets every packet through), unlike {@link #wildcardIgnoresExtra} which
+     * only appends.
+     */
+    public static final List<String> DEFAULT_PACKET_IGNORE = List.of(
+            "minecraft:bundle_delimiter",
+            "minecraft:move_entity_pos", "minecraft:move_entity_pos_rot",
+            "minecraft:move_entity_rot", "minecraft:rotate_head",
+            "minecraft:set_entity_motion", "minecraft:entity_position_sync",
+            "minecraft:teleport", "minecraft:move_player");
+
+    /**
+     * Packet ids suppressed before either packet event is published. The
+     * shipped value is {@link #DEFAULT_PACKET_IGNORE}; an explicit config
+     * value replaces it wholesale and {@code []} publishes every packet.
+     */
+    @Option(description = "Packet ids suppressed before packet events publish (replaces the default list; [] allows all)")
+    public List<String> packetIgnore = DEFAULT_PACKET_IGNORE;
+
+    /**
+     * Returns whether a packet id is suppressed by one ignore list. Patterns
+     * follow the event-bus wildcard grammar: an exact id, {@code domain:*}
+     * or {@code *}.
+     *
+     * @zh 判断包 id 是否被抑制名单命中；模式沿用事件总线通配语法：精确 id、{@code domain:*} 或 {@code *}。
+     */
+    public static boolean packetIgnored(java.util.Collection<String> ignore, String id) {
+        if (ignore == null || ignore.isEmpty() || id == null) {
+            return false;
+        }
+        for (String pattern : ignore) {
+            if (pattern == null) {
+                continue;
+            }
+            if (pattern.equals("*") || pattern.equals(id)) {
+                return true;
+            }
+            if (pattern.endsWith(":*")
+                    && id.startsWith(pattern.substring(0, pattern.length() - 1))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Per-script trusted capability sets, keyed by content hash. */
     @Option(description = "Trusted scripts by content hash")
     public Map<String, List<String>> trust = Map.of();

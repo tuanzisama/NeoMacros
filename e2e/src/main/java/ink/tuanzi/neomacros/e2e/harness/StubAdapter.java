@@ -545,6 +545,103 @@ public final class StubAdapter implements NeomacrosAdapter {
         public List<String> featureIds() {
             return List.of("minecraft:ore");
         }
+
+        // ---- packet face (G-031) ------------------------------------
+
+        private final List<Consumer<ink.tuanzi.neomacros.port.model.PacketRef>>
+                packetReceiveSinks = new CopyOnWriteArrayList<>();
+        private final List<Function<ink.tuanzi.neomacros.port.model.PacketRef,
+                ink.tuanzi.neomacros.port.model.PacketSendVerdict>> packetSendSinks =
+                new CopyOnWriteArrayList<>();
+
+        /** Whether the canned packets report a standalone codec. */
+        public volatile boolean packetEncodable = true;
+        /** When true the re-decode step fails (fail-open scenarios). */
+        public volatile boolean packetDecodeFails = false;
+        /** Raw packets handed to {@link #sendRawPacket}, in order. */
+        public final List<Object> sentPackets = new CopyOnWriteArrayList<>();
+
+        @Override
+        public void onPacketReceive(Consumer<ink.tuanzi.neomacros.port.model.PacketRef> sink) {
+            packetReceiveSinks.add(sink);
+        }
+
+        @Override
+        public void onPacketSend(Function<ink.tuanzi.neomacros.port.model.PacketRef,
+                ink.tuanzi.neomacros.port.model.PacketSendVerdict> sink) {
+            packetSendSinks.add(sink);
+        }
+
+        /** Fires the receive sinks directly (harness-side source). */
+        public void firePacketReceive(ink.tuanzi.neomacros.port.model.PacketRef ref) {
+            for (Consumer<ink.tuanzi.neomacros.port.model.PacketRef> sink : packetReceiveSinks) {
+                sink.accept(ref);
+            }
+        }
+
+        /** Fires the send sinks and combines their verdicts (PacketHub parity). */
+        public ink.tuanzi.neomacros.port.model.PacketSendVerdict firePacketSend(
+                ink.tuanzi.neomacros.port.model.PacketRef ref) {
+            boolean canceled = false;
+            Object replacement = null;
+            for (Function<ink.tuanzi.neomacros.port.model.PacketRef,
+                    ink.tuanzi.neomacros.port.model.PacketSendVerdict> sink : packetSendSinks) {
+                ink.tuanzi.neomacros.port.model.PacketSendVerdict verdict = sink.apply(ref);
+                if (verdict == null) {
+                    continue;
+                }
+                canceled |= verdict.canceled();
+                if (verdict.replacement() != null) {
+                    replacement = verdict.replacement();
+                }
+            }
+            if (replacement != null) {
+                return new ink.tuanzi.neomacros.port.model.PacketSendVerdict(
+                        canceled, replacement);
+            }
+            return canceled
+                    ? new ink.tuanzi.neomacros.port.model.PacketSendVerdict(true, null)
+                    : ink.tuanzi.neomacros.port.model.PacketSendVerdict.PASS;
+        }
+
+        @Override
+        public boolean canEncodePacket(Object packet, String protocol) {
+            return packetEncodable && packet != null;
+        }
+
+        @Override
+        public byte[] encodePacket(Object packet, String protocol) {
+            if (!canEncodePacket(packet, protocol)) {
+                throw new IllegalStateException("stub packet has no codec");
+            }
+            // Canonical bytes: the payload text of the canned string packet.
+            return String.valueOf(packet).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public Object decodePacket(String packetId, String protocol, String flow,
+                byte[] bytes, int offset) {
+            if (packetDecodeFails) {
+                throw new IllegalStateException("stub decode failure");
+            }
+            return new String(bytes, offset, bytes.length - offset,
+                    java.nio.charset.StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> sendRawPacket(Object packet) {
+            if (!(packet instanceof String)) {
+                return java.util.concurrent.CompletableFuture.failedFuture(
+                        new IllegalArgumentException("not a stub packet: " + packet));
+            }
+            sentPackets.add(packet);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public List<String> packetIds() {
+            return List.of("minecraft:keep_alive", "minecraft:swing");
+        }
     }
 
     public ink.tuanzi.neomacros.port.InputPort input() {

@@ -274,6 +274,32 @@ public final class EventBus {
         return new PublishResult(cancelFlag.isCanceled(), notified, verdict);
     }
 
+    /**
+     * Returns whether publishing {@code name} would notify anybody: at least
+     * one active exact subscription, or (when the name is not wildcard-
+     * ignored) one active matching wildcard subscription. High-traffic
+     * sources ask this before building a payload so an unsubscribed event
+     * costs a single list walk and a boolean.
+     *
+     * @zh 该事件名当前是否有订阅者：存在活跃精确订阅，或（事件未被通配忽略时）存在活跃匹配的通配订阅。高频事件源在构造载荷前先问此快路径。
+     */
+    public boolean hasDispatchTarget(String name) {
+        for (Subscription sub : snapshot(exactSubscriptions.get(name))) {
+            if (sub.isActive()) {
+                return true;
+            }
+        }
+        if (isWildcardIgnored(name)) {
+            return false;
+        }
+        for (Subscription sub : wildcardSubscriptions) {
+            if (sub.isActive() && matches(sub.pattern(), name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Replaces the wildcard ignore list (patterns: exact names or {@code domain:*}). */
     public void setWildcardIgnores(Collection<String> patterns) {
         this.wildcardIgnores = Set.copyOf(patterns);

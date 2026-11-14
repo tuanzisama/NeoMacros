@@ -20,6 +20,7 @@
     ,"ContainerSyncMixin"
     ,"InventoryClickMixin"
     ,"DropPacketMixin"
+    ,"ConnectionMixin"
     ,"DialogScreenAccessor"
     ,"AbstractContainerScreenAccessor"
     ,"AbstractFurnaceMenuAccessor"

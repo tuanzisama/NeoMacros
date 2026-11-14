@@ -117,4 +117,27 @@ class TrustManagerTest {
         manager.revoke(hash);
         assertFalse(manager.isTrusted(hash), "revoke must remove the trust entry");
     }
+
+    @Test
+    void packetCapabilityIsInTheDirectoryAndGatesLikeTheOthers(@TempDir Path dir) {
+        // 拍板甲: buffer.send() walks the wire under the `packet` key.
+        assertTrue(TrustManager.CAPABILITIES.contains("packet"),
+                "the packet capability joins the directory (G-002 §5.2 方案甲)");
+
+        var options = options(dir);
+        var prompts = new ArrayList<TrustManager.TrustPrompt>();
+        var manager = manager(options, prompts);
+
+        // Declared but untrusted: denied + one prompt (the rejection path).
+        var denied = manager.viewFor("hash-packet", List.of("packet"));
+        assertFalse(denied.allows("packet"));
+        assertEquals(1, prompts.size());
+        assertEquals(List.of("packet"), prompts.get(0).requested());
+
+        // Trusted: exactly the declared capability is granted.
+        manager.trust("hash-packet");
+        var granted = manager.viewFor("hash-packet", List.of("packet"));
+        assertTrue(granted.allows("packet"));
+        assertFalse(granted.allows("fs"), "only declared capabilities are granted");
+    }
 }

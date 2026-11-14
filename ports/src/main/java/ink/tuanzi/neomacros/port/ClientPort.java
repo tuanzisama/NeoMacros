@@ -305,6 +305,98 @@ public interface ClientPort {
         return List.of();
     }
 
+    /**
+     * Registers an incoming-packet observer. Sinks run on the game main
+     * thread after the adapter's suppression list and the hub's fast path
+     * have already accepted the packet.
+     *
+     * @zh 注册下行包观测器；抑制名单与快路径放行后，回调在游戏主线程执行。
+     */
+    default void onPacketReceive(java.util.function.Consumer<
+            ink.tuanzi.neomacros.port.model.PacketRef> sink) {
+    }
+
+    /**
+     * Registers the outgoing-packet interceptor. Sinks run inline on the
+     * game main thread so the verdict can cancel or replace the packet
+     * before it reaches the wire.
+     *
+     * @zh 注册上行包拦截器；回调在游戏主线程内联执行，裁决可在上线前取消或替换该包。
+     */
+    default void onPacketSend(java.util.function.Function<
+            ink.tuanzi.neomacros.port.model.PacketRef,
+            ink.tuanzi.neomacros.port.model.PacketSendVerdict> sink) {
+    }
+
+    /**
+     * Returns whether the packet has a standalone codec for the given
+     * protocol phase; packets without one (bundles) expose no buffer.
+     *
+     * @zh 该包在指定协议阶段是否有独立编解码器；无编解码器的包（如 bundle）不提供缓冲区。
+     */
+    default boolean canEncodePacket(Object packet, String protocol) {
+        return false;
+    }
+
+    /**
+     * Encodes the packet into canonical bytes for the given protocol phase.
+     * Rejects when the packet has no standalone codec.
+     *
+     * @zh 按指定协议阶段把包编码为规范字节；包无独立编解码器时 reject。
+     */
+    default byte[] encodePacket(Object packet, String protocol) {
+        throw unsupportedOp("encodePacket");
+    }
+
+    /**
+     * Decodes {@code bytes} from {@code offset} to the end as the named
+     * packet of the given protocol phase and flow ({@code serverbound} /
+     * {@code clientbound}); a null flow tries serverbound first, then
+     * clientbound, because builder sends craft outgoing packets. Rejects on
+     * unknown ids, unknown phases or malformed bytes.
+     *
+     * @zh 把 {@code bytes} 从 {@code offset} 到末尾按指定协议阶段与流向（{@code serverbound}/{@code clientbound}）解码为命名包；流向为 null 时先试 serverbound 再试 clientbound（构造器发送面向出站包）。id/阶段未知或字节非法时 reject。
+     */
+    default Object decodePacket(String packetId, String protocol, String flow,
+            byte[] bytes, int offset) {
+        throw unsupportedOp("decodePacket");
+    }
+
+    /**
+     * Resolves a script-supplied binary class name to the runtime class
+     * (mapping-aware on obfuscated nodes); null when unresolvable.
+     *
+     * @zh 把脚本给出的二进制类名解析为运行时类（混淆节点上经映射感知）；无法解析时为 null。
+     */
+    default Class<?> resolveClass(String name) {
+        try {
+            return Class.forName(name, false, ClientPort.class.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Sends one raw packet object on the client's connection. The future
+     * settles once the send has been handed to the connection.
+     *
+     * @zh 在客户端连接上发送一个原始包对象；移交给连接后 future settle。
+     */
+    default java.util.concurrent.CompletableFuture<Void> sendRawPacket(Object packet) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("client port cannot send packets"));
+    }
+
+    /**
+     * Returns the namespaced ids of every packet the client can encode,
+     * sorted; empty when the packet face is unavailable.
+     *
+     * @zh 返回客户端可编码的全部包 id（namespaced、已排序）；包面不可用时为空。
+     */
+    default List<String> packetIds() {
+        return List.of();
+    }
+
     /** A rejected future naming the unsupported operation. */
     private static CompletableFuture<Void> unsupportedFuture(String op) {
         return CompletableFuture.failedFuture(

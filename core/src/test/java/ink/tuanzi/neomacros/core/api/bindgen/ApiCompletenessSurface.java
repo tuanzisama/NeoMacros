@@ -68,6 +68,7 @@ final class ApiCompletenessSurface {
             Block.class, BlockState.class, RayHit.class,
             ItemStack.class, ItemStackBuilder.class, Enchantment.class,
             ink.tuanzi.neomacros.core.api.types.Image.class,
+            ink.tuanzi.neomacros.core.api.types.PacketBuffer.class,
             FsApi.FileHandle.class, NetApi.Ws.class,
             SpeciesEntities.MobEntity.class, SpeciesEntities.AnimalEntity.class, SpeciesEntities.TamableAnimalEntity.class,
             SpeciesEntities.SheepEntity.class, SpeciesEntities.WolfEntity.class, SpeciesEntities.CatEntity.class,
