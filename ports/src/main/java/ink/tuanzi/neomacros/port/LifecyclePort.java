@@ -74,7 +74,11 @@ public interface LifecyclePort {
         return java.util.Optional.empty();
     }
 
-    /** The front-face text of an open sign editor, or empty. */
+    /**
+     * The four lines under edit in an open sign editor, newline-joined (the
+     * edited face's live buffer, so write-face writes show up immediately),
+     * or empty when no sign editor is open.
+     */
     default java.util.Optional<String> signText() {
         return java.util.Optional.empty();
     }

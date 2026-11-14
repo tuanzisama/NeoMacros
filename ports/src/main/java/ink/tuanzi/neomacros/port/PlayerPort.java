@@ -457,4 +457,38 @@ public interface PlayerPort {
     default boolean hasInteractOverride() {
         return false;
     }
+
+    // --- Sign editor write face and panorama capture (G-037). Both act on
+    // the client: the sign write mutates the open editor's line buffer (the
+    // vanilla editor submits that buffer to the server when it closes), and
+    // the panorama capture runs vanilla's six-direction routine on the main
+    // thread.
+
+    /**
+     * Writes the four lines of the open sign editor, top to bottom. A
+     * {@code null} entry leaves that line unchanged; the list is read up to
+     * four entries (a shorter list leaves the remaining lines untouched).
+     * Marshals onto the game main thread and answers whether a sign editor
+     * was open — the write only lands when one is.
+     *
+     * @param lines up to four line texts, {@code null} = leave unchanged
+     * @return whether a sign editor was open when the write ran
+     */
+    default boolean writeSign(java.util.List<String> lines) {
+        throw new UnsupportedOperationException("writeSign requires the fabric adapter");
+    }
+
+    /**
+     * Captures a six-face panorama of the current world through vanilla's
+     * capture routine and resolves with its message once the six grabs are
+     * queued (the PNG files themselves are written asynchronously). The
+     * {@code folder} is a path relative to the macro root; implementations
+     * create its {@code screenshots} child.
+     *
+     * @param folder folder under the macro root to save into
+     * @return future settling with the capture routine's message
+     */
+    default java.util.concurrent.CompletableFuture<String> takePanorama(String folder) {
+        throw new UnsupportedOperationException("takePanorama requires the fabric adapter");
+    }
 }

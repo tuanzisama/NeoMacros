@@ -294,24 +294,23 @@ public final class FabricLifecyclePort implements LifecyclePort {
     public java.util.Optional<String> signText() {
         var screen = currentScreen();
         if (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen sign) {
-            var entity = ((ink.tuanzi.neomacros.adapter.mixin.AbstractSignEditScreenAccessor) sign).neomacros$sign();
-            if (entity == null) {
+            // The editor's own line buffer rather than the block entity: it
+            // is the face under edit (front or back), it tracks typing, and
+            // it reflects write-face writes made before the editor closes
+            // (the block entity only catches up once vanilla submits the
+            // buffer on close).
+            String[] messages =
+                    ((ink.tuanzi.neomacros.adapter.mixin.AbstractSignEditScreenAccessor) sign)
+                            .neomacros$messages();
+            if (messages == null) {
                 return java.util.Optional.empty();
             }
-            //? if >=26.3 {
-            var messages = entity.getText(net.minecraft.world.level.block.entity.SignTextSlot.FRONT)
-                    .getMessages(false);
-            //?} else {
-            /*
-            var messages = entity.getFrontText().getMessages(false);
-            */
-            //?}
             StringBuilder text = new StringBuilder();
-            for (var message : messages) {
-                if (!text.isEmpty()) {
+            for (int i = 0; i < messages.length; i++) {
+                if (i > 0) {
                     text.append('\n');
                 }
-                text.append(message.getString());
+                text.append(messages[i] != null ? messages[i] : "");
             }
             return java.util.Optional.of(text.toString());
         }

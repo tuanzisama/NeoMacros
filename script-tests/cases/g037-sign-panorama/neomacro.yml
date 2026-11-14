@@ -1,0 +1,8 @@
+name: g037-sign-panorama
+version: 1.0.0
+author: neomacros
+description: G-037 sign editor write face and panorama capture case
+permissions: []
+config:
+  event:
+    on: [game:start]

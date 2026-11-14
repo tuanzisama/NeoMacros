@@ -2823,6 +2823,75 @@ public final class StubAdapter implements NeomacrosAdapter {
             signEditSinks.add(sink);
         }
 
+        // --- G-037 sign editor write + panorama capture canned face: the
+        // editor-open flag drives writeSign's answer, the four-line buffer
+        // keeps what the write filled, and the panorama outcome is canned
+        // (message or a rejected future) for the failure-semantics cases.
+
+        /** Whether the canned sign editor is open. */
+        volatile boolean signEditorOpen;
+        /** The editor's four-line buffer the write face fills in place. */
+        final String[] signLines = new String[4];
+        /** When set, the panorama capture future rejects with this error. */
+        volatile RuntimeException panoramaFailure;
+        /** When set, the panorama capture future resolves with this message. */
+        volatile String panoramaMessage;
+        /** The folders the panorama capture was asked for, in order. */
+        final List<String> panoramaFolders = new CopyOnWriteArrayList<>();
+
+        /** Opens or closes the canned sign editor. */
+        public void setSignEditorOpen(boolean open) {
+            this.signEditorOpen = open;
+        }
+
+        /** The editor's four-line buffer (null = line untouched). */
+        public String[] signLines() {
+            return signLines;
+        }
+
+        /** Cans the panorama capture message. */
+        public void setPanoramaMessage(String message) {
+            this.panoramaMessage = message;
+        }
+
+        /** Cans a panorama capture failure (null = resolve normally). */
+        public void setPanoramaFailure(RuntimeException failure) {
+            this.panoramaFailure = failure;
+        }
+
+        /** The folders the panorama capture was asked for, in order. */
+        public List<String> panoramaFolders() {
+            return panoramaFolders;
+        }
+
+        @Override
+        public boolean writeSign(List<String> lines) {
+            StringBuilder detail = new StringBuilder();
+            for (int i = 0; i < signLines.length; i++) {
+                String line = lines != null && i < lines.size() ? lines.get(i) : null;
+                if (signEditorOpen && line != null) {
+                    signLines[i] = line;
+                }
+                if (i > 0) {
+                    detail.append('/');
+                }
+                detail.append(line == null ? "-" : line);
+            }
+            actions.add("writeSign:" + detail);
+            return signEditorOpen;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<String> takePanorama(String folder) {
+            actions.add("takePanorama:" + folder);
+            panoramaFolders.add(folder);
+            if (panoramaFailure != null) {
+                return java.util.concurrent.CompletableFuture.failedFuture(panoramaFailure);
+            }
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    panoramaMessage != null ? panoramaMessage : "panorama:" + folder);
+        }
+
         // --- G-018 advancement/statistics canned face: deterministic reads
         // the progress/statistics scenarios assert against.
 
