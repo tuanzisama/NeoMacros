@@ -109,7 +109,15 @@ public record ControlSpec(
             throw new IllegalArgumentException("control 'id' is required: " + type);
         }
         Set<String> allowed = TYPE_KEYS.get(type);
-        for (String key : raw.keySet()) {
+        for (Map.Entry<String, Object> entry : raw.entrySet()) {
+            String key = entry.getKey();
+            if (entry.getValue() == null) {
+                // Records cross the engine boundary as full-component
+                // snapshot maps (every component present, absent optionals
+                // as null — G-036 build() round-trip); null reads as
+                // "field not set" and skips the type whitelist check.
+                continue;
+            }
             if (!COMMON_KEYS.contains(key) && !allowed.contains(key)) {
                 throw new IllegalArgumentException(
                         "control '" + id + "' of type " + type
@@ -194,7 +202,8 @@ public record ControlSpec(
                 label != null ? label : "",
                 active == null || active,
                 visible == null || visible,
-                checked, value, text, locked);
+                checked, value, text, locked,
+                steps, editable, maxLength, null);
     }
 
     private static void putIfPresent(Map<String, Object> map, String key, Object value) {

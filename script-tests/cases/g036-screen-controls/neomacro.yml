@@ -1,0 +1,8 @@
+name: g036-screen-controls
+version: 1.0.0
+author: neomacros
+description: G-036 basic four control handles and builder family case
+permissions: []
+config:
+  event:
+    on: [game:start]

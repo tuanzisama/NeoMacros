@@ -57,9 +57,15 @@ public final class BuiltScreen implements ScriptHandle {
     /** The host class name reported by {@code gui.name}. */
     static final String HOST_NAME = "ScriptScreen";
 
-    /** Patch keys {@code setControl} accepts (G-003 §4). */
+    /**
+     * Patch keys {@code setControl} accepts (G-003 §4 + G-036 control
+     * fields): state keys land in the cache, the transient keys
+     * ({@code cursor/cursorTo/shift/selection}) reach the widget only.
+     */
     private static final java.util.Set<String> PATCH_KEYS = java.util.Set.of(
-            "checked", "value", "text", "locked", "label", "active", "visible", "z");
+            "checked", "value", "text", "locked", "label", "active", "visible", "z",
+            "steps", "editable", "maxLength", "suggestion", "textColor",
+            "uneditableColor", "cursor", "cursorTo", "shift", "selection");
 
     private static final AtomicLong LAST_LOG = new AtomicLong();
 
@@ -74,6 +80,9 @@ public final class BuiltScreen implements ScriptHandle {
     private final Map<String, Object> callbacks = new LinkedHashMap<>();
     private final Map<String, Consumer<Object[]>> clickCallbacks = new ConcurrentHashMap<>();
     private final Map<String, Consumer<Object[]>> changeCallbacks = new ConcurrentHashMap<>();
+    /** Per-control text filters installed through the EditBox handle (G-036). */
+    private final Map<String, java.util.function.Function<String, Object>> textFilters =
+            new ConcurrentHashMap<>();
     /** The mutable control order (spec mirror; the port owns its own neutral copy). */
     private final List<ControlSpec> controls = new ArrayList<>();
     private final Map<String, ControlState> cache = new ConcurrentHashMap<>();
@@ -241,14 +250,95 @@ public final class BuiltScreen implements ScriptHandle {
         return cache.get(id);
     }
 
-    /** Appends one control (rebuilt immediately, same session).
-     * @zh 追加一个控件（同会话立即重建）。 */
+    /** The live button/image-button handle for one control (G-036).
+     * @zh 单个 button/imageButton 控件的活句柄（G-036）。 */
     @ApiSince("0.5.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public BuiltScreen add(@ApiType("ControlSpec") Map<String, Object> control) {
+    public Button button(@ApiType("string") String id) {
+        ControlSpec spec = specOf(id, "button", "imageButton");
+        if (spec == null) {
+            return null;
+        }
+        return "imageButton".equals(spec.type())
+                ? new ImageButton(this, id) : new Button(this, id);
+    }
+
+    /** The live checkbox handle for one control (G-036).
+     * @zh 单个 checkbox 控件的活句柄（G-036）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public Checkbox checkbox(@ApiType("string") String id) {
+        return specOf(id, "checkbox") == null ? null : new Checkbox(this, id);
+    }
+
+    /** The live slider handle for one control (G-036).
+     * @zh 单个 slider 控件的活句柄（G-036）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public Slider slider(@ApiType("string") String id) {
+        return specOf(id, "slider") == null ? null : new Slider(this, id);
+    }
+
+    /** The live edit-box handle for one control (G-036).
+     * @zh 单个 editBox 控件的活句柄（G-036）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public EditBox editBox(@ApiType("string") String id) {
+        return specOf(id, "editBox") == null ? null : new EditBox(this, id);
+    }
+
+    /** Resolves one control for a typed handle: null when closed/unknown,
+     * throws when the id names a control of another type. */
+    private ControlSpec specOf(String id, String... types) {
+        if (closed || id == null) {
+            return null;
+        }
+        for (ControlSpec control : controls) {
+            if (control.id().equals(id)) {
+                for (String type : types) {
+                    if (type.equals(control.type())) {
+                        return control;
+                    }
+                }
+                throw new IllegalArgumentException("control '" + id + "' is a "
+                        + control.type() + ", not " + java.util.Arrays.toString(types));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Appends one control (rebuilt immediately, same session). Accepts a
+     * plain spec object literal or a builder's {@code build()} product:
+     * the engine hands both over as maps (records snapshot to their full
+     * component set, absent optionals as null — {@link ControlSpec#parse}
+     * reads those as unset), and the {@code Consumer} callback fields
+     * survive that snapshot, so builder callbacks reach the session.
+     *
+     * @zh 追加一个控件（同会话立即重建）。既接受声明式对象字面量，也接受构建器 {@code build()} 产物：引擎两者都以 map 交出（record 快照为全组件集、缺席可选字段为 null——{@link ControlSpec#parse} 将其读作未设置），{@code Consumer} 回调字段在快照中存留，构建器回调得以进入会话。
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public BuiltScreen add(@ApiType("ControlSpec") Object control) {
         ensureOpen();
-        ControlSpec parsed = ControlSpec.parse(control);
+        ControlSpec parsed;
+        if (control instanceof ControlSpec spec) {
+            parsed = spec;
+        } else if (control instanceof Map<?, ?> map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> raw = (Map<String, Object>) map;
+            parsed = ControlSpec.parse(raw);
+        } else {
+            throw new IllegalArgumentException(
+                    "add expects a control object, got: "
+                            + (control == null ? "null"
+                                    : control.getClass().getName()));
+        }
         for (ControlSpec existing : controls) {
             if (existing.id().equals(parsed.id())) {
                 throw new IllegalArgumentException(
@@ -282,6 +372,7 @@ public final class BuiltScreen implements ScriptHandle {
         cache.remove(id);
         clickCallbacks.remove(id);
         changeCallbacks.remove(id);
+        textFilters.remove(id);
         port.removeControl(session, id);
         return this;
     }
@@ -454,6 +545,32 @@ public final class BuiltScreen implements ScriptHandle {
         }
     }
 
+    /**
+     * Runs the registered text filter for one edit box (G-036): no
+     * predicate answers accept; a predicate rejects only on an explicit
+     * {@code false} return (fail-open — a callback that throws or returns
+     * nothing lets the text through, matching the "swallowed callback"
+     * convention).
+     */
+    private boolean sessionFilterText(String id, String candidate) {
+        if (closed || closing || session < 0) {
+            return true;
+        }
+        java.util.function.Function<String, Object> filter = textFilters.get(id);
+        if (filter == null) {
+            return true;
+        }
+        boolean[] accept = {true};
+        dispatch("filter." + id, () -> {
+            try {
+                accept[0] = !Boolean.FALSE.equals(filter.apply(candidate));
+            } catch (Throwable t) {
+                logThrottled("screen text filter failed: " + t);
+            }
+        });
+        return accept[0];
+    }
+
     /** Terminal transition: fires the close callback once, then invalidates. */
     private void sessionClosed() {
         if (closed || closing) {
@@ -475,6 +592,7 @@ public final class BuiltScreen implements ScriptHandle {
             closed = true;
             closing = false;
             cache.clear();
+            textFilters.clear();
         }
     }
 
@@ -527,6 +645,21 @@ public final class BuiltScreen implements ScriptHandle {
         }
     }
 
+    // ------------------------------------------------------------------
+    // G-036 typed-handle support (package-private: handles share the package)
+    // ------------------------------------------------------------------
+
+    /** Installs the edit-box text filter for one control (handle path). */
+    void putTextFilter(String id, java.util.function.Function<String, Object> filter) {
+        ensureOpen();
+        textFilters.put(id, filter);
+    }
+
+    /** Clears the edit-box text filter for one control (handle path). */
+    void clearTextFilter(String id) {
+        textFilters.remove(id);
+    }
+
     private void refreshIfDirty() {
         if (!cacheDirty) {
             return;
@@ -560,7 +693,14 @@ public final class BuiltScreen implements ScriptHandle {
                 patch.containsKey("text") && patch.get("text") instanceof String text
                         ? text : state.text(),
                 patch.containsKey("locked") && patch.get("locked") instanceof Boolean locked
-                        ? locked : state.locked());
+                        ? locked : state.locked(),
+                patch.get("steps") instanceof Number steps
+                        ? steps.intValue() : state.steps(),
+                patch.containsKey("editable") && patch.get("editable") instanceof Boolean editable
+                        ? editable : state.editable(),
+                patch.get("maxLength") instanceof Number length
+                        ? length.intValue() : state.maxLength(),
+                state.selectedText());
     }
 
     private static int patchInteger(Map<String, Object> patch, String key, int fallback) {
@@ -638,6 +778,11 @@ public final class BuiltScreen implements ScriptHandle {
         @Override
         public void stateChanged(String controlId, ScreenPort.ControlState state) {
             sessionStateChanged(controlId, state);
+        }
+
+        @Override
+        public boolean filterText(String controlId, String candidate) {
+            return sessionFilterText(controlId, candidate);
         }
 
         @Override

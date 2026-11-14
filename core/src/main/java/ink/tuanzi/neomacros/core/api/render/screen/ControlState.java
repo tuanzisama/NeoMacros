@@ -14,7 +14,11 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
  * the guest). Snapshots come from the session cache (seeded from the spec,
  * refreshed by {@code stateChanged} writes) or a port read-back on a miss.
  *
- * @zh {@link BuiltScreen} 上一个控件的只读快照：布局加该类型存在的活值字段（缺席 = guest 侧 undefined）。快照来自会话缓存（以 spec 播种、由 stateChanged 写刷新）或缓存未命中时的端口回读。
+ * <p>G-036 adds four type-specific fields: {@code steps} (slider),
+ * {@code editable}/{@code maxLength} (edit box) and {@code selectedText}
+ * (the edit box's live selection, read-only).</p>
+ *
+ * @zh {@link BuiltScreen} 上一个控件的只读快照：布局加该类型存在的活值字段（缺席 = guest 侧 undefined）。快照来自会话缓存（以 spec 播种、由 stateChanged 写刷新）或缓存未命中时的端口回读。G-036 增补 steps/editable/maxLength/selectedText 四个类型专属字段。
  */
 @ApiClass(name = "ControlState", kind = ApiClassKind.DATA)
 @ApiSince("0.5.0")
@@ -34,13 +38,18 @@ public record ControlState(
         @ApiOptional @ApiType("boolean") Boolean checked,
         @ApiOptional @ApiType("number") Double value,
         @ApiOptional @ApiType("string") String text,
-        @ApiOptional @ApiType("boolean") Boolean locked) {
+        @ApiOptional @ApiType("boolean") Boolean locked,
+        @ApiOptional @ApiType("number") Integer steps,
+        @ApiOptional @ApiType("boolean") Boolean editable,
+        @ApiOptional @ApiType("number") Integer maxLength,
+        @ApiOptional @ApiType("string") String selectedText) {
 
     /** Converts one port-side snapshot into the script-facing record. */
     static ControlState from(ink.tuanzi.neomacros.port.ScreenPort.ControlState state) {
         return new ControlState(state.id(), state.type(), state.x(), state.y(),
                 state.width(), state.height(), state.z(), state.label(),
                 state.active(), state.visible(), state.checked(), state.value(),
-                state.text(), state.locked());
+                state.text(), state.locked(), state.steps(), state.editable(),
+                state.maxLength(), state.selectedText());
     }
 }

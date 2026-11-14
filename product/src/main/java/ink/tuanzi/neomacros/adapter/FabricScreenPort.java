@@ -191,6 +191,10 @@ public final class FabricScreenPort implements ScreenPort {
         });
     }
 
+    /** Patch keys that are transient widget ops and never enter the mirror. */
+    private static final java.util.Set<String> TRANSIENT_KEYS = java.util.Set.of(
+            "cursor", "cursorTo", "shift", "selection");
+
     @Override
     public void writeControl(long session, String id, Map<String, Object> patch) {
         runOnMain(() -> {
@@ -202,8 +206,13 @@ public final class FabricScreenPort implements ScreenPort {
             if (control == null) {
                 return null;
             }
-            // Mirror into the spec copy so the next rebuild keeps the write.
-            control.putAll(patch);
+            // Mirror into the spec copy so the next rebuild keeps the write
+            // (transient cursor/selection ops stay out of the mirror).
+            for (Map.Entry<String, Object> entry : patch.entrySet()) {
+                if (!TRANSIENT_KEYS.contains(entry.getKey())) {
+                    control.put(entry.getKey(), entry.getValue());
+                }
+            }
             AbstractWidget widget = s.widgets.get(id);
             if (widget == null) {
                 return null;
@@ -225,14 +234,56 @@ public final class FabricScreenPort implements ScreenPort {
                     && widget instanceof SliderWidget slider) {
                 slider.writeValue(value.doubleValue());
             }
-            if (patch.get("text") instanceof String text) {
-                if (widget instanceof EditBox edit) {
+            if (patch.get("steps") instanceof Number steps
+                    && widget instanceof SliderWidget slider) {
+                slider.writeSteps(steps.intValue());
+            }
+            if (widget instanceof EditBox edit) {
+                if (patch.get("text") instanceof String text) {
                     edit.setValue(text);
-                } else if (widget instanceof CycleButton<?> cycle) {
-                    @SuppressWarnings("unchecked")
-                    CycleButton<String> typed = (CycleButton<String>) cycle;
-                    typed.setValue(text);
                 }
+                if (patch.get("editable") instanceof Boolean editable) {
+                    edit.setEditable(editable);
+                }
+                if (patch.get("maxLength") instanceof Number length) {
+                    edit.setMaxLength(length.intValue());
+                }
+                if (patch.get("suggestion") instanceof String suggestion) {
+                    edit.setSuggestion(suggestion);
+                }
+                if (patch.get("textColor") instanceof Number color) {
+                    edit.setTextColor(color.intValue());
+                }
+                if (patch.get("uneditableColor") instanceof Number color) {
+                    edit.setTextColorUneditable(color.intValue());
+                }
+                if (patch.get("cursor") instanceof Number cursor) {
+                    if (patch.get("shift") instanceof Boolean shift) {
+                        edit.moveCursorTo(cursor.intValue(), shift);
+                    } else {
+                        edit.setCursorPosition(cursor.intValue());
+                    }
+                }
+                if (patch.get("cursorTo") instanceof String to) {
+                    boolean shift = Boolean.TRUE.equals(patch.get("shift"));
+                    if ("start".equals(to)) {
+                        edit.moveCursorToStart(shift);
+                    } else {
+                        edit.moveCursorToEnd(shift);
+                    }
+                }
+                if (patch.get("selection") instanceof List<?> selection
+                        && selection.size() == 2
+                        && selection.get(0) instanceof Number start
+                        && selection.get(1) instanceof Number end) {
+                    edit.setHighlightPos(start.intValue());
+                    edit.setCursorPosition(end.intValue());
+                }
+            } else if (patch.get("text") instanceof String text
+                    && widget instanceof CycleButton<?> cycle) {
+                @SuppressWarnings("unchecked")
+                CycleButton<String> typed = (CycleButton<String>) cycle;
+                typed.setValue(text);
             }
             if (patch.get("locked") instanceof Boolean locked
                     && widget instanceof LockIconButton lock) {
@@ -410,8 +461,10 @@ public final class FabricScreenPort implements ScreenPort {
                 return slider;
             }
             case "editBox" -> {
-                EditBox edit = new EditBox(host.screenFont(), x, y, width, height,
-                        Component.literal(label != null ? label : ""));
+                FilteredEditBox edit = new FilteredEditBox(host.screenFont(),
+                        x, y, width, height,
+                        Component.literal(label != null ? label : ""),
+                        session, id);
                 if (control.get("text") instanceof String initial && !initial.isEmpty()) {
                     edit.setValue(initial);
                 }
@@ -429,6 +482,12 @@ public final class FabricScreenPort implements ScreenPort {
                 }
                 if (control.get("editable") instanceof Boolean editable) {
                     edit.setEditable(editable);
+                }
+                if (control.get("textColor") instanceof Number color) {
+                    edit.setTextColor(color.intValue());
+                }
+                if (control.get("uneditableColor") instanceof Number color) {
+                    edit.setTextColorUneditable(color.intValue());
                 }
                 applyCommon(edit, control);
                 return edit;
@@ -562,10 +621,17 @@ public final class FabricScreenPort implements ScreenPort {
         String text = control.get("text") instanceof String initial ? initial : null;
         Boolean locked = control.get("locked") instanceof Boolean lockedFlag
                 ? lockedFlag : null;
+        Integer steps = control.get("steps") instanceof Number number
+                ? number.intValue() : null;
+        Boolean editable = control.get("editable") instanceof Boolean editableFlag
+                ? editableFlag : null;
+        Integer maxLength = control.get("maxLength") instanceof Number number
+                ? number.intValue() : null;
         boolean active = control.get("active") instanceof Boolean activeFlag
                 ? activeFlag : true;
         boolean visible = control.get("visible") instanceof Boolean visibleFlag
                 ? visibleFlag : true;
+        String selectedText = null;
 
         AbstractWidget widget = session.widgets.get(id);
         if (widget != null) {
@@ -579,8 +645,10 @@ public final class FabricScreenPort implements ScreenPort {
                 checked = box.selected();
             } else if (widget instanceof SliderWidget slider) {
                 value = slider.currentValue();
+                steps = slider.currentSteps();
             } else if (widget instanceof EditBox edit) {
                 text = edit.getValue();
+                selectedText = edit.getHighlighted();
             } else if (widget instanceof LockIconButton lock) {
                 locked = lock.isLocked();
             } else if (widget instanceof CycleButton<?> cycle) {
@@ -589,7 +657,8 @@ public final class FabricScreenPort implements ScreenPort {
         }
         return new ControlState(id, type, x, y, width, height, z,
                 label != null ? label : "", active, visible,
-                checked, value, text, locked);
+                checked, value, text, locked,
+                steps, editable, maxLength, selectedText);
     }
 
     private static Map<String, Object> controlOf(Session session, String id) {
@@ -671,7 +740,7 @@ public final class FabricScreenPort implements ScreenPort {
         private final Session session;
         private final String id;
         private final String label;
-        private final int steps;
+        private int steps;
 
         SliderWidget(Session session, String id, String label, int x, int y,
                      int width, int height, double value, int steps) {
@@ -706,6 +775,10 @@ public final class FabricScreenPort implements ScreenPort {
             return value;
         }
 
+        int currentSteps() {
+            return steps;
+        }
+
         /** Script write path: updates without echoing a change event. */
         void writeValue(double next) {
             value = Math.max(0.0, Math.min(1.0, next));
@@ -713,6 +786,64 @@ public final class FabricScreenPort implements ScreenPort {
                 value = Math.round(value * steps) / (double) steps;
             }
             updateMessage();
+        }
+
+        /** Script write path: re-snaps the value onto the new grid. */
+        void writeSteps(int next) {
+            this.steps = Math.max(0, next);
+            if (steps > 0) {
+                value = Math.round(value * steps) / (double) steps;
+            }
+            updateMessage();
+        }
+    }
+
+    /**
+     * Edit box with the G-036 script text-filter gate: user input flows
+     * through {@link #insertText}, which asks the session's
+     * {@code filterText} with the candidate full text (computed exactly
+     * like vanilla: selection range replaced by the fragment) before
+     * delegating. 1.21.6's native {@code setFilter} stays untouched (its
+     * constructor default accepts everything); 26.x dropped the native
+     * filter entirely (javap), so this override is the uniform gate on
+     * every node. Script-initiated {@code setValue} writes bypass it.
+     *
+     * <p>The selection anchor is tracked through {@code setHighlightPos}
+     * — bytecode shows it is the only writer of {@code highlightPos} on
+     * both nodes.</p>
+     */
+    private static final class FilteredEditBox extends EditBox {
+
+        private final Session session;
+        private final String id;
+        private int highlight;
+
+        FilteredEditBox(net.minecraft.client.gui.Font font, int x, int y,
+                        int width, int height, Component label,
+                        Session session, String id) {
+            super(font, x, y, width, height, label);
+            this.session = session;
+            this.id = id;
+        }
+
+        @Override
+        public void setHighlightPos(int position) {
+            super.setHighlightPos(position);
+            highlight = position;
+        }
+
+        @Override
+        public void insertText(String text) {
+            String value = getValue();
+            int cursor = getCursorPosition();
+            int start = Math.min(cursor, highlight);
+            int end = Math.max(cursor, highlight);
+            String candidate = value.substring(0, start) + text
+                    + value.substring(end);
+            if (!session.sink.filterText(id, candidate)) {
+                return;
+            }
+            super.insertText(text);
         }
     }
 }
