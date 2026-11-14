@@ -175,6 +175,29 @@ function start() {
                 || typeof a11y.showSubtitles === 'boolean')
             && (a11y.hideLightningFlash === undefined
                 || typeof a11y.hideLightningFlash === 'boolean'));
+    const music = opts.music;
+    const skin = opts.skin;
+    check('client.options.music-handle',
+        typeof music.setMasterVolume === 'function'
+            && typeof music.setSoundDevice === 'function'
+            && typeof music.setShowSubtitles === 'function'
+            && (music.masterVolume === undefined
+                || typeof music.masterVolume === 'number')
+            && (music.soundDevice === undefined
+                || typeof music.soundDevice === 'string')
+            && (music.audioDevices === undefined
+                || Array.isArray(music.audioDevices))
+            && (music.volumes === undefined
+                || typeof music.volumes === 'object'));
+    check('client.options.skin-handle',
+        typeof skin.setCape === 'function'
+            && typeof skin.setLeftPantsLeg === 'function'
+            && typeof skin.setMainHand === 'function'
+            && (skin.cape === undefined || typeof skin.cape === 'boolean')
+            && (skin.mainHand === undefined
+                || typeof skin.mainHand === 'string')
+            && (skin.rightHanded === undefined
+                || typeof skin.rightHanded === 'boolean'));
     try {
       const pending = opts.setFov(70);
       check('client.options.write-promise',

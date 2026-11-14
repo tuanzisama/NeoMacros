@@ -1312,9 +1312,10 @@ public final class ClientApi {
     }
 
     /**
-     * Skin model-part visibility and main-hand settings group.
+     * Skin model-part visibility and main-hand settings group. Reads re-query
+     * the client on every access; writes resolve after read-back.
      *
-     * @zh 皮肤部件可见性与主手设置分组。
+     * @zh 皮肤部件可见性与主手设置分组；每次读取都重新查询客户端，写入在回读后落定。
      */
     @ApiClass(name = "SkinOptions", kind = ApiClassKind.HANDLE)
     @ApiSince("0.5.0")
@@ -1337,12 +1338,241 @@ public final class ClientApi {
         public Options getParent() {
             return parent;
         }
+
+        /** Whether the cape model part is shown.
+         * @zh 是否显示披风部件。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getCape() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.cape();
+        }
+
+        /**
+         * Shows or hides the cape model part. The change takes effect on the
+         * running client at once; persist it with {@code options.saveOptions()}.
+         *
+         * @zh 显示或隐藏披风部件；立即在运行中的客户端生效，持久化需调用 {@code options.saveOptions()}。
+         * @zh-param value true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setCape(boolean value) {
+            return writeOption("cape", value);
+        }
+
+        /** Whether the jacket model part is shown.
+         * @zh 是否显示夹克部件。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getJacket() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.jacket();
+        }
+
+        /**
+         * Shows or hides the jacket model part. The change takes effect on the
+         * running client at once; persist it with {@code options.saveOptions()}.
+         *
+         * @zh 显示或隐藏夹克部件；立即在运行中的客户端生效，持久化需调用 {@code options.saveOptions()}。
+         * @zh-param value true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setJacket(boolean value) {
+            return writeOption("jacket", value);
+        }
+
+        /** Whether the left sleeve model part is shown.
+         * @zh 是否显示左袖部件。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getLeftSleeve() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.leftSleeve();
+        }
+
+        /**
+         * Shows or hides the left sleeve model part. The change takes effect on
+         * the running client at once; persist it with {@code options.saveOptions()}.
+         *
+         * @zh 显示或隐藏左袖部件；立即在运行中的客户端生效，持久化需调用 {@code options.saveOptions()}。
+         * @zh-param value true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setLeftSleeve(boolean value) {
+            return writeOption("leftSleeve", value);
+        }
+
+        /** Whether the right sleeve model part is shown.
+         * @zh 是否显示右袖部件。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getRightSleeve() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.rightSleeve();
+        }
+
+        /**
+         * Shows or hides the right sleeve model part. The change takes effect
+         * on the running client at once; persist it with
+         * {@code options.saveOptions()}.
+         *
+         * @zh 显示或隐藏右袖部件；立即在运行中的客户端生效，持久化需调用 {@code options.saveOptions()}。
+         * @zh-param value true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setRightSleeve(boolean value) {
+            return writeOption("rightSleeve", value);
+        }
+
+        /** Whether the left pant-leg model part is shown.
+         * @zh 是否显示左裤腿部件。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getLeftPantsLeg() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.leftPantsLeg();
+        }
+
+        /**
+         * Shows or hides the left pant-leg model part. The change takes effect
+         * on the running client at once; persist it with
+         * {@code options.saveOptions()}.
+         *
+         * @zh 显示或隐藏左裤腿部件；立即在运行中的客户端生效，持久化需调用 {@code options.saveOptions()}。
+         * @zh-param value true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setLeftPantsLeg(boolean value) {
+            return writeOption("leftPantsLeg", value);
+        }
+
+        /** Whether the right pant-leg model part is shown.
+         * @zh 是否显示右裤腿部件。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getRightPantsLeg() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.rightPantsLeg();
+        }
+
+        /**
+         * Shows or hides the right pant-leg model part. The change takes effect
+         * on the running client at once; persist it with
+         * {@code options.saveOptions()}.
+         *
+         * @zh 显示或隐藏右裤腿部件；立即在运行中的客户端生效，持久化需调用 {@code options.saveOptions()}。
+         * @zh-param value true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setRightPantsLeg(boolean value) {
+            return writeOption("rightPantsLeg", value);
+        }
+
+        /** Whether the hat model part is shown.
+         * @zh 是否显示帽子部件。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getHat() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.hat();
+        }
+
+        /**
+         * Shows or hides the hat model part. The change takes effect on the
+         * running client at once; persist it with {@code options.saveOptions()}.
+         *
+         * @zh 显示或隐藏帽子部件；立即在运行中的客户端生效，持久化需调用 {@code options.saveOptions()}。
+         * @zh-param value true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setHat(boolean value) {
+            return writeOption("hat", value);
+        }
+
+        /** The main hand: {@code left} or {@code right}.
+         * @zh 主手：{@code left} 或 {@code right}。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getMainHand() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.mainHand();
+        }
+
+        /**
+         * Selects the main hand; an unknown hand name rejects.
+         *
+         * @zh 切换主手；主手名未知时 reject。
+         * @zh-param hand {@code left} 或 {@code right}
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setMainHand(String hand) {
+            if (hand == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalArgumentException("main hand required"));
+            }
+            return writeOption("mainHand", hand);
+        }
+
+        /** Whether the right hand is the main hand; undefined without options.
+         * @zh 是否以右手为主手；设置不可用时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getRightHanded() {
+            String hand = getMainHand();
+            return hand == null ? null : "right".equals(hand);
+        }
+
+        /** Whether the left hand is the main hand; undefined without options.
+         * @zh 是否以左手为主手；设置不可用时为 undefined。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getLeftHanded() {
+            String hand = getMainHand();
+            return hand == null ? null : "left".equals(hand);
+        }
     }
 
     /**
-     * Sound volume and audio device settings group.
+     * Sound volume and audio device settings group. Reads re-query the client
+     * on every access; writes resolve after read-back.
      *
-     * @zh 音量与音频设备设置分组。
+     * @zh 音量与音频设备设置分组；每次读取都重新查询客户端，写入在回读后落定。
      */
     @ApiClass(name = "MusicOptions", kind = ApiClassKind.HANDLE)
     @ApiSince("0.5.0")
@@ -1364,6 +1594,371 @@ public final class ClientApi {
         @ApiReadOnly
         public Options getParent() {
             return parent;
+        }
+
+        /** The master sound-category volume ({@code 0..1}).
+         * @zh 主音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getMasterVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.masterVolume();
+        }
+
+        /**
+         * Sets the master sound-category volume; rejects when the client stores
+         * a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置主音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setMasterVolume(double value) {
+            return writeOption("masterVolume", value);
+        }
+
+        /** The music sound-category volume ({@code 0..1}).
+         * @zh 音乐音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getMusicVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.musicVolume();
+        }
+
+        /**
+         * Sets the music sound-category volume; rejects when the client stores
+         * a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置音乐音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setMusicVolume(double value) {
+            return writeOption("musicVolume", value);
+        }
+
+        /** The record (jukebox) sound-category volume ({@code 0..1}).
+         * @zh 唱片机音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getRecordVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.recordVolume();
+        }
+
+        /**
+         * Sets the record (jukebox) sound-category volume; rejects when the
+         * client stores a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置唱片机音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setRecordVolume(double value) {
+            return writeOption("recordVolume", value);
+        }
+
+        /** The weather sound-category volume ({@code 0..1}).
+         * @zh 天气音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getWeatherVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.weatherVolume();
+        }
+
+        /**
+         * Sets the weather sound-category volume; rejects when the client
+         * stores a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置天气音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setWeatherVolume(double value) {
+            return writeOption("weatherVolume", value);
+        }
+
+        /** The block sound-category volume ({@code 0..1}).
+         * @zh 方块音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getBlockVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.blockVolume();
+        }
+
+        /**
+         * Sets the block sound-category volume; rejects when the client stores
+         * a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置方块音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setBlockVolume(double value) {
+            return writeOption("blockVolume", value);
+        }
+
+        /** The hostile-mob sound-category volume ({@code 0..1}).
+         * @zh 敌对生物音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getHostileVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.hostileVolume();
+        }
+
+        /**
+         * Sets the hostile-mob sound-category volume; rejects when the client
+         * stores a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置敌对生物音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setHostileVolume(double value) {
+            return writeOption("hostileVolume", value);
+        }
+
+        /** The neutral-mob sound-category volume ({@code 0..1}).
+         * @zh 中立生物音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getNeutralVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.neutralVolume();
+        }
+
+        /**
+         * Sets the neutral-mob sound-category volume; rejects when the client
+         * stores a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置中立生物音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setNeutralVolume(double value) {
+            return writeOption("neutralVolume", value);
+        }
+
+        /** The player sound-category volume ({@code 0..1}).
+         * @zh 玩家音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getPlayerVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.playerVolume();
+        }
+
+        /**
+         * Sets the player sound-category volume; rejects when the client stores
+         * a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置玩家音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setPlayerVolume(double value) {
+            return writeOption("playerVolume", value);
+        }
+
+        /** The ambient sound-category volume ({@code 0..1}).
+         * @zh 环境音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getAmbientVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.ambientVolume();
+        }
+
+        /**
+         * Sets the ambient sound-category volume; rejects when the client
+         * stores a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置环境音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setAmbientVolume(double value) {
+            return writeOption("ambientVolume", value);
+        }
+
+        /** The voice sound-category volume ({@code 0..1}).
+         * @zh 语音音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getVoiceVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.voiceVolume();
+        }
+
+        /**
+         * Sets the voice sound-category volume; rejects when the client stores
+         * a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置语音音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setVoiceVolume(double value) {
+            return writeOption("voiceVolume", value);
+        }
+
+        /** The interface sound-category volume ({@code 0..1}).
+         * @zh 界面音量（{@code 0..1}）。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Double getUiVolume() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.uiVolume();
+        }
+
+        /**
+         * Sets the interface sound-category volume; rejects when the client
+         * stores a different value (a level outside {@code 0..1}).
+         *
+         * @zh 设置界面音量；客户端存储值与请求不一致（超出 {@code 0..1}）时 reject。
+         * @zh-param value 音量（{@code 0..1}）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setUiVolume(double value) {
+            return writeOption("uiVolume", value);
+        }
+
+        /** Every sound-category volume keyed by category name; empty without options.
+         * @zh 全部分类音量，按分类名索引；设置不可用时为空表。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public java.util.Map<String, Double> getVolumes() {
+            OptionsData data = optionsData();
+            if (data == null) {
+                return java.util.Map.of();
+            }
+            java.util.Map<String, Double> volumes = new java.util.LinkedHashMap<>();
+            volumes.put("master", data.masterVolume());
+            volumes.put("music", data.musicVolume());
+            volumes.put("record", data.recordVolume());
+            volumes.put("weather", data.weatherVolume());
+            volumes.put("block", data.blockVolume());
+            volumes.put("hostile", data.hostileVolume());
+            volumes.put("neutral", data.neutralVolume());
+            volumes.put("player", data.playerVolume());
+            volumes.put("ambient", data.ambientVolume());
+            volumes.put("voice", data.voiceVolume());
+            volumes.put("ui", data.uiVolume());
+            return java.util.Collections.unmodifiableMap(volumes);
+        }
+
+        /** The selected audio-device identifier; empty string for the system default.
+         * @zh 当前选中的音频设备标识；空串表示系统默认设备。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public String getSoundDevice() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.soundDevice();
+        }
+
+        /**
+         * Selects an audio device; an identifier that is not currently
+         * available rejects without touching the stored selection.
+         *
+         * @zh 切换音频设备；标识当前不可用时 reject，且不改动已存选择。
+         * @zh-param device 设备标识（见 {@code audioDevices}，空串为系统默认）
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setSoundDevice(String device) {
+            if (device == null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalArgumentException("audio device required"));
+            }
+            return writeOption("soundDevice", device);
+        }
+
+        /** The available audio-device identifiers, starting with the system default.
+         * @zh 可用音频设备标识列表，首项为系统默认设备。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<String> getAudioDevices() {
+            List<String> devices = adapter().audioDevices();
+            return devices == null ? List.of() : devices;
+        }
+
+        /** Whether subtitle captions are shown.
+         * @zh 是否显示字幕。 */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Boolean getShowSubtitles() {
+            OptionsData data = optionsData();
+            return data == null ? null : data.showSubtitles();
+        }
+
+        /**
+         * Shows or hides subtitle captions.
+         *
+         * @zh 显示或隐藏字幕。
+         * @zh-param value true 为显示
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public CompletableFuture<Void> setShowSubtitles(boolean value) {
+            return writeOption("showSubtitles", value);
         }
     }
 

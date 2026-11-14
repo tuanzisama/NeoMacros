@@ -13,9 +13,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Options root and video scenarios: a real user-format script reads the
- * canned option face, writes several options through promises, reads each
- * value back, and observes an out-of-range write reject against the stub.
+ * Options scenarios across the root, video, chat/control/accessibility and
+ * music/skin groups: a real user-format script reads the canned option face,
+ * writes several options through promises, reads each value back, and observes
+ * a refused write reject against the stub.
  */
 class OptionsRoundtripScenariosTest {
 
@@ -171,6 +172,81 @@ class OptionsRoundtripScenariosTest {
                             + " errors=" + e2e.scriptErrors());
             assertEquals(List.of("option:chatOpacity", "option:chatVisibility",
                     "option:autoJump", "option:showSubtitles", "option:screenEffectScale"),
+                    stub.actions(), "action log was: " + stub.actions());
+        }
+    }
+
+    @Test
+    void musicAndSkinGroupsWriteThenReadBack() throws Exception {
+        try (E2ERuntime e2e = E2ERuntime.create(dir.resolve("scripts"), dir.resolve("storage"))) {
+            var stub = e2e.adapter().clientPort();
+
+            fixture(dir.resolve("scripts"), "option-music-skin.js", String.join("\n",
+                    "neo.events.on('game:start', () => {",
+                    "  try {",
+                    "    const opts = neo.client.options;",
+                    "    const music = opts.music;",
+                    "    const skin = opts.skin;",
+                    "    const checks = {",
+                    "      musicHandle: typeof music.setMasterVolume === 'function'",
+                    "          && typeof music.setSoundDevice === 'function'",
+                    "          && music.masterVolume === 1.0",
+                    "          && music.soundDevice === 'speakers',",
+                    "      volumes: music.volumes.music === 0.5",
+                    "          && music.volumes.record === 0.75",
+                    "          && music.volumes.ui === 0.25",
+                    "          && Object.keys(music.volumes).length === 11,",
+                    "      devices: Array.isArray(music.audioDevices)",
+                    "          && music.audioDevices[0] === ''",
+                    "          && music.audioDevices[1] === 'speakers',",
+                    "      skinHandle: typeof skin.setCape === 'function'",
+                    "          && typeof skin.setMainHand === 'function'",
+                    "          && skin.cape === true",
+                    "          && skin.mainHand === 'right'",
+                    "          && skin.rightHanded === true",
+                    "          && skin.leftHanded === false,",
+                    "      parent: music.parent.fov === opts.fov",
+                    "          && skin.parent.fov === opts.fov,",
+                    "    };",
+                    "    music.setMasterVolume(0.75).then(() => {",
+                    "      checks.volumeRoundTrip = music.masterVolume === 0.75",
+                    "          && music.volumes.master === 0.75;",
+                    "      return music.setSoundDevice('headphones');",
+                    "    }).then(() => {",
+                    "      checks.deviceRoundTrip = music.soundDevice === 'headphones';",
+                    "      return music.setShowSubtitles(true);",
+                    "    }).then(() => {",
+                    "      checks.subtitlesRoundTrip = music.showSubtitles === true;",
+                    "      return skin.setCape(false);",
+                    "    }).then(() => {",
+                    "      checks.capeRoundTrip = skin.cape === false;",
+                    "      return skin.setMainHand('left');",
+                    "    }).then(() => {",
+                    "      checks.handRoundTrip = skin.mainHand === 'left'",
+                    "          && skin.leftHanded === true;",
+                    "      return music.setMasterVolume(1.5).then(() => false, () => true);",
+                    "    }).then((rejected) => {",
+                    "      checks.rejectOutOfRange = rejected;",
+                    "      const pass = Object.values(checks).every(Boolean);",
+                    "      const failed = Object.keys(checks).filter((k) => !checks[k]);",
+                    "      neo.__test.report('music-skin', pass,",
+                    "          'failed=' + failed.join(','));",
+                    "    }, (e) => neo.__test.report('music-skin', false, 'write: ' + e));",
+                    "  } catch (err) {",
+                    "    neo.__test.report('music-skin', false, 'sync-error: ' + err);",
+                    "  }",
+                    "});",
+                    ""));
+            e2e.loadScript(dir.resolve("scripts").resolve("option-music-skin.js"));
+            e2e.adapter().lifecyclePort().fireGameStart();
+            e2e.awaitSettle();
+
+            TestBridge.Report report = e2e.bridge().get("music-skin");
+            assertTrue(report != null && report.pass(),
+                    "report was: " + report + " reports=" + e2e.bridge().all()
+                            + " errors=" + e2e.scriptErrors());
+            assertEquals(List.of("option:masterVolume", "option:soundDevice",
+                    "option:showSubtitles", "option:cape", "option:mainHand"),
                     stub.actions(), "action log was: " + stub.actions());
         }
     }

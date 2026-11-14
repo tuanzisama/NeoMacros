@@ -129,6 +129,14 @@ public interface ClientPort {
     }
 
     /**
+     * Returns the available audio-device identifiers, starting with the empty
+     * identifier that selects the system default device.
+     */
+    default List<String> audioDevices() {
+        return List.of();
+    }
+
+    /**
      * Writes one option-backed value by its option name. The write settles
      * once the client has stored the value; invalid or out-of-range values
      * reject. Read-back verification stays with the caller.

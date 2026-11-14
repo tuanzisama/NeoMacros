@@ -74,6 +74,26 @@ import java.util.List;
  * @param backgroundForChatOnly   whether text backgrounds render behind chat only
  * @param darkMojangStudiosBackground whether the dark Mojang Studios background is used
  * @param hideLightningFlash      whether lightning flashes are hidden
+ * @param masterVolume            master sound-category volume ({@code 0..1})
+ * @param musicVolume             music sound-category volume ({@code 0..1})
+ * @param recordVolume            jukebox sound-category volume ({@code 0..1})
+ * @param weatherVolume           weather sound-category volume ({@code 0..1})
+ * @param blockVolume             block sound-category volume ({@code 0..1})
+ * @param hostileVolume           hostile-mob sound-category volume ({@code 0..1})
+ * @param neutralVolume           neutral-mob sound-category volume ({@code 0..1})
+ * @param playerVolume            player sound-category volume ({@code 0..1})
+ * @param ambientVolume           ambient sound-category volume ({@code 0..1})
+ * @param voiceVolume             voice sound-category volume ({@code 0..1})
+ * @param uiVolume                interface sound-category volume ({@code 0..1})
+ * @param soundDevice             selected audio-device identifier; empty for the system default
+ * @param cape                    whether the cape model part is shown
+ * @param jacket                  whether the jacket model part is shown
+ * @param leftSleeve              whether the left sleeve model part is shown
+ * @param rightSleeve             whether the right sleeve model part is shown
+ * @param leftPantsLeg            whether the left pant-leg model part is shown
+ * @param rightPantsLeg           whether the right pant-leg model part is shown
+ * @param hat                     whether the hat model part is shown
+ * @param mainHand                main hand ({@code left} or {@code right})
  */
 public record OptionsData(
         int fov,
@@ -136,7 +156,27 @@ public record OptionsData(
         boolean showSubtitles,
         boolean backgroundForChatOnly,
         boolean darkMojangStudiosBackground,
-        boolean hideLightningFlash) {
+        boolean hideLightningFlash,
+        double masterVolume,
+        double musicVolume,
+        double recordVolume,
+        double weatherVolume,
+        double blockVolume,
+        double hostileVolume,
+        double neutralVolume,
+        double playerVolume,
+        double ambientVolume,
+        double voiceVolume,
+        double uiVolume,
+        String soundDevice,
+        boolean cape,
+        boolean jacket,
+        boolean leftSleeve,
+        boolean rightSleeve,
+        boolean leftPantsLeg,
+        boolean rightPantsLeg,
+        boolean hat,
+        String mainHand) {
 
     /**
      * Returns the value of one component by its option name, or {@code null}

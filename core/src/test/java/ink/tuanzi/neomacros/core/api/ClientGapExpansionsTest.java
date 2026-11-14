@@ -169,7 +169,14 @@ class ClientGapExpansionsTest {
                 false, true,
                 false, false, false,
                 false, false,
-                false, false);
+                false, false,
+                1.0, 0.5, 0.75, 1.0,
+                1.0, 1.0, 1.0, 1.0,
+                1.0, 1.0, 0.25,
+                "speakers",
+                true, true, true, true,
+                true, true, true,
+                "right");
     }
 
     /** The canned key-mapping catalog served to the control group reads. */
