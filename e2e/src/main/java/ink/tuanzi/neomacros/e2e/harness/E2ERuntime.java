@@ -235,9 +235,22 @@ public final class E2ERuntime implements AutoCloseable {
                 registry.registerGuestType("FileHandle",
                         ink.tuanzi.neomacros.core.api.FsApi.FileHandle.class);
                 registry.registerGuestType("Image", ink.tuanzi.neomacros.core.api.types.Image.class);
+                registry.registerGuestType("CustomImage",
+                        ink.tuanzi.neomacros.core.api.types.CustomImage.class);
         registry.promoteRootMembers("thread", List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(storageDir);
+        // CustomImage file faces resolve against a harness-owned root, the
+        // e2e twin of the product's config-directory bridge.
+        java.nio.file.Path imageRoot = storageDir.resolveSibling("image-root").toAbsolutePath()
+                .normalize();
+        ink.tuanzi.neomacros.core.api.types.CustomImage.installRoot(path -> {
+            java.nio.file.Path resolved = imageRoot.resolve(path).normalize();
+            if (!resolved.startsWith(imageRoot)) {
+                throw new SecurityException("path escapes the image root: " + path);
+            }
+            return resolved;
+        });
 
         ScriptEngine engine = new GraalJsEngine();
         var runtime = new ScriptRuntime(engine, adapter, catalog, bus, pool, 500);

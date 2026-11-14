@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.port;
 import ink.tuanzi.neomacros.port.model.DrawContext2d;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -31,4 +32,37 @@ public interface RenderPort {
 
     /** Returns all registered layer identifiers in render order. */
     Supplier<List<String>> layerIds();
+
+    /**
+     * Creates or replaces a GPU-resident texture from ARGB pixels. The full
+     * texture is re-uploaded on every call, so callers batch their drawing
+     * and upload once afterwards. Registration and upload happen on the game
+     * main thread; the returned future settles there. Re-registering an
+     * identifier replaces the backing texture without duplicating it.
+     *
+     * <p>The implementation takes ownership of {@code argb}: the caller must
+     * not mutate the array after handing it over. Pixels are row-major
+     * {@code width * height} entries in ARGB order.</p>
+     *
+     * @param id     texture identifier ({@code namespace:path}, e.g.
+     *               {@code neomacros:image/badge})
+     * @param width  texture width in pixels (positive)
+     * @param height texture height in pixels (positive)
+     * @param argb   row-major ARGB pixel snapshot
+     * @return future completing once the texture is registered and uploaded
+     */
+    default CompletableFuture<Void> putTexture(String id, int width, int height, int[] argb) {
+        return CompletableFuture.failedFuture(new UnsupportedPortFeature("texture"));
+    }
+
+    /**
+     * Returns every texture identifier registered through
+     * {@link #putTexture} on this port, in registration order.
+     *
+     * <p>Defaulted so adapters written before the texture face keep
+     * compiling and answer with an empty list.</p>
+     */
+    default Supplier<List<String>> textureIds() {
+        return java.util.List::of;
+    }
 }

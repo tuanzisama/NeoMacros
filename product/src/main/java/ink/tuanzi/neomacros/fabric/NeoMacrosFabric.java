@@ -186,6 +186,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("ItemStackBuilder", ink.tuanzi.neomacros.core.api.types.ItemStackBuilder.class);
         registry.registerGuestType("Enchantment", ink.tuanzi.neomacros.core.api.types.Enchantment.class);
         registry.registerGuestType("Image", ink.tuanzi.neomacros.core.api.types.Image.class);
+        registry.registerGuestType("CustomImage", ink.tuanzi.neomacros.core.api.types.CustomImage.class);
         registry.registerGuestType("FileHandle",
                 ink.tuanzi.neomacros.core.api.FsApi.FileHandle.class);
         registry.registerGuestType("Ws", ink.tuanzi.neomacros.core.api.NetApi.Ws.class);
@@ -328,6 +329,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("ItemEntity", EntityApi.ItemEntity.class);
         registry.registerGuestType("LivingEntity", EntityApi.LivingEntity.class);
         registry.registerInstance(new FsApi(new GameDirFsBridge(), ioExecutor));
+        ink.tuanzi.neomacros.core.api.types.CustomImage.installRoot(new ConfigDirFsBridge());
         registry.registerInstance(new NetApi(ioExecutor));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.HudApi(
                 new ink.tuanzi.neomacros.adapter.FabricHudRegistry(adapter.render(), Minecraft.getInstance()::execute)));
@@ -1320,6 +1322,22 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             Path resolved = gameDir.toAbsolutePath().resolve(path).normalize();
             if (!resolved.startsWith(gameDir.toAbsolutePath())) {
                 throw new java.lang.SecurityException("path escapes the game directory: " + path);
+            }
+            return resolved;
+        }
+    }
+
+    /**
+     * Sandbox boundary for the CustomImage file faces: config-dir relative
+     * (the analog of the JsMacros config folder), traversal denied.
+     */
+    private record ConfigDirFsBridge() implements ink.tuanzi.neomacros.core.api.FsApi.FsBridge {
+        @Override
+        public Path resolve(String path) {
+            Path root = configDir.toAbsolutePath().normalize();
+            Path resolved = root.resolve(path).normalize();
+            if (!resolved.startsWith(root)) {
+                throw new java.lang.SecurityException("path escapes the config directory: " + path);
             }
             return resolved;
         }
