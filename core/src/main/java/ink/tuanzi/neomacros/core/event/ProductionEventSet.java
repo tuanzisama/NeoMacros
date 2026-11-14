@@ -85,6 +85,9 @@ public final class ProductionEventSet {
                 ink.tuanzi.neomacros.core.event.def.entity.EntityDamageEvent.class,
                 ink.tuanzi.neomacros.core.event.def.entity.EntityHealEvent.class,
                 ink.tuanzi.neomacros.core.event.def.entity.EntityCustomNameEvent.class,
+                // packet
+                ink.tuanzi.neomacros.core.event.def.packet.PacketReceiveEvent.class,
+                ink.tuanzi.neomacros.core.event.def.packet.PacketSendEvent.class,
                 // world extras
                 ink.tuanzi.neomacros.core.event.def.world.WorldSoundEvent.class,
                 // player extras

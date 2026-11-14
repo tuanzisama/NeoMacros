@@ -73,6 +73,7 @@ final class ApiCompletenessSurface {
             ink.tuanzi.neomacros.core.api.types.CustomImage.class,
             ink.tuanzi.neomacros.core.api.render.HudLayer.class,
             ink.tuanzi.neomacros.core.api.render.components.Draw2DElement.class,
+            ink.tuanzi.neomacros.core.api.types.PacketBuffer.class,
             FsApi.FileHandle.class, NetApi.Ws.class,
             SpeciesEntities.MobEntity.class, SpeciesEntities.AnimalEntity.class, SpeciesEntities.TamableAnimalEntity.class,
             SpeciesEntities.SheepEntity.class, SpeciesEntities.WolfEntity.class, SpeciesEntities.CatEntity.class,

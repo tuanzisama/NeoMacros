@@ -9,6 +9,8 @@ import ink.tuanzi.neomacros.port.model.ItemStackData;
 import ink.tuanzi.neomacros.port.model.KeybindCatalogData;
 import ink.tuanzi.neomacros.port.model.ModData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
+import ink.tuanzi.neomacros.port.model.PacketRef;
+import ink.tuanzi.neomacros.port.model.PacketSendVerdict;
 import ink.tuanzi.neomacros.port.model.Pos2d;
 import ink.tuanzi.neomacros.port.model.ServerInfoData;
 import ink.tuanzi.neomacros.port.model.WindowData;
@@ -16,12 +18,27 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.commands.arguments.item.ItemInput;
 import net.minecraft.commands.arguments.item.ItemParser;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.ProtocolInfo;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.VarInt;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.BundleDelimiterPacket;
+import net.minecraft.network.protocol.BundlePacket;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.PacketType;
+import net.minecraft.network.protocol.configuration.ConfigurationProtocols;
+import net.minecraft.network.protocol.game.GameProtocols;
+import net.minecraft.network.protocol.handshake.HandshakeProtocols;
+import net.minecraft.network.protocol.login.LoginProtocols;
+import net.minecraft.network.protocol.status.StatusProtocols;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -1087,5 +1104,310 @@ public final class FabricClientPort implements ClientPort {
                 return java.util.Optional.empty();
             }
         });
+    }
+
+    // ------------------------------------------------------------------
+    // Packet codec face (G-002 §4): composite protocol codecs only — no
+    // reflection on MC members, so the four nodes need no mapping guard.
+    // ------------------------------------------------------------------
+
+    /** Numeric-id index of one (protocol, flow), built once from its template. */
+    private record DetailIndex(java.util.Map<PacketType<?>, Integer> byType,
+                               java.util.Map<String, Integer> byId) {
+    }
+
+    private static final java.util.Map<String, DetailIndex> PACKET_DETAILS =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile ProtocolInfo<?> playClientbound;
+    private static volatile ProtocolInfo<?> playServerbound;
+
+    /**
+     * The game-phase decorator resolves the registry on every call, so the
+     * cached play codecs never go stale across world changes.
+     */
+    private static final java.util.function.Function<io.netty.buffer.ByteBuf,
+            RegistryFriendlyByteBuf> DYNAMIC_REGISTRY =
+            buffer -> new RegistryFriendlyByteBuf(buffer, registryAccess());
+
+    /** Permissive creative/command context for game-phase decode (G-002 ⚠). */
+    private static final GameProtocols.Context GAME_CONTEXT =
+            new GameProtocols.Context() {
+                @Override
+                public boolean hasInfiniteMaterials() {
+                    return true;
+                }
+
+                //? if >=26.3 {
+                @Override
+                public boolean canUseCommandBlocks() {
+                    return true;
+                }
+                //?}
+            };
+
+    private static RegistryAccess registryAccess() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft != null) {
+            ClientPacketListener connection = minecraft.getConnection();
+            if (connection != null) {
+                return connection.registryAccess();
+            }
+            if (minecraft.level != null) {
+                return minecraft.level.registryAccess();
+            }
+        }
+        return RegistryAccess.EMPTY;
+    }
+
+    /** The pre-built protocol info for one (phase, flow). */
+    private static ProtocolInfo<?> protocolInfo(String protocol, String flow) {
+        boolean serverbound = !"clientbound".equals(flow);
+        return switch (protocol) {
+            case "handshake" -> {
+                if (!serverbound) {
+                    throw new IllegalArgumentException(
+                            "no clientbound handshake protocol");
+                }
+                yield HandshakeProtocols.SERVERBOUND;
+            }
+            case "status" -> serverbound
+                    ? StatusProtocols.SERVERBOUND : StatusProtocols.CLIENTBOUND;
+            case "login" -> serverbound
+                    ? LoginProtocols.SERVERBOUND : LoginProtocols.CLIENTBOUND;
+            case "configuration" -> serverbound
+                    ? ConfigurationProtocols.SERVERBOUND
+                    : ConfigurationProtocols.CLIENTBOUND;
+            case "play" -> serverbound ? playServerbound() : playClientbound();
+            default -> throw new IllegalArgumentException(
+                    "unknown protocol phase: " + protocol);
+        };
+    }
+
+    /** The unbound template carrying one (phase, flow) packet index. */
+    private static ProtocolInfo.DetailsProvider template(String protocol,
+            String flow) {
+        boolean serverbound = !"clientbound".equals(flow);
+        return switch (protocol) {
+            case "handshake" -> {
+                if (!serverbound) {
+                    throw new IllegalArgumentException(
+                            "no clientbound handshake protocol");
+                }
+                yield HandshakeProtocols.SERVERBOUND_TEMPLATE;
+            }
+            case "status" -> serverbound
+                    ? StatusProtocols.SERVERBOUND_TEMPLATE
+                    : StatusProtocols.CLIENTBOUND_TEMPLATE;
+            case "login" -> serverbound
+                    ? LoginProtocols.SERVERBOUND_TEMPLATE
+                    : LoginProtocols.CLIENTBOUND_TEMPLATE;
+            case "configuration" -> serverbound
+                    ? ConfigurationProtocols.SERVERBOUND_TEMPLATE
+                    : ConfigurationProtocols.CLIENTBOUND_TEMPLATE;
+            case "play" -> serverbound
+                    ? GameProtocols.SERVERBOUND_TEMPLATE
+                    : GameProtocols.CLIENTBOUND_TEMPLATE;
+            default -> throw new IllegalArgumentException(
+                    "unknown protocol phase: " + protocol);
+        };
+    }
+
+    private static ProtocolInfo<?> playClientbound() {
+        ProtocolInfo<?> info = playClientbound;
+        if (info == null) {
+            info = GameProtocols.CLIENTBOUND_TEMPLATE.bind(DYNAMIC_REGISTRY);
+            playClientbound = info;
+        }
+        return info;
+    }
+
+    private static ProtocolInfo<?> playServerbound() {
+        ProtocolInfo<?> info = playServerbound;
+        if (info == null) {
+            info = GameProtocols.SERVERBOUND_TEMPLATE.bind(
+                    DYNAMIC_REGISTRY, GAME_CONTEXT);
+            playServerbound = info;
+        }
+        return info;
+    }
+
+    /** The cached numeric-id index of one (protocol, flow). */
+    private static DetailIndex detailIndex(String protocol, String flow) {
+        String key = protocol + "|" + flow;
+        DetailIndex cached = PACKET_DETAILS.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        java.util.Map<PacketType<?>, Integer> byType = new java.util.HashMap<>();
+        java.util.Map<String, Integer> byId = new java.util.HashMap<>();
+        template(protocol, flow).details().listPackets((type, numericId) -> {
+            byType.put(type, numericId);
+            byId.put(type.id().toString(), numericId);
+        });
+        DetailIndex index = new DetailIndex(
+                java.util.Map.copyOf(byType), java.util.Map.copyOf(byId));
+        PACKET_DETAILS.put(key, index);
+        return index;
+    }
+
+    /** Whether one (protocol, flow) knows the packet id at all. */
+    private static boolean knowsPacket(String protocol, String flow, String packetId) {
+        try {
+            return detailIndex(protocol, flow).byId().containsKey(packetId);
+        } catch (RuntimeException unavailable) {
+            // phase/flow combination does not exist (clientbound handshake)
+            return false;
+        }
+    }
+
+    @Override
+    public void onPacketReceive(java.util.function.Consumer<PacketRef> sink) {
+        PacketHub.onReceive(sink);
+    }
+
+    @Override
+    public void onPacketSend(java.util.function.Function<PacketRef,
+            PacketSendVerdict> sink) {
+        PacketHub.onSend(sink);
+    }
+
+    @Override
+    public boolean canEncodePacket(Object packet, String protocol) {
+        if (!(packet instanceof Packet<?> typed)) {
+            return false;
+        }
+        // Bundles frame other packets and carry no standalone codec
+        // (G-002 §2.2): their buffer stays undefined.
+        if (typed instanceof BundlePacket<?> || typed instanceof BundleDelimiterPacket<?>) {
+            return false;
+        }
+        try {
+            return detailIndex(protocol, typed.type().flow().id())
+                    .byType().containsKey(typed.type());
+        } catch (RuntimeException unknownPhase) {
+            return false;
+        }
+    }
+
+    @Override
+    public byte[] encodePacket(Object packet, String protocol) {
+        if (!(packet instanceof Packet<?> typed)) {
+            throw new IllegalArgumentException("not a packet: " + packet);
+        }
+        ProtocolInfo<?> info = protocolInfo(protocol, typed.type().flow().id());
+        io.netty.buffer.ByteBuf buffer = io.netty.buffer.Unpooled.buffer();
+        try {
+            @SuppressWarnings("unchecked")
+            StreamCodec<io.netty.buffer.ByteBuf, Packet<?>> codec =
+                    (StreamCodec<io.netty.buffer.ByteBuf, Packet<?>>)
+                            (StreamCodec<?, ?>) info.codec();
+            codec.encode(buffer, typed);
+            // The composite prefixes the payload with the protocol's numeric
+            // id; event cells carry the payload only (G-002 §4.3).
+            VarInt.read(buffer);
+            byte[] out = new byte[buffer.readableBytes()];
+            buffer.readBytes(out);
+            return out;
+        } finally {
+            buffer.release();
+        }
+    }
+
+    @Override
+    public Object decodePacket(String packetId, String protocol, String flow,
+            byte[] bytes, int offset) {
+        if (packetId == null || bytes == null || offset < 0 || offset > bytes.length) {
+            throw new IndexOutOfBoundsException("decode offset " + offset
+                    + " outside " + (bytes == null ? 0 : bytes.length));
+        }
+        String resolved = flow;
+        if (resolved == null) {
+            // Builder sends craft outgoing packets: serverbound first.
+            if (knowsPacket(protocol, "serverbound", packetId)) {
+                resolved = "serverbound";
+            } else if (knowsPacket(protocol, "clientbound", packetId)) {
+                resolved = "clientbound";
+            } else {
+                throw new IllegalArgumentException("unknown packet id " + packetId
+                        + " for protocol " + protocol);
+            }
+        }
+        Integer numericId = detailIndex(protocol, resolved).byId().get(packetId);
+        if (numericId == null) {
+            throw new IllegalArgumentException("unknown packet id " + packetId
+                    + " for " + protocol + "/" + resolved);
+        }
+        ProtocolInfo<?> info = protocolInfo(protocol, resolved);
+        io.netty.buffer.ByteBuf buffer = io.netty.buffer.Unpooled.buffer();
+        try {
+            VarInt.write(buffer, numericId);
+            buffer.writeBytes(bytes, offset, bytes.length - offset);
+            @SuppressWarnings("unchecked")
+            StreamCodec<io.netty.buffer.ByteBuf, Packet<?>> codec =
+                    (StreamCodec<io.netty.buffer.ByteBuf, Packet<?>>)
+                            (StreamCodec<?, ?>) info.codec();
+            Packet<?> decoded = codec.decode(buffer);
+            if (buffer.isReadable()) {
+                throw new IllegalStateException("trailing bytes after decoding "
+                        + packetId + ": " + buffer.readableBytes());
+            }
+            return decoded;
+        } finally {
+            buffer.release();
+        }
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> sendRawPacket(Object packet) {
+        if (!(packet instanceof Packet<?> typed)) {
+            return java.util.concurrent.CompletableFuture.failedFuture(
+                    new IllegalArgumentException("not a packet: " + packet));
+        }
+        try {
+            Minecraft minecraft = Minecraft.getInstance();
+            ClientPacketListener connection =
+                    minecraft != null ? minecraft.getConnection() : null;
+            if (connection == null) {
+                return java.util.concurrent.CompletableFuture.failedFuture(
+                        new IllegalStateException("not connected"));
+            }
+            // ClientPacketListener.send funnels into Connection.send, so the
+            // script-built packet still passes through packet:send (G-002 §2.4).
+            connection.send(typed);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        } catch (RuntimeException failure) {
+            return java.util.concurrent.CompletableFuture.failedFuture(failure);
+        }
+    }
+
+    @Override
+    public List<String> packetIds() {
+        java.util.TreeSet<String> ids = new java.util.TreeSet<>();
+        collectPacketIds("handshake", "serverbound", ids);
+        for (String protocol : new String[]{
+                "status", "login", "configuration", "play"}) {
+            collectPacketIds(protocol, "serverbound", ids);
+            collectPacketIds(protocol, "clientbound", ids);
+        }
+        return List.copyOf(ids);
+    }
+
+    private static void collectPacketIds(String protocol, String flow,
+            java.util.Set<String> ids) {
+        try {
+            ids.addAll(detailIndex(protocol, flow).byId().keySet());
+        } catch (RuntimeException unavailable) {
+            // phase/flow combination does not exist
+        }
+    }
+
+    @Override
+    public Class<?> resolveClass(String name) {
+        try {
+            return Class.forName(FabricClassResolver.resolve(name), false,
+                    FabricClientPort.class.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
     }
 }

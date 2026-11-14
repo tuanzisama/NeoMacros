@@ -314,6 +314,8 @@ public final class E2ERuntime implements AutoCloseable {
                 registry.registerGuestType("Image", ink.tuanzi.neomacros.core.api.types.Image.class);
                 registry.registerGuestType("CustomImage",
                         ink.tuanzi.neomacros.core.api.types.CustomImage.class);
+                registry.registerGuestType("PacketBuffer",
+                        ink.tuanzi.neomacros.core.api.types.PacketBuffer.class);
         registry.promoteRootMembers("thread", List.of("sleep", "ticks", "nextTick", "runOnMain"));
         ScriptApiEnvironment.install(bus, adapter);
         ScriptApiEnvironment.installStorage(storageDir);

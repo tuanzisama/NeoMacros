@@ -3414,6 +3414,52 @@ public final class ClientApi {
     }
 
     /**
+     * A fresh empty packet buffer builder; also reachable as
+     * {@code new neo.PacketBuffer()}. Buffers built here decode and send
+     * through the {@code play} phase unless told otherwise.
+     *
+     * @zh 一个新的空包缓冲区构造器；等价于 {@code new neo.PacketBuffer()}。此处构造的缓冲区默认按 {@code play} 阶段解码与发送。
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public ink.tuanzi.neomacros.core.api.types.PacketBuffer createPacketBuffer() {
+        return new ink.tuanzi.neomacros.core.api.types.PacketBuffer();
+    }
+
+    /**
+     * Sends one raw packet object on the client's connection; the send
+     * still passes through {@code packet:send}. Requires the {@code java}
+     * capability (the argument itself is a raw host object).
+     *
+     * @zh 在客户端连接上发送一个原始包对象；发送仍会经过 {@code packet:send}。需 {@code java} 能力（实参本身是原始宿主对象）。
+     * @zh-param packet 原始包对象
+     * @zh-return 发送完成的 Promise
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiPermission("java")
+    @ApiType("JavaObject")
+    public java.util.concurrent.CompletableFuture<Void> sendPacket(Object packet) {
+        return adapter().sendRawPacket(packet);
+    }
+
+    /**
+     * Every namespaced packet id the client can encode, sorted; empty when
+     * the packet face is unavailable.
+     *
+     * @zh 客户端可编码的全部 namespaced 包 id（已排序）；包面不可用时为空。
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public List<String> getPacketIds() {
+        return adapter().packetIds();
+    }
+
+    /**
      * The cursor position in window pixels.
      *
      * @zh 鼠标位置（窗口像素）。

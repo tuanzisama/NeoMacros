@@ -1,0 +1,8 @@
+name: packet-api
+version: 1.0.0
+author: neomacros
+description: packet-api E2E-G case (G-031)
+permissions: [java, packet]
+config:
+  event:
+    on: [game:start]

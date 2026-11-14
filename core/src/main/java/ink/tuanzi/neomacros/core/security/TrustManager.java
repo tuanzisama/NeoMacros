@@ -27,7 +27,8 @@ import java.util.function.Consumer;
 public final class TrustManager {
 
     /** Capability directory. New entries extend this set and the docs. */
-    public static final Set<String> CAPABILITIES = Set.of("fs", "net", "command", "java");
+    public static final Set<String> CAPABILITIES =
+            Set.of("fs", "net", "command", "java", "packet");
 
     private final CoreOptions options;
     private final List<Consumer<TrustPrompt>> promptListeners = new CopyOnWriteArrayList<>();

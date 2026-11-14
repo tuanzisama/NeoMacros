@@ -1,7 +1,10 @@
 package ink.tuanzi.neomacros.core.event;
 
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
+import ink.tuanzi.neomacros.core.api.types.PacketBuffer;
 import ink.tuanzi.neomacros.core.api.types.TextComponent;
+import ink.tuanzi.neomacros.core.console.ScriptConsole;
+import ink.tuanzi.neomacros.core.console.ScriptConsoleEvent;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatActionbarEvent;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatReceiveEvent;
 import ink.tuanzi.neomacros.core.event.def.chat.ChatSendEvent;
@@ -14,6 +17,8 @@ import ink.tuanzi.neomacros.core.event.def.lifecycle.WorldLeaveEvent;
 import ink.tuanzi.neomacros.core.event.def.movement.PlayerGlidingEvent;
 import ink.tuanzi.neomacros.core.event.def.movement.PlayerSneakEvent;
 import ink.tuanzi.neomacros.core.event.def.movement.PlayerSprintEvent;
+import ink.tuanzi.neomacros.core.event.def.packet.PacketReceiveEvent;
+import ink.tuanzi.neomacros.core.event.def.packet.PacketSendEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerAirEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerAttackBlockEvent;
 import ink.tuanzi.neomacros.core.event.def.player.PlayerAttackEntityEvent;
@@ -49,9 +54,11 @@ import ink.tuanzi.neomacros.core.module.ScriptMeta;
 import ink.tuanzi.neomacros.core.thread.TickClock;
 import ink.tuanzi.neomacros.port.NeomacrosAdapter;
 import ink.tuanzi.neomacros.port.model.EntitySnapshot;
+import ink.tuanzi.neomacros.port.model.PacketSendVerdict;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The one production event wiring from adapter port sinks onto the event
@@ -275,8 +282,72 @@ public final class PortEventWiring {
                         new ink.tuanzi.neomacros.core.event.def.inventory.ItemPickupEvent(
                                 pickup.item(), pickup.amount())));
 
+        // Packet events: the adapter hub (suppression list +
+        // hasDispatchTarget fast path + the receive hop onto the main
+        // thread) gates before these sinks run, so the payload work below
+        // only happens for packets that actually publish.
+        adapter.client().onPacketReceive(ref -> {
+            PacketBuffer cell = adapter.client().canEncodePacket(ref.packet(), ref.protocol())
+                    ? PacketBuffer.receiveView(ref, adapter.client())
+                    : null;
+            bus.publish("packet:receive", new PacketReceiveEvent(
+                    ref.id(), ref.flow(), ref.protocol(), cell));
+        });
+        adapter.client().onPacketSend(ref -> {
+            PacketBuffer cell = adapter.client().canEncodePacket(ref.packet(), ref.protocol())
+                    ? PacketBuffer.sendCell(ref, adapter.client())
+                    : null;
+            EventBus.PublishResult result = bus.publish("packet:send",
+                    new PacketSendEvent(ref.id(), ref.flow(), ref.protocol(), cell));
+            // The sync window closes the moment the dispatch returns; async
+            // observers that run later keep reading but can no longer write
+            // (G-002 §4.4).
+            if (cell != null) {
+                cell.closeWindow();
+            }
+            if (result.canceled()) {
+                return new PacketSendVerdict(true, null);
+            }
+            PacketBuffer finalCell = cell;
+            if (result.verdict() instanceof java.util.Map<?, ?> verdict
+                    && verdict.get("buffer") instanceof PacketBuffer replacement) {
+                finalCell = replacement;
+            }
+            if (finalCell == null || !finalCell.dirty()) {
+                return PacketSendVerdict.PASS;
+            }
+            try {
+                Object packet = adapter.client().decodePacket(ref.id(), ref.protocol(),
+                        ref.flow(), finalCell.payloadBytes(), 0);
+                return new PacketSendVerdict(false, packet);
+            } catch (RuntimeException failure) {
+                // G-002 §4.5 fail-open: network integrity beats script intent,
+                // so the original packet goes on the wire and the miss is
+                // logged + counted for diagnostics.
+                FAIL_OPEN_REWRITES.incrementAndGet();
+                ScriptConsole.dispatch(new ScriptConsoleEvent("_neomacros", "log",
+                        "warn", null, null, null, 0,
+                        List.of("packet:send rewrite decode failed for " + ref.id()
+                                + ": " + failure.getMessage()),
+                        null, null, null, null, System.currentTimeMillis()));
+                return PacketSendVerdict.PASS;
+            }
+        });
+
         // SelfStateTracker's tick check; the packet-driven inventory
         // update/click sources ride the fabric hubs in the bootstrap.
+    }
+
+    private static final AtomicLong FAIL_OPEN_REWRITES = new AtomicLong();
+
+    /**
+     * How many {@code packet:send} rewrites failed to re-decode and fell
+     * back to the original packet (G-002 §4.5 diagnostics counter).
+     *
+     * @zh {@code packet:send} 改写重解码失败并回退原包的次数（G-002 §4.5 诊断计数）。
+     */
+    public static long packetRewriteFailOpenCount() {
+        return FAIL_OPEN_REWRITES.get();
     }
 
     /**

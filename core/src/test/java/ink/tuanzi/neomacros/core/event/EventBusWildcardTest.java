@@ -104,6 +104,33 @@ class EventBusWildcardTest {
         assertEquals(3, received.size());
     }
 
+    @Test
+    void hasDispatchTargetFastPathCoversExactAndWildcardBranches() {
+        // 0 subscribers
+        assertFalse(bus.hasDispatchTarget("player:join"));
+
+        // 1 exact subscriber
+        var exact = bus.on("player:join", p -> { });
+        assertTrue(bus.hasDispatchTarget("player:join"));
+        exact.deactivate();
+        assertFalse(bus.hasDispatchTarget("player:join"));
+
+        // a wildcard never counts for a wildcard-ignored name (packet:*)
+        bus.on("packet:*", p -> { });
+        assertFalse(bus.hasDispatchTarget("packet:receive"),
+                "packet:* subscriptions never dispatch (DEFAULT_WILDCARD_IGNORES)");
+
+        // an exact subscription always counts, even on an ignored name
+        var packetExact = bus.on("packet:send", p -> { });
+        assertTrue(bus.hasDispatchTarget("packet:send"));
+        packetExact.deactivate();
+
+        // a wildcard counts for a non-ignored name
+        bus.on("player:*", p -> { });
+        assertTrue(bus.hasDispatchTarget("player:leave"));
+        assertFalse(bus.hasDispatchTarget("world:join"));
+    }
+
     /** Unwraps the bus transport envelope so assertions see the raw payload. */
     private static Object unwrap(Object value) {
         return value instanceof ink.tuanzi.neomacros.core.event.EventPayloadEnvelope envelope

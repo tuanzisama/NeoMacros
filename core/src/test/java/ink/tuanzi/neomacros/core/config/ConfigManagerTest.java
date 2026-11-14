@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -175,5 +176,24 @@ class ConfigManagerTest {
             manager.save();
         }
         assertTrue(Files.readString(file, StandardCharsets.UTF_8).contains("\"schema\": 1"));
+    }
+
+    @Test
+    void packetIgnoreDefaultsMatchExactDomainAndStarPatterns() {
+        // Unconfigured: the shipped list applies (G-002 §3 L2 default).
+        CoreOptions fresh = new CoreOptions();
+        assertEquals(CoreOptions.DEFAULT_PACKET_IGNORE, fresh.packetIgnore);
+        assertTrue(CoreOptions.packetIgnored(fresh.packetIgnore,
+                "minecraft:move_player"), "exact ids match");
+        assertFalse(CoreOptions.packetIgnored(fresh.packetIgnore,
+                "minecraft:keep_alive"), "unsuppressed ids pass");
+        assertTrue(CoreOptions.packetIgnored(List.of("minecraft:*"),
+                "minecraft:keep_alive"), "domain wildcards match");
+        assertTrue(CoreOptions.packetIgnored(List.of("*"), "anything:at:all"),
+                "the star pattern matches everything");
+        assertFalse(CoreOptions.packetIgnored(List.of(), "minecraft:teleport"),
+                "an explicit empty list lets every packet through");
+        assertFalse(CoreOptions.packetIgnored(null, "minecraft:teleport"),
+                "a null list suppresses nothing");
     }
 }

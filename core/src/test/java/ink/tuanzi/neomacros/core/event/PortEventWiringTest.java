@@ -37,9 +37,12 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -838,6 +841,266 @@ class PortEventWiringTest {
                 new Pos3d(1, 64, 1), health);
     }
 
+    @Test
+    void packetReceivePublishesShapeAndSkipsCodeclessPackets() {
+        var published = new ArrayList<Published>();
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus,
+                silentModules(runtime, dir.resolve("scripts-packet-rx")), new TickClock());
+        recordAll(published, bus, catalog);
+
+        adapter.clientPort.fireReceive(new ink.tuanzi.neomacros.port.model.PacketRef(
+                "minecraft:keep_alive", "clientbound", "play", "hello"));
+        var receive = published.stream().filter(p -> p.name().equals("packet:receive"))
+                .findFirst().orElseThrow();
+        var payload = (ink.tuanzi.neomacros.core.event.def.packet.PacketReceiveEvent)
+                receive.payload();
+        assertEquals("minecraft:keep_alive", payload.id());
+        assertEquals("clientbound", payload.flow());
+        assertEquals("play", payload.protocol());
+        assertNotNull(payload.buffer());
+        assertEquals(0, payload.buffer().getReaderIndex());
+        assertEquals(5, payload.buffer().getWriterIndex());
+        assertArrayEquals("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                payload.buffer().payloadBytes());
+
+        // Codec-less packets still publish, with buffer: undefined (G-002 §4.5).
+        published.clear();
+        adapter.clientPort.packetEncodable = false;
+        adapter.clientPort.fireReceive(new ink.tuanzi.neomacros.port.model.PacketRef(
+                "minecraft:bundle_delimiter", "clientbound", "play", "frame"));
+        var codecless = (ink.tuanzi.neomacros.core.event.def.packet.PacketReceiveEvent)
+                published.stream().filter(p -> p.name().equals("packet:receive"))
+                        .findFirst().orElseThrow().payload();
+        assertNull(codecless.buffer(), "codec-less packets report buffer: undefined");
+        runtime.close();
+    }
+
+    @Test
+    void packetSendCancelsRewritesClosesWindowAndPassesCleanCells() {
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus,
+                silentModules(runtime, dir.resolve("scripts-packet-tx")), new TickClock());
+
+        var captured = new ink.tuanzi.neomacros.core.api.types.PacketBuffer[1];
+        bus.onSync("packet:send", (payload, flag) -> {
+            var state = (java.util.Map<?, ?>)
+                    ((ink.tuanzi.neomacros.core.event.EventPayloadEnvelope) payload).payload();
+            captured[0] = (ink.tuanzi.neomacros.core.api.types.PacketBuffer) state.get("buffer");
+            String id = (String) state.get("id");
+            if ("minecraft:swing".equals(id)) {
+                flag.cancel();
+            } else if ("minecraft:chat".equals(id)) {
+                // in-place rewrite: append one byte inside the window
+                captured[0].writeByte('X');
+            }
+        });
+
+        // A cancelled send never leaves: no re-decode, no replacement.
+        var canceled = adapter.clientPort.fireSend(new ink.tuanzi.neomacros.port.model.PacketRef(
+                "minecraft:swing", "serverbound", "play", "abc"));
+        assertTrue(canceled.canceled());
+        assertNull(canceled.replacement());
+
+        // An in-place write re-decodes to the edited payload (G-002 §4.6).
+        var rewritten = adapter.clientPort.fireSend(new ink.tuanzi.neomacros.port.model.PacketRef(
+                "minecraft:chat", "serverbound", "play", "abc"));
+        assertFalse(rewritten.canceled());
+        assertEquals("abcX", rewritten.replacement());
+
+        // The window closed with the dispatch: later writes raise, reads stay.
+        assertThrows(IllegalStateException.class, () -> captured[0].writeByte(1));
+        assertArrayEquals("abcX".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                captured[0].payloadBytes());
+        assertTrue(captured[0].dirty());
+
+        // A clean cell passes the original packet through untouched.
+        var pass = adapter.clientPort.fireSend(new ink.tuanzi.neomacros.port.model.PacketRef(
+                "minecraft:keep_alive", "serverbound", "play", "ping"));
+        assertFalse(pass.canceled());
+        assertNull(pass.replacement());
+        runtime.close();
+    }
+
+    @Test
+    void packetSendBufferFieldReplacementIsLastWriteWins() {
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus,
+                silentModules(runtime, dir.resolve("scripts-packet-swap")), new TickClock());
+
+        bus.onSync("packet:send", (payload, flag) -> {
+            var envelope = (ink.tuanzi.neomacros.core.event.EventPayloadEnvelope) payload;
+            var first = ink.tuanzi.neomacros.core.api.types.PacketBuffer.builder(
+                    adapter.clientPort);
+            writeAscii(first, "first");
+            envelope.hooks().write("buffer", first);
+        });
+        bus.onSync("packet:send", (payload, flag) -> {
+            var envelope = (ink.tuanzi.neomacros.core.event.EventPayloadEnvelope) payload;
+            var second = ink.tuanzi.neomacros.core.api.types.PacketBuffer.builder(
+                    adapter.clientPort);
+            writeAscii(second, "second");
+            envelope.hooks().write("buffer", second);
+        });
+
+        var verdict = adapter.clientPort.fireSend(new ink.tuanzi.neomacros.port.model.PacketRef(
+                "minecraft:chat", "serverbound", "play", "abc"));
+        assertFalse(verdict.canceled());
+        assertEquals("second", verdict.replacement(),
+                "the last committed buffer field wins (G-002 §4.6)");
+        runtime.close();
+    }
+
+    @Test
+    void packetSendDecodeFailureFailsOpenWithDiagnosticCount() {
+        var bus = new EventBus(catalog, Runnable::run);
+        var adapter = new StubAdapter();
+        var runtime = runtime(adapter, bus);
+        PortEventWiring.wire(adapter, bus,
+                silentModules(runtime, dir.resolve("scripts-packet-fail")), new TickClock());
+        long before = PortEventWiring.packetRewriteFailOpenCount();
+        adapter.clientPort.packetDecodeFails = true;
+
+        bus.onSync("packet:send", (payload, flag) -> {
+            var state = (java.util.Map<?, ?>)
+                    ((ink.tuanzi.neomacros.core.event.EventPayloadEnvelope) payload).payload();
+            ((ink.tuanzi.neomacros.core.api.types.PacketBuffer) state.get("buffer"))
+                    .writeByte(1);
+        });
+        var verdict = adapter.clientPort.fireSend(new ink.tuanzi.neomacros.port.model.PacketRef(
+                "minecraft:chat", "serverbound", "play", "abc"));
+        assertFalse(verdict.canceled());
+        assertNull(verdict.replacement(),
+                "a failed re-decode keeps the original packet on the wire");
+        assertEquals(before + 1, PortEventWiring.packetRewriteFailOpenCount());
+        runtime.close();
+    }
+
+    /** Writes raw ASCII bytes (no string length prefix) into a builder cell. */
+    private static void writeAscii(ink.tuanzi.neomacros.core.api.types.PacketBuffer buffer,
+            String text) {
+        for (byte value : text.getBytes(java.nio.charset.StandardCharsets.UTF_8)) {
+            buffer.writeByte(value);
+        }
+    }
+
+    /**
+     * The client port double behind the packet wiring: persistent sink
+     * registration plus a canned string-packet codec the tests fire and
+     * assert through.
+     */
+    private static final class StubClientPort
+            implements ink.tuanzi.neomacros.port.ClientPort {
+        private final List<java.util.function.Consumer<
+                ink.tuanzi.neomacros.port.model.PacketRef>> receiveSinks =
+                new java.util.concurrent.CopyOnWriteArrayList<>();
+        private final List<java.util.function.Function<
+                ink.tuanzi.neomacros.port.model.PacketRef,
+                ink.tuanzi.neomacros.port.model.PacketSendVerdict>> sendSinks =
+                new java.util.concurrent.CopyOnWriteArrayList<>();
+
+        volatile boolean packetEncodable = true;
+        volatile boolean packetDecodeFails = false;
+
+        @Override
+        public int fps() {
+            return 60;
+        }
+
+        @Override
+        public String gameVersion() {
+            return "26.3-stub";
+        }
+
+        @Override
+        public Object minecraftInstance() {
+            return null;
+        }
+
+        @Override
+        public void onPacketReceive(java.util.function.Consumer<
+                ink.tuanzi.neomacros.port.model.PacketRef> sink) {
+            receiveSinks.add(sink);
+        }
+
+        @Override
+        public void onPacketSend(java.util.function.Function<
+                ink.tuanzi.neomacros.port.model.PacketRef,
+                ink.tuanzi.neomacros.port.model.PacketSendVerdict> sink) {
+            sendSinks.add(sink);
+        }
+
+        void fireReceive(ink.tuanzi.neomacros.port.model.PacketRef ref) {
+            for (java.util.function.Consumer<ink.tuanzi.neomacros.port.model.PacketRef> sink
+                    : receiveSinks) {
+                sink.accept(ref);
+            }
+        }
+
+        ink.tuanzi.neomacros.port.model.PacketSendVerdict fireSend(
+                ink.tuanzi.neomacros.port.model.PacketRef ref) {
+            boolean canceled = false;
+            Object replacement = null;
+            for (java.util.function.Function<ink.tuanzi.neomacros.port.model.PacketRef,
+                    ink.tuanzi.neomacros.port.model.PacketSendVerdict> sink : sendSinks) {
+                var verdict = sink.apply(ref);
+                if (verdict == null) {
+                    continue;
+                }
+                canceled |= verdict.canceled();
+                if (verdict.replacement() != null) {
+                    replacement = verdict.replacement();
+                }
+            }
+            if (replacement != null) {
+                return new ink.tuanzi.neomacros.port.model.PacketSendVerdict(
+                        canceled, replacement);
+            }
+            return canceled
+                    ? new ink.tuanzi.neomacros.port.model.PacketSendVerdict(true, null)
+                    : ink.tuanzi.neomacros.port.model.PacketSendVerdict.PASS;
+        }
+
+        @Override
+        public boolean canEncodePacket(Object packet, String protocol) {
+            return packetEncodable && packet != null;
+        }
+
+        @Override
+        public byte[] encodePacket(Object packet, String protocol) {
+            if (!canEncodePacket(packet, protocol)) {
+                throw new IllegalStateException("stub packet has no codec");
+            }
+            return String.valueOf(packet).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public Object decodePacket(String packetId, String protocol, String flow,
+                byte[] bytes, int offset) {
+            if (packetDecodeFails) {
+                throw new IllegalStateException("stub decode failure");
+            }
+            return new String(bytes, offset, bytes.length - offset,
+                    java.nio.charset.StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> sendRawPacket(Object packet) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public List<String> packetIds() {
+            return List.of("minecraft:keep_alive", "minecraft:swing");
+        }
+    }
+
     private static ink.tuanzi.neomacros.port.model.EffectSnapshot effect(String id, int amplifier) {
         return new ink.tuanzi.neomacros.port.model.EffectSnapshot(id, amplifier, 200);
     }
@@ -872,6 +1135,7 @@ class PortEventWiringTest {
         final StubChat chatPort = new StubChat();
         final StubEntity entityPort = new StubEntity();
         final InventorySinks inventorySinks = new InventorySinks();
+        final StubClientPort clientPort = new StubClientPort();
         volatile java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> held =
                 java.util.Optional.empty();
         volatile ink.tuanzi.neomacros.port.model.ItemStackData offhand;
@@ -1016,13 +1280,7 @@ class PortEventWiringTest {
 
         @Override
         public ink.tuanzi.neomacros.port.ClientPort client() {
-            return new ink.tuanzi.neomacros.port.ClientPort() {
-                public int fps() { return 60; }
-
-                public String gameVersion() { return "26.3-stub"; }
-
-                public Object minecraftInstance() { return null; }
-            };
+            return clientPort;
         }
 
         @Override
