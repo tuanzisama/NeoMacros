@@ -2,6 +2,7 @@ package ink.tuanzi.neomacros.core.api.render.components;
 
 import ink.tuanzi.neomacros.core.api.render.HudLayer;
 import ink.tuanzi.neomacros.core.api.render.RecordingHudRender;
+import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
@@ -166,7 +167,7 @@ class Draw2DElementInheritanceTest {
     }
 
     @Test
-    void engineSurfaceIsTheBaseFaceOnly() {
+    void engineSurfaceIsTheBaseFaceOnly() throws NoSuchMethodException {
         // The engine binds public members of the runtime class; a subclass
         // must inherit the base surface untouched and leak no host plumbing.
         for (Method method : FakeComponent.class.getMethods()) {
@@ -185,6 +186,11 @@ class Draw2DElementInheritanceTest {
                 () -> FakeComponent.class.getMethod("spec"));
         assertThrows(NoSuchMethodException.class,
                 () -> FakeComponent.class.getMethod("publish"));
+        assertNotNull(Draw2DElement.class
+                        .getDeclaredMethod("alignHorizontally", String.class)
+                        .getAnnotation(ApiInternal.class),
+                "the host-side align overloads stay internal, so the folded "
+                        + "member is the only script binding per name");
     }
 
     @Test
@@ -193,7 +199,11 @@ class Draw2DElementInheritanceTest {
         for (Method method : Draw2DElement.class.getDeclaredMethods()) {
             int modifiers = method.getModifiers();
             if (!Modifier.isPublic(modifiers) || Modifier.isStatic(modifiers)
-                    || method.getDeclaringClass() == Object.class) {
+                    || method.getDeclaringClass() == Object.class
+                    || method.isAnnotationPresent(ApiInternal.class)) {
+                // Internal host helpers never cross to the guest (the
+                // engine filters them exactly like this loop does), so they
+                // stay off the explicit-triple rule.
                 continue;
             }
             String where = method.getName();
@@ -227,5 +237,51 @@ class Draw2DElementInheritanceTest {
         assertEquals("25%", el.getX());
         assertEquals(8, el.getY());
         assertEquals(160, el.getScaledLeft());
+    }
+
+    @Test
+    void subclassInstancesRunTheAlignFace() {
+        FakeBackend backend = new FakeBackend();
+        FakeComponent el = newComponent(backend);
+        el.setSize(100, 50);
+
+        assertTrue(el instanceof Alignable,
+                "the base handle carries the alignment contract");
+        assertTrue(el instanceof RenderElement,
+                "the base handle carries the z-order contract");
+
+        assertSame(el, el.alignHorizontally("center"),
+                "alignment returns the subclass instance");
+        assertEquals(270, el.getX(), "parent-relative math runs on the subclass");
+        assertEquals(370, el.getScaledRight(),
+                "the derived edge reads the subclass geometry");
+
+        FakeComponent other = newComponent(new FakeBackend());
+        other.setSize(50, 10);
+        el.alignHorizontally(other, "leftOnRight");
+        assertEquals(50, el.getX(), "sibling-relative math reads the interface contract");
+
+        el.moveToX(5);
+        assertEquals(5, el.getX());
+        assertEquals(0, el.getY(), "a single-axis move keeps the other coordinate");
+        el.alignVertically("bottom");
+        assertEquals(310, el.getY());
+        assertEquals(5, el.getX());
+
+        el.moveTo(1, 2);
+        assertEquals(1, el.getX(), "the inherited moveTo still drives alignment state");
+    }
+
+    @Test
+    void alignmentDisposalFollowsTheSubclassContract() {
+        FakeBackend backend = new FakeBackend();
+        FakeComponent el = newComponent(backend);
+        el.setSize(100, 50);
+
+        backend.disposed = true;
+        assertThrows(IllegalStateException.class, () -> el.align("left", "top"));
+        assertThrows(IllegalStateException.class, () -> el.moveToX(1));
+        assertNull(el.getScaledRight());
+        assertNull(el.getScaledBottom());
     }
 }

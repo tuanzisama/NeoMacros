@@ -979,6 +979,47 @@ function start() {
   neo.hud.removeLayer('gap-api-g032b');
   check('g032b.remove-layer', g032b.disposed === true);
 
+  // Alignment face: parent-relative and sibling-relative anchoring, the
+  // single-axis moves, the derived scaled edges and the disposed throw on
+  // the real engine (frame order and port silence are e2e-A covered by
+  // AlignableScenariosTest over the stub render port).
+  const g034c = neo.hud.layer('gap-api-g034c');
+  const g034cPanel = g034c.rect('p', {x: 100, y: 40, w: 200, h: 100});
+  const g034cLabel = g034c.rect('l', {x: 0, y: 0, w: 40, h: 20});
+  check('g034c.shape', typeof g034cLabel.alignHorizontally === 'function'
+      && typeof g034cLabel.alignVertically === 'function'
+      && typeof g034cLabel.align === 'function'
+      && typeof g034cLabel.moveToX === 'function'
+      && typeof g034cLabel.moveToY === 'function');
+  g034cLabel.alignHorizontally('center');
+  check('g034c.parent-center',
+      g034cLabel.x === Math.floor((g034cLabel.parentWidth
+          - g034cLabel.scaledWidth) / 2)
+      && g034cLabel.y === 0);
+  g034cLabel.alignHorizontally(g034cPanel, 'leftOnRight');
+  check('g034c.sibling', g034cLabel.x
+      === g034cPanel.scaledLeft + g034cPanel.scaledWidth);
+  g034cLabel.align(g034cPanel, 'center', 'middle');
+  check('g034c.both-axes',
+      g034cLabel.x === g034cPanel.scaledLeft + g034cPanel.scaledWidth / 2
+          - g034cLabel.scaledWidth / 2
+      && g034cLabel.y === g034cPanel.scaledTop + g034cPanel.scaledHeight / 2
+          - g034cLabel.scaledHeight / 2);
+  g034cLabel.moveToX(10);
+  check('g034c.moveto-x', g034cLabel.x === 10);
+  check('g034c.edges', typeof g034cLabel.scaledRight === 'number'
+      && typeof g034cLabel.scaledBottom === 'number'
+      && g034cLabel.scaledRight === g034cLabel.scaledLeft + g034cLabel.scaledWidth
+      && g034cLabel.scaledBottom === g034cLabel.scaledTop + g034cLabel.scaledHeight);
+  const g034cGone = g034c.text('gone', 'x', {});
+  g034c.remove('gone');
+  let g034cThrew = false;
+  try { g034cGone.alignHorizontally('left'); } catch (e) { g034cThrew = true; }
+  check('g034c.disposed-throw',
+      g034cThrew && g034cGone.scaledRight === undefined);
+  neo.hud.removeLayer('gap-api-g034c');
+  check('g034c.remove-layer', g034c.disposed === true);
+
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
     neo.chat.log('[E2E] ' + key + '=' + value);
