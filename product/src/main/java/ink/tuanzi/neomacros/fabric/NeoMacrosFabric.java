@@ -193,6 +193,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("Image", ink.tuanzi.neomacros.core.api.types.Image.class);
         registry.registerGuestType("CustomImage", ink.tuanzi.neomacros.core.api.types.CustomImage.class);
         registry.registerGuestType("HudLayer", ink.tuanzi.neomacros.core.api.render.HudLayer.class);
+        registry.registerGuestType("Texture", ink.tuanzi.neomacros.core.api.types.Texture.class);
         registry.registerGuestType("Draw2DElement", ink.tuanzi.neomacros.core.api.render.components.Draw2DElement.class);
         registry.registerGuestType("Draw2DText", ink.tuanzi.neomacros.core.api.render.components.Draw2DText.class);
         registry.registerGuestType("Draw2DRect", ink.tuanzi.neomacros.core.api.render.components.Draw2DRect.class);

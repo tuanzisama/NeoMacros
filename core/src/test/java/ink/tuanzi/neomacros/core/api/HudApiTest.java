@@ -2,6 +2,9 @@ package ink.tuanzi.neomacros.core.api;
 
 import ink.tuanzi.neomacros.core.api.render.HudLayer;
 import ink.tuanzi.neomacros.core.api.render.RecordingHudRender;
+import ink.tuanzi.neomacros.core.api.types.CustomImage;
+import ink.tuanzi.neomacros.core.api.types.Image;
+import ink.tuanzi.neomacros.core.api.types.Texture;
 import ink.tuanzi.neomacros.port.model.WindowData;
 import org.junit.jupiter.api.Test;
 
@@ -233,5 +236,153 @@ class HudApiTest {
                 "module unload clears the legacy texts (javadoc semantics)");
         assertEquals(List.of("add:modA:$legacy:0", "remove:modA:$legacy"),
                 render.events());
+    }
+
+    // ---- G-038 texture registry (拍板⑥): 注册/去重/清理/owner 卸载回收 ----
+
+    @Test
+    void textureRegistryDeduplicatesPerOwnerAndRejectsBadNames() {
+        HudApi api = newApi();
+        owner.set(new FakeOwner("modA"));
+
+        Texture first = api.texture("badge", java.util.Map.of("width", 8, "height", 4));
+        Texture again = api.texture("badge", null);
+        assertSame(first, again, "same owner + same name returns the same handle");
+        assertEquals(8, first.getWidth());
+        assertEquals(4, first.getHeight());
+        assertEquals("neomacros:image/badge", first.getId());
+        assertEquals(List.of(first), api.getTextures());
+        assertEquals(List.of("puttexture:neomacros:image/badge:8x4"),
+                render.events(),
+                "a new entry registers its blank placeholder exactly once");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> api.texture("Bad Name", null));
+        assertThrows(IllegalArgumentException.class, () -> api.texture("", null));
+        assertThrows(IllegalArgumentException.class, () -> api.texture("$badge", null));
+        assertThrows(IllegalArgumentException.class,
+                () -> api.texture("neg", java.util.Map.of("width", 0)));
+        assertEquals(1, render.events().size(), "rejected names register nothing");
+
+        owner.set(new FakeOwner("modB"));
+        Texture fromB = api.texture("badge", null);
+        assertNotSame(first, fromB, "the same name is a different entry per owner");
+        assertEquals(List.of(fromB), api.getTextures(), "listings are per owner");
+        assertEquals(List.of("puttexture:neomacros:image/badge:8x4",
+                "puttexture:neomacros:image/badge:1x1"), render.events(),
+                "the other owner's entry starts as its own 1x1 placeholder");
+    }
+
+    @Test
+    void textureDisposeReleasesTheSlotAndIsIdempotent() {
+        HudApi api = newApi();
+        owner.set(new FakeOwner("modA"));
+        Texture texture = api.texture("badge", java.util.Map.of("width", 4, "height", 4));
+
+        texture.dispose();
+        assertTrue(texture.isDisposed());
+        assertEquals(List.of(), api.getTextures());
+        assertEquals(List.of("puttexture:neomacros:image/badge:4x4",
+                "removetexture:neomacros:image/badge"), render.events());
+        assertEquals(List.of(), render.textureIds().get(),
+                "the GPU slot leaves the port on dispose");
+
+        texture.dispose();
+        assertEquals(2, render.events().size(), "a second dispose is a no-op");
+
+        Texture fresh = api.texture("badge", null);
+        assertNotSame(texture, fresh, "a disposed key is recreated on demand");
+        assertFalse(fresh.isDisposed());
+        assertEquals(List.of(fresh), api.getTextures());
+    }
+
+    @Test
+    void ownerUnloadReclaimsRegisteredTextures() {
+        FakeOwner ownerA = new FakeOwner("modA");
+        FakeOwner ownerB = new FakeOwner("modB");
+        HudApi api = newApi();
+
+        owner.set(ownerA);
+        Texture fromA = api.texture("badge", null);
+        owner.set(ownerB);
+        Texture fromB = api.texture("other", null);
+        assertNotSame(fromA, fromB);
+        assertEquals(List.of(fromB), api.getTextures());
+
+        ownerA.release();
+        assertTrue(fromA.isDisposed(), "owner release disposes its textures (拍板③)");
+        assertFalse(fromB.isDisposed(), "other owners are untouched");
+        assertEquals(List.of("puttexture:neomacros:image/badge:1x1",
+                "puttexture:neomacros:image/other:1x1",
+                "removetexture:neomacros:image/badge"), render.events());
+
+        owner.set(ownerA);
+        assertEquals(List.of(), api.getTextures());
+        owner.set(ownerB);
+        assertEquals(List.of(fromB), api.getTextures());
+        assertFalse(render.textureIds().get().contains("neomacros:image/badge"));
+        assertTrue(render.textureIds().get().contains("neomacros:image/other"));
+    }
+
+    @Test
+    void namedCanvasSelfRegistersAndAdoptsExistingEntries() {
+        ScriptApiEnvironment.install(null, null);
+        HudApi api = newApi();
+        FakeOwner ownerA = new FakeOwner("modA");
+        owner.set(ownerA);
+
+        CustomImage canvas = (CustomImage) new CustomImage()
+                .construct(new Object[]{16, 8, "badge"});
+        List<Texture> listed = api.getTextures();
+        assertEquals(1, listed.size(),
+                "a named CustomImage canvas self-registers into hud.textures");
+        Texture entry = listed.get(0);
+        assertEquals("neomacros:image/badge", entry.getId());
+        assertEquals(16, entry.getWidth());
+        assertEquals(8, entry.getHeight());
+
+        Texture adopted = api.texture("badge", java.util.Map.of("width", 4, "height", 4));
+        assertSame(entry, adopted, "texture() adopts the canvas entry");
+        assertEquals(16, adopted.getWidth(), "the canvas dimensions win");
+        assertEquals(8, adopted.getHeight());
+        assertEquals(List.of(), render.events(),
+                "adoption never re-uploads: the canvas already owns the slot");
+
+        ownerA.release();
+        assertTrue(entry.isDisposed(),
+                "owner unload reclaims canvas-registered textures too");
+        assertEquals(List.of("removetexture:neomacros:image/badge"),
+                render.events());
+        assertEquals(List.of(), api.getTextures());
+        assertEquals(List.of(), render.textureIds().get());
+        assertTrue(canvas.getWidth() == 16, "the canvas itself stays usable");
+    }
+
+    @Test
+    void textureUpdateUploadsAPngSnapshotAndRefreshesSize() throws Exception {
+        HudApi api = newApi();
+        owner.set(new FakeOwner("modA"));
+        Texture texture = api.texture("shot", null);
+
+        java.awt.image.BufferedImage surface = new java.awt.image.BufferedImage(
+                4, 2, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        surface.setRGB(0, 0, 0xFF112233);
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(surface, "png", out);
+        Image snapshot = new Image(4, 2, out.toByteArray());
+
+        assertThrows(IllegalArgumentException.class, () -> texture.update(null));
+
+        assertSame(texture, texture.update(snapshot).get(),
+                "update() resolves to the same handle for chaining");
+        assertEquals(4, texture.getWidth());
+        assertEquals(2, texture.getHeight());
+        assertEquals(List.of("puttexture:neomacros:image/shot:1x1",
+                "puttexture:neomacros:image/shot:4x2"), render.events(),
+                "update() re-uploads the full snapshot on the port");
+
+        texture.dispose();
+        assertThrows(IllegalStateException.class, () -> texture.update(snapshot),
+                "a disposed texture rejects further uploads");
     }
 }

@@ -13,7 +13,8 @@ import java.util.function.Supplier;
 
 /**
  * Recording {@link RenderPort} for HUD layer tests: the port-call log
- * ({@code add}/{@code setz}/{@code remove}), the registered painters, and
+ * ({@code add}/{@code setz}/{@code remove}/{@code puttexture}/
+ * {@code removetexture}), the registered painters, texture state, and
  * frame captures rendered in {@code (z, id)} order.
  */
 public final class RecordingHudRender implements RenderPort {
@@ -24,6 +25,9 @@ public final class RecordingHudRender implements RenderPort {
     private final Map<String, Integer> zs = new ConcurrentHashMap<>();
     private final List<String> events = new CopyOnWriteArrayList<>();
     private final List<String> uploads = new CopyOnWriteArrayList<>();
+    /** Ids currently registered (puts minus removals), in order. */
+    private final java.util.Set<String> textures =
+            java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<>());
 
     @Override
     public void addLayer(String id, int z, BiConsumer<Integer, DrawContext2d> painter) {
@@ -57,7 +61,8 @@ public final class RecordingHudRender implements RenderPort {
                 .toList();
     }
 
-    /** The ordered port-call log: {@code add:id:z}, {@code setz:id:z}, {@code remove:id}. */
+    /** The ordered port-call log: {@code add:id:z}, {@code setz:id:z},
+     * {@code remove:id}, {@code puttexture:id:WxH}, {@code removetexture:id}. */
     public List<String> events() {
         return List.copyOf(events);
     }
@@ -71,7 +76,25 @@ public final class RecordingHudRender implements RenderPort {
     public java.util.concurrent.CompletableFuture<Void> putTexture(String id,
             int width, int height, int[] argb) {
         uploads.add(id + ":" + width + "x" + height);
+        events.add("puttexture:" + id + ":" + width + "x" + height);
+        textures.add(id);
         return java.util.concurrent.CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> removeTexture(String id) {
+        events.add("removetexture:" + id);
+        textures.remove(id);
+        return java.util.concurrent.CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public Supplier<List<String>> textureIds() {
+        return () -> {
+            synchronized (textures) {
+                return List.copyOf(textures);
+            }
+        };
     }
 
     /** Fires one frame across every registered layer in render order. */

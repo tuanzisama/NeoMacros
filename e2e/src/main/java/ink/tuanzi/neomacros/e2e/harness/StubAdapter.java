@@ -1499,11 +1499,21 @@ public final class StubAdapter implements NeomacrosAdapter {
                 new java.util.concurrent.ConcurrentHashMap<>();
         private final List<String> events = new CopyOnWriteArrayList<>();
         private final List<TextureUpload> uploads = new CopyOnWriteArrayList<>();
+        private final List<String> textureRemovals = new CopyOnWriteArrayList<>();
+        /** Ids currently registered (uploads minus removals), in order. */
+        private final java.util.Set<String> liveTextures =
+                java.util.Collections.synchronizedSet(
+                        new java.util.LinkedHashSet<>());
         private final List<Prim> lastFrame = new CopyOnWriteArrayList<>();
 
         /** Every texture upload in call order. */
         public List<TextureUpload> uploads() {
             return List.copyOf(uploads);
+        }
+
+        /** Every texture removal in call order (dispose/unload paths). */
+        public List<String> textureRemovals() {
+            return List.copyOf(textureRemovals);
         }
 
         /** Identifiers of layers currently registered, in render order. */
@@ -1578,12 +1588,24 @@ public final class StubAdapter implements NeomacrosAdapter {
         public java.util.concurrent.CompletableFuture<Void> putTexture(
                 String id, int width, int height, int[] argb) {
             uploads.add(new TextureUpload(id, width, height, argb));
+            liveTextures.add(id);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> removeTexture(String id) {
+            textureRemovals.add(id);
+            liveTextures.remove(id);
             return java.util.concurrent.CompletableFuture.completedFuture(null);
         }
 
         @Override
         public Supplier<List<String>> textureIds() {
-            return () -> uploads.stream().map(TextureUpload::id).distinct().toList();
+            return () -> {
+                synchronized (liveTextures) {
+                    return List.copyOf(liveTextures);
+                }
+            };
         }
     }
 

@@ -294,4 +294,32 @@ public final class FabricRenderPort implements RenderPort {
     public int textLineHeight() {
         return net.minecraft.client.Minecraft.getInstance().font.lineHeight;
     }
+
+    /**
+     * Removes a texture on the game main thread: {@code TextureManager
+     * .release(identifier)} drops the entry and safely closes the backing
+     * texture (verified on all four milestone nodes; unknown identifiers
+     * are a no-op), so a disposed registry entry frees its GPU slot and a
+     * later {@link #putTexture} with the same id registers afresh.
+     */
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> removeTexture(String id) {
+        java.util.concurrent.CompletableFuture<Void> future =
+                new java.util.concurrent.CompletableFuture<>();
+        net.minecraft.client.Minecraft.getInstance().execute(() -> {
+            try {
+                var identifier = Identifier.tryParse(id);
+                if (identifier == null) {
+                    throw new IllegalArgumentException("invalid texture identifier: " + id);
+                }
+                net.minecraft.client.Minecraft.getInstance().getTextureManager()
+                        .release(identifier);
+                textureIds.remove(id);
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
 }

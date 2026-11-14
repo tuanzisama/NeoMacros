@@ -980,6 +980,30 @@ function start() {
   neo.hud.removeLayer('gap-api-g032');
   check('g032.remove-layer', g032.disposed === true);
 
+  // G-038 texture registry: hud.texture shape checks (dedupe/dispose/
+  // owner reclaim over the stub port are covered by
+  // HudTextureScenariosTest; this face exercises the production adapter).
+  const g038 = neo.hud.texture('gap-api-g038', {width: 4, height: 4});
+  check('g038.shape', g038.id === 'neomacros:image/gap-api-g038'
+      && g038.name === 'gap-api-g038'
+      && g038.width === 4 && g038.height === 4 && g038.disposed === false);
+  const g038Again = neo.hud.texture('gap-api-g038');
+  check('g038.dedupe', g038Again.width === 4
+      && neo.hud.textures.some(
+          (t) => t.id === 'neomacros:image/gap-api-g038'));
+  let g038Bad = false;
+  try { neo.hud.texture('Bad Name'); } catch (e) { g038Bad = true; }
+  check('g038.bad-name', g038Bad);
+  const g038Source = new neo.CustomImage(4, 4, 'gap-api-g038-src');
+  const g038Update = g038.update(g038Source.image);
+  check('g038.update-promise',
+      Boolean(g038Update) && typeof g038Update.then === 'function');
+  g038Update.catch(() => {});
+  g038.dispose();
+  check('g038.dispose', g038.disposed === true
+      && !neo.hud.textures.some(
+          (t) => t.id === 'neomacros:image/gap-api-g038'));
+
   // G-033 Draw3D container: shape checks over the real gizmo pipeline —
   // the stub-driven Draw3DContainerScenariosTest covers the keyed port
   // writes; this face exercises the production adapter.
