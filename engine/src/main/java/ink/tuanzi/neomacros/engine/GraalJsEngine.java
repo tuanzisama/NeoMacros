@@ -1024,11 +1024,16 @@ public final class GraalJsEngine implements ScriptEngine {
             if (value.canExecute()) {
                 // Guest functions adapt to Consumer<Object>: invoking re-enters
                 // the context loop and executes with the given host arguments.
+                // Arguments render through the guest-readable path (handles
+                // become their guest classes, containers become proxies):
+                // a raw host value would cross as an opaque object under
+                // HostAccess.NONE and read back as undefined, which is how
+                // command handlers saw their context.
                 Value function = value;
                 return (java.util.function.Consumer<Object[]>) args -> {
                     Value[] callArgs = new Value[args == null ? 0 : args.length];
                     for (int i = 0; i < callArgs.length; i++) {
-                        callArgs[i] = context.asValue(args[i]);
+                        callArgs[i] = guestValueOrEvent(args[i]);
                     }
                     try {
                         onLoop(() -> {

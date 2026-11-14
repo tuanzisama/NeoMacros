@@ -22,12 +22,16 @@ import java.util.function.Consumer;
 /**
  * The {@code neo.command} module: client command registration and dispatch.
  * Commands register declaratively with typed argument slots built through
- * {@code command.arg} ({@code int() float() bool() word() string() greedy()
- * player() pos()} plus {@code optional()} and {@code default(v)}); the
- * handler receives a context whose {@code args} carry parsed values and
- * whose {@code raw} keeps the remainder string.
+ * {@code command.arg} ({@code int() long() float() bool() word() string()
+ * greedy() player() pos() uuid() identifier() time() literal()} plus
+ * {@code optional()}, {@code default(v)} and the numeric
+ * {@code range(min, max)}); the handler receives a context whose
+ * {@code args} carry parsed values and whose {@code raw} keeps the
+ * remainder string. This declarative surface is the single home of command
+ * building: JsMacros' chain-style {@code CommandBuilder} members map onto
+ * these slots, so no parallel builder grows here.
  *
- * @zh {@code neo.command}：客户端命令注册与派发。命令以声明式注册，经 {@code command.arg} 构建带类型的参数槽（{@code int() float() bool() word() string() greedy() player() pos()}，另有 {@code optional()} 与 {@code default(v)}）；处理器收到的上下文 {@code args} 携带解析值，{@code raw} 保留剩余字符串。
+ * @zh {@code neo.command}：客户端命令注册与派发。命令以声明式注册，经 {@code command.arg} 构建带类型的参数槽（{@code int() long() float() bool() word() string() greedy() player() pos() uuid() identifier() time() literal()}，另有 {@code optional()}、{@code default(v)} 与数值 {@code range(min, max)}）；处理器收到的上下文 {@code args} 携带解析值，{@code raw} 保留剩余字符串。声明式面是命令构建的唯一家：JsMacros 链式 {@code CommandBuilder} 成员映射到这些槽位，不在此生长第二套 builder。
  */
 @ApiModule(name = "command", category = "界面")
 @ApiSince("0.1.0")
@@ -49,17 +53,20 @@ public final class CommandApi {
     @ApiMC("*")
     @ApiLoader("*")
     @ApiReadOnly
-    @ApiType("Record<\"int\" | \"float\" | \"bool\" | \"word\" | \"string\" | \"greedy\""
-            + " | \"player\" | \"pos\", () => CommandArg>")
+    @ApiType("Record<\"int\" | \"long\" | \"float\" | \"bool\" | \"word\" | \"string\""
+            + " | \"greedy\" | \"player\" | \"pos\" | \"uuid\" | \"identifier\""
+            + " | \"time\" | \"literal\", () => CommandArg>")
     public CommandArgFactory getArg() {
         return argFactory;
     }
 
     /**
      * The dynamic slot factory: any slot-kind member name builds a fresh
-     * slot ({@code int() float() bool() word() string() greedy() player()
-     * pos()}), so script-facing names never collide with Java keywords. The
-     * engine renders it as a dynamic member proxy.
+     * slot ({@code int() long() float() bool() word() string() greedy()
+     * player() pos() uuid() identifier() time() literal()}), so
+     * script-facing names never collide with Java keywords. Extra factory
+     * arguments reach the slot builder ({@code literal('set')} fixes the
+     * required word). The engine renders it as a dynamic member proxy.
      */
     public static final class CommandArgFactory implements JavaInterop {
 
@@ -78,7 +85,8 @@ public final class CommandApi {
             if (!hasMember(name)) {
                 return null;
             }
-            return args -> JavaInterop.wrap(CommandArg.of(name));
+            // Factory arguments pass through: literal('set') fixes the word.
+            return args -> JavaInterop.wrap(CommandArg.of(name, args));
         }
 
         @Override
@@ -88,7 +96,7 @@ public final class CommandApi {
 
         @Override
         public Object invoke(String name, Object[] args) {
-            return JavaInterop.wrap(CommandArg.of(name));
+            return JavaInterop.wrap(CommandArg.of(name, args));
         }
 
         @Override

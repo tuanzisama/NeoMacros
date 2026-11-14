@@ -39,15 +39,18 @@ public final class E2ERuntime implements AutoCloseable {
     private final ModuleManager modules;
     private final TestBridge bridge;
     private final EventCatalog catalog;
+    private final StubCommandRegistry commands;
 
     private E2ERuntime(StubAdapter adapter, ScriptRuntime runtime, BindingRegistry registry,
-                       ModuleManager modules, TestBridge bridge, EventCatalog catalog) {
+                       ModuleManager modules, TestBridge bridge, EventCatalog catalog,
+                       StubCommandRegistry commands) {
         this.adapter = adapter;
         this.runtime = runtime;
         this.registry = registry;
         this.modules = modules;
         this.bridge = bridge;
         this.catalog = catalog;
+        this.commands = commands;
     }
 
     /**
@@ -69,6 +72,10 @@ public final class E2ERuntime implements AutoCloseable {
                 ink.tuanzi.neomacros.core.api.java.JavaApi.class,
                 ink.tuanzi.neomacros.core.api.client.ClientApi.class));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.reflect.ReflectApi());
+        // The command module registers over a recording registry so scenarios
+        // can dispatch typed commands exactly like the Fabric port does.
+        var commands = new StubCommandRegistry();
+        registry.registerInstance(new ink.tuanzi.neomacros.core.api.CommandApi(commands));
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
@@ -260,9 +267,14 @@ public final class E2ERuntime implements AutoCloseable {
                         action -> module.context().loop().execute(action)));
 
         var harness = new E2ERuntime(adapter, runtime, registry, modules,
-                (TestBridge) registry.instance("__test"), catalog);
+                (TestBridge) registry.instance("__test"), catalog, commands);
         harness.scriptErrors = errors;
         return harness;
+    }
+
+    /** The recording command registry behind {@code neo.command}. */
+    public StubCommandRegistry commands() {
+        return commands;
     }
 
     /** The stub adapter (event injection + output assertions). */

@@ -14,15 +14,25 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * One typed argument slot of a registered command. Slots build through the
- * dynamic {@code command.arg} factory ({@code int() float() bool() word()
- * string() greedy() player() pos()}) and chain {@code optional()} and
- * {@code default(v)}. Parsing walks slots in declaration order against the
- * raw remainder; {@code greedy} consumes everything that is left.
+ * dynamic {@code command.arg} factory ({@code int() long() float() bool()
+ * word() string() greedy() player() pos() uuid() identifier() time()
+ * literal()}) and chain {@code optional()}, {@code default(v)} and the
+ * numeric {@code range(min, max)}. Parsing walks slots in declaration order
+ * against the raw remainder; quoted {@code string} slots accept spaces,
+ * {@code greedy} consumes everything that is left, and {@code literal}
+ * requires its fixed word.
  *
- * @zh 注册命令的一个类型化参数槽。槽位经动态 {@code command.arg} 工厂构建（{@code int() float() bool() word() string() greedy() player() pos()}），可链式 {@code optional()} 与 {@code default(v)}。解析按声明顺序对原始余串进行；{@code greedy} 吞掉剩余全部。
+ * <p>This is the single argument vocabulary of the declarative
+ * {@code command.register} surface: JsMacros' {@code CommandBuilder} chain
+ * members map onto these slots instead of growing a parallel builder.
+ *
+ * @zh 注册命令的一个类型化参数槽。槽位经动态 {@code command.arg} 工厂构建（{@code int() long() float() bool() word() string() greedy() player() pos() uuid() identifier() time() literal()}），可链式 {@code optional()}、{@code default(v)} 与数值 {@code range(min, max)}。解析按声明顺序对原始余串进行；带引号的 {@code string} 槽可含空格，{@code greedy} 吞掉剩余全部，{@code literal} 要求固定词完全一致。
+ * @zh 这是声明式 {@code command.register} 面唯一的参数词汇表：JsMacros 的 {@code CommandBuilder} 链式成员映射到这些槽位，不再生长第二套 builder。
  */
 @ApiClass(name = "CommandArg", kind = ApiClassKind.HANDLE)
 @ApiSince("0.1.0")
@@ -32,28 +42,57 @@ public final class CommandArg {
 
     /** The supported slot shapes. */
     public enum Kind {
-        INT, FLOAT, BOOL, WORD, STRING, GREEDY, PLAYER, POS
+        INT, LONG, FLOAT, BOOL, WORD, STRING, GREEDY, PLAYER, POS,
+        UUID, IDENTIFIER, TIME, LITERAL
     }
 
     /** Member names the {@code command.arg} factory answers to. */
     public static final List<String> KIND_NAMES = List.of(
-            "int", "float", "bool", "word", "string", "greedy", "player", "pos");
+            "int", "long", "float", "bool", "word", "string", "greedy",
+            "player", "pos", "uuid", "identifier", "time", "literal");
+
+    /** Resource-location shape: optional {@code namespace:} then the path. */
+    private static final Pattern IDENTIFIER_PATTERN =
+            Pattern.compile("(?:[a-z0-9_.-]+:)?[a-z0-9/._-]+");
+
+    /** Duration units accepted by the {@code time} slot (brigadier syntax). */
+    private static final Map<String, Integer> TIME_UNITS = Map.of(
+            "t", 1, "s", 20, "d", 24000);
 
     private final Kind kind;
     private final boolean optional;
     private final Object fallback;
+    /** Inclusive bounds for numeric slots; {@code null} means unbounded. */
+    private final Number rangeMin;
+    private final Number rangeMax;
+    /** Required word for {@code literal} slots; {@code null} = the slot key. */
+    private final String literalWord;
 
-    private CommandArg(Kind kind, boolean optional, Object fallback) {
+    private CommandArg(Kind kind, boolean optional, Object fallback,
+                       Number rangeMin, Number rangeMax, String literalWord) {
         this.kind = kind;
         this.optional = optional;
         this.fallback = fallback;
+        this.rangeMin = rangeMin;
+        this.rangeMax = rangeMax;
+        this.literalWord = literalWord;
     }
 
     /** Builds one slot from a factory member name; unknown names raise. */
     @ApiInternal
     public static CommandArg of(String memberName) {
+        return of(memberName, null);
+    }
+
+    /**
+     * Builds one slot from a factory member name plus the factory arguments
+     * the script passed ({@code literal('set')} carries its required word).
+     */
+    @ApiInternal
+    public static CommandArg of(String memberName, Object[] factoryArgs) {
         Kind kind = switch (memberName.toLowerCase(Locale.ROOT)) {
             case "int" -> Kind.INT;
+            case "long" -> Kind.LONG;
             case "float" -> Kind.FLOAT;
             case "bool" -> Kind.BOOL;
             case "word" -> Kind.WORD;
@@ -61,10 +100,19 @@ public final class CommandArg {
             case "greedy" -> Kind.GREEDY;
             case "player" -> Kind.PLAYER;
             case "pos" -> Kind.POS;
+            case "uuid" -> Kind.UUID;
+            case "identifier" -> Kind.IDENTIFIER;
+            case "time" -> Kind.TIME;
+            case "literal" -> Kind.LITERAL;
             default -> throw new IllegalArgumentException("unknown argument kind: "
                     + memberName);
         };
-        return new CommandArg(kind, false, null);
+        String literalWord = null;
+        if (kind == Kind.LITERAL && factoryArgs != null && factoryArgs.length > 0
+                && factoryArgs[0] != null) {
+            literalWord = String.valueOf(factoryArgs[0]);
+        }
+        return new CommandArg(kind, false, null, null, null, literalWord);
     }
 
     /** Marks the slot optional (missing input falls back, never raises).
@@ -73,7 +121,7 @@ public final class CommandArg {
     @ApiMC("*")
     @ApiLoader("*")
     public CommandArg optional() {
-        return new CommandArg(kind, true, fallback);
+        return new CommandArg(kind, true, fallback, rangeMin, rangeMax, literalWord);
     }
 
     /** Supplies the fallback value for an optional slot.
@@ -82,7 +130,36 @@ public final class CommandArg {
     @ApiMC("*")
     @ApiLoader("*")
     public CommandArg defaultTo(@ApiType("number | string | boolean") Object value) {
-        return new CommandArg(kind, true, value);
+        return new CommandArg(kind, true, value, rangeMin, rangeMax, literalWord);
+    }
+
+    /**
+     * Bounds a numeric slot ({@code int}, {@code long}, {@code float}) to the
+     * inclusive {@code [min, max]} interval; out-of-range input is rejected
+     * while parsing. This is the declarative counterpart of JsMacros'
+     * {@code intArg(name, min, max)} / {@code longArg(name, min, max)} /
+     * {@code doubleArg(name, min, max)} overloads.
+     *
+     * @zh 将数值槽（{@code int} {@code long} {@code float}）限制在闭区间 {@code [min, max]}，越界输入在解析时被拒绝。对应 JsMacros 的 {@code intArg/longArg/doubleArg} 带边界重载。
+     * @zh-return 新的带边界槽位（原槽位不变）
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public CommandArg range(@ApiType("number") Number min,
+                            @ApiType("number") Number max) {
+        if (kind != Kind.INT && kind != Kind.LONG && kind != Kind.FLOAT) {
+            throw new IllegalArgumentException(
+                    "range() applies to int/long/float slots, not " + kind);
+        }
+        if (min == null || max == null) {
+            throw new IllegalArgumentException("range() needs both bounds");
+        }
+        if (compareBounds(min, max) > 0) {
+            throw new IllegalArgumentException(
+                    "range() min must not exceed max: " + min + " > " + max);
+        }
+        return new CommandArg(kind, optional, fallback, min, max, literalWord);
     }
 
     /** Extracts the slot map from a raw binding value (engine-unwrapped). */
@@ -109,16 +186,17 @@ public final class CommandArg {
     @ApiInternal
     public static Map<String, Object> parseAll(Map<String, CommandArg> slots,
                                                String remainder) {
-        List<String> tokens = remainder == null || remainder.isBlank()
-                ? List.of() : List.of(remainder.trim().split("\\s+"));
+        List<Token> tokens = remainder == null || remainder.isBlank()
+                ? List.of() : tokenize(remainder);
         Map<String, Object> out = new LinkedHashMap<>();
         int index = 0;
         for (Map.Entry<String, CommandArg> entry : slots.entrySet()) {
             CommandArg slot = entry.getValue();
             if (slot.kind == Kind.GREEDY) {
-                List<String> restTokens = tokens.subList(
-                        Math.min(index, tokens.size()), tokens.size());
-                String rest = String.join(" ", restTokens);
+                // Raw substring: the remainder keeps its original spacing
+                // and quoting instead of a re-joined token list.
+                String rest = index >= tokens.size() ? ""
+                        : remainder.substring(tokens.get(index).start());
                 out.put(entry.getKey(), rest.isEmpty() && slot.fallback != null
                         ? slot.fallback : rest);
                 continue;
@@ -131,24 +209,104 @@ public final class CommandArg {
                 throw new IllegalArgumentException("missing required argument '"
                         + entry.getKey() + "'");
             }
-            String token = tokens.get(index++);
+            Token token = tokens.get(index++);
             try {
-                out.put(entry.getKey(), slot.parse(token));
+                out.put(entry.getKey(), slot.parse(token, entry.getKey()));
             } catch (RuntimeException error) {
                 throw new IllegalArgumentException("argument '" + entry.getKey()
-                        + "' does not accept '" + token + "'");
+                        + "' does not accept '" + token.text() + "'"
+                        + (error.getMessage() == null ? ""
+                        : ": " + error.getMessage()));
             }
         }
         return out;
     }
 
-    private Object parse(String token) {
+    /** One input token: raw text (quotes included when quoted) + offsets. */
+    private record Token(String text, boolean quoted, int start, int end) {
+    }
+
+    /**
+     * Splits the remainder on whitespace, keeping double-quoted runs as one
+     * token (quotes preserved, {@code \"} escapes intact) and remembering
+     * offsets so {@code greedy} can hand back the raw slice.
+     */
+    private static List<Token> tokenize(String remainder) {
+        List<Token> out = new ArrayList<>();
+        int index = 0;
+        int length = remainder.length();
+        while (index < length) {
+            char current = remainder.charAt(index);
+            if (Character.isWhitespace(current)) {
+                index++;
+                continue;
+            }
+            int start = index;
+            if (current == '"') {
+                index++;
+                boolean closed = false;
+                while (index < length) {
+                    char quoted = remainder.charAt(index);
+                    if (quoted == '\\' && index + 1 < length) {
+                        index += 2;
+                        continue;
+                    }
+                    index++;
+                    if (quoted == '"') {
+                        closed = true;
+                        break;
+                    }
+                }
+                if (!closed) {
+                    throw new IllegalArgumentException("unterminated quoted string");
+                }
+                out.add(new Token(remainder.substring(start, index), true,
+                        start, index));
+                continue;
+            }
+            while (index < length && !Character.isWhitespace(remainder.charAt(index))) {
+                index++;
+            }
+            out.add(new Token(remainder.substring(start, index), false, start, index));
+        }
+        return out;
+    }
+
+    private Object parse(Token token, String slotKey) {
+        String text = token.text();
         return switch (kind) {
-            case INT -> Integer.parseInt(token);
-            case FLOAT -> Double.parseDouble(token);
-            case BOOL -> parseBool(token);
-            default -> token;
+            case INT -> bounded(Integer.parseInt(text));
+            case LONG -> bounded(Long.parseLong(text));
+            case FLOAT -> bounded(Double.parseDouble(text));
+            case BOOL -> parseBool(text);
+            case UUID -> parseUuid(text);
+            case IDENTIFIER -> parseIdentifier(text);
+            case TIME -> parseTime(text);
+            case LITERAL -> parseLiteral(token, slotKey);
+            case WORD -> parseWord(token);
+            case STRING -> parseString(token);
+            // GREEDY is consumed in parseAll; PLAYER/POS stay raw tokens.
+            default -> text;
         };
+    }
+
+    /** Applies the inclusive bounds when the slot carries a range. */
+    private Number bounded(Number value) {
+        if (rangeMin == null) {
+            return value;
+        }
+        if (compareBounds(value, rangeMin) < 0 || compareBounds(value, rangeMax) > 0) {
+            throw new IllegalArgumentException("out of range ["
+                    + rangeMin + ", " + rangeMax + "]");
+        }
+        return value;
+    }
+
+    /** Compares two bounds on the slot's own numeric domain. */
+    private int compareBounds(Number left, Number right) {
+        return kind == Kind.LONG
+                ? Long.compare(left.longValue(), right.longValue())
+                : Double.compare(left.doubleValue(), right.doubleValue());
     }
 
     private static boolean parseBool(String token) {
@@ -160,5 +318,63 @@ public final class CommandArg {
             return false;
         }
         throw new IllegalArgumentException("not a boolean: " + token);
+    }
+
+    /** UUID slots deliver the normalized lowercase text (neutral surface). */
+    private static String parseUuid(String token) {
+        if (!token.matches(
+                "(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
+            throw new IllegalArgumentException("not a UUID: " + token);
+        }
+        return UUID.fromString(token).toString();
+    }
+
+    private static String parseIdentifier(String token) {
+        if (!IDENTIFIER_PATTERN.matcher(token).matches()) {
+            throw new IllegalArgumentException("not a resource location: " + token);
+        }
+        return token;
+    }
+
+    /** {@code <count><unit>} with a required unit ({@code t}/{@code s}/{@code d}). */
+    private static Integer parseTime(String token) {
+        if (token.length() < 2) {
+            throw new IllegalArgumentException("not a duration: " + token);
+        }
+        String unit = token.substring(token.length() - 1);
+        Integer perUnit = TIME_UNITS.get(unit);
+        if (perUnit == null) {
+            throw new IllegalArgumentException("missing duration unit (t/s/d): " + token);
+        }
+        long count = Long.parseLong(token.substring(0, token.length() - 1));
+        return Math.toIntExact(count * perUnit);
+    }
+
+    /** The fixed word is the explicit factory argument or the slot key. */
+    private String parseLiteral(Token token, String slotKey) {
+        String expected = literalWord != null ? literalWord : slotKey;
+        String actual = token.quoted() ? unquote(token.text()) : token.text();
+        if (!expected.equals(actual)) {
+            throw new IllegalArgumentException("expected literal '" + expected + "'");
+        }
+        return actual;
+    }
+
+    /** A word is one unquoted token — quotes would hide the raw input. */
+    private static String parseWord(Token token) {
+        if (token.quoted()) {
+            throw new IllegalArgumentException("word slots take one unquoted token");
+        }
+        return token.text();
+    }
+
+    /** Quoted strings drop their quotes and unescape {@code \"}/{@code \}. */
+    private static String parseString(Token token) {
+        return token.quoted() ? unquote(token.text()) : token.text();
+    }
+
+    private static String unquote(String text) {
+        String body = text.substring(1, text.length() - 1);
+        return body.replace("\\\"", "\"").replace("\\\\", "\\");
     }
 }
