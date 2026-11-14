@@ -141,6 +141,9 @@ final class ApiCompletenessSurface {
             ink.tuanzi.neomacros.core.api.render.screen.ControlSpec.class,
             ink.tuanzi.neomacros.core.api.render.screen.ControlState.class,
             ink.tuanzi.neomacros.core.api.render.screen.ScreenCanvas.class,
+            ink.tuanzi.neomacros.core.api.render.components3d.Surface.class,
+            ink.tuanzi.neomacros.core.api.render.components3d.TraceLine.class,
+            ink.tuanzi.neomacros.core.api.render.components3d.EntityTraceLine.class,
             TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */

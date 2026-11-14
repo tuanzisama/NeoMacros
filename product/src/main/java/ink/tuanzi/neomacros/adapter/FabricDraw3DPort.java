@@ -154,9 +154,11 @@ public final class FabricDraw3DPort implements Draw3DPort {
     }
 
     /**
-     * Bucket selector: boxes and lines without depth testing draw over the
-     * world; traces and surfaces (legacy face) stay in the standard bucket
-     * exactly as before the buckets existed.
+     * Bucket selector: boxes, lines and the retained traces/panels draw
+     * over the world when they opt out of depth testing; the legacy
+     * {@code Trace}/{@code Surface} primitives (which behave as depth-
+     * tested) stay in the standard bucket exactly as before the buckets
+     * existed.
      */
     private static boolean alwaysOnTop(ShapeSpec spec) {
         if (spec instanceof ShapeSpec.Box box) {
@@ -164,6 +166,15 @@ public final class FabricDraw3DPort implements Draw3DPort {
         }
         if (spec instanceof ShapeSpec.Line line) {
             return !line.cull();
+        }
+        if (spec instanceof ShapeSpec.CameraTrace trace) {
+            return !trace.cull();
+        }
+        if (spec instanceof ShapeSpec.EntityTrace trace) {
+            return !trace.cull();
+        }
+        if (spec instanceof ShapeSpec.Panel panel) {
+            return !panel.cull();
         }
         return false;
     }
@@ -176,6 +187,22 @@ public final class FabricDraw3DPort implements Draw3DPort {
             emitBoxEdges(primitives, box.min(), box.max(), box.argbColor());
             if (box.fill()) {
                 emitBoxFill(primitives, box.min(), box.max(), box.argbFillColor());
+            }
+        } else if (spec instanceof ShapeSpec.CameraTrace trace) {
+            float[] camera = cameraPose();
+            primitives.addLine(new Vec3(camera[0], camera[1], camera[2]),
+                    vec(trace.target()), trace.argbColor(), LINE_WIDTH);
+        } else if (spec instanceof ShapeSpec.EntityTrace trace) {
+            Vec3 target = entityTraceTarget(trace);
+            if (target != null) {
+                float[] camera = cameraPose();
+                primitives.addLine(new Vec3(camera[0], camera[1], camera[2]),
+                        target, trace.argbColor(), LINE_WIDTH);
+            }
+        } else if (spec instanceof ShapeSpec.Panel panel) {
+            Vec3[] corners = panelCorners(panel);
+            if (corners != null && panelFacesCamera(panel, corners)) {
+                primitives.addTriangleFan(corners, panel.argbColor());
             }
         } else if (spec instanceof ShapeSpec.Trace trace) {
             Vec3[] endpoints = traceEndpoints(trace.entityUuid());
@@ -284,6 +311,33 @@ public final class FabricDraw3DPort implements Draw3DPort {
                         }
                         addWorldBoxFill(fill, pose, box.min(), box.max(), box.argbFillColor());
                     }
+                } else if (spec instanceof ShapeSpec.CameraTrace trace) {
+                    float[] camera = cameraPose();
+                    addWorldLine(buffer, pose,
+                            new double[] {camera[0], camera[1], camera[2]},
+                            new double[] {trace.target().x(), trace.target().y(), trace.target().z()},
+                            trace.argbColor());
+                } else if (spec instanceof ShapeSpec.EntityTrace trace) {
+                    var target = entityTraceTarget(trace);
+                    if (target != null) {
+                        float[] camera = cameraPose();
+                        addWorldLine(buffer, pose,
+                                new double[] {camera[0], camera[1], camera[2]},
+                                new double[] {target.x, target.y, target.z},
+                                trace.argbColor());
+                    }
+                } else if (spec instanceof ShapeSpec.Panel panel) {
+                    var corners = panelCorners(panel);
+                    if (corners != null && panelFacesCamera(panel, corners)) {
+                        for (int i = 0; i < corners.length; i++) {
+                            var a = corners[i];
+                            var b = corners[(i + 1) % corners.length];
+                            addWorldLine(buffer, pose,
+                                    new double[] {a.x, a.y, a.z},
+                                    new double[] {b.x, b.y, b.z},
+                                    panel.argbColor());
+                        }
+                    }
                 } else if (spec instanceof ShapeSpec.Trace trace) {
                     var level = net.minecraft.client.Minecraft.getInstance().level;
                     var player = net.minecraft.client.Minecraft.getInstance().player;
@@ -379,4 +433,166 @@ public final class FabricDraw3DPort implements Draw3DPort {
     }
     */
     //?}
+
+    // ---- retained-trace / panel helpers (shared by both pipelines) -------
+
+    //? if >=26.2 {
+    /** The main camera (26.2+ renamed {@code getMainCamera} to {@code mainCamera}). */
+    private static net.minecraft.client.Camera mainCamera() {
+        return net.minecraft.client.Minecraft.getInstance().gameRenderer.mainCamera();
+    }
+    //?} else {
+    /*
+    // The main camera (accessor unchanged through 26.1.x and 1.x).
+    private static net.minecraft.client.Camera mainCamera() {
+        return net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera();
+    }
+    */
+    //?}
+
+    //? if >=26.1 {
+    /**
+     * Camera position and rotation for the current frame as
+     * {@code [x, y, z, yaw, pitch]}; 26.x renamed the camera accessors
+     * from the 1.x {@code getPosition()}/{@code getYRot()}/{@code getXRot()}
+     * to {@code position()}/{@code yRot()}/{@code xRot()}.
+     */
+    private static float[] cameraPose() {
+        var camera = mainCamera();
+        Vec3 position = camera.position();
+        return new float[] {
+                (float) position.x, (float) position.y, (float) position.z,
+                camera.yRot(), camera.xRot()};
+    }
+    //?} else {
+    /*
+    // Camera position and rotation for the current frame as
+    // [x, y, z, yaw, pitch] (1.x camera accessors).
+    private static float[] cameraPose() {
+        var camera = mainCamera();
+        Vec3 position = camera.getPosition();
+        return new float[] {
+                (float) position.x, (float) position.y, (float) position.z,
+                camera.getYRot(), camera.getXRot()};
+    }
+    */
+    //?}
+
+    /** Resolves an entity's world position by UUID, or null when absent. */
+    private static Vec3 entityPosition(java.util.UUID uuid) {
+        if (uuid == null) {
+            return null;
+        }
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level == null) {
+            return null;
+        }
+        for (net.minecraft.world.entity.Entity entity : level.entitiesForRendering()) {
+            if (entity.getUUID().equals(uuid)) {
+                return entity.position();
+            }
+        }
+        return null;
+    }
+
+    /** The followed entity's position plus its yOffset, or null when absent. */
+    private static Vec3 entityTraceTarget(ShapeSpec.EntityTrace trace) {
+        Vec3 position = entityPosition(trace.entityUuid());
+        return position == null ? null : position.add(0, trace.yOffset(), 0);
+    }
+
+    /**
+     * Derives one panel's four world-space corners for this frame, or
+     * null when a bound entity is missing. Rotations are applied y, then
+     * x, then z (degrees); {@code rotateToPlayer} overwrites them with a
+     * camera-facing billboard. {@code pos} is the panel corner, or its
+     * centre while {@code rotateCenter} is on.
+     */
+    private static Vec3[] panelCorners(ShapeSpec.Panel panel) {
+        Vec3 origin;
+        if (panel.boundEntity() != null) {
+            Vec3 position = entityPosition(panel.boundEntity());
+            if (position == null) {
+                return null;
+            }
+            Pos3d offset = panel.boundOffset();
+            origin = position.add(offset.x(), offset.y(), offset.z());
+        } else {
+            Pos3d corner = panel.origin();
+            origin = new Vec3(corner.x(), corner.y(), corner.z());
+        }
+
+        double halfWidth = panel.width() / 2;
+        double halfHeight = panel.height() / 2;
+        double[][] local;
+        if (panel.rotateCenter()) {
+            local = new double[][] {
+                    {-halfWidth, -halfHeight}, {halfWidth, -halfHeight},
+                    {halfWidth, halfHeight}, {-halfWidth, halfHeight}};
+        } else {
+            local = new double[][] {
+                    {0, 0}, {panel.width(), 0},
+                    {panel.width(), panel.height()}, {0, panel.height()}};
+        }
+
+        Vec3[] corners = new Vec3[4];
+        if (panel.rotateToPlayer()) {
+            float[] camera = cameraPose();
+            Vec3 toward = new Vec3(camera[0], camera[1], camera[2]).subtract(origin);
+            if (toward.x == 0 && toward.y == 0 && toward.z == 0) {
+                return null;
+            }
+            toward = toward.normalize();
+            Vec3 right = new Vec3(0, 1, 0).cross(toward);
+            if (right.x == 0 && right.y == 0 && right.z == 0) {
+                right = new Vec3(1, 0, 0); // camera directly above/below
+            } else {
+                right = right.normalize();
+            }
+            Vec3 up = toward.cross(right).normalize();
+            for (int i = 0; i < corners.length; i++) {
+                corners[i] = origin.add(right.scale(local[i][0]).add(up.scale(local[i][1])));
+            }
+            return corners;
+        }
+
+        double yaw = Math.toRadians(panel.yRot());
+        double pitch = Math.toRadians(panel.xRot());
+        double roll = Math.toRadians(panel.zRot());
+        double cy = Math.cos(yaw);
+        double sy = Math.sin(yaw);
+        double cx = Math.cos(pitch);
+        double sx = Math.sin(pitch);
+        double cz = Math.cos(roll);
+        double sz = Math.sin(roll);
+        for (int i = 0; i < corners.length; i++) {
+            double x = local[i][0];
+            double y = local[i][1];
+            // y rotation, then x rotation, then z rotation (JsMacros order)
+            double x1 = x * cy;
+            double z1 = -x * sy;
+            double y2 = y * cx - z1 * sx;
+            double z2 = y * sx + z1 * cx;
+            double x3 = x1 * cz - y2 * sz;
+            double y3 = x1 * sz + y2 * cz;
+            corners[i] = new Vec3(origin.x + x3, origin.y + y3, origin.z + z2);
+        }
+        return corners;
+    }
+
+    /**
+     * Whether the camera sees the panel's front side: always for a
+     * billboard or a rendered back, otherwise via the face normal.
+     */
+    private static boolean panelFacesCamera(ShapeSpec.Panel panel, Vec3[] corners) {
+        if (panel.renderBack() || panel.rotateToPlayer()) {
+            return true;
+        }
+        Vec3 first = corners[1].subtract(corners[0]);
+        Vec3 second = corners[2].subtract(corners[0]);
+        Vec3 normal = first.cross(second);
+        float[] camera = cameraPose();
+        Vec3 toward = new Vec3(camera[0], camera[1], camera[2]).subtract(corners[0]);
+        return normal.dot(toward) > 0;
+    }
 }
