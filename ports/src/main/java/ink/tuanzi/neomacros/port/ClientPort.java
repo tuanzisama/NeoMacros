@@ -2,10 +2,11 @@ package ink.tuanzi.neomacros.port;
 
 import ink.tuanzi.neomacros.port.model.BlockStateData;
 import ink.tuanzi.neomacros.port.model.ItemStackData;
-import ink.tuanzi.neomacros.port.model.ModData;
+import ink.tuanzi.neomacros.port.model.ModInfoData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
 import ink.tuanzi.neomacros.port.model.Pos2d;
 import ink.tuanzi.neomacros.port.model.ServerInfoData;
+import ink.tuanzi.neomacros.port.model.StatusEffectInfoData;
 import ink.tuanzi.neomacros.port.model.WindowData;
 
 import java.util.List;
@@ -62,7 +63,7 @@ public interface ClientPort {
     }
 
     /** Returns the installed mods in loader order. */
-    default List<ModData> mods() {
+    default List<ModInfoData> mods() {
         return List.of();
     }
 
@@ -237,6 +238,16 @@ public interface ClientPort {
      * (missing namespace defaults to {@code minecraft}), or empty.
      */
     default Optional<String> registryLookup(String kind, String id) {
+        return Optional.empty();
+    }
+
+    /**
+     * Returns one registered status effect as a zero-duration wrap of the
+     * effect type (instance flags at their fresh-instance defaults), or
+     * empty when the identifier is unknown. Missing namespace defaults to
+     * {@code minecraft}.
+     */
+    default Optional<StatusEffectInfoData> statusEffect(String id) {
         return Optional.empty();
     }
 

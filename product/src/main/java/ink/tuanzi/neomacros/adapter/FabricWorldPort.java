@@ -3,14 +3,17 @@ package ink.tuanzi.neomacros.adapter;
 import ink.tuanzi.neomacros.port.WorldPort;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
-import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
+import ink.tuanzi.neomacros.port.model.BossBarInfoData;
 import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.LightData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.RayHit;
 import ink.tuanzi.neomacros.port.model.RayOptions;
 import ink.tuanzi.neomacros.port.model.ScoreboardData;
-import ink.tuanzi.neomacros.port.model.TabListData;
+import ink.tuanzi.neomacros.port.model.ScoreboardObjectiveData;
+import ink.tuanzi.neomacros.port.model.TabListEntryInfoData;
+import ink.tuanzi.neomacros.port.model.TabListInfoData;
+import ink.tuanzi.neomacros.port.model.TeamData;
 import ink.tuanzi.neomacros.port.model.TpsData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -26,6 +29,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -263,32 +267,174 @@ public final class FabricWorldPort implements WorldPort {
     }
 
     @Override
-    public Optional<TabListData> tabList() {
+    public Optional<TabListInfoData> tabList() {
         return MainThread.run(() -> {
             ClientLevel level = Minecraft.getInstance().level;
             var connection = Minecraft.getInstance().getConnection();
             if (level == null || connection == null) {
                 return Optional.empty();
             }
-            List<TabListData.TabListEntry> entries = new ArrayList<>();
+            List<TabListEntryInfoData> entries = new ArrayList<>();
             for (var info : connection.getListedOnlinePlayers()) {
                 var profile = info.getProfile();
                 Component tabName = info.getTabListDisplayName();
-                entries.add(new TabListData.TabListEntry(
+                var session = info.getChatSession();
+                byte[] publicKey = session == null ? null
+                        : session.profilePublicKey().data().key().getEncoded();
+                var skin = info.getSkin();
+                String skinTexture;
+                String skinUrl;
+                String capeTexture;
+                String elytraTexture;
+                boolean hasCape;
+                boolean slimModel;
+                //? if >=1.21.9 {
+                var body = skin.body();
+                skinTexture = body == null ? null : body.texturePath().toString();
+                skinUrl = body instanceof net.minecraft.core.ClientAsset.DownloadedTexture
+                        downloaded ? downloaded.url() : null;
+                var cape = skin.cape();
+                hasCape = cape != null;
+                capeTexture = cape == null ? null : cape.texturePath().toString();
+                var elytra = skin.elytra();
+                elytraTexture = elytra == null ? null : elytra.texturePath().toString();
+                slimModel = "SLIM".equals(skin.model().name());
+                //?} else {
+                /*
+                skinTexture = skin.texture().toString();
+                skinUrl = skin.textureUrl();
+                hasCape = skin.capeTexture() != null;
+                capeTexture = skin.capeTexture() == null ? null
+                        : skin.capeTexture().toString();
+                elytraTexture = skin.elytraTexture() == null ? null
+                        : skin.elytraTexture().toString();
+                slimModel = "SLIM".equals(skin.model().name());
+                */
+                //?}
+                entries.add(new TabListEntryInfoData(
                         profile.id().toString(),
                         profile.name(),
                         info.getLatency(),
                         info.getGameMode().getName(),
-                        tabName != null ? tabName.getString() : null));
+                        tabName != null ? tabName.getString() : null,
+                        publicKey, skinTexture, skinUrl, capeTexture, elytraTexture,
+                        hasCape, slimModel,
+                        teamData(info.getTeam())));
             }
-            return Optional.of(new TabListData(ink.tuanzi.neomacros.adapter.TabListTracker.header(),
+            return Optional.of(new TabListInfoData(
+                    ink.tuanzi.neomacros.adapter.TabListTracker.header(),
                     ink.tuanzi.neomacros.adapter.TabListTracker.footer(), entries));
         });
     }
 
     @Override
-    public List<BossBarSnapshot> bossBars() {
+    public List<BossBarInfoData> bossBars() {
         return MainThread.run(ink.tuanzi.neomacros.adapter.BossbarHub::snapshot);
+    }
+
+    @Override
+    public List<TeamData> teams() {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return List.of();
+            }
+            List<TeamData> out = new ArrayList<>();
+            for (var team : level.getScoreboard().getPlayerTeams()) {
+                out.add(teamData(team));
+            }
+            return out;
+        });
+    }
+
+    @Override
+    public Optional<TeamData> localPlayerTeam() {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            var player = Minecraft.getInstance().player;
+            if (level == null || player == null) {
+                return Optional.empty();
+            }
+            return Optional.ofNullable(teamData(
+                    level.getScoreboard().getPlayersTeam(player.getScoreboardName())));
+        });
+    }
+
+    @Override
+    public Optional<ScoreboardObjectiveData> displayObjective(int slot) {
+        return MainThread.run(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level == null) {
+                return Optional.empty();
+            }
+            var slots = net.minecraft.world.scores.DisplaySlot.values();
+            if (slot < 0 || slot >= slots.length) {
+                return Optional.empty();
+            }
+            var scoreboard = level.getScoreboard();
+            var objective = scoreboard.getDisplayObjective(slots[slot]);
+            return objective == null ? Optional.empty()
+                    : Optional.of(objectiveData(scoreboard, objective));
+        });
+    }
+
+    /** Maps one scoreboard team onto its neutral snapshot. */
+    private static TeamData teamData(net.minecraft.world.scores.PlayerTeam team) {
+        if (team == null) {
+            return null;
+        }
+        var color = FormattingValues.teamColor(team);
+        List<String> players = new ArrayList<>(team.getPlayers());
+        return new TeamData(team.getName(), team.getDisplayName().getString(),
+                FormattingValues.colorName(color), FormattingValues.colorIndex(color),
+                FormattingValues.colorValue(color), players);
+    }
+
+    /**
+     * Builds the full objective snapshot: raw scores (hidden entries
+     * included), the team-formatted display texts capped at the fifteen the
+     * sidebar draws, and the scoreboard's tracked owners.
+     */
+    private static ScoreboardObjectiveData objectiveData(
+            net.minecraft.world.scores.Scoreboard scoreboard,
+            net.minecraft.world.scores.Objective objective) {
+        Map<String, Integer> playerScores = new LinkedHashMap<>();
+        Map<Integer, String> scoreToDisplayName = new LinkedHashMap<>();
+        List<net.minecraft.world.scores.PlayerScoreEntry> visible = new ArrayList<>();
+        for (var entry : scoreboard.listPlayerScores(objective)) {
+            playerScores.put(entry.owner(), entry.value());
+            scoreToDisplayName.put(entry.value(), net.minecraft.world.scores.PlayerTeam
+                    .formatNameForTeam(scoreboard.getPlayersTeam(entry.owner()),
+                            entry.ownerName()).getString());
+            if (!entry.isHidden()) {
+                visible.add(entry);
+            }
+        }
+        visible.sort(Comparator
+                .comparing(net.minecraft.world.scores.PlayerScoreEntry::value).reversed()
+                .thenComparing(net.minecraft.world.scores.PlayerScoreEntry::owner,
+                        String.CASE_INSENSITIVE_ORDER));
+        List<String> texts = new ArrayList<>();
+        for (int i = 0; i < Math.min(15, visible.size()); i++) {
+            var entry = visible.get(i);
+            texts.add(net.minecraft.world.scores.PlayerTeam.formatNameForTeam(
+                    scoreboard.getPlayersTeam(entry.owner()), entry.ownerName())
+                    .getString());
+        }
+        List<String> knownPlayers = new ArrayList<>();
+        List<String> knownPlayersDisplayNames = new ArrayList<>();
+        for (var holder : scoreboard.getTrackedPlayers()) {
+            knownPlayers.add(holder.getScoreboardName());
+            Component display = holder.getDisplayName();
+            knownPlayersDisplayNames.add(display != null ? display.getString()
+                    : holder.getScoreboardName());
+        }
+        return new ScoreboardObjectiveData(objective.getName(),
+                objective.getDisplayName().getString(),
+                objective.getCriteria().getName(),
+                objective.getRenderType().getSerializedName(),
+                playerScores, scoreToDisplayName, texts, knownPlayers,
+                knownPlayersDisplayNames);
     }
 
     @Override

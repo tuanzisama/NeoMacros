@@ -12,9 +12,10 @@ import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.model.KeybindCatalogData;
-import ink.tuanzi.neomacros.port.model.ModData;
+import ink.tuanzi.neomacros.port.model.ModInfoData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
 import ink.tuanzi.neomacros.port.model.ServerInfoData;
+import ink.tuanzi.neomacros.port.model.StatusEffectInfoData;
 import ink.tuanzi.neomacros.port.model.WindowData;
 
 import java.util.List;
@@ -155,16 +156,17 @@ public final class ClientApi {
     }
 
     /**
-     * The installed mods as {@code [{id, name, version, authors}]} in loader
-     * order.
+     * The installed mods as
+     * {@code [{id, name, version, authors, description, env, dependencies}]}
+     * in loader order.
      *
-     * @zh 已安装模组数组 {@code [{id, name, version, authors}]}，按加载器顺序。
+     * @zh 已安装模组数组 {@code [{id, name, version, authors, description, env, dependencies}]}，按加载器顺序。
      */
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
-    public List<ModData> getMods() {
+    public List<ModInfoData> getMods() {
         return adapter().mods();
     }
 
@@ -182,16 +184,17 @@ public final class ClientApi {
     }
 
     /**
-     * The metadata of one loaded mod as {@code {id, name, version, authors}},
+     * The metadata of one loaded mod as
+     * {@code {id, name, version, authors, description, env, dependencies}},
      * or {@code null} when not loaded.
      *
-     * @zh 指定 id 模组的元数据 {@code {id, name, version, authors}}；未加载时为 null。
+     * @zh 指定 id 模组的元数据 {@code {id, name, version, authors, description, env, dependencies}}；未加载时为 null。
      * @zh-param id 模组标识
      */
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public ModData getMod(String id) {
+    public ModInfoData getMod(String id) {
         return adapter().mods().stream()
                 .filter(mod -> mod.id().equals(id))
                 .findFirst().orElse(null);
@@ -3192,43 +3195,38 @@ public final class ClientApi {
     }
 
     /**
-     * One registered status effect as {@code {id, duration, amplifier,
-     * infinite}} with a zero-tick duration; unknown identifiers read
+     * One registered status effect wrapped at zero duration, carrying the
+     * instance counters ({@code id, duration, amplifier, infinite,
+     * ambient, showIcon, visible}) and the type facts ({@code instant,
+     * beneficial, neutral, harmful}); unknown identifiers read
      * {@code undefined}.
      *
-     * @zh 一个注册状态效果 {@code {id, duration, amplifier, infinite}}（时长 0 tick）；未知标识为 undefined。
+     * @zh 一个注册状态效果（零时长包装），携带实例计数 {@code id, duration, amplifier, infinite, ambient, showIcon, visible} 与类型事实 {@code instant, beneficial, neutral, harmful}；未知标识为 undefined。
      * @zh-param id 状态效果标识
-     * @zh-return 状态效果数据或 undefined
+     * @zh-return 状态效果信息或 undefined
      */
     @ApiSince("0.5.0")
     @ApiLoader("*")
     @ApiMC("*")
-    public ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData getStatusEffect(
-            String id) {
-        String resolved = registryLookup("mob_effect", id);
-        return resolved == null ? null
-                : new ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData(
-                        resolved, 0, 0, false);
+    public StatusEffectInfoData getStatusEffect(String id) {
+        return adapter().statusEffect(id).orElse(null);
     }
 
     /**
-     * Every registered status effect as {@code {id, duration, amplifier,
-     * infinite}} entries with a zero-tick duration, sorted by identifier.
+     * Every registered status effect wrapped at zero duration (the same
+     * shape as {@link #getStatusEffect(String)}), sorted by identifier.
      *
-     * @zh 全部注册状态效果 {@code {id, duration, amplifier, infinite}}（时长 0 tick），按标识排序。
-     * @zh-return 状态效果数据数组
+     * @zh 全部注册状态效果（零时长包装，形状同 {@link #getStatusEffect(String)}），按标识排序。
+     * @zh-return 状态效果信息数组
      */
     @ApiSince("0.5.0")
     @ApiLoader("*")
     @ApiMC("*")
     @ApiReadOnly
-    public List<ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData>
-            getStatusEffects() {
-        List<ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData> out =
-                new java.util.ArrayList<>();
-        for (String resolved : adapter().registryIds("mob_effect")) {
-            out.add(new ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData(
-                    resolved, 0, 0, false));
+    public List<StatusEffectInfoData> getStatusEffects() {
+        List<StatusEffectInfoData> out = new java.util.ArrayList<>();
+        for (String id : adapter().registryIds("mob_effect")) {
+            adapter().statusEffect(id).ifPresent(out::add);
         }
         return out;
     }

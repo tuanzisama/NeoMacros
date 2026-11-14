@@ -12,7 +12,7 @@ import ink.tuanzi.neomacros.port.NeomacrosAdapter;
 import ink.tuanzi.neomacros.port.PlayerPort;
 import ink.tuanzi.neomacros.port.RenderPort;
 import ink.tuanzi.neomacros.port.WorldPort;
-import ink.tuanzi.neomacros.port.model.ModData;
+import ink.tuanzi.neomacros.port.model.ModInfoData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
 import ink.tuanzi.neomacros.port.model.Pos2d;
 import ink.tuanzi.neomacros.port.model.ServerInfoData;
@@ -85,15 +85,22 @@ class ClientGapExpansionsTest {
 
     @Test
     void modsRenderShape() {
-        List<ModData> mods = api.getMods();
+        List<ModInfoData> mods = api.getMods();
         assertEquals(2, mods.size());
         assertEquals("neomacros", mods.get(0).id());
         assertEquals("1.0.0", mods.get(0).version());
         assertEquals(List.of("author"), mods.get(0).authors());
+        assertEquals("ECMAScript scripting for Minecraft clients",
+                mods.get(0).description());
+        assertEquals("BOTH", mods.get(0).env());
+        assertEquals(List.of("fabricloader"), mods.get(0).dependencies());
         assertTrue(api.isModLoaded("neomacros"));
         assertFalse(api.isModLoaded("absent"));
-        ModData one = api.getMod("other");
+        ModInfoData one = api.getMod("other");
         assertEquals("other", one.id());
+        assertEquals("", one.description());
+        assertEquals("CLIENT", one.env());
+        assertTrue(one.dependencies().isEmpty());
         assertNull(api.getMod("absent"));
     }
 
@@ -197,9 +204,12 @@ class ClientGapExpansionsTest {
         String lastWorld;
         boolean disconnected;
         String clipboardValue;
-        final List<ModData> modList = List.of(
-                new ModData("neomacros", "NeoMacros", "1.0.0", List.of("author")),
-                new ModData("other", "Other", "0.2.0", List.of()));
+        final List<ModInfoData> modList = List.of(
+                new ModInfoData("neomacros", "NeoMacros", "1.0.0", List.of("author"),
+                        "ECMAScript scripting for Minecraft clients", "BOTH",
+                        List.of("fabricloader")),
+                new ModInfoData("other", "Other", "0.2.0", List.of(), "", "CLIENT",
+                        List.of()));
 
         @Override
         public int fps() {
@@ -249,7 +259,7 @@ class ClientGapExpansionsTest {
         }
 
         @Override
-        public List<ModData> mods() {
+        public List<ModInfoData> mods() {
             return modList;
         }
 

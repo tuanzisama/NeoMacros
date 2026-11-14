@@ -13,11 +13,13 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
-import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
+import ink.tuanzi.neomacros.port.model.BossBarInfoData;
 import ink.tuanzi.neomacros.port.model.LightData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.ScoreboardData;
-import ink.tuanzi.neomacros.port.model.TabListData;
+import ink.tuanzi.neomacros.port.model.ScoreboardObjectiveData;
+import ink.tuanzi.neomacros.port.model.TabListInfoData;
+import ink.tuanzi.neomacros.port.model.TeamData;
 import ink.tuanzi.neomacros.port.model.TpsData;
 
 import java.util.LinkedHashMap;
@@ -306,30 +308,33 @@ public final class WorldApi {
 
     /**
      * The client tab list as {@code {header, footer, entries}}; entries carry
-     * {@code uuid, name, latency, gamemode, displayName}, or {@code null}
-     * without a world.
+     * {@code uuid, name, latency, gamemode, displayName} plus the profile
+     * facts ({@code publicKey, skinTexture, skinUrl, capeTexture,
+     * elytraTexture, cape, slimModel, team}), or {@code null} without a
+     * world.
      *
-     * @zh 客户端 Tab 列表 {@code {header, footer, entries}}；条目含 {@code uuid, name, latency, gamemode, displayName}；无世界时为 null。
+     * @zh 客户端 Tab 列表 {@code {header, footer, entries}}；条目含 {@code uuid, name, latency, gamemode, displayName} 与档案事实 {@code publicKey, skinTexture, skinUrl, capeTexture, elytraTexture, cape, slimModel, team}；无世界时为 null。
      */
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
     @ApiReadOnly
-    public TabListData getTabList() {
+    public TabListInfoData getTabList() {
         return ScriptApiEnvironment.adapter().world().tabList().orElse(null);
     }
 
     /**
      * The boss bars currently displayed as
-     * {@code [{uuid, name, progress, color}]}; empty list when none.
+     * {@code [{uuid, name, progress, color, style, colorValue, colorFormat}]};
+     * empty list when none.
      *
-     * @zh 当前显示的 Boss 条数组 {@code [{uuid, name, progress, color}]}；无 Boss 条时为空数组。
+     * @zh 当前显示的 Boss 条数组 {@code [{uuid, name, progress, color, style, colorValue, colorFormat}]}；无 Boss 条时为空数组。
      */
     @ApiSince("0.2.0")
     @ApiMC("*")
     @ApiLoader("*")
     @ApiReadOnly
-    public java.util.List<BossBarSnapshot> getBossBars() {
+    public java.util.List<BossBarInfoData> getBossBars() {
         return ScriptApiEnvironment.adapter().world().bossBars();
     }
 
@@ -346,6 +351,266 @@ public final class WorldApi {
     @ApiReadOnly
     public ScoreboardData getScoreboards() {
         return ScriptApiEnvironment.adapter().world().scoreboards().orElse(null);
+    }
+
+    /**
+     * The objective shown in the current sidebar: the local player's
+     * team-colour sidebar when that slot holds one, otherwise the plain
+     * sidebar; undefined when neither slot is set or no world is loaded.
+     *
+     * @zh 当前侧栏显示的目标：本地玩家队伍色侧栏（该槽有目标时），否则普通侧栏；两槽都未设置或无世界时为 undefined。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public ScoreboardObjectiveData getCurrentScoreboard() {
+        int colorIndex = localTeamColorIndex();
+        if (colorIndex >= 0) {
+            Optional<ScoreboardObjectiveData> teamSlot = displayObjective(colorIndex + 3);
+            if (teamSlot.isPresent()) {
+                return teamSlot.get();
+            }
+        }
+        return displayObjective(1).orElse(null);
+    }
+
+    /**
+     * The objective in one display slot: 0 is the tab list, 1 the sidebar,
+     * 2 below-name, and 3-18 the team-colour sidebars (black to white);
+     * out-of-range indices and empty slots read {@code undefined}.
+     *
+     * @zh 一个显示槽中的目标：0 为 Tab 列表、1 为侧栏、2 为名下、3-18 为队伍色侧栏（黑到白）；越界索引与空槽为 undefined。
+     * @zh-param slot 显示槽索引（0-18）
+     * @zh-return 目标信息或 undefined
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public ScoreboardObjectiveData getObjectiveSlot(int slot) {
+        return displayObjective(slot).orElse(null);
+    }
+
+    /**
+     * The objective in a team-colour sidebar: index 0 is black and 15 is
+     * white; negative or larger indices and empty slots read
+     * {@code undefined}.
+     *
+     * @zh 队伍色侧栏中的目标：索引 0 为黑色、15 为白色；负数或更大索引与空槽为 undefined。
+     * @zh-param index 队伍色索引（0-15）
+     * @zh-return 目标信息或 undefined
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public ScoreboardObjectiveData getObjectiveForTeamColorIndex(int index) {
+        if (index < 0 || index > 15) {
+            return null;
+        }
+        return displayObjective(index + 3).orElse(null);
+    }
+
+    /**
+     * The scoreboard teams known to the client; empty list without a
+     * world.
+     *
+     * @zh 客户端已知的记分板队伍；无世界时为空数组。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public java.util.List<TeamData> getTeams() {
+        return ScriptApiEnvironment.adapter().world().teams();
+    }
+
+    /**
+     * The local player's team, or {@code null} when the local player or
+     * their team is absent.
+     *
+     * @zh 本地玩家的队伍；本地玩家或队伍不存在时为 null。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public TeamData getPlayerTeam() {
+        return ScriptApiEnvironment.adapter().world().localPlayerTeam().orElse(null);
+    }
+
+    /**
+     * The team of one player, or {@code null} when the player or their
+     * team is absent.
+     *
+     * @zh 指定玩家的队伍；玩家或队伍不存在时为 null。
+     * @zh-param player 玩家句柄
+     * @zh-return 队伍或 null
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public TeamData getPlayerTeam(ink.tuanzi.neomacros.core.api.player.PlayerApi.Player player) {
+        return player == null ? null : teamOf(player.getName());
+    }
+
+    /**
+     * The local player's team colour index: 0 is black and 15 is white,
+     * -1 when the local player has no team or no colour.
+     *
+     * @zh 本地玩家的队伍色索引：0 为黑色、15 为白色；本地玩家无队伍或无颜色时为 -1。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public int getPlayerTeamColorIndex() {
+        TeamData team = getPlayerTeam();
+        return team == null ? -1 : team.colorIndex();
+    }
+
+    /**
+     * The team colour index of one player: 0 is black and 15 is white, -1
+     * when the player has no team or no colour.
+     *
+     * @zh 指定玩家的队伍色索引：0 为黑色、15 为白色；玩家无队伍或无颜色时为 -1。
+     * @zh-param player 玩家句柄
+     * @zh-return 队伍色索引
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public int getPlayerTeamColorIndex(
+            ink.tuanzi.neomacros.core.api.player.PlayerApi.Player player) {
+        TeamData team = getPlayerTeam(player);
+        return team == null ? -1 : team.colorIndex();
+    }
+
+    /**
+     * The packed RGB value of the local player's team colour, -1 when the
+     * local player has no team or no colour.
+     *
+     * @zh 本地玩家队伍色的打包 RGB 值；本地玩家无队伍或无颜色时为 -1。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public int getTeamColor() {
+        TeamData team = getPlayerTeam();
+        return team == null ? -1 : team.colorValue();
+    }
+
+    /**
+     * The packed RGB value of one player's team colour, -1 when the player
+     * has no team or no colour.
+     *
+     * @zh 指定玩家队伍色的打包 RGB 值；玩家无队伍或无颜色时为 -1。
+     * @zh-param player 玩家句柄
+     * @zh-return 打包 RGB 值
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public int getTeamColor(ink.tuanzi.neomacros.core.api.player.PlayerApi.Player player) {
+        TeamData team = getPlayerTeam(player);
+        return team == null ? -1 : team.colorValue();
+    }
+
+    /**
+     * The color name of the local player's team, e.g. {@code red};
+     * {@code reset} when the team carries no colour, {@code null} when the
+     * local player has no team.
+     *
+     * @zh 本地玩家队伍的颜色名（如 {@code red}）；队伍未设色时为 {@code reset}，本地玩家无队伍时为 null。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getTeamColorName() {
+        TeamData team = getPlayerTeam();
+        return team == null ? null : team.colorName();
+    }
+
+    /**
+     * The color name of one player's team, e.g. {@code red}; {@code reset}
+     * when the team carries no colour, {@code null} when the player has no
+     * team.
+     *
+     * @zh 指定玩家队伍的颜色名（如 {@code red}）；队伍未设色时为 {@code reset}，玩家无队伍时为 null。
+     * @zh-param player 玩家句柄
+     * @zh-return 颜色名或 null
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getTeamColorName(
+            ink.tuanzi.neomacros.core.api.player.PlayerApi.Player player) {
+        TeamData team = getPlayerTeam(player);
+        return team == null ? null : team.colorName();
+    }
+
+    /**
+     * The text formatting of the local player's team colour as its name,
+     * e.g. {@code red}; {@code reset} when the team carries no colour,
+     * {@code null} when the local player has no team.
+     *
+     * @zh 本地玩家队伍色的文本格式（格式名，如 {@code red}）；队伍未设色时为 {@code reset}，本地玩家无队伍时为 null。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getTeamColorFormatting() {
+        return getTeamColorName();
+    }
+
+    /**
+     * The text formatting of one player's team colour as its name, e.g.
+     * {@code red}; {@code reset} when the team carries no colour,
+     * {@code null} when the player has no team.
+     *
+     * @zh 指定玩家队伍色的文本格式（格式名，如 {@code red}）；队伍未设色时为 {@code reset}，玩家无队伍时为 null。
+     * @zh-param player 玩家句柄
+     * @zh-return 格式名或 null
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getTeamColorFormatting(
+            ink.tuanzi.neomacros.core.api.player.PlayerApi.Player player) {
+        return getTeamColorName(player);
+    }
+
+    /** Reads one display-slot objective through the world port. */
+    private Optional<ScoreboardObjectiveData> displayObjective(int slot) {
+        return ScriptApiEnvironment.adapter().world().displayObjective(slot);
+    }
+
+    /** The local player's team colour index, -1 when absent. */
+    private int localTeamColorIndex() {
+        TeamData team = getPlayerTeam();
+        return team == null ? -1 : team.colorIndex();
+    }
+
+    /** The team listing the scoreboard name as a member, or null. */
+    private TeamData teamOf(String playerName) {
+        if (playerName == null) {
+            return null;
+        }
+        for (TeamData team : ScriptApiEnvironment.adapter().world().teams()) {
+            if (team.players().contains(playerName)) {
+                return team;
+            }
+        }
+        return null;
     }
 
     /**

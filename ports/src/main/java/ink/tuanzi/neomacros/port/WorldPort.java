@@ -2,14 +2,16 @@ package ink.tuanzi.neomacros.port;
 
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockTypeData;
+import ink.tuanzi.neomacros.port.model.BossBarInfoData;
 import ink.tuanzi.neomacros.port.model.ChunkData;
-import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
 import ink.tuanzi.neomacros.port.model.LightData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.RayHit;
 import ink.tuanzi.neomacros.port.model.RayOptions;
 import ink.tuanzi.neomacros.port.model.ScoreboardData;
-import ink.tuanzi.neomacros.port.model.TabListData;
+import ink.tuanzi.neomacros.port.model.ScoreboardObjectiveData;
+import ink.tuanzi.neomacros.port.model.TabListInfoData;
+import ink.tuanzi.neomacros.port.model.TeamData;
 import ink.tuanzi.neomacros.port.model.TpsData;
 
 import java.util.Optional;
@@ -91,17 +93,42 @@ public interface WorldPort {
     }
 
     /** Returns the client tab list snapshot, or empty without a world. */
-    default java.util.Optional<TabListData> tabList() {
+    default java.util.Optional<TabListInfoData> tabList() {
         return java.util.Optional.empty();
     }
 
     /** Returns the boss bars currently displayed, empty list when none. */
-    default java.util.List<BossBarSnapshot> bossBars() {
+    default java.util.List<BossBarInfoData> bossBars() {
         return java.util.List.of();
     }
 
     /** Returns the client scoreboard snapshot, or empty without a world. */
     default java.util.Optional<ScoreboardData> scoreboards() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the scoreboard teams currently known to the client, empty
+     * list when no world or scoreboard is loaded.
+     */
+    default java.util.List<TeamData> teams() {
+        return java.util.List.of();
+    }
+
+    /**
+     * Returns the local player's team on the loaded scoreboard, or empty
+     * when there is no world, no local player, or no team.
+     */
+    default java.util.Optional<TeamData> localPlayerTeam() {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the objective shown in one display slot (0 = list, 1 =
+     * sidebar, 2 = below name, 3-18 = team-colour sidebars), or empty when
+     * the slot is out of range or unset.
+     */
+    default java.util.Optional<ScoreboardObjectiveData> displayObjective(int slot) {
         return java.util.Optional.empty();
     }
 

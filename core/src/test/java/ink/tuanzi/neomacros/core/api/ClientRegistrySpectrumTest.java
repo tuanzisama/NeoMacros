@@ -16,6 +16,7 @@ import ink.tuanzi.neomacros.port.WorldPort;
 import ink.tuanzi.neomacros.port.model.BlockStateData;
 import ink.tuanzi.neomacros.port.model.EnchantmentSpec;
 import ink.tuanzi.neomacros.port.model.ItemStackData;
+import ink.tuanzi.neomacros.port.model.StatusEffectInfoData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -106,8 +107,7 @@ class ClientRegistrySpectrumTest {
 
         assertNull(api.getStatusEffect("missing"), "unknown effect reads undefined");
 
-        List<ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData> all =
-                api.getStatusEffects();
+        List<StatusEffectInfoData> all = api.getStatusEffects();
         assertEquals(2, all.size(), "bulk listing serves every canned effect");
         assertEquals("minecraft:speed", all.get(0).id());
         assertEquals("minecraft:slowness", all.get(1).id());
@@ -295,6 +295,23 @@ class ClientRegistrySpectrumTest {
                     ? id : "minecraft:" + id;
             return registryIds(kind).contains(full)
                     ? Optional.of(full) : Optional.empty();
+        }
+
+        @Override
+        public Optional<StatusEffectInfoData> statusEffect(String id) {
+            String full = id != null && id.indexOf(':') >= 0
+                    ? id : "minecraft:" + id;
+            if ("minecraft:speed".equals(full)) {
+                // beneficial, not instant; fresh-instance flags
+                return Optional.of(new StatusEffectInfoData(full, 0, 0, false,
+                        false, true, true, false, true, false, false));
+            }
+            if ("minecraft:slowness".equals(full)) {
+                // harmful, not instant; fresh-instance flags
+                return Optional.of(new StatusEffectInfoData(full, 0, 0, false,
+                        false, true, true, false, false, false, true));
+            }
+            return Optional.empty();
         }
 
         @Override

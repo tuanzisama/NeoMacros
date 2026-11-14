@@ -837,6 +837,87 @@ function start() {
   }
   check('g025.parseIdentifier-rejects', g025ParseRejected);
 
+  // G-018B data handles: shape checks only; a missing world or registry
+  // reads undefined/empty and still counts as present.
+  check('g018b.mods-array', Array.isArray(neo.client.mods));
+  const g018bMod = neo.client.getMod('neomacros');
+  check('g018b.mod-shape', g018bMod === undefined || (
+      typeof g018bMod === 'object'
+      && typeof g018bMod.id === 'string'
+      && typeof g018bMod.description === 'string'
+      && typeof g018bMod.env === 'string'
+      && Array.isArray(g018bMod.authors)
+      && Array.isArray(g018bMod.dependencies)));
+  check('g018b.mod-unknown',
+      neo.client.getMod('neomacros_absent_mod') === undefined);
+  check('g018b.serverInfo-shape',
+      neo.client.serverInfo === undefined || neo.client.serverInfo === null
+      || (typeof neo.client.serverInfo === 'object'
+          && typeof neo.client.serverInfo.name === 'string'
+          && typeof neo.client.serverInfo.address === 'string'));
+  const g018bEffect = neo.client.getStatusEffect('minecraft:speed');
+  check('g018b.effect-flags', g018bEffect === undefined || (
+      typeof g018bEffect === 'object'
+      && typeof g018bEffect.ambient === 'boolean'
+      && typeof g018bEffect.showIcon === 'boolean'
+      && typeof g018bEffect.visible === 'boolean'
+      && typeof g018bEffect.instant === 'boolean'
+      && typeof g018bEffect.beneficial === 'boolean'
+      && typeof g018bEffect.neutral === 'boolean'
+      && typeof g018bEffect.harmful === 'boolean'));
+  check('g018b.effect-unknown',
+      neo.client.getStatusEffect('neomacros_absent_effect') === undefined);
+  const g018bBars = neo.world.bossBars;
+  check('g018b.bossBars-array', Array.isArray(g018bBars));
+  if (Array.isArray(g018bBars) && g018bBars.length > 0) {
+    const g018bBar = g018bBars[0];
+    check('g018b.bossBar-shape',
+        typeof g018bBar.style === 'string'
+        && typeof g018bBar.colorValue === 'number'
+        && typeof g018bBar.colorFormat === 'string');
+  } else {
+    check('g018b.bossBar-absent', true);
+  }
+  check('g018b.tabList-shape',
+      neo.world.tabList === undefined || neo.world.tabList === null
+      || (typeof neo.world.tabList === 'object'
+          && Array.isArray(neo.world.tabList.entries)
+          && (neo.world.tabList.entries.length === 0
+              || typeof neo.world.tabList.entries[0].skinTexture === 'string'
+                  || neo.world.tabList.entries[0].skinTexture === undefined)));
+  const g018bObjective = neo.world.getObjectiveSlot(1);
+  check('g018b.objective-shape', g018bObjective === undefined || (
+      typeof g018bObjective === 'object'
+      && typeof g018bObjective.name === 'string'
+      && typeof g018bObjective.playerScores === 'object'
+      && Array.isArray(g018bObjective.texts)
+      && Array.isArray(g018bObjective.knownPlayers)
+      && Array.isArray(g018bObjective.knownPlayersDisplayNames)));
+  check('g018b.objective-absent-slot',
+      neo.world.getObjectiveSlot(99) === undefined);
+  check('g018b.teams-array', Array.isArray(neo.world.teams));
+  check('g018b.localTeam-shape',
+      neo.world.playerTeam === undefined || neo.world.playerTeam === null
+      || (typeof neo.world.playerTeam === 'object'
+          && typeof neo.world.playerTeam.name === 'string'
+          && typeof neo.world.playerTeam.colorName === 'string'
+          && typeof neo.world.playerTeam.colorIndex === 'number'
+          && typeof neo.world.playerTeam.colorValue === 'number'
+          && Array.isArray(neo.world.playerTeam.players)));
+  // The zero-arg colour faces publish as properties while the
+  // player-taking overloads stay methods (binding rule).
+  check('g018b.teamColor-overload',
+      typeof neo.world.teamColor === 'number'
+      && typeof neo.world.getTeamColor === 'function'
+      && typeof neo.world.playerTeamColorIndex === 'number'
+      && typeof neo.world.getPlayerTeamColorIndex === 'function'
+      && typeof neo.world.teamColorName !== 'undefined'
+      && typeof neo.world.getTeamColorName === 'function');
+  check('g018b.currentScoreboard-shape',
+      neo.world.currentScoreboard === undefined
+      || (typeof neo.world.currentScoreboard === 'object'
+          && typeof neo.world.currentScoreboard.name === 'string'));
+
   // G-030 CustomImage canvas: shape checks over the texture registry; the
   // upload promise is asserted by shape here (the stub-driven e2e scenario
   // covers the settled value and the recorded texture upload).
