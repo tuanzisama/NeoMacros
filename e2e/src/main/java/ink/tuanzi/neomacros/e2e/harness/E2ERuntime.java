@@ -129,6 +129,10 @@ public final class E2ERuntime implements AutoCloseable {
         // can dispatch typed commands exactly like the Fabric port does.
         var commands = new StubCommandRegistry();
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.CommandApi(commands));
+        // The render module rides the stub 3D port so scenarios can drive the
+        // retained Draw3D layer/element faces (G-033).
+        registry.registerInstance(new ink.tuanzi.neomacros.core.api.render.RenderApi(
+                adapter.draw3d()));
         registry.registerGuestType("Entity", EntityApi.Entity.class);
         registry.registerGuestType("Player", PlayerApi.Player.class);
         registry.registerGuestType("LocalPlayer", PlayerApi.LocalPlayer.class);
@@ -162,6 +166,11 @@ public final class E2ERuntime implements AutoCloseable {
         registry.registerGuestType("Enchantment", ink.tuanzi.neomacros.core.api.types.Enchantment.class);
         registry.registerGuestType("Component", ink.tuanzi.neomacros.core.api.types.Component.class);
         registry.registerGuestType("TextComponent", ink.tuanzi.neomacros.core.api.types.TextComponent.class);
+        registry.registerGuestType("Draw3D", ink.tuanzi.neomacros.core.api.render.Draw3D.class);
+        registry.registerGuestType("Box", ink.tuanzi.neomacros.core.api.render.components3d.Box.class);
+        registry.registerGuestType("Line3D", ink.tuanzi.neomacros.core.api.render.components3d.Line3D.class);
+        registry.registerGuestType("RenderElement3D",
+                ink.tuanzi.neomacros.core.api.render.components3d.RenderElement3D.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
         registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
         registry.registerGuestType("Screen", ink.tuanzi.neomacros.core.api.player.PlayerApi.Screen.class);
