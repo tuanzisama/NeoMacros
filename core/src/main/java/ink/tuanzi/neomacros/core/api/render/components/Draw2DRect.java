@@ -24,15 +24,14 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
  * Corners may be given in either order — reversing them flips the
  * {@code flipX}/{@code flipY} flags; {@code getWidth()} is the absolute
  * distance between the corners, and the base {@code setWidth} anchors the
- * smaller coordinate exactly like JsMacros.</p>
+ * smaller coordinate.</p>
  *
  * <p><b>Element is its own builder</b> (拍板②): every setter is fluent and
- * returns this handle; the JsMacros {@code Rect.Builder} family folds into
- * it.</p>
+ * returns this handle.</p>
  *
  * @zh HUD 图层内单个填充矩形元素的句柄，由 {@code layer.rect(id, …)} upsert 返回。{@link Draw2DElement} 的 G-034 组件面：双角几何视图（{@code x1/y1/x2/y2}）与着色——盒尺寸、变换、z 序、对齐、生命周期全部继承且不重声明（G-034C 契约）。
- * @zh <b>角点模型</b>：存储盒恒为最小角原点 + 非负尺寸（G-032 原生形态），而元素的<i>第一</i>角经 {@link #getX1()} 等可观测。角点可任意顺序给出——反序会翻转 {@code flipX}/{@code flipY} 标志；{@code getWidth()} 为两角绝对距离，基类 {@code setWidth} 与 JsMacros 一样锚定较小坐标。
- * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回本句柄；JsMacros 的 {@code Rect.Builder} 类族折叠于此。
+ * @zh <b>角点模型</b>：存储盒恒为最小角原点 + 非负尺寸（G-032 原生形态），而元素的<i>第一</i>角经 {@link #getX1()} 等可观测。角点可任意顺序给出——反序会翻转 {@code flipX}/{@code flipY} 标志；{@code getWidth()} 为两角绝对距离，基类 {@code setWidth} 锚定较小坐标。
+ * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回本句柄。
  */
 @ApiClass(name = "Draw2DRect", kind = ApiClassKind.HANDLE)
 @ApiSince("0.5.0")
@@ -281,11 +280,11 @@ public class Draw2DRect extends Draw2DElement {
 
     /**
      * Sets the alpha byte without changing the RGB channels; values are
-     * not clamped (only their low eight bits survive, JsMacros parity).
+     * not clamped (only their low eight bits survive).
      *
      * @param alpha alpha byte ({@code 0} transparent … {@code 255} opaque)
      * @return this element for chaining
-     * @zh 设置 alpha 字节且不改变 RGB 通道；数值不钳制（仅低八位生效，JsMacros 对等）。
+     * @zh 设置 alpha 字节且不改变 RGB 通道；数值不钳制（仅低八位生效）。
      * @zh-param alpha alpha 字节（{@code 0} 全透明 … {@code 255} 不透明）
      * @zh-return 本元素（可链式调用）
      */

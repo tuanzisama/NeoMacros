@@ -342,7 +342,7 @@ class ScreenControlHandlesTest {
         assertEquals(true, check.checked());
         assertNotNull(check.onChange());
 
-        // The JsMacros checkBoxBuilder(boolean) factory folds to a checked seed.
+        // The checkBoxBuilder(boolean) factory folds to a checked seed.
         assertEquals(true, ((CheckBoxBuilder) new CheckBoxBuilder()
                 .construct(new Object[]{true})).build().checked());
 

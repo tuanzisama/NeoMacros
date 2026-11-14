@@ -19,8 +19,7 @@ import java.util.List;
  * editor through LocalPlayer.openTextEdit, and the HEAD injection lets sync
  * subscribers replace the four lines (written back onto the block entity so
  * the editor shows the replacement) or skip the editor entirely, submitting
- * the possibly replaced text to the server directly (JsMacros-parity
- * auto-sign).
+ * the possibly replaced text to the server directly.
  */
 @Mixin(net.minecraft.client.player.LocalPlayer.class)
 public abstract class LocalPlayerMixin {

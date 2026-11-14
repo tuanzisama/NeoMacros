@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Base-class face of {@link Draw2DElement} (G-032B): fluent setters over
  * the published {@link ElementSpec}, geometry getters (raw / scaled /
  * parent / bounds), back references, element-level z reordering and
- * visibility, JsMacros validation parity, and the disposed-handle
+ * visibility, validation rules, and the disposed-handle
  * semantics table.
  */
 class Draw2DElementBaseTest {
@@ -71,7 +71,7 @@ class Draw2DElementBaseTest {
         assertEquals("a", el.getId());
         assertFalse(el.isDisposed());
         assertSame(layer, el.getLayer(),
-                "getLayer is the NeoMacros face for JsMacros getDraw2D");
+                "getLayer returns the hosting layer");
         assertSame(layer, el.getParent(),
                 "v1 parent box is always the hosting layer");
     }
@@ -228,13 +228,13 @@ class Draw2DElementBaseTest {
     }
 
     @Test
-    void scaleAndRotationValidationMatchJsMacros() {
+    void scaleAndRotationValidationRules() {
         HudLayer layer = newLayer("main");
         Draw2DElement el = layer.rect("r",
                 Map.of("x", 0, "y", 0, "w", 1, "h", 1));
 
         assertThrows(IllegalArgumentException.class, () -> el.setScale(0),
-                "zero scale throws (JsMacros builder parity)");
+                "zero scale throws");
         assertThrows(IllegalArgumentException.class, () -> el.setScale(-1));
         assertThrows(IllegalArgumentException.class, () -> el.setWidth(-1));
         assertThrows(IllegalArgumentException.class, () -> el.setHeight(-5));
@@ -242,7 +242,7 @@ class Draw2DElementBaseTest {
 
         assertThrows(IllegalArgumentException.class, () -> el.setSize(50, -1));
         assertEquals(50, el.getWidth(),
-                "width applies before height, so a bad height keeps it (JsMacros)");
+                "width applies before height, so a bad height keeps it");
 
         el.setRotation(270);
         assertEquals(-90f, el.getRotation(), "setters normalize to [-180, 180)");

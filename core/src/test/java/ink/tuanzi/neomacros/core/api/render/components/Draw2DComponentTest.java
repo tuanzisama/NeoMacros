@@ -63,7 +63,7 @@ class Draw2DComponentTest {
         assertEquals("hello", text.getText());
 
         assertSame(text, text.setText("hi"));
-        assertEquals(12, text.getWidth(), "setText re-measures (JsMacros contract)");
+        assertEquals(12, text.getWidth(), "setText re-measures");
         assertEquals("hi", text.getText());
 
         text.setText(null);
@@ -124,7 +124,7 @@ class Draw2DComponentTest {
         assertEquals(15, rect.getScaledLeft() + rect.getScaledWidth(),
                 "the far edge still reads the first corner");
 
-        // setWidth anchors the smaller coordinate (JsMacros parity).
+        // setWidth anchors the smaller coordinate.
         rect.setWidth(30);
         assertEquals(5, rect.getX(), "the min corner stays anchored");
         assertEquals(30, rect.getWidth());
@@ -318,7 +318,7 @@ class Draw2DComponentTest {
                 "x1", 0, "y1", 0, "x2", 5, "y2", 5, "width", 2));
 
         assertEquals(List.of("line:0,0,5,5,ffffffff,2"), render.frame(0),
-                "a non-positive stroke draws nothing (JsMacros parity)");
+                "a non-positive stroke draws nothing");
     }
 
     @Test
@@ -334,6 +334,6 @@ class Draw2DComponentTest {
                 "the scaled text draws inside its transform scope");
         Draw2DText text = (Draw2DText) layer.element("t");
         assertEquals(24, text.getScaledWidth(),
-                "the cached width applies the scale (JsMacros parity)");
+                "the cached width applies the scale");
     }
 }

@@ -170,7 +170,7 @@ public final class FabricCommandPort implements CommandRegistry {
         // connection dispatcher is typed <ClientSuggestionProvider> while
         // client commands build <FabricClientCommandSource>; Fabric mixes
         // the interface into the provider, so the raw attach matches what
-        // JsMacros and Fabric's own copy step do.
+        // Fabric's own copy step does.
         ClientPacketListener connection = Minecraft.getInstance().getConnection();
         if (connection != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})

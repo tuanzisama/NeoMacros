@@ -179,10 +179,9 @@ public final class PlayerApi {
     }
 
     /**
-     * Writes one line into the open sign editor (the JsMacros
-     * {@code writeSign(int, String)} overload under its own name: the module
-     * binding exposes one function per name, so the two shapes cannot share
-     * it). The index is zero-based from the top and must be 0 through 3; it
+     * Writes one line into the open sign editor (named separately because
+     * the module binding exposes one function per name, so the two shapes
+     * cannot share it). The index is zero-based from the top and must be 0 through 3; it
      * is checked even when no sign editor is open. Unlike
      * {@link #writeSign(String, String, String, String)}, this method does
      * not accept {@code null} to leave a line unchanged.
@@ -193,7 +192,7 @@ public final class PlayerApi {
      * @throws IndexOutOfBoundsException if the index is outside 0 to 3
      * @throws NullPointerException if {@code message} is {@code null}
      * @throws IllegalStateException when the write cannot reach the game main thread
-     * @zh 向已打开的告示牌编辑器写入一行（对应 JsMacros 的 {@code writeSign(int, String)} 重载，因模块绑定每个名字只暴露一个函数而另取此名）。行号自顶向下从 0 起，必须在 0–3 之间；即使没有打开的编辑器也会校验行号。与四行版不同，本方法不接受 {@code null} 表示“保持不变”。
+     * @zh 向已打开的告示牌编辑器写入一行（因模块绑定每个名字只暴露一个函数而另取此名）。行号自顶向下从 0 起，必须在 0–3 之间；即使没有打开的编辑器也会校验行号。与四行版不同，本方法不接受 {@code null} 表示“保持不变”。
      */
     @ApiSince("0.5.0")
     @ApiLoader("*")
@@ -213,9 +212,8 @@ public final class PlayerApi {
      * ({@code panorama_0.png} .. {@code panorama_5.png}) below
      * {@code <macro root>/<folder>/screenshots/}, which is created on
      * demand. The capture routine renders the six directions on the game
-     * main thread at its fixed 4096x4096 size — the JsMacros width/height
-     * parameters are ignored there too — and the promise resolves with the
-     * routine's message once the six grabs are queued, so it does not
+     * main thread at its fixed 4096x4096 size, and the promise resolves with
+     * the routine's message once the six grabs are queued, so it does not
      * guarantee that the files exist yet (they are written asynchronously).
      *
      * @param folder folder under the macro root to save into
@@ -223,7 +221,7 @@ public final class PlayerApi {
      *         when the capture cannot run (no in-world player, macro root
      *         unavailable, I/O failure) and when the folder is invalid
      * @throws IllegalArgumentException if {@code folder} is {@code null}, blank, absolute, or escapes the macro root (host-level; the script binding surfaces it as a rejected promise)
-     * @zh 把当前世界的全景抓成六张 PNG（{@code panorama_0.png} .. {@code panorama_5.png}），存到 {@code <宏根>/<folder>/screenshots/}（按需创建）。抓取例程在游戏主线程以固定 4096x4096 渲染六个方向（JsMacros 的宽高参数在例程里同样被忽略）；Promise 在六次抓取入队后以例程消息落定，因此不保证文件已存在（文件异步写入）。抓取无法执行（不在世界内、宏根不可用、IO 失败）或目录非法时 Promise 拒绝（脚本侧为可捕获的 rejection）。
+     * @zh 把当前世界的全景抓成六张 PNG（{@code panorama_0.png} .. {@code panorama_5.png}），存到 {@code <宏根>/<folder>/screenshots/}（按需创建）。抓取例程在游戏主线程以固定 4096x4096 渲染六个方向；Promise 在六次抓取入队后以例程消息落定，因此不保证文件已存在（文件异步写入）。抓取无法执行（不在世界内、宏根不可用、IO 失败）或目录非法时 Promise 拒绝（脚本侧为可捕获的 rejection）。
      */
     @ApiSince("0.5.0")
     @ApiLoader("*")
@@ -779,10 +777,9 @@ public final class PlayerApi {
         /**
          * The interaction override handle: the crosshair-target, block-break
          * and held-use overrides plus the crosshair-driven use/break actions
-         * that read them (JsMacros {@code Player.interactions()} parity);
-         * {@code null} without a world.
+         * that read them; {@code null} without a world.
          *
-         * @zh 交互覆盖句柄：准星目标、方块破坏与按住使用三类覆盖，以及读取这些覆盖的准星驱动使用/破坏动作（对齐 JsMacros {@code Player.interactions()}）；无世界时为 null。
+         * @zh 交互覆盖句柄：准星目标、方块破坏与按住使用三类覆盖，以及读取这些覆盖的准星驱动使用/破坏动作；无世界时为 null。
          */
         @ApiSince("0.5.0")
         @ApiLoader("*")
@@ -1843,9 +1840,7 @@ public final class PlayerApi {
 
     /**
      * Interaction override handle: the client-side crosshair-target override,
-     * the block-break outcome override and the held-use override that
-     * JsMacros groups behind {@code Player.getInteractionManager()} and
-     * {@code InteractionProxy}.
+     * the block-break outcome override and the held-use override.
      *
      * <p><b>Override semantics.</b> These three overrides are shared
      * client-side state for the whole game, not per-player state, and they
@@ -1869,8 +1864,7 @@ public final class PlayerApi {
      * <p>{@link #reset()} restores all three to their defaults, which is what
      * the game itself does on world join and disconnect.</p>
      *
-     * @zh 交互覆盖句柄：JsMacros 归在 {@code Player.getInteractionManager()}
-     * 与 {@code InteractionProxy} 下的客户端准星目标覆盖、方块破坏结果覆盖与
+     * @zh 交互覆盖句柄：客户端准星目标覆盖、方块破坏结果覆盖与
      * 按住使用覆盖。三者都是全客户端共享状态（非按玩家），且绝不授予服务端
      * 触达：目标覆盖只改写 {@code player.target} 与本句柄上准星驱动动作的读取
      * 结果，原版准星不受影响；破坏覆盖只结算客户端结果，不代表服务端确认；
@@ -1889,10 +1883,10 @@ public final class PlayerApi {
         /**
          * Stores a block target override at the block center on the named
          * face ({@code up}/{@code down}/{@code north}/{@code south}/
-         * {@code east}/{@code west}; defaults to {@code down}, the JsMacros
-         * default). Unknown faces throw.
+         * {@code east}/{@code west}; defaults to {@code down}).
+         * Unknown faces throw.
          *
-         * @zh 在指定面（默认 {@code down}，沿 JsMacros 默认）上把方块中心存为目标覆盖；未知面抛错。
+         * @zh 在指定面（默认 {@code down}）上把方块中心存为目标覆盖；未知面抛错。
          */
         @ApiSince("0.5.0")
         @ApiMC("*")
@@ -2154,9 +2148,9 @@ public final class PlayerApi {
          * {@link #breakBlock} promises for the typed result record).
          * Callbacks run once on the game main thread when an outcome
          * settles, then the queue clears; an exception in one callback does
-         * not stop the others (JsMacros {@code Break.addCallback} parity).
+         * not stop the others.
          *
-         * @zh 排入一个一次性破坏结果回调（下一次覆盖结算时触发一次），并可选择同时武装破坏覆盖：{@code breaking} 为 true 时重置跟踪位置、不发起任何破坏动作，为 false 时不改动覆盖。回调以标量元组 {@code (reason, x, y, z)} 收到结果——理由非 {@code SUCCESS} 时坐标为 null（句柄路径的 guest 函数契约只传中性标量；带类型的结果记录用 {@link #breakBlock} 的 Promise）。回调在游戏主线程结算时执行一次随后清空队列；单个回调抛错不影响其余回调（对齐 JsMacros {@code Break.addCallback}）。
+         * @zh 排入一个一次性破坏结果回调（下一次覆盖结算时触发一次），并可选择同时武装破坏覆盖：{@code breaking} 为 true 时重置跟踪位置、不发起任何破坏动作，为 false 时不改动覆盖。回调以标量元组 {@code (reason, x, y, z)} 收到结果——理由非 {@code SUCCESS} 时坐标为 null（句柄路径的 guest 函数契约只传中性标量；带类型的结果记录用 {@link #breakBlock} 的 Promise）。回调在游戏主线程结算时执行一次随后清空队列；单个回调抛错不影响其余回调。
          */
         @ApiSince("0.5.0")
         @ApiMC("*")
@@ -2208,11 +2202,11 @@ public final class PlayerApi {
          * Starts ({@code holding} true) or stops the continuous held-use
          * override: while held the client re-issues the use action every few
          * ticks until stopped, the use key is pressed or the world unloads.
-         * {@code awaitFirstClick} is accepted for JsMacros parity; this
+         * {@code awaitFirstClick} is accepted for compatibility; this
          * face always settles once the override has been applied, never on
          * a server round trip.
          *
-         * @zh 启动（{@code holding} 为 true）或停止按住使用覆盖：保持期间客户端每隔数 tick 重发使用动作，直到停止、按下使用键或离开世界。{@code awaitFirstClick} 为 JsMacros 对齐保留参数；本面恒在覆盖应用后落定，绝不等待服务端往返。
+         * @zh 启动（{@code holding} 为 true）或停止按住使用覆盖：保持期间客户端每隔数 tick 重发使用动作，直到停止、按下使用键或离开世界。{@code awaitFirstClick} 为兼容保留参数；本面恒在覆盖应用后落定，绝不等待服务端往返。
          */
         @ApiSince("0.5.0")
         @ApiMC("*")
@@ -2291,7 +2285,7 @@ public final class PlayerApi {
             ink.tuanzi.neomacros.core.api.types.BlockPos pos) {
     }
 
-    /** Normalizes the override face name, defaulting to down (JsMacros parity). */
+    /** Normalizes the override face name, defaulting to down. */
     static String overrideFace(String face) {
         return normalizedFace(face == null ? "down" : face);
     }

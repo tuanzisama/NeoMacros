@@ -8,11 +8,10 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
 /**
- * Live handle for a {@code cycleButton} control (JsMacros
- * {@code CyclingButtonWidgetHelper}, Mojang word per G-003 §5.3). The
- * generic {@code T} of JsMacros collapses to plain strings: control
- * option values are strings ({@code ControlSpec.values}), so the handle
- * reads and writes the string value.
+ * Live handle for a {@code cycleButton} control (Mojang word per
+ * G-003 §5.3). The generic {@code T} collapses to plain strings:
+ * control option values are strings ({@code ControlSpec.values}), so
+ * the handle reads and writes the string value.
  *
  * <p>{@code setValue} writes the value straight onto the button — the
  * configured change callback does <b>not</b> run (vanilla
@@ -21,7 +20,7 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
  * <b>does</b> fire the change callback once, exactly like a press. The
  * live value rides the control's text slot.</p>
  *
- * @zh {@code cycleButton} 控件的活句柄（JsMacros {@code CyclingButtonWidgetHelper}，类名按 Mojang 词）。JsMacros 的泛型 {@code T} 收敛为纯字符串：控件选项值即字符串（{@code ControlSpec.values}）。{@code setValue} 直接把值写上按钮——配置的变更回调<b>不</b>运行（原版 {@code CycleButton.setValue} 语义）；{@code cycle(n)} 在当前选项表中步进 {@code n} 格（回绕）并<b>会</b>触发一次变更回调，与点击一致。活值承载在控件的 text 槽。
+ * @zh {@code cycleButton} 控件的活句柄（类名按 Mojang 词）。泛型 {@code T} 收敛为纯字符串：控件选项值即字符串（{@code ControlSpec.values}）。{@code setValue} 直接把值写上按钮——配置的变更回调<b>不</b>运行（原版 {@code CycleButton.setValue} 语义）；{@code cycle(n)} 在当前选项表中步进 {@code n} 格（回绕）并<b>会</b>触发一次变更回调，与点击一致。活值承载在控件的 text 槽。
  */
 @ApiClass(name = "CycleButton", kind = ApiClassKind.HANDLE,
         wraps = "net.minecraft.client.gui.components.CycleButton")

@@ -144,9 +144,8 @@ public final class Pos2D implements ScriptHandle, SelfConstructing {
                 args != null && args.length > 1 && args[1] instanceof Number n ? n.doubleValue() : 0);
     }
 
-    /** Component-wise lexicographic compare (x first, then y); the same
-     * ordering JsMacros uses per position when comparing vectors.
-     * @zh 分量字典序比较（先 x 后 y）；JsMacros 比较向量时对单个位置用的同一顺序。 */
+    /** Component-wise lexicographic compare (x first, then y).
+     * @zh 分量字典序比较（先 x 后 y）。 */
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")

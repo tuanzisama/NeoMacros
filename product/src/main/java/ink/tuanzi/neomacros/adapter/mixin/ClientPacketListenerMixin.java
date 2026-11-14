@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * the client network listener forward the server's component to the HUD, and
  * the modify-arg injection swaps in the (possibly replaced or suppressed)
  * component. Returning null suppresses the display; the vanilla fade timers
- * still reset (JsMacros-parity cancel semantics).
+ * still reset.
  *
  * <p>The outgoing-chat inject rides {@code sendChat} (every player send path,
  * script sends included): a cancel verdict swallows the message, a rewrite

@@ -226,7 +226,7 @@ class Draw3DContainerTest {
     // ---- Box property surface ---------------------------------------------
 
     @Test
-    void boxColourAndAlphaFollowTheJsMacrosRules() {
+    void boxColourAndAlphaRules() {
         Box box = new Box();
         // defaults: opaque white outline and fill, no fill, drawn over world
         assertEquals(0xFFFFFF, box.getColor());

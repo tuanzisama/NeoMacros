@@ -108,7 +108,7 @@ class SurfaceTraceLineScenariosTest {
                     "    && panel.culled === true && panel.shouldRenderBack() === true",
                     "    && panel.rotatingCenter === true && panel.zIndex === 0;",
                     "results['panelPixels'] = panel.width === 200 && panel.height === 100;",
-                    // Quick forms with their JsMacros defaults.
+                    // Quick forms with their defaults.
                     "const quickTrace = layer.addTraceLine(new neo.Pos3D(4, 64, 4),",
                     "    0x00FF0000, 128);",
                     "results['quickTrace'] = quickTrace.pos.x === 4",

@@ -13,14 +13,14 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Builder for {@code imageButton} controls (JsMacros
- * {@code TexturedButtonBuilder}): the four sprite slots of the vanilla
- * {@code WidgetSprites} quadruple as plain string ids — the JsMacros
- * {@code ResourceLocation}/{@code String} overload pairs collapse into one
- * string form per slot (G-003 §5.2 signature merge 2→1). All four must be
- * set before {@link #build()} (the quadruple is validated as a whole).
+ * Builder for {@code imageButton} controls: the four sprite slots of
+ * the vanilla {@code WidgetSprites} quadruple as plain string ids — the
+ * {@code ResourceLocation}/{@code String} overload pairs collapse into
+ * one string form per slot (G-003 §5.2 signature merge 2→1). All four
+ * must be set before {@link #build()} (the quadruple is validated as a
+ * whole).
  *
- * @zh {@code imageButton} 控件构建器（JsMacros {@code TexturedButtonBuilder}）：原版 {@code WidgetSprites} 四元组的四个贴图槽，一律为字符串 id——JsMacros 的 {@code ResourceLocation}/{@code String} 双载荷按槽合并为单 string 形（G-003 §5.2 签名 2→1）。{@link #build()} 前四槽必须齐全（四元组整体校验）。
+ * @zh {@code imageButton} 控件构建器：原版 {@code WidgetSprites} 四元组的四个贴图槽，一律为字符串 id——{@code ResourceLocation}/{@code String} 双载荷按槽合并为单 string 形（G-003 §5.2 签名 2→1）。{@link #build()} 前四槽必须齐全（四元组整体校验）。
  */
 @ApiClass(name = "TexturedButtonBuilder", kind = ApiClassKind.DATA)
 @ApiSince("0.5.0")

@@ -28,10 +28,9 @@ import java.util.function.Consumer;
  * {@code range(min, max)}); the handler receives a context whose
  * {@code args} carry parsed values and whose {@code raw} keeps the
  * remainder string. This declarative surface is the single home of command
- * building: JsMacros' chain-style {@code CommandBuilder} members map onto
- * these slots, so no parallel builder grows here.
+ * building; no parallel builder grows here.
  *
- * @zh {@code neo.command}：客户端命令注册与派发。命令以声明式注册，经 {@code command.arg} 构建带类型的参数槽（{@code int() long() float() bool() word() string() greedy() player() pos() uuid() identifier() time() literal()}，另有 {@code optional()}、{@code default(v)} 与数值 {@code range(min, max)}）；处理器收到的上下文 {@code args} 携带解析值，{@code raw} 保留剩余字符串。声明式面是命令构建的唯一家：JsMacros 链式 {@code CommandBuilder} 成员映射到这些槽位，不在此生长第二套 builder。
+ * @zh {@code neo.command}：客户端命令注册与派发。命令以声明式注册，经 {@code command.arg} 构建带类型的参数槽（{@code int() long() float() bool() word() string() greedy() player() pos() uuid() identifier() time() literal()}，另有 {@code optional()}、{@code default(v)} 与数值 {@code range(min, max)}）；处理器收到的上下文 {@code args} 携带解析值，{@code raw} 保留剩余字符串。声明式面是命令构建的唯一家，不在此生长第二套 builder。
  */
 @ApiModule(name = "command", category = "界面")
 @ApiSince("0.1.0")
@@ -177,10 +176,9 @@ public final class CommandApi {
     /**
      * The names of every command in the client-visible command tree: server
      * commands plus client-side registrations, read as a snapshot. Empty
-     * before a session opens. This is the declarative home of JsMacros'
-     * {@code CommandManager.getValidCommands}.
+     * before a session opens.
      *
-     * @zh 客户端可见命令树中的全部命令名快照：服务端命令加客户端注册命令。会话建立前为空。对应 JsMacros 的 {@code CommandManager.getValidCommands}。
+     * @zh 客户端可见命令树中的全部命令名快照：服务端命令加客户端注册命令。会话建立前为空。
      * @zh-return 命令名数组
      */
     @ApiSince("0.5.0")
@@ -196,10 +194,9 @@ public final class CommandApi {
      * Completes one partial command line against the live command tree and
      * resolves with the suggestion texts a player would see on tab. The
      * leading slash is optional; without a connection the promise resolves
-     * to an empty list. This is the declarative home of JsMacros'
-     * {@code CommandManager.getArgumentAutocompleteOptions}.
+     * to an empty list.
      *
-     * @zh 对活跃命令树补全部分命令行，以玩家 Tab 时可见的建议文本数组兑现。前导斜杠可省略；无连接时以空数组兑现。对应 JsMacros 的 {@code CommandManager.getArgumentAutocompleteOptions}。
+     * @zh 对活跃命令树补全部分命令行，以玩家 Tab 时可见的建议文本数组兑现。前导斜杠可省略；无连接时以空数组兑现。
      * @zh-param commandPart 待补全的部分命令行
      * @zh-return 建议文本数组
      */

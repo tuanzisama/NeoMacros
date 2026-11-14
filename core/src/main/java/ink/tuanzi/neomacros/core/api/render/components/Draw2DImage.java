@@ -26,16 +26,15 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
  * (immutable PNG snapshot, uploaded once). A bare name takes the
  * {@code minecraft} namespace; {@link #getImage()} answers the resolved
  * form. Region dimensions are stored and select the sampled texels; the
- * {@code 2D} fallback (JsMacros parity) samples the destination extent
- * when the region is unset.</p>
+ * {@code 2D} fallback samples the destination extent when the region is
+ * unset.</p>
  *
  * <p><b>Element is its own builder</b> (拍板②): every setter is fluent and
- * returns this handle; the JsMacros {@code Image.Builder} family folds
- * into it.</p>
+ * returns this handle.</p>
  *
  * @zh HUD 图层内单个纹理图像元素的句柄，由 {@code layer.image(id, …)} upsert 返回。{@link Draw2DElement} 的 G-034B 组件面：纹理视图（{@code setImage}/{@code image} 与 {@code imageX/imageY/region…/texture…} 源矩形属性）与着色——目标几何、变换、z 序、对齐、生命周期全部继承且不重声明（G-034C 契约）。
- * @zh <b>纹理消费（G-030）</b>：标识与纹理注册表同为 {@code namespace:path} 键，因此 {@code CustomImage} 经 {@code img.identifier}（活纹理，可重传）或 {@code layer.image(id, {image})}（不可变 PNG 快照，仅上传一次）供给本面。裸名取 {@code minecraft} 命名空间；{@link #getImage()} 返回解析后的形态。区域尺寸被存储并选择采样 texel；未设区域时回退为目标尺寸采样（JsMacros 对等）。
- * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回本句柄；JsMacros 的 {@code Image.Builder} 类族折叠于此。
+ * @zh <b>纹理消费（G-030）</b>：标识与纹理注册表同为 {@code namespace:path} 键，因此 {@code CustomImage} 经 {@code img.identifier}（活纹理，可重传）或 {@code layer.image(id, {image})}（不可变 PNG 快照，仅上传一次）供给本面。裸名取 {@code minecraft} 命名空间；{@link #getImage()} 返回解析后的形态。区域尺寸被存储并选择采样 texel；未设区域时回退为目标尺寸采样。
+ * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回本句柄。
  */
 @ApiClass(name = "Draw2DImage", kind = ApiClassKind.HANDLE)
 @ApiSince("0.5.0")
@@ -61,12 +60,11 @@ public class Draw2DImage extends Draw2DElement {
 
     /**
      * Sets the texture identifier, the source offset, the sampled region
-     * and the whole-texture dimensions; the destination size is unchanged
-     * (the JsMacros {@code setImage} contract). A bare name takes the
-     * {@code minecraft} namespace; {@code null} or empty clears the
-     * texture (the element draws nothing). Region dimensions select the
-     * sampled texels on the 2D overlay; {@code 0} keeps the JsMacros
-     * fallback of sampling the destination extent.
+     * and the whole-texture dimensions; the destination size is unchanged.
+     * A bare name takes the {@code minecraft} namespace; {@code null} or
+     * empty clears the texture (the element draws nothing). Region
+     * dimensions select the sampled texels on the 2D overlay; {@code 0}
+     * keeps the fallback of sampling the destination extent.
      *
      * @param id            texture to draw from, namespace optional
      * @param imageX        source x offset in texels
@@ -76,7 +74,7 @@ public class Draw2DImage extends Draw2DElement {
      * @param textureWidth  whole texture width normalizing the offsets
      * @param textureHeight whole texture height normalizing the offsets
      * @return this element for chaining
-     * @zh 设置纹理标识、源偏移、采样区域与整纹理尺寸；目标尺寸不变（JsMacros {@code setImage} 契约）。裸名取 {@code minecraft} 命名空间；{@code null} 或空串清除纹理（元素不绘制）。区域尺寸在 2D 覆盖层上选择采样 texel；{@code 0} 保持 JsMacros 的"按目标尺寸采样"回退。
+     * @zh 设置纹理标识、源偏移、采样区域与整纹理尺寸；目标尺寸不变。裸名取 {@code minecraft} 命名空间；{@code null} 或空串清除纹理（元素不绘制）。区域尺寸在 2D 覆盖层上选择采样 texel；{@code 0} 保持"按目标尺寸采样"回退。
      * @zh-param id 要绘制的纹理，命名空间可省
      * @zh-param imageX 源 x 偏移（texel）
      * @zh-param imageY 源 y 偏移（texel）
@@ -106,10 +104,10 @@ public class Draw2DImage extends Draw2DElement {
 
     /**
      * The resolved {@code namespace:path} texture identifier this image
-     * draws from; {@code undefined} when no texture has been set (the
-     * JsMacros face answers a null-pointer error there) or once disposed.
+     * draws from; {@code undefined} when no texture has been set or once
+     * disposed.
      *
-     * @zh 本图像绘制所用的解析后 {@code namespace:path} 纹理标识；未设置纹理（JsMacros 面此处抛空指针）或失效后为 {@code undefined}。
+     * @zh 本图像绘制所用的解析后 {@code namespace:path} 纹理标识；未设置纹理或失效后为 {@code undefined}。
      */
     @ApiSince("0.5.0")
     @ApiMC("*")
@@ -146,10 +144,10 @@ public class Draw2DImage extends Draw2DElement {
 
     /**
      * The sampled region width in texels — {@code 0} means the draw
-     * derives it from the destination size (JsMacros 2D rule);
-     * {@code undefined} once disposed.
+     * derives it from the destination size; {@code undefined} once
+     * disposed.
      *
-     * @zh 采样区域宽（texel）——{@code 0} 表示按目标尺寸推导（JsMacros 2D 规则）；失效后为 {@code undefined}。
+     * @zh 采样区域宽（texel）——{@code 0} 表示按目标尺寸推导；失效后为 {@code undefined}。
      */
     @ApiSince("0.5.0")
     @ApiMC("*")

@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * G-026 E2E scenarios: the JsMacros CommandBuilder members expressed on the
+ * G-026 E2E scenarios: the CommandBuilder members expressed on the
  * declarative {@code command.register} surface — factory kinds, numeric
  * ranges, literals, quoted strings — then dispatched through the port-shaped
  * registry so the typed slots reach the script handler as {@code ctx.args}.
@@ -73,7 +73,7 @@ class CommandGapScenariosTest {
                     "      && typeof arg.uuid === 'function'",
                     "      && typeof arg.identifier === 'function'",
                     "      && typeof arg.time === 'function';",
-                    // JsMacros CommandBuilder members, mapped declaratively:
+                    // CommandBuilder members, mapped declaratively:
                     // literalArg / intArg(min,max) / doubleArg(min,max) /
                     // longArg / uuidArgType / identifierArg / timeArg /
                     // quotedStringArg / wordArg / greedyStringArg / booleanArg.",

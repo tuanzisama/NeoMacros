@@ -13,15 +13,14 @@ import java.util.function.Consumer;
 
 /**
  * Builder for {@code lockButton} controls: the root-constructed fluent
- * chain behind the JsMacros {@code screen.lockButtonBuilder()} /
- * {@code lockButtonBuilder(boolean)} factories (G-035 rows 35/36 fold —
- * the boolean seed lands through {@link #locked(boolean)} and the
- * {@code construct([bool])} form). {@code action} maps to
+ * chain (G-035 rows 35/36 fold — the boolean seed lands through
+ * {@link #locked(boolean)} and the {@code construct([bool])} form).
+ * {@code action} maps to
  * {@link #onClick(Consumer)}; the builder-side {@code getAction}/
  * {@code isLocked} readbacks are compat-held with their capability on
  * the {@code build()} product (G-003 §5.2).
  *
- * @zh {@code lockButton} 控件构建器：JsMacros {@code screen.lockButtonBuilder()} / {@code lockButtonBuilder(boolean)} 工厂的根构造器对位（G-035 row35/36 折叠——布尔种子经 {@link #locked(boolean)} 与 {@code construct([bool])} 形承接）。{@code action} 映射为 {@link #onClick(Consumer)}；构建器侧 {@code getAction}/{@code isLocked} 回读 compat 自持、能力在 {@code build()} 产物。
+ * @zh {@code lockButton} 控件构建器：根构造的链式构建（G-035 row35/36 折叠——布尔种子经 {@link #locked(boolean)} 与 {@code construct([bool])} 形承接）。{@code action} 映射为 {@link #onClick(Consumer)}；构建器侧 {@code getAction}/{@code isLocked} 回读 compat 自持、能力在 {@code build()} 产物。
  */
 @ApiClass(name = "LockButtonBuilder", kind = ApiClassKind.DATA)
 @ApiSince("0.5.0")

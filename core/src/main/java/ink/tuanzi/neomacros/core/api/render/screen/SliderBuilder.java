@@ -12,8 +12,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Builder for {@code slider} controls (JsMacros
- * {@code SliderWidgetHelper.SliderBuilder}): {@code steps(n)} sets the
+ * Builder for {@code slider} controls: {@code steps(n)} sets the
  * discrete snapping count ({@code 0} = continuous), {@code initially(v)}
  * seeds the normalized 0..1 value, {@code action} maps to
  * {@link #onChange(Consumer)}. Builder-side {@code getSteps}/{@code getValue}
@@ -22,11 +21,10 @@ import java.util.function.Consumer;
  *
  * <p>Unit note (compat write-back): NeoMacros slider values are the
  * normalized 0..1 doubles of {@code ControlSpec.value} (the G-035
- * {@code addSlider} unit). JsMacros declared {@code initially(int)} /
- * {@code getValue(): int}; if the compat layer measures those in step
- * units it converts before delegating (G-003 §13 behavior write-back).</p>
+ * {@code addSlider} unit). If the compat layer measures in step units
+ * it converts before delegating (G-003 §13 behavior write-back).</p>
  *
- * @zh {@code slider} 控件构建器（JsMacros {@code SliderWidgetHelper.SliderBuilder}）：{@code steps(n)} 设离散吸附步数（{@code 0} = 连续），{@code initially(v)} 播种 0..1 归一值，{@code action} 映射为 {@link #onChange(Consumer)}。构建器侧 {@code getSteps}/{@code getValue} 回读归 compat 自持（能力在 {@code build().steps}/{@code build().value}）。单位注：NeoMacros 滑条值 = {@code ControlSpec.value} 的 0..1 归一 double（G-035 {@code addSlider} 同一单位）；JsMacros 声明 int 形，compat 若按 steps 单位计量需先行换算。
+ * @zh {@code slider} 控件构建器：{@code steps(n)} 设离散吸附步数（{@code 0} = 连续），{@code initially(v)} 播种 0..1 归一值，{@code action} 映射为 {@link #onChange(Consumer)}。构建器侧 {@code getSteps}/{@code getValue} 回读归 compat 自持（能力在 {@code build().steps}/{@code build().value}）。单位注：NeoMacros 滑条值 = {@code ControlSpec.value} 的 0..1 归一 double（G-035 {@code addSlider} 同一单位）；若按 steps 单位计量需先行换算。
  */
 @ApiClass(name = "SliderBuilder", kind = ApiClassKind.DATA)
 @ApiSince("0.5.0")

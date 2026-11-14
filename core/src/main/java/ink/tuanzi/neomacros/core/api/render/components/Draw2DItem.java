@@ -23,17 +23,16 @@ import ink.tuanzi.neomacros.port.model.ItemStackData;
  *
  * <p><b>Box and scale</b>: the element box is the icon's 16-by-16
  * GUI-pixel footprint (seeded by the upsert), so {@code getScaledWidth}
- * answers {@code 16 &times; scale} exactly like JsMacros; the icon draws
+ * answers {@code 16 &times; scale}; the icon draws
  * through the neutral {@code item} primitive, decorations off unless
  * {@link #setOverlay(boolean)} enables them.</p>
  *
  * <p><b>Element is its own builder</b> (拍板②): every setter is fluent
- * and returns this handle; the JsMacros {@code Item.Builder} family
- * folds into it.</p>
+ * and returns this handle.</p>
  *
  * @zh HUD 图层内单个物品图标元素的句柄，由 {@code layer.item(id, …)} upsert 返回。{@link Draw2DElement} 的 G-034B 组件面：堆视图（{@code setItem}/{@code item}）与游戏装饰（{@code overlay} 加覆盖标签）——固定 16×16 盒、变换、z 序、对齐、生命周期全部继承且不重声明（G-034C 契约）。
- * @zh <b>盒与缩放</b>：元素盒为图标的 16×16 GUI 像素占位（由 upsert 播种），因此 {@code getScaledWidth} 与 JsMacros 一样返回 {@code 16 × scale}；图标经中立 {@code item} 原语绘制，装饰默认关闭，除非 {@link #setOverlay(boolean)} 开启。
- * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回本句柄；JsMacros 的 {@code Item.Builder} 类族折叠于此。
+ * @zh <b>盒与缩放</b>：元素盒为图标的 16×16 GUI 像素占位（由 upsert 播种），因此 {@code getScaledWidth} 返回 {@code 16 × scale}；图标经中立 {@code item} 原语绘制，装饰默认关闭，除非 {@link #setOverlay(boolean)} 开启。
+ * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回本句柄。
  */
 @ApiClass(name = "Draw2DItem", kind = ApiClassKind.HANDLE)
 @ApiSince("0.5.0")
@@ -105,12 +104,11 @@ public class Draw2DItem extends Draw2DElement {
 
     /**
      * Enables or disables the game decorations (durability bar, cooldown
-     * overlay, and stack count or the custom label); off by default (the
-     * JsMacros {@code setOverlay} contract).
+     * overlay, and stack count or the custom label); off by default.
      *
      * @param overlay {@code true} to draw the decorations
      * @return this element for chaining
-     * @zh 开启或关闭游戏装饰（耐久条、冷却覆盖与堆数量或自定义标签）；默认关闭（JsMacros {@code setOverlay} 契约）。
+     * @zh 开启或关闭游戏装饰（耐久条、冷却覆盖与堆数量或自定义标签）；默认关闭。
      * @zh-param overlay {@code true} 表示绘制装饰
      * @zh-return 本元素（可链式调用）
      */
@@ -139,14 +137,13 @@ public class Draw2DItem extends Draw2DElement {
 
     /**
      * Sets the label drawn over the icon; this does not enable the
-     * overlay (the JsMacros element contract — the Builder fold enables
-     * it alongside). A non-null value replaces the stack count when the
-     * overlay is on; {@code null} falls back to the count, an empty
-     * string draws no label.
+     * overlay (the Builder fold enables it alongside). A non-null value
+     * replaces the stack count when the overlay is on; {@code null} falls
+     * back to the count, an empty string draws no label.
      *
      * @param overlayText the label, or {@code null} for the stack count
      * @return this element for chaining
-     * @zh 设置绘制在图标上的标签；本方法不开启覆盖层（JsMacros 元素契约——Builder 折叠会同时开启）。覆盖层开启时非 null 值替代堆数量；{@code null} 回退为数量，空串不绘制标签。
+     * @zh 设置绘制在图标上的标签；本方法不开启覆盖层（Builder 折叠会同时开启）。覆盖层开启时非 null 值替代堆数量；{@code null} 回退为数量，空串不绘制标签。
      * @zh-param overlayText 标签，或 {@code null} 表示堆数量
      * @zh-return 本元素（可链式调用）
      */

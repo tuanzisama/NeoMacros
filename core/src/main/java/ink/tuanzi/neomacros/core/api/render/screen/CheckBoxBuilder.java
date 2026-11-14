@@ -12,13 +12,13 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Builder for {@code checkbox} controls (JsMacros
- * {@code CheckBoxWidgetHelper.CheckBoxBuilder}, Mojang spelling for the
- * handle): {@code checked(b)} seeds the initial state, {@code action}
- * maps to {@link #onChange(Consumer)}; the builder-side {@code isChecked}
- * readback is compat-held with its capability on {@code build().checked}.
+ * Builder for {@code checkbox} controls (the handle side takes the
+ * Mojang spelling): {@code checked(b)} seeds the initial state,
+ * {@code action} maps to {@link #onChange(Consumer)}; the builder-side
+ * {@code isChecked} readback is compat-held with its capability on
+ * {@code build().checked}.
  *
- * @zh {@code checkbox} 控件构建器（JsMacros {@code CheckBoxWidgetHelper.CheckBoxBuilder}，句柄侧取 Mojang 拼写）：{@code checked(b)} 播种初始态，{@code action} 映射为 {@link #onChange(Consumer)}；构建器侧 {@code isChecked} 回读归 compat 自持（能力在 {@code build().checked}）。
+ * @zh {@code checkbox} 控件构建器（句柄侧取 Mojang 拼写）：{@code checked(b)} 播种初始态，{@code action} 映射为 {@link #onChange(Consumer)}；构建器侧 {@code isChecked} 回读归 compat 自持（能力在 {@code build().checked}）。
  */
 @ApiClass(name = "CheckBoxBuilder", kind = ApiClassKind.DATA)
 @ApiSince("0.5.0")

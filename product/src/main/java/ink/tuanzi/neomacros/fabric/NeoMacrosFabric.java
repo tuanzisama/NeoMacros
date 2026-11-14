@@ -1388,7 +1388,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
 
     /**
      * Sandbox boundary for the CustomImage file faces: config-dir relative
-     * (the analog of the JsMacros config folder), traversal denied.
+     * (the macro config folder), traversal denied.
      */
     private record ConfigDirFsBridge() implements ink.tuanzi.neomacros.core.api.FsApi.FsBridge {
         @Override

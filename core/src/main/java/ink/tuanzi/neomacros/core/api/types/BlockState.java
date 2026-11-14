@@ -697,8 +697,7 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
     /**
      * Reads one property restricted to a value vocabulary: blocks sharing
      * the key but not the vocabulary (slab vs chest {@code type}, stair vs
-     * rail {@code shape}) answer undefined, mirroring JsMacros' per-property
-     * lookup that throws on the wrong property instance.
+     * rail {@code shape}) answer undefined.
      */
     private String vocabProp(String key, java.util.Set<String> vocabulary) {
         String value = getProp(key);

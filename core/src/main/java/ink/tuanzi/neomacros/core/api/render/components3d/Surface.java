@@ -546,9 +546,8 @@ public class Surface extends RenderElement3D<Surface> {
     }
 
     /**
-     * Scales each element's z-index into a rendering offset in blocks
-     * (JsMacros {@code Builder.zIndex}); defaults to {@code 0.001} blocks
-     * per z-index unit.
+     * Scales each element's z-index into a rendering offset in blocks;
+     * defaults to {@code 0.001} blocks per z-index unit.
      *
      * @zh 每个 z-index 折算的渲染偏移（格），默认每单位 {@code 0.001} 格。
      */

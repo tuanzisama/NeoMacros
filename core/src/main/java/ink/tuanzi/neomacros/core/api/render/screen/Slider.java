@@ -8,14 +8,13 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
 /**
- * Live handle for a {@code slider} control (JsMacros
- * {@code SliderWidgetHelper}). {@code value} is the normalized 0..1
- * position; {@code steps} is the discrete snapping count ({@code 0} =
- * continuous). Writes land on the live widget in place — {@code setValue}
- * without an event echo, {@code setSteps} re-snaps the current value and
- * refreshes the label.
+ * Live handle for a {@code slider} control. {@code value} is the
+ * normalized 0..1 position; {@code steps} is the discrete snapping
+ * count ({@code 0} = continuous). Writes land on the live widget in
+ * place — {@code setValue} without an event echo, {@code setSteps}
+ * re-snaps the current value and refreshes the label.
  *
- * @zh {@code slider} 控件的活句柄（JsMacros {@code SliderWidgetHelper}）。{@code value} 为 0..1 归一位置；{@code steps} 为离散吸附步数（{@code 0} = 连续）。写就地落到活控件——{@code setValue} 无事件回声，{@code setSteps} 重吸附当前值并刷新文本。
+ * @zh {@code slider} 控件的活句柄。{@code value} 为 0..1 归一位置；{@code steps} 为离散吸附步数（{@code 0} = 连续）。写就地落到活控件——{@code setValue} 无事件回声，{@code setSteps} 重吸附当前值并刷新文本。
  */
 @ApiClass(name = "Slider", kind = ApiClassKind.HANDLE,
         wraps = "net.minecraft.client.gui.components.AbstractSliderButton")

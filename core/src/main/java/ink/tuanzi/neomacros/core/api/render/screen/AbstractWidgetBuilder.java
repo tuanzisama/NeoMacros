@@ -16,23 +16,21 @@ import java.util.concurrent.atomic.AtomicLong;
  * Skeleton of the script control builders (G-036): the common fluent
  * chain (id/x/y/pos/width/height/size/zIndex/message/active/visible) plus
  * the terminal {@link #build()} that assembles a validated
- * {@link ControlSpec} — the JsMacros {@code createWidget()} slot (G-003
- * §5.2). Concrete builders contribute their type-specific fields through
- * {@link #contribute(Map)}.
+ * {@link ControlSpec} (G-003 §5.2). Concrete builders contribute their
+ * type-specific fields through {@link #contribute(Map)}.
  *
  * <p>G-003 §5.2 rules honored here: builders are root-constructed
- * ({@code new neo.ButtonBuilder()}, the JsMacros {@code screen.*
- * Builder()} factory fold), chain setters use the noun word, and there is
- * <b>no getter readback on the builder</b> — the engine would map a
- * no-arg {@code getX()}/{@code isX()} to the same script property as the
- * fluent {@code x(int)} method (one member per name), so readback lives on
- * the {@link ControlSpec} product instead. G-036B completes the base
- * face: {@code alpha}/{@code moveTo} plus the layout reads
- * ({@code getScaled…} / {@code getParent…}), while the conflicting
- * readbacks ({@code getWidth/getX/isActive/…}) stay compat-held on
- * {@code build()}.</p>
+ * ({@code new neo.ButtonBuilder()}), chain setters use the noun word,
+ * and there is <b>no getter readback on the builder</b> — the engine
+ * would map a no-arg {@code getX()}/{@code isX()} to the same script
+ * property as the fluent {@code x(int)} method (one member per name),
+ * so readback lives on the {@link ControlSpec} product instead. G-036B
+ * completes the base face: {@code alpha}/{@code moveTo} plus the layout
+ * reads ({@code getScaled…} / {@code getParent…}), while the
+ * conflicting readbacks ({@code getWidth/getX/isActive/…}) stay
+ * compat-held on {@code build()}.</p>
  *
- * @zh 脚本控件构建器骨架（G-036）：公共链式面（id/x/y/pos/width/height/size/zIndex/message/active/visible）加终结 {@link #build()}（产出已校验的 {@link ControlSpec}，即 JsMacros {@code createWidget()} 对位）。具体构建器经 {@link #contribute(Map)} 贡献类型专属字段。按 G-003 §5.2：根构造器 {@code new neo.ButtonBuilder()}、链式 setter 用名词原词、构建器不设属性回读（引擎会把无参 getX/isX 与链式 x(int) 映射到同一脚本属性）——回读走 build() 产物。G-036B 补齐基类面：{@code alpha}/{@code moveTo} 与布局读（{@code getScaled…} / {@code getParent…}）；冲突的回读项（{@code getWidth/getX/isActive/…}）保持 compat 自持、能力在 {@code build()}。
+ * @zh 脚本控件构建器骨架（G-036）：公共链式面（id/x/y/pos/width/height/size/zIndex/message/active/visible）加终结 {@link #build()}（产出已校验的 {@link ControlSpec}）。具体构建器经 {@link #contribute(Map)} 贡献类型专属字段。按 G-003 §5.2：根构造器 {@code new neo.ButtonBuilder()}、链式 setter 用名词原词、构建器不设属性回读（引擎会把无参 getX/isX 与链式 x(int) 映射到同一脚本属性）——回读走 build() 产物。G-036B 补齐基类面：{@code alpha}/{@code moveTo} 与布局读（{@code getScaled…} / {@code getParent…}）；冲突的回读项（{@code getWidth/getX/isActive/…}）保持 compat 自持、能力在 {@code build()}。
  */
 @ApiClass(name = "AbstractWidgetBuilder", kind = ApiClassKind.DATA)
 @ApiSince("0.5.0")

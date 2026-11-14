@@ -652,7 +652,7 @@ public final class FabricPlayerPort implements PlayerPort {
         var eye = player.getEyePosition();
         if (targetCheckRange) {
             // The block passes when the nearest point of its unit cube is
-            // strictly inside the block interaction reach (JsMacros rule).
+            // strictly inside the block interaction reach.
             double closestX = Math.min(Math.max(eye.x, pos.getX()), pos.getX() + 1.0);
             double closestY = Math.min(Math.max(eye.y, pos.getY()), pos.getY() + 1.0);
             double closestZ = Math.min(Math.max(eye.z, pos.getZ()), pos.getZ() + 1.0);
@@ -1010,7 +1010,7 @@ public final class FabricPlayerPort implements PlayerPort {
 
     @Override
     public boolean hasTargetOverride() {
-        // A stored read never revalidates (JsMacros Target.hasOverride).
+        // A stored read never revalidates.
         return targetOverride != null;
     }
 
@@ -1289,7 +1289,7 @@ public final class FabricPlayerPort implements PlayerPort {
             return;
         }
         if (previous != null && next == null) {
-            // Clearing a stored pin ends a pending break (JsMacros parity).
+            // Clearing a stored pin ends a pending break.
             settleBreak("TARGET_LOST", null);
             return;
         }

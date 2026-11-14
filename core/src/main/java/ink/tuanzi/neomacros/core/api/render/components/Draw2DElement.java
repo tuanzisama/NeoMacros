@@ -25,8 +25,7 @@ import java.util.Locale;
  *
  * <p><b>Element is its own builder</b> (拍板②): every setter is fluent and
  * returns {@code this}, so configuration and mutation are one object at one
- * moment — the JsMacros {@code Draw2DElement.Builder} family folds into
- * this handle instead of a parallel {@code XxxBuilder} class tree.</p>
+ * moment, with no parallel {@code XxxBuilder} class tree.</p>
  *
  * <p><b>State model</b>: the element owns no mutable fields of its own.
  * Setters republish an immutable {@link ElementSpec} through the
@@ -43,7 +42,7 @@ import java.util.Locale;
  * {@link #isDisposed()} stays readable.</p>
  *
  * @zh HUD 图层内单个元素的句柄，由 {@code layer.text(...)} / {@code layer.rect(...)} upsert 与 {@code layer.element(id)} / {@code layer.elements} 返回。本类是组件族的基类面：{@code Draw2DText} / {@code Draw2DRect}（G-034）、{@code Draw2DImage} / {@code Draw2DItem}（G-034B）与对齐面（G-034C）在不改动此处几何、变换、z 序与生命周期契约的前提下扩展它。
- * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回 {@code this}，配置与写入是同一对象同一时刻——JsMacros 的 {@code Draw2DElement.Builder} 类族折叠进本句柄，不另建 {@code XxxBuilder} 类树。
+ * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回 {@code this}，配置与写入是同一对象同一时刻，不另建 {@code XxxBuilder} 类树。
  * @zh <b>状态模型</b>：元素自身不持有可变字段。setter 经 {@link Backend} 桥重新发布不可变 {@link ElementSpec}（volatile 写入，下一帧消费——G-001 §2.2）；getter 读取当前快照。几何接受缩放像素绝对值或视口百分比字符串（{@code "50%"}），绘制时按层视口求值。
  * @zh <b>失效</b>：元素被移除、被不同组件类型替换、随层 clear 或整层移除后句柄即失效；此后所有读属性返回 {@code undefined}（Java {@code null}），所有 setter 抛出 {@code IllegalStateException: element no longer valid}；仅 {@link #isDisposed()} 保持可读。
  */
@@ -133,10 +132,10 @@ public class Draw2DElement implements ScriptHandle, Alignable, RenderElement {
     /**
      * Resolved absolute box of the element: the origin in scaled pixels
      * plus the size after percentage resolution and {@link #getScale()},
-     * truncated toward zero (JsMacros {@code getScaledWidth} semantics).
-     * {@code undefined} once the handle is disposed.
+     * truncated toward zero. {@code undefined} once the handle is
+     * disposed.
      *
-     * @zh 元素解析后的绝对盒：缩放像素原点，加上百分比求值并乘以 {@link #getScale()} 后的尺寸（向零截断，沿 JsMacros {@code getScaledWidth} 语义）。句柄失效后为 {@code undefined}。
+     * @zh 元素解析后的绝对盒：缩放像素原点，加上百分比求值并乘以 {@link #getScale()} 后的尺寸（向零截断）。句柄失效后为 {@code undefined}。
      */
     @ApiClass(name = "Bounds", kind = ApiClassKind.DATA)
     @ApiSince("0.5.0")
@@ -173,10 +172,10 @@ public class Draw2DElement implements ScriptHandle, Alignable, RenderElement {
     }
 
     /**
-     * The layer hosting this element — the NeoMacros face for the JsMacros
-     * {@code getDraw2D()} back-reference; {@code undefined} once disposed.
+     * The layer hosting this element — the layer back-reference;
+     * {@code undefined} once disposed.
      *
-     * @zh 承载本元素的图层——JsMacros {@code getDraw2D()} 反向引用的 NeoMacros 落点；失效后为 {@code undefined}。
+     * @zh 承载本元素的图层——图层反向引用；失效后为 {@code undefined}。
      */
     @ApiSince("0.5.0")
     @ApiMC("*")
@@ -562,13 +561,13 @@ public class Draw2DElement implements ScriptHandle, Alignable, RenderElement {
 
     /**
      * Sets fixed width and height. Zero is allowed; negative dimensions
-     * throw. Width is applied first, so an invalid height leaves the width
-     * changed (JsMacros semantics).
+     * throw. Width is applied first, so an invalid height leaves the
+     * width changed.
      *
      * @param width  absolute scaled pixels or a percentage string
      * @param height absolute scaled pixels or a percentage string
      * @return this element for chaining
-     * @zh 设置固定宽高。允许 0；负尺寸抛错。先应用宽度，因此非法高度会保留已改的宽度（JsMacros 语义）。
+     * @zh 设置固定宽高。允许 0；负尺寸抛错。先应用宽度，因此非法高度会保留已改的宽度。
      * @zh-param width 缩放像素绝对值或百分比字符串
      * @zh-param height 缩放像素绝对值或百分比字符串
      * @zh-return 本元素（可链式调用）
@@ -686,13 +685,13 @@ public class Draw2DElement implements ScriptHandle, Alignable, RenderElement {
     }
 
     /**
-     * Sets both position coordinates without changing size — the JsMacros
-     * {@code moveTo} face, an alias of {@link #setPos}.
+     * Sets both position coordinates without changing size — an alias of
+     * {@link #setPos}.
      *
      * @param x absolute scaled pixels or a percentage string
      * @param y absolute scaled pixels or a percentage string
      * @return this element for chaining
-     * @zh 同时设置两个坐标且不改变尺寸——JsMacros 的 {@code moveTo} 面，{@link #setPos} 的别名。
+     * @zh 同时设置两个坐标且不改变尺寸——{@link #setPos} 的别名。
      * @zh-param x 缩放像素绝对值或百分比字符串
      * @zh-param y 缩放像素绝对值或百分比字符串
      * @zh-return 本元素（可链式调用）
@@ -1143,7 +1142,7 @@ public class Draw2DElement implements ScriptHandle, Alignable, RenderElement {
         }
     }
 
-    /** Truncates {@code value * scale} toward zero (JsMacros semantics). */
+    /** Truncates {@code value * scale} toward zero. */
     private static int scaled(int value, float scale) {
         return (int) (value * scale);
     }

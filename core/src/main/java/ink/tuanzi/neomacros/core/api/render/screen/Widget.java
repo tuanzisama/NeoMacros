@@ -16,7 +16,7 @@ import java.util.Map;
 
 /**
  * Live handle for one control on an open {@link BuiltScreen} — the shared
- * face of the widget family (JsMacros {@code ClickableWidgetHelper}
+ * face of the widget family ({@code ClickableWidgetHelper}
  * account, G-036B). Binds one control id to its owning session: reads
  * answer the session cache, writes go through
  * {@link BuiltScreen#setControl} onto the live widget. The generic
@@ -31,7 +31,7 @@ import java.util.Map;
  * closes, reads answer neutral defaults and every mutation throws through
  * {@code setControl}.</p>
  *
- * @zh 打开的 {@link BuiltScreen} 上一个控件的活句柄——控件族共享面（JsMacros {@code ClickableWidgetHelper} 账，G-036B）。把控件 id 绑定到会话：读走会话缓存、写经 {@link BuiltScreen#setControl} 落到活控件。泛型参数是具体句柄类型，fluent 调用链回子类。tooltip 存会话（跨句柄查询共享）并镜像进 adapter 以在重建后保留；{@code click} 是在控件左上角的瞬态按下+松开。布局读（scaled*）答控件盒，parent* 答宿主窗口缩放尺寸（全窗屏范围）。会话关闭后读回中立默认值、写一律 throw。
+ * @zh 打开的 {@link BuiltScreen} 上一个控件的活句柄——控件族共享面（{@code ClickableWidgetHelper} 账，G-036B）。把控件 id 绑定到会话：读走会话缓存、写经 {@link BuiltScreen#setControl} 落到活控件。泛型参数是具体句柄类型，fluent 调用链回子类。tooltip 存会话（跨句柄查询共享）并镜像进 adapter 以在重建后保留；{@code click} 是在控件左上角的瞬态按下+松开。布局读（scaled*）答控件盒，parent* 答宿主窗口缩放尺寸（全窗屏范围）。会话关闭后读回中立默认值、写一律 throw。
  */
 @ApiClass(name = "Widget", kind = ApiClassKind.HANDLE,
         wraps = "net.minecraft.client.gui.components.AbstractWidget")
@@ -308,10 +308,10 @@ public class Widget<B extends Widget<B>> implements ScriptHandle {
      * Sends a left-button press and release at the widget's top-left
      * corner ({@code click}): the port runs it on the game main thread,
      * so the call always completes the press before returning (the
-     * JsMacros {@code await} flag has no effect and is not exposed).
+     * {@code await} flag has no effect and is not exposed).
      * Inactive widgets swallow the press, exactly as a real click does.
      *
-     * @zh 在控件左上角发送左键按下+松开（{@code click}）：端口在游戏主线程执行，返回前按压必已完成（JsMacros 的 {@code await} 参数无效果、不暴露）。不可交互控件吞掉按压，与真实点击一致。
+     * @zh 在控件左上角发送左键按下+松开（{@code click}）：端口在游戏主线程执行，返回前按压必已完成（{@code await} 参数无效果、不暴露）。不可交互控件吞掉按压，与真实点击一致。
      */
     @ApiSince("0.5.0")
     @ApiLoader("*")

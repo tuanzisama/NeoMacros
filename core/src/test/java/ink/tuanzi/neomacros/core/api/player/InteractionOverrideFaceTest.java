@@ -88,7 +88,7 @@ class InteractionOverrideFaceTest {
         assertTrue(interactions.isTargetOverride());
         assertEquals(List.of("setTarget:1,64,1:up"), port.actions);
 
-        // The omitted face defaults to down (JsMacros parity).
+        // The omitted face defaults to down.
         interactions.setTarget(new BlockPos(2, 64, 2), null).get(1, TimeUnit.SECONDS);
         assertEquals("setTarget:2,64,2:down", port.actions.get(port.actions.size() - 1));
 

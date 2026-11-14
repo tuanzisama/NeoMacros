@@ -96,14 +96,13 @@ public final class Draw3D implements ScriptHandle {
     /**
      * Attaches an existing element (one returned by {@code build()}) to this
      * overlay. An element already attached elsewhere is rejected; attaching
-     * the same instance twice is a no-op — unlike JsMacros duplicates, the
-     * keyed port keeps one entry per element. This is also the attach face
-     * for JsMacros {@code addTraceLine(TraceLine)}, which folds here (the
-     * {@code addTraceLine} quick form owns that name).
+     * the same instance twice is a no-op — the keyed port keeps one entry
+     * per element. This is also the attach face used by the
+     * {@code addTraceLine} quick form.
      *
      * @param element the element to attach
      * @throws IllegalStateException when the element belongs to another overlay
-     * @zh 把已有元素（{@code build()} 的产物）挂到本图层；已在别处挂载时抛错，重复挂载为 no-op。JsMacros 的 {@code addTraceLine(TraceLine)} 折叠于此。
+     * @zh 把已有元素（{@code build()} 的产物）挂到本图层；已在别处挂载时抛错，重复挂载为 no-op。
      */
     @ApiSince("0.5.0")
     @ApiMC("*")
@@ -325,8 +324,7 @@ public final class Draw3D implements ScriptHandle {
      * Adds an existing surface (one returned by {@code build()}) to this
      * overlay. A surface already attached elsewhere is rejected; attaching
      * the same instance twice is a no-op — the keyed port keeps one entry
-     * per element (JsMacros allows duplicate adds; see
-     * {@link #reAddElement(RenderElement3D)}).
+     * per element (see {@link #reAddElement(RenderElement3D)}).
      *
      * @param surface the surface to attach
      * @throws IllegalStateException when the surface belongs to another overlay

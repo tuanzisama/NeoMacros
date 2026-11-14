@@ -25,12 +25,11 @@ import java.util.Locale;
  * return the same builder for chaining; queued entries reach the game's
  * suggestion list when the callback returns.
  *
- * <p>This is the single completion surface of {@code command.register}:
- * JsMacros' {@code SuggestionsBuilderHelper} members map onto these methods,
- * so no parallel builder grows here.
+ * <p>This is the single completion surface of {@code command.register};
+ * no parallel builder grows here.
  *
  * @zh 交给参数槽 {@code suggests} 回调的补全构建器（玩家 Tab 补全命令时）。以扁平句柄呈现：{@code input} 为已输入的命令行，{@code start} 为正在补全的 token 起点，{@code remaining} 为该起点之后未完成的尾串。{@code suggest*} 系列方法为当前 token 排入候选并返回同一构建器以供链式调用；回调返回后排入项进入游戏建议列表。
- * @zh 这是 {@code command.register} 唯一的补全面：JsMacros 的 {@code SuggestionsBuilderHelper} 成员映射到这些方法，不在此生长第二套 builder。
+ * @zh 这是 {@code command.register} 唯一的补全面，不在此生长第二套 builder。
  */
 @ApiClass(name = "SuggestionsBuilder", kind = ApiClassKind.HANDLE)
 @ApiSince("0.5.0")

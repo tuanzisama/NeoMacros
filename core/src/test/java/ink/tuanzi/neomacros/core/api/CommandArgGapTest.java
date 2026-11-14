@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * G-026: the declarative slot vocabulary behind JsMacros' CommandBuilder
+ * G-026: the declarative slot vocabulary behind the CommandBuilder
  * members — the new long/uuid/identifier/time/literal kinds, numeric
  * {@code range(min, max)}, quote-aware {@code string} slots and the raw
  * greedy slice.
@@ -159,7 +159,7 @@ class CommandArgGapTest {
         assertTrue(factory.hasMember("uuid"));
         assertTrue(factory.hasMember("long"));
         assertFalse(factory.hasMember("createCommandBuilder"),
-                "the factory never grows JsMacros builder names");
+                "the factory never grows foreign builder names");
 
         assertEquals(java.util.List.of("int", "long", "float", "bool", "word",
                         "string", "greedy", "player", "pos", "uuid", "identifier",

@@ -21,17 +21,16 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
  * <p><b>Text metrics</b>: the element's box is seeded from the font when
  * the text is set — {@link #getWidth()} answers the cached, unscaled
  * font-measured width and {@link #getHeight()} the font line height, then
- * {@code scaledWidth}/{@code bounds} apply {@link #getScale()} exactly like
- * JsMacros (G-032B legacy ① closed here; the measurement rides
+ * {@code scaledWidth}/{@code bounds} apply {@link #getScale()}
+ * (G-032B legacy ① closed here; the measurement rides
  * {@code RenderPort.textWidth}).</p>
  *
  * <p><b>Element is its own builder</b> (拍板②): every setter is fluent and
- * returns this handle; the JsMacros {@code Text.Builder} family folds into
- * it.</p>
+ * returns this handle.</p>
  *
  * @zh HUD 图层内单个文本元素的句柄，由 {@code layer.text(id, …)} upsert 返回。{@link Draw2DElement} 的 G-034 组件面：文本内容、投影、着色与字体度量盒——其余（几何、变换、z 序、对齐、生命周期）全部继承自基类且不重声明（G-034C 契约）。
- * @zh <b>文本度量</b>：文本被设置时以字体为元素盒播种——{@link #getWidth()} 返回缓存的未缩放字体量宽，{@link #getHeight()} 返回字体行高，随后 {@code scaledWidth}/{@code bounds} 按 {@link #getScale()} 缩放，与 JsMacros 完全一致（G-032B 遗留① 在此闭环；度量走 {@code RenderPort.textWidth}）。
- * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回本句柄；JsMacros 的 {@code Text.Builder} 类族折叠于此。
+ * @zh <b>文本度量</b>：文本被设置时以字体为元素盒播种——{@link #getWidth()} 返回缓存的未缩放字体量宽，{@link #getHeight()} 返回字体行高，随后 {@code scaledWidth}/{@code bounds} 按 {@link #getScale()} 缩放（G-032B 遗留① 在此闭环；度量走 {@code RenderPort.textWidth}）。
+ * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回本句柄。
  */
 @ApiClass(name = "Draw2DText", kind = ApiClassKind.HANDLE)
 @ApiSince("0.5.0")
@@ -57,14 +56,14 @@ public class Draw2DText extends Draw2DElement {
 
     /**
      * Replaces the displayed text and re-measures the element's box from
-     * the font (the JsMacros {@code setText} contract: the cached width
-     * refreshes here, not in the getter). Styling, hover text and click
-     * actions do not exist on the NeoMacros v1 plain-text face; a null
-     * string becomes empty. {@code undefined} once disposed.
+     * the font (the cached width refreshes here, not in the getter).
+     * Styling, hover text and click actions do not exist on the NeoMacros
+     * v1 plain-text face; a null string becomes empty. {@code undefined}
+     * once disposed.
      *
      * @param text the new text (null becomes empty)
      * @return this element for chaining
-     * @zh 替换显示文本并按字体重新度量元素盒（JsMacros {@code setText} 契约：缓存宽度在此刷新而非 getter）。NeoMacros v1 纯文本面没有样式/悬浮/点击动作；null 按空串处理。失效后为 {@code undefined}。
+     * @zh 替换显示文本并按字体重新度量元素盒（缓存宽度在此刷新而非 getter）。NeoMacros v1 纯文本面没有样式/悬浮/点击动作；null 按空串处理。失效后为 {@code undefined}。
      * @zh-param text 新文本（null 按空串）
      * @zh-return 本元素（可链式调用）
      */
@@ -114,10 +113,10 @@ public class Draw2DText extends Draw2DElement {
 
     /**
      * Whether the font draws a drop shadow behind this text; reads
-     * {@code undefined} once disposed (the JsMacros {@code hasShadow}
-     * face — a method, not a property, so the engine keeps the name).
+     * {@code undefined} once disposed ({@code hasShadow} is a method, not
+     * a property, so the engine keeps the name).
      *
-     * @zh 字体是否在本文本后绘制投影；失效后读到 {@code undefined}（JsMacros 的 {@code hasShadow} 面——方法而非属性，引擎保留该名）。
+     * @zh 字体是否在本文本后绘制投影；失效后读到 {@code undefined}（{@code hasShadow} 是方法而非属性，引擎保留该名）。
      */
     @ApiSince("0.5.0")
     @ApiMC("*")

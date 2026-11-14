@@ -284,7 +284,7 @@ final class HudScene {
      * shape; otherwise the body runs inside a {@link DrawContext2d#transform}
      * scope about the element's pivot (the positioned corner, or the
      * center when {@code rotateCenter} — a line pivots at its first
-     * endpoint or midpoint, JsMacros parity).
+     * endpoint or midpoint).
      */
     private static void emit(ElementSpec spec, int viewportWidth, int viewportHeight,
             DrawContext2d ctx) {
@@ -312,7 +312,7 @@ final class HudScene {
                 int x2 = spec.flipX() ? x : x + w;
                 int y2 = spec.flipY() ? y : y + h;
                 float stroke = spec.stroke();
-                // JsMacros parity: a non-positive stroke draws nothing.
+                // A non-positive stroke draws nothing.
                 if (stroke > 0) {
                     float centerX = (x1 + x2) / 2f;
                     float centerY = (y1 + y2) / 2f;
@@ -326,10 +326,10 @@ final class HudScene {
                 int w = spec.w().resolve(viewportWidth);
                 int h = spec.h().resolve(viewportHeight);
                 String texture = spec.texture();
-                // JsMacros parity: an image without a texture draws nothing.
+                // An image without a texture draws nothing.
                 if (texture != null && !texture.isEmpty()) {
                     // Region dims select the sampled texels; zero falls back
-                    // to the JsMacros 2D rule (extent = destination size).
+                    // to the default (extent = destination size).
                     int sourceWidth = spec.regionWidth() > 0
                             ? spec.regionWidth() : w;
                     int sourceHeight = spec.regionHeight() > 0
@@ -347,7 +347,7 @@ final class HudScene {
             case ITEM -> {
                 ink.tuanzi.neomacros.port.model.ItemStackData stack =
                         spec.stack();
-                // JsMacros parity: a null stack draws nothing.
+                // A null stack draws nothing.
                 if (stack != null) {
                     int w = spec.w().resolve(viewportWidth);
                     int h = spec.h().resolve(viewportHeight);

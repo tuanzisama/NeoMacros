@@ -30,11 +30,11 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
  * the form {@code <thisAnchor>On<otherAnchor>} — for example
  * {@code leftOnRight} or {@code centerOnCenter} — where a bare token aligns
  * the same anchor on both elements. Malformed sibling alignments throw,
- * while unsupported parent tokens do nothing (JsMacros parity).</p>
+ * while unsupported parent tokens do nothing.</p>
  *
  * @zh 二维元素的对齐契约：对齐数学读取的缩放几何查询（自身盒、兄弟盒、父盒），以及把本元素定位到父盒或兄弟元素的 fluent 对齐操作。{@link Draw2DElement} 实现本契约；脚本经元素句柄调用全部成员，因此本类型保持宿主侧，不作为脚本可见接口暴露。
  * @zh 对齐是调用时计算的纯几何：被接受的调用经 {@link #moveTo} 写入新位置并返回本元素。不进入每帧渲染路径；比父盒更宽的元素同样可求值（位移可为负）。
- * @zh 对齐词不区分大小写。父盒相对的水平词为 {@code left}、{@code center}、{@code right}；垂直词为 {@code top}、{@code center}、{@code bottom}（两轴均接受 {@code middle} 作为 {@code center} 的同义词）；{@code 0%} 到 {@code 100%} 的整数百分比把元素放进自身缩放尺寸用剩的空间。兄弟相对词形如 {@code <本元素锚>On<对方锚>}——例如 {@code leftOnRight} 或 {@code centerOnCenter}——裸词表示两侧同锚对齐。畸形的兄弟对齐抛错，父盒相对的不支持词则静默不动（与 JsMacros 一致）。
+ * @zh 对齐词不区分大小写。父盒相对的水平词为 {@code left}、{@code center}、{@code right}；垂直词为 {@code top}、{@code center}、{@code bottom}（两轴均接受 {@code middle} 作为 {@code center} 的同义词）；{@code 0%} 到 {@code 100%} 的整数百分比把元素放进自身缩放尺寸用剩的空间。兄弟相对词形如 {@code <本元素锚>On<对方锚>}——例如 {@code leftOnRight} 或 {@code centerOnCenter}——裸词表示两侧同锚对齐。畸形的兄弟对齐抛错，父盒相对的不支持词则静默不动。
  */
 public interface Alignable {
 

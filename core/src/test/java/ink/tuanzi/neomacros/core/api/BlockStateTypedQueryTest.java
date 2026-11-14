@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * ({@code getProp}/{@code hasProp}/{@code getPropRange}), the frequent
  * typed convenience members, the vocabulary-gated {@code type}/{@code shape}
  * families, and the undefined-for-unknown boundary that the props-fallback
- * tier of the 99 JsMacros accessors rides on, all driven over canned
+ * tier of the 99 accessors rides on, all driven over canned
  * registry facts.
  */
 class BlockStateTypedQueryTest {

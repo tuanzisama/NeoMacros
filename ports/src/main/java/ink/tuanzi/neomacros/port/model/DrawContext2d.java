@@ -99,7 +99,7 @@ public interface DrawContext2d {
     /**
      * Draws a straight line between two points with an ARGB color and a
      * stroke thickness in screen pixels; non-positive thickness draws
-     * nothing (JsMacros parity).
+     * nothing.
      *
      * <p>The default implementation degrades to stepped rectangle fills
      * (G-001 §6.2 — neither milestone node ships an arbitrary-angle GUI

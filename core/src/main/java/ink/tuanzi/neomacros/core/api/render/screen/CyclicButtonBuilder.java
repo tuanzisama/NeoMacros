@@ -19,8 +19,7 @@ import java.util.function.Function;
 
 /**
  * Builder for {@code cycleButton} controls: the root-constructed fluent
- * chain behind the JsMacros {@code screen.cyclicButtonBuilder(valueToText)}
- * factory (G-035 row34 fold — the factory's converter argument moves to
+ * chain (G-035 row34 fold — the factory's converter argument moves to
  * {@link #valueToText(Function)}, since the engine's constructor bridge
  * only carries scalars). {@code values}/{@code alternatives} seed the two
  * option lists, {@code initially} the starting value, {@code action} maps
@@ -30,14 +29,14 @@ import java.util.function.Function;
  * ({@code getAction}/{@code getInitialValue}/…) are compat-held with
  * their capability on the {@code build()} product (G-003 §5.2).
  *
- * <p>The JsMacros {@code valueToText} converter is consumed at
+ * <p>The {@code valueToText} converter is consumed at
  * {@link #build()}: every option is rendered once into the neutral
  * {@code valueLabels} map, so the adapter and
  * {@code CycleButton.getStringValue} read plain strings and no function
  * ever crosses the port. The generic {@code T} collapses to strings
  * (control option values are strings).</p>
  *
- * @zh {@code cycleButton} 控件构建器：JsMacros {@code screen.cyclicButtonBuilder(valueToText)} 工厂的根构造器对位（G-035 row34 折叠——工厂的转换器参数移到 {@link #valueToText(Function)}，引擎构造器桥只携带标量）。{@code values}/{@code alternatives} 播种两张选项表，{@code initially} 起始值，{@code action} 映射为 {@link #onChange(Consumer)}，{@code alternateToggle} 注册逐步换表选择器、经 {@code SessionSink.alternateToggle} 到达 adapter。构建器侧回读（{@code getAction}/{@code getInitialValue}/…）compat 自持、能力在 {@code build()} 产物。{@code valueToText} 在 {@link #build()} 时消费：每个选项渲染一次进中立 {@code valueLabels}，adapter 与 {@code CycleButton.getStringValue} 读纯文本、函数永不跨端口。泛型 {@code T} 收敛为字符串。
+ * @zh {@code cycleButton} 控件构建器：根构造的链式构建（G-035 row34 折叠——工厂的转换器参数移到 {@link #valueToText(Function)}，引擎构造器桥只携带标量）。{@code values}/{@code alternatives} 播种两张选项表，{@code initially} 起始值，{@code action} 映射为 {@link #onChange(Consumer)}，{@code alternateToggle} 注册逐步换表选择器、经 {@code SessionSink.alternateToggle} 到达 adapter。构建器侧回读（{@code getAction}/{@code getInitialValue}/…）compat 自持、能力在 {@code build()} 产物。{@code valueToText} 在 {@link #build()} 时消费：每个选项渲染一次进中立 {@code valueLabels}，adapter 与 {@code CycleButton.getStringValue} 读纯文本、函数永不跨端口。泛型 {@code T} 收敛为字符串。
  */
 @ApiClass(name = "CyclicButtonBuilder", kind = ApiClassKind.DATA)
 @ApiSince("0.5.0")

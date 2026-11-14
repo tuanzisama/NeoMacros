@@ -55,8 +55,8 @@ public final class CustomImage implements ScriptHandle, SelfConstructing {
 
     /**
      * Sandbox root for {@link #loadImage} and {@link #saveImage}: paths
-     * resolve below the NeoMacros config directory (the analog of the
-     * JsMacros config folder). Installed once by the bootstrap.
+     * resolve below the NeoMacros config directory (the macro config
+     * folder). Installed once by the bootstrap.
      */
     private static volatile ink.tuanzi.neomacros.core.api.FsApi.FsBridge fileRoot;
 

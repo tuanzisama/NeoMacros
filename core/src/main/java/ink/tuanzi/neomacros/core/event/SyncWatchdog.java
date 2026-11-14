@@ -9,7 +9,7 @@ import java.util.function.Consumer;
  * Guards synchronous event dispatch against overruns: a callback that exceeds
  * the configured budget gets its subscription disabled and a violation
  * reported to the error consumer, while the stuck dispatch thread cannot be
- * interrupted safely and keeps running (JsMacros EventLockWatchdog lesson).
+ * interrupted safely and keeps running.
  */
 public final class SyncWatchdog implements AutoCloseable {
 

@@ -28,11 +28,10 @@ import java.util.regex.Pattern;
  * requires its fixed word.
  *
  * <p>This is the single argument vocabulary of the declarative
- * {@code command.register} surface: JsMacros' {@code CommandBuilder} chain
- * members map onto these slots instead of growing a parallel builder.
+ * {@code command.register} surface; no parallel builder grows here.
  *
  * @zh 注册命令的一个类型化参数槽。槽位经动态 {@code command.arg} 工厂构建（{@code int() long() float() bool() word() string() greedy() player() pos() uuid() identifier() time() literal()}），可链式 {@code optional()}、{@code default(v)} 与数值 {@code range(min, max)}。解析按声明顺序对原始余串进行；带引号的 {@code string} 槽可含空格，{@code greedy} 吞掉剩余全部，{@code literal} 要求固定词完全一致。
- * @zh 这是声明式 {@code command.register} 面唯一的参数词汇表：JsMacros 的 {@code CommandBuilder} 链式成员映射到这些槽位，不再生长第二套 builder。
+ * @zh 这是声明式 {@code command.register} 面唯一的参数词汇表，不再生长第二套 builder。
  */
 @ApiClass(name = "CommandArg", kind = ApiClassKind.HANDLE)
 @ApiSince("0.1.0")
@@ -145,11 +144,9 @@ public final class CommandArg {
     /**
      * Bounds a numeric slot ({@code int}, {@code long}, {@code float}) to the
      * inclusive {@code [min, max]} interval; out-of-range input is rejected
-     * while parsing. This is the declarative counterpart of JsMacros'
-     * {@code intArg(name, min, max)} / {@code longArg(name, min, max)} /
-     * {@code doubleArg(name, min, max)} overloads.
+     * while parsing.
      *
-     * @zh 将数值槽（{@code int} {@code long} {@code float}）限制在闭区间 {@code [min, max]}，越界输入在解析时被拒绝。对应 JsMacros 的 {@code intArg/longArg/doubleArg} 带边界重载。
+     * @zh 将数值槽（{@code int} {@code long} {@code float}）限制在闭区间 {@code [min, max]}，越界输入在解析时被拒绝。
      * @zh-return 新的带边界槽位（原槽位不变）
      */
     @ApiSince("0.5.0")
@@ -175,12 +172,9 @@ public final class CommandArg {
     /**
      * Attaches completion metadata to the slot: either a fixed candidate
      * list, or a callback receiving the {@link SuggestionsBuilder} while the
-     * player tabs through this slot. This is the declarative home of
-     * JsMacros' {@code CommandBuilder.suggest}/{@code suggestMatching} chain
-     * members — they attach to the argument node being built; here they
-     * attach to the slot itself.
+     * player tabs through this slot.
      *
-     * @zh 为槽位挂载补全元数据：固定候选列表，或在玩家 Tab 到该槽位时收到 {@link SuggestionsBuilder} 的回调。这是 JsMacros {@code CommandBuilder.suggest}/{@code suggestMatching} 链式成员的声明式归位——它们在那边挂在正在构建的参数节点上，这里挂在槽位本身。
+     * @zh 为槽位挂载补全元数据：固定候选列表，或在玩家 Tab 到该槽位时收到 {@link SuggestionsBuilder} 的回调。
      * @zh-param value 候选字符串数组，或 {@code (builder) => void} 回调
      * @zh-return 新的带补全槽位（原槽位不变）
      * @zh-throws IllegalArgumentException 传入的不是字符串数组或回调

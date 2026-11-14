@@ -67,7 +67,7 @@ public interface InventoryPort {
             ItemStackData oldStack, ItemStackData newStack) {
     }
 
-    /** One incoming cursor-stack sync (JsMacros HELD type): menu id, kind, new stack. */
+    /** One incoming cursor-stack sync: menu id, kind, new stack. */
     record HeldUpdateInfo(int containerId, String kind, ItemStackData stack) {
     }
 

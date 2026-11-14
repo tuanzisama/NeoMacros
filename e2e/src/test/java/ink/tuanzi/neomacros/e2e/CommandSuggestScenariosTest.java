@@ -72,7 +72,7 @@ class CommandSuggestScenariosTest {
                     "    handler(ctx) { }",
                     "  };",
                     "  results['command.registered'] = neo.command.register(spec) === 'g026b';",
-                    "  // The command listing (JsMacros getValidCommands) sees the registration.",
+                    "  // The command listing sees the registration.",
                     "  results['command.names'] = Array.isArray(neo.command.names)",
                     "      && neo.command.names.includes('g026b');",
                     "  // Literal slot: the fixed word completes its own prefix.",

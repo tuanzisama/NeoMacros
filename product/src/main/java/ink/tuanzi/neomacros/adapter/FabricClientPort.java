@@ -856,9 +856,9 @@ public final class FabricClientPort implements ClientPort {
             return Optional.empty();
         }
         var effect = BuiltInRegistries.MOB_EFFECT.getValue(resolved);
-        // Zero-duration wrap of the effect type, mirroring the JsMacros
-        // registry helper: the instance flags read back their
-        // fresh-instance defaults (ambient false, icon and visibility on).
+        // Zero-duration wrap of the effect type: the instance flags read
+        // back their fresh-instance defaults (ambient false, icon and
+        // visibility on).
         var instance = new net.minecraft.world.effect.MobEffectInstance(
                 BuiltInRegistries.MOB_EFFECT.wrapAsHolder(effect), 0);
         boolean instant;

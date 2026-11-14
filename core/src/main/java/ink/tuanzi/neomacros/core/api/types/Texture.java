@@ -28,10 +28,9 @@ import java.util.concurrent.CompletableFuture;
  * owner; unloading the module disposes every texture it registered.
  *
  * <p>Textures with the same name under one owner are one entry: repeated
- * {@code hud.texture(name)} calls return the same live handle. The
- * identifier itself is global by name (the JsMacros CE registry is
- * global too), and it is shared with {@link CustomImage} canvases of the
- * same name.</p>
+     * {@code hud.texture(name)} calls return the same live handle. The
+     * identifier itself is global by name, and it is shared with
+     * {@link CustomImage} canvases of the same name.</p>
  *
  * <p>Example:</p>
  * <pre>{@code
@@ -42,7 +41,7 @@ import java.util.concurrent.CompletableFuture;
  * }</pre>
  *
  * @zh {@code hud.texture(name, spec?)} 交出的已注册纹理槽：最小纹理注册表（G-001 拍板⑥）的脚本侧。句柄持有 {@code neomacros:image/<name>} 下的 GPU 槽位——{@link #getId()} 即 {@code layer.image} 的 {@code texture} 字段消费的标识——及其生命周期：{@link #update(Image)} 用 PNG 快照重传像素，{@link #dispose()} 注出注册表并释放 GPU 纹理。注册按模块 owner 命名空间隔离；模块卸载会失效其注册的全部纹理。
- * @zh 同 owner 同名纹理只有一条登记：重复 {@code hud.texture(name)} 返回同一存活句柄。标识本身按名字全局（JsMacros CE 注册表同为全局），并与同名 {@link CustomImage} 画布共享。
+     * @zh 同 owner 同名纹理只有一条登记：重复 {@code hud.texture(name)} 返回同一存活句柄。标识本身按名字全局，并与同名 {@link CustomImage} 画布共享。
  */
 @ApiClass(name = "Texture", kind = ApiClassKind.HANDLE)
 @ApiSince("0.5.0")

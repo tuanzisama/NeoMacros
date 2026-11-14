@@ -153,7 +153,7 @@ class ClientRegistrySpectrumTest {
     @Test
     void idListFamiliesBridgeThroughRegistryIds() {
         // A members: the pre-existing generic face answers every builtin
-        // id list, one kind string per JsMacros member.
+        // id list, one kind string per member.
         assertEquals(List.of("minecraft:air", "minecraft:stone"),
                 api.registryIds("item"), "getItemIds");
         assertEquals(List.of("minecraft:air", "minecraft:oak_stairs"),

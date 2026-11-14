@@ -12,16 +12,15 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Builder for {@code button} controls: the root-constructed fluent chain
- * behind the JsMacros {@code screen.buttonBuilder()} factory (G-003 §5.1
- * cross-task fold — the factory member is accounted to G-035 and lands
- * here). {@code height}/{@code size} come from the
+ * Builder for {@code button} controls: the root-constructed fluent
+ * chain (G-003 §5.1 cross-task fold — the factory member is accounted
+ * to G-035 and lands here). {@code height}/{@code size} come from the
  * {@link AbstractWidgetBuilder} skeleton; {@code action} maps to
  * {@link #onClick(Consumer)}; the builder-side {@code getAction} readback
  * is compat-held (G-003 §13 回写⑤) with its capability on
  * {@code build().onClick()}.
  *
- * @zh {@code button} 控件构建器：JsMacros {@code screen.buttonBuilder()} 工厂的根构造器对位（G-003 §5.1 跨任务折叠——工厂成员记 G-035、在此落地）。{@code height}/{@code size} 来自 {@link AbstractWidgetBuilder} 骨架；{@code action} 映射为 {@link #onClick(Consumer)}；构建器侧 {@code getAction} 回读归 compat 自持（能力在 {@code build().onClick()}）。
+ * @zh {@code button} 控件构建器：根构造的链式构建（G-003 §5.1 跨任务折叠——工厂成员记 G-035、在此落地）。{@code height}/{@code size} 来自 {@link AbstractWidgetBuilder} 骨架；{@code action} 映射为 {@link #onClick(Consumer)}；构建器侧 {@code getAction} 回读归 compat 自持（能力在 {@code build().onClick()}）。
  */
 @ApiClass(name = "ButtonBuilder", kind = ApiClassKind.DATA)
 @ApiSince("0.5.0")

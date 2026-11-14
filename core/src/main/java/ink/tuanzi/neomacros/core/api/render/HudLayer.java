@@ -455,10 +455,10 @@ public final class HudLayer implements ScriptHandle {
      * (its neutral snapshot is stored) or a bare item id (a one-item
      * default stack; a bare name takes the {@code minecraft} namespace);
      * {@code null} draws nothing until {@code setItem} runs. The box is the
-     * fixed 16-by-16 GUI-pixel icon scaled by {@code scale} (JsMacros
-     * parity). The G-032 {@code addItem} overload group folds into this one
-     * member (G-033 overload-fold rule); passing only an options bag in the
-     * stack slot works as the stackless form.
+     * fixed 16-by-16 GUI-pixel icon scaled by {@code scale}. The G-032
+     * {@code addItem} overload group folds into this one member (G-033
+     * overload-fold rule); passing only an options bag in the stack slot
+     * works as the stackless form.
      *
      * @param id    element id (must not start with {@code $})
      * @param stack the stack to draw: an {@link ItemStack}, a bare item id,
@@ -471,7 +471,7 @@ public final class HudLayer implements ScriptHandle {
      *              (degrees, default {@code 0}), {@code zIndex} (default
      *              {@code 0}), {@code visible} (default {@code true})
      * @return the live item element handle
-     * @zh 按 id 插入或更新物品图标元素：同 id 语义同 {@link #text}。堆可为 {@link ItemStack}（存储其中立快照）或裸物品 id（默认单件堆；裸名取 {@code minecraft} 命名空间）；{@code null} 在 {@code setItem} 调用前不绘制。盒为固定的 16×16 GUI 像素图标并按 {@code scale} 缩放（JsMacros 对等）。G-032 的 {@code addItem} 重载组折叠进本成员（G-033 重载折叠铁律）；堆槽位只给选项包时按无堆形态处理。
+     * @zh 按 id 插入或更新物品图标元素：同 id 语义同 {@link #text}。堆可为 {@link ItemStack}（存储其中立快照）或裸物品 id（默认单件堆；裸名取 {@code minecraft} 命名空间）；{@code null} 在 {@code setItem} 调用前不绘制。盒为固定的 16×16 GUI 像素图标并按 {@code scale} 缩放。G-032 的 {@code addItem} 重载组折叠进本成员（G-033 重载折叠铁律）；堆槽位只给选项包时按无堆形态处理。
      * @zh-param id 元素 id（不得以 {@code $} 开头）
      * @zh-param stack 要绘制的堆：{@link ItemStack}、裸物品 id，或 {@code null}/省略表示空图标
      * @zh-param opts 物品选项：{@code x}、{@code y}（数字或百分比字符串，默认 {@code 0}）、{@code overlay}（游戏装饰，默认 {@code false}）、{@code overlayText}（替代堆数量的标签）、{@code scale}（默认 {@code 1}）、{@code rotation}（度，默认 {@code 0}）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）
@@ -519,7 +519,7 @@ public final class HudLayer implements ScriptHandle {
     /**
      * Resolves the texture source of an {@link #image} upsert: an explicit
      * {@code texture} id wins (its optional dims default to
-     * {@code 256}&times;{@code 256}, JsMacros builder parity), otherwise a
+     * {@code 256}&times;{@code 256}), otherwise a
      * {@code image} snapshot is decoded and uploaded once under a
      * content-addressed id carrying its own dimensions. A port without the
      * texture face simply never draws the sprite (the upload future is
@@ -732,10 +732,9 @@ public final class HudLayer implements ScriptHandle {
      * Commits the overlay. The retained model registers the layer at
      * {@code neo.hud.layer(id)} creation time and keeps element state across
      * frames, so with no init callback configured this is a no-op that
-     * preserves every element (the JsMacros semantics for an overlay
-     * without an init callback).
+     * preserves every element.
      *
-     * @zh 提交覆盖层。保留式模型在 {@code neo.hud.layer(id)} 创建时即注册图层并跨帧保留元素状态，因此在未配置 init 回调时本方法为保留全部元素的空操作（即 JsMacros 无 init 回调分支的语义）。
+     * @zh 提交覆盖层。保留式模型在 {@code neo.hud.layer(id)} 创建时即注册图层并跨帧保留元素状态，因此在未配置 init 回调时本方法为保留全部元素的空操作。
      */
     @ApiSince("0.5.0")
     @ApiMC("*")
@@ -788,10 +787,10 @@ public final class HudLayer implements ScriptHandle {
     }
 
     /**
-     * Scale option: a number greater than zero (JsMacros builder parity —
-     * zero and negative values throw), default {@code 1}. The value is
-     * stored on the element state; the render transform that applies it
-     * ships with the component tasks (G-034).
+     * Scale option: a number greater than zero (zero and negative values
+     * throw), default {@code 1}. The value is stored on the element state;
+     * the render transform that applies it ships with the component tasks
+     * (G-034).
      */
     private static float scaleOf(Object value) {
         if (value == null) {
@@ -833,8 +832,8 @@ public final class HudLayer implements ScriptHandle {
 
     /**
      * Stroke-thickness option of {@link #line}: a number of screen pixels,
-     * default {@code 1}. Non-positive values are stored as-is (JsMacros
-     * parity — a non-positive stroke simply draws nothing).
+     * default {@code 1}. Non-positive values are stored as-is (a
+     * non-positive stroke simply draws nothing).
      */
     private static float strokeOf(Object value) {
         if (value == null) {

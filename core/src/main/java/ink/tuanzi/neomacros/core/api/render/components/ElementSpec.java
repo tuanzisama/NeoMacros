@@ -384,8 +384,8 @@ public record ElementSpec(
     }
 
     /**
-     * Normalizes degrees into {@code [-180, 180)} the same way the JsMacros
-     * setters do, so {@code setRotation(270)} reads back as {@code -90}.
+     * Normalizes degrees into {@code [-180, 180)}, so
+     * {@code setRotation(270)} reads back as {@code -90}.
      *
      * @param degrees raw rotation in degrees
      * @return the equivalent angle inside {@code [-180, 180)}
@@ -399,13 +399,13 @@ public record ElementSpec(
     }
 
     /**
-     * Resolves a texture identifier the way the JsMacros image face does:
-     * a bare name takes the {@code minecraft} namespace, an empty or null
-     * name means "no texture" (null).
+     * Resolves a texture identifier: a bare name takes the
+     * {@code minecraft} namespace, an empty or null name means
+     * "no texture" (null).
      *
      * @param id script texture id (namespace optional) or null
      * @return the {@code namespace:path} identifier, or null when absent
-     * @zh 按 JsMacros 图像面口径解析纹理标识：裸名取 {@code minecraft} 命名空间，空名/null 表示"无纹理"（返回 null）。
+     * @zh 解析纹理标识：裸名取 {@code minecraft} 命名空间，空名/null 表示"无纹理"（返回 null）。
      * @zh-param id 脚本纹理 id（命名空间可省）或 null
      * @zh-return {@code namespace:path} 标识；缺席时为 null
      */
@@ -478,13 +478,13 @@ public record ElementSpec(
 
     /**
      * Folded {@code setColor} resolution for the component handles: one
-     * script member carries every JsMacros call shape (G-033 overload-fold
+     * script member carries every call shape (G-033 overload-fold
      * rule — the engine keeps one binding per name), dispatched by arity:
      * {@code setColor(color)}, {@code setColor(color, alpha)},
      * {@code setColor(r, g, b)} and {@code setColor(r, g, b, a)}. The alpha
-     * replaces the packed top byte (only its low eight bits survive, the
-     * JsMacros non-clamping behaviour); the rgb forms are opaque unless an
-     * alpha channel is given. The color itself accepts the 拍板④ double
+     * replaces the packed top byte (only its low eight bits survive,
+     * without clamping); the rgb forms are opaque unless an alpha
+     * channel is given. The color itself accepts the 拍板④ double
      * form (ARGB number or color string).
      *
      * @param color  packed color (number or string), or the red channel in rgb forms
@@ -492,7 +492,7 @@ public record ElementSpec(
      * @param blue   optional blue channel (rgb form), absent for rgba-less calls
      * @param alpha2 optional alpha channel of the rgba form
      * @return the packed ARGB color
-     * @zh 组件句柄的折叠 {@code setColor} 解析：一个脚本成员承载全部 JsMacros 调用形（G-033 重载折叠铁律——引擎每名只留一个绑定），按元数分派：{@code setColor(color)}、{@code setColor(color, alpha)}、{@code setColor(r, g, b)}、{@code setColor(r, g, b, a)}。alpha 替换打包色顶字节（仅低八位生效，JsMacros 不钳制语义）；rgb 形默认不透明。颜色本身接受拍板④ 双形。
+     * @zh 组件句柄的折叠 {@code setColor} 解析：一个脚本成员承载全部调用形（G-033 重载折叠铁律——引擎每名只留一个绑定），按元数分派：{@code setColor(color)}、{@code setColor(color, alpha)}、{@code setColor(r, g, b)}、{@code setColor(r, g, b, a)}。alpha 替换打包色顶字节（仅低八位生效，不钳制）；rgb 形默认不透明。颜色本身接受拍板④ 双形。
      * @zh-param color 打包色（数字或字符串），rgb 形中为红通道
      * @zh-param alpha 可选 alpha 字节（color+alpha 形），rgb 形中为绿通道
      * @zh-param blue 可选蓝通道（rgb 形）

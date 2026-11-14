@@ -12,15 +12,14 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Builder for {@code editBox} controls (JsMacros
- * {@code TextFieldWidgetHelper.TextFieldBuilder}; NeoMacros keeps the
- * task-card word while the live handle uses the Mojang word
- * {@link EditBox}): {@code suggestion(s)} seeds the placeholder,
- * {@code action} maps to {@link #onChange(Consumer)}; the builder-side
- * {@code getSuggestion} readback is compat-held with its capability on
+ * Builder for {@code editBox} controls (NeoMacros keeps the task-card
+ * word while the live handle uses the Mojang word {@link EditBox}):
+ * {@code suggestion(s)} seeds the placeholder, {@code action} maps to
+ * {@link #onChange(Consumer)}; the builder-side {@code getSuggestion}
+ * readback is compat-held with its capability on
  * {@code build().suggestion}.
  *
- * @zh {@code editBox} 控件构建器（JsMacros {@code TextFieldWidgetHelper.TextFieldBuilder}；任务卡词保留，活句柄取 Mojang 词 {@link EditBox}）：{@code suggestion(s)} 播种占位提示，{@code action} 映射为 {@link #onChange(Consumer)}；构建器侧 {@code getSuggestion} 回读归 compat 自持（能力在 {@code build().suggestion}）。
+ * @zh {@code editBox} 控件构建器（任务卡词保留，活句柄取 Mojang 词 {@link EditBox}）：{@code suggestion(s)} 播种占位提示，{@code action} 映射为 {@link #onChange(Consumer)}；构建器侧 {@code getSuggestion} 回读归 compat 自持（能力在 {@code build().suggestion}）。
  */
 @ApiClass(name = "TextFieldBuilder", kind = ApiClassKind.DATA)
 @ApiSince("0.5.0")

@@ -80,7 +80,7 @@ class Draw2DImageItemTest {
                 "color", 0x80FF0000));
 
         assertEquals("minecraft:badge", image.getImage(),
-                "a bare name takes the minecraft namespace (JsMacros parity)");
+                "a bare name takes the minecraft namespace");
         assertEquals(4, image.getImageX());
         assertEquals(5, image.getImageY());
         assertEquals(6, image.getRegionWidth());
@@ -174,7 +174,7 @@ class Draw2DImageItemTest {
         assertEquals(List.of(
                 "sprite:0,0,16,8,neomacros:image/badge,ffffffff,0,0,16,8,256,256"),
                 render.frame(0),
-                "an unset region samples the destination size (JsMacros 2D rule)");
+                "an unset region samples the destination size");
     }
 
     @Test
@@ -183,7 +183,7 @@ class Draw2DImageItemTest {
         layer.image("empty", Map.of("x", 0, "y", 0, "w", 8, "h", 8));
 
         assertEquals(List.of(), render.frame(0),
-                "an image without a texture draws nothing (JsMacros parity)");
+                "an image without a texture draws nothing");
     }
 
     @Test
@@ -224,7 +224,7 @@ class Draw2DImageItemTest {
         assertEquals("minecraft:stick", item.getItem().getId());
         assertEquals(3, item.getItem().getCount());
 
-        // The reported dimensions follow the scale (JsMacros parity).
+        // The reported dimensions follow the scale.
         item.setScale(2);
         assertEquals(32, item.getScaledWidth());
         assertEquals(2f, item.getScale());

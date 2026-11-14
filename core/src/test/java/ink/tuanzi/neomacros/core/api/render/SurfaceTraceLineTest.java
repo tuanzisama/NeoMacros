@@ -172,7 +172,7 @@ class SurfaceTraceLineTest {
         EntityApi.Entity target = entity();
 
         // Statement style: TraceLine's fluent setters declare TraceLine
-        // returns (same as JsMacros element-side typing), so the chain
+        // returns (same as element-side typing), so the chain
         // would widen the static type.
         EntityTraceLine line = layer.entityTraceLineBuilder();
         line.setEntity(target);
@@ -200,7 +200,7 @@ class SurfaceTraceLineTest {
         fresh.setEntity(null);
         assertNull(assertInstanceOf(ShapeSpec.EntityTrace.class, fresh.toSpec()).entityUuid());
 
-        // JsMacros `buildAndAdd(entity)` folds onto `.entity(e).buildAndAdd()`.
+        // The quick form `.buildAndAdd(entity)` folds onto `.entity(e).buildAndAdd()`.
         EntityTraceLine chained = layer.entityTraceLineBuilder()
                 .setEntity(target)
                 .buildAndAdd();
@@ -269,7 +269,7 @@ class SurfaceTraceLineTest {
         Surface surface = layer.addDraw2D(1, 64, 2);
         ShapeSpec.Panel spec = assertInstanceOf(ShapeSpec.Panel.class, backing.lastPut().spec());
 
-        // JsMacros quick form: 1x1, no rotation, 200 subdivisions, no back
+        // Quick form: 1x1, no rotation, 200 subdivisions, no back
         // face, no depth culling, corner pivot.
         assertEquals(new Pos3d(1, 64, 2), spec.origin());
         assertEquals(1.0, spec.width());
@@ -383,7 +383,7 @@ class SurfaceTraceLineTest {
         layer.addSurface(detached);
         assertSame(detached, layer.getElements().get(3));
 
-        // The folded attach face (JsMacros addTraceLine(TraceLine)) is
+        // The folded attach face (addTraceLine(TraceLine)) is
         // reAddElement; attaching the same instance twice is a no-op.
         layer.reAddElement(quickTrace);
         assertEquals(4, layer.getElements().size());

@@ -12,12 +12,12 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * Live handle for an {@code editBox} control (JsMacros
- * {@code TextFieldWidgetHelper}, Mojang word per G-003 §5.2). Reads come
- * from the session cache; writes land on the live widget through the
- * {@code setControl} whitelist. Cursor/selection moves are transient
- * widget operations carried as patch keys ({@code cursor/cursorTo/shift/
- * selection}) and never round-trip into the spec mirror semantics.
+ * Live handle for an {@code editBox} control (Mojang word per G-003
+ * §5.2). Reads come from the session cache; writes land on the live
+ * widget through the {@code setControl} whitelist. Cursor/selection
+ * moves are transient widget operations carried as patch keys
+ * ({@code cursor/cursorTo/shift/selection}) and never round-trip into
+ * the spec mirror semantics.
  *
  * <p>{@code setFilter} installs a script predicate consulted before user
  * edits enter the widget (the {@code setTextPredicate} slot): the adapter
@@ -27,7 +27,7 @@ import java.util.function.Function;
  * On 26.x vanilla dropped its native filter, so the adapter's edit box
  * subclass owns the gate on every node.</p>
  *
- * @zh {@code editBox} 控件的活句柄（JsMacros {@code TextFieldWidgetHelper}，类名按 Mojang 词）。读自会话缓存；写经 {@code setControl} 白名单落到活控件。光标/选区移动是瞬态操作，以补丁键（cursor/cursorTo/shift/selection）承载、不进 spec 镜像语义。{@code setFilter} 安装脚本谓词，在用户输入进入控件前经 {@code SessionSink.filterText} 以候选全文征询；仅显式 {@code false} 拒绝（fail-open）；脚本 {@code setValue} 写不走该闸。
+ * @zh {@code editBox} 控件的活句柄（类名按 Mojang 词）。读自会话缓存；写经 {@code setControl} 白名单落到活控件。光标/选区移动是瞬态操作，以补丁键（cursor/cursorTo/shift/selection）承载、不进 spec 镜像语义。{@code setFilter} 安装脚本谓词，在用户输入进入控件前经 {@code SessionSink.filterText} 以候选全文征询；仅显式 {@code false} 拒绝（fail-open）；脚本 {@code setValue} 写不走该闸。
  */
 @ApiClass(name = "EditBox", kind = ApiClassKind.HANDLE,
         wraps = "net.minecraft.client.gui.components.EditBox")

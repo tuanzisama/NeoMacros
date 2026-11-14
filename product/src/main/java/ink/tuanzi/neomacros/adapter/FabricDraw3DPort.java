@@ -568,7 +568,7 @@ public final class FabricDraw3DPort implements Draw3DPort {
         for (int i = 0; i < corners.length; i++) {
             double x = local[i][0];
             double y = local[i][1];
-            // y rotation, then x rotation, then z rotation (JsMacros order)
+            // y rotation, then x rotation, then z rotation
             double x1 = x * cy;
             double z1 = -x * sy;
             double y2 = y * cx - z1 * sx;

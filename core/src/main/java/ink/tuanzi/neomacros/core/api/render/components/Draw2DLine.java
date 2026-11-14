@@ -20,14 +20,14 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
  *
  * <p><b>Endpoint model</b>: the stored box is always the min-corner
  * extent with a non-negative size (so {@code getScaledLeft/Top/Width/Height}
- * and alignment read the bounding box, JsMacros parity), while the
+ * and alignment read the bounding box), while the
  * element's <i>first</i> endpoint — the default rotation pivot — stays
  * observable through {@link #getX1()} and friends. Endpoints may be given
  * in either order ({@code flipX}/{@code flipY} record the direction).</p>
  *
  * <p><b>{@code width} vs {@code strokeWidth}</b>: the inherited base
  * {@code width} face answers the line's horizontal extent
- * ({@code |x2 - x1|}); the JsMacros stroke thickness lives under
+ * ({@code |x2 - x1|}); the stroke thickness lives under
  * {@link #setStrokeWidth}/{@link #getStrokeWidth()} — the base face may
  * not be re-declared by subclasses (G-034C contract), so the
  * task-card {@code Line.setWidth/getWidth} name pair bridges the extent
@@ -35,13 +35,12 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
  * deviation).</p>
  *
  * <p><b>Element is its own builder</b> (拍板②): every setter is fluent and
- * returns this handle; the JsMacros {@code Line.Builder} family folds into
- * it.</p>
+ * returns this handle.</p>
  *
  * @zh HUD 图层内单个直线元素的句柄，由 {@code layer.line(id, …)} upsert 返回。{@link Draw2DElement} 的 G-034 组件面：双端点几何视图（{@code x1/y1/x2/y2}）、笔画粗细与着色——变换、z 序、对齐、生命周期全部继承且不重声明（G-034C 契约）。
- * @zh <b>端点模型</b>：存储盒恒为最小角跨度 + 非负尺寸（因此 {@code getScaledLeft/Top/Width/Height} 与对齐读包围盒，JsMacros 对等），而元素的<i>第一</i>端点（默认旋转枢轴）经 {@link #getX1()} 等仍可观测。端点可任意顺序给出（{@code flipX}/{@code flipY} 记录方向）。
- * @zh <b>{@code width} 与 {@code strokeWidth}</b>：继承的基类 {@code width} 面回答线的横向跨度（{@code |x2 - x1|}）；JsMacros 的笔画粗细落在 {@link #setStrokeWidth}/{@link #getStrokeWidth()}——子类不得重声明基类面（G-034C 契约），因此任务卡 {@code Line.setWidth/getWidth} 名对桥接跨度语义、笔画粗细移至独立成员（已记录偏离）。
- * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回本句柄；JsMacros 的 {@code Line.Builder} 类族折叠于此。
+ * @zh <b>端点模型</b>：存储盒恒为最小角跨度 + 非负尺寸（因此 {@code getScaledLeft/Top/Width/Height} 与对齐读包围盒），而元素的<i>第一</i>端点（默认旋转枢轴）经 {@link #getX1()} 等仍可观测。端点可任意顺序给出（{@code flipX}/{@code flipY} 记录方向）。
+ * @zh <b>{@code width} 与 {@code strokeWidth}</b>：继承的基类 {@code width} 面回答线的横向跨度（{@code |x2 - x1|}）；笔画粗细落在 {@link #setStrokeWidth}/{@link #getStrokeWidth()}——子类不得重声明基类面（G-034C 契约），因此任务卡 {@code Line.setWidth/getWidth} 名对桥接跨度语义、笔画粗细移至独立成员（已记录偏离）。
+ * @zh <b>元素即 Builder</b>（拍板②）：全部 setter 为 fluent 并返回本句柄。
  */
 @ApiClass(name = "Draw2DLine", kind = ApiClassKind.HANDLE)
 @ApiSince("0.5.0")
@@ -239,13 +238,13 @@ public class Draw2DLine extends Draw2DElement {
     /**
      * Sets the line's stroke thickness in screen pixels. Values are stored
      * as-is; non-positive thickness draws nothing, fractional thickness is
-     * rounded up when drawn (JsMacros parity). The inherited {@code width}
+     * rounded up when drawn. The inherited {@code width}
      * face keeps answering the line's horizontal extent — see the class
      * javadoc.
      *
      * @param width stroke thickness in screen pixels
      * @return this element for chaining
-     * @zh 设置线的笔画粗细（屏幕像素）。数值原样存储；非正粗细不绘制，小数粗细绘制时向上取整（JsMacros 对等）。继承的 {@code width} 面仍回答线的横向跨度——见类 javadoc。
+     * @zh 设置线的笔画粗细（屏幕像素）。数值原样存储；非正粗细不绘制，小数粗细绘制时向上取整。继承的 {@code width} 面仍回答线的横向跨度——见类 javadoc。
      * @zh-param width 笔画粗细（屏幕像素）
      * @zh-return 本元素（可链式调用）
      */
@@ -319,11 +318,11 @@ public class Draw2DLine extends Draw2DElement {
 
     /**
      * Sets the alpha byte without changing the RGB channels; values are
-     * not clamped (only their low eight bits survive, JsMacros parity).
+     * not clamped (only their low eight bits survive).
      *
      * @param alpha alpha byte ({@code 0} transparent … {@code 255} opaque)
      * @return this element for chaining
-     * @zh 设置 alpha 字节且不改变 RGB 通道；数值不钳制（仅低八位生效，JsMacros 对等）。
+     * @zh 设置 alpha 字节且不改变 RGB 通道；数值不钳制（仅低八位生效）。
      * @zh-param alpha alpha 字节（{@code 0} 全透明 … {@code 255} 不透明）
      * @zh-return 本元素（可链式调用）
      */

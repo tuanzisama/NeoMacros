@@ -8,13 +8,12 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
 /**
- * Live handle for a {@code checkbox} control (JsMacros
- * {@code CheckBoxWidgetHelper}, Mojang spelling). State reads come from
+ * Live handle for a {@code checkbox} control. State reads come from
  * the session cache (kept fresh by {@code stateChanged}); writes go
  * through the {@code setControl} whitelist and land on the live widget
  * without an event echo (the {@code CheckboxAccessor} path).
  *
- * @zh {@code checkbox} 控件的活句柄（JsMacros {@code CheckBoxWidgetHelper}，Mojang 拼写）。状态读自会话缓存（由 stateChanged 刷新）；写走 {@code setControl} 白名单就地落到活控件、无事件回声（CheckboxAccessor 通道）。
+ * @zh {@code checkbox} 控件的活句柄。状态读自会话缓存（由 stateChanged 刷新）；写走 {@code setControl} 白名单就地落到活控件、无事件回声（CheckboxAccessor 通道）。
  */
 @ApiClass(name = "Checkbox", kind = ApiClassKind.HANDLE,
         wraps = "net.minecraft.client.gui.components.Checkbox")
