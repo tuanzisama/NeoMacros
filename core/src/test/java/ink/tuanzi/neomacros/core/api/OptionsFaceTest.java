@@ -20,10 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The options root, video, chat, control and accessibility faces over a
- * writable canned port: reads render the option vocabulary, writes round-trip
- * through read-back verification, and a write the client does not store
- * rejects.
+ * The options root, video, chat, control, accessibility, music and skin faces
+ * over a writable canned port: reads render the option vocabulary, writes
+ * round-trip through read-back verification, and a write the client does not
+ * store rejects.
  */
 class OptionsFaceTest {
 
@@ -239,6 +239,123 @@ class OptionsFaceTest {
     }
 
     @Test
+    void musicAndSkinReadsRenderTheOptionVocabulary() {
+        ClientApi.Options options = api.getOptions();
+
+        ClientApi.MusicOptions music = options.getMusic();
+        assertEquals(1.0, music.getMasterVolume());
+        assertEquals(0.5, music.getMusicVolume());
+        assertEquals(0.75, music.getRecordVolume());
+        assertEquals(1.0, music.getWeatherVolume());
+        assertEquals(1.0, music.getBlockVolume());
+        assertEquals(1.0, music.getHostileVolume());
+        assertEquals(1.0, music.getNeutralVolume());
+        assertEquals(1.0, music.getPlayerVolume());
+        assertEquals(1.0, music.getAmbientVolume());
+        assertEquals(1.0, music.getVoiceVolume());
+        assertEquals(0.25, music.getUiVolume());
+        assertEquals("speakers", music.getSoundDevice());
+        assertEquals(List.of("", "speakers", "headphones"), music.getAudioDevices());
+        assertEquals(Boolean.FALSE, music.getShowSubtitles());
+        java.util.Map<String, Double> volumes = music.getVolumes();
+        assertEquals(11, volumes.size());
+        assertEquals(0.5, volumes.get("music"));
+        assertEquals(0.75, volumes.get("record"));
+        assertEquals(0.25, volumes.get("ui"));
+        assertEquals(options.getFov(), music.getParent().getFov());
+
+        ClientApi.SkinOptions skin = options.getSkin();
+        assertEquals(Boolean.TRUE, skin.getCape());
+        assertEquals(Boolean.TRUE, skin.getJacket());
+        assertEquals(Boolean.TRUE, skin.getLeftSleeve());
+        assertEquals(Boolean.TRUE, skin.getRightSleeve());
+        assertEquals(Boolean.TRUE, skin.getLeftPantsLeg());
+        assertEquals(Boolean.TRUE, skin.getRightPantsLeg());
+        assertEquals(Boolean.TRUE, skin.getHat());
+        assertEquals("right", skin.getMainHand());
+        assertEquals(Boolean.TRUE, skin.getRightHanded());
+        assertEquals(Boolean.FALSE, skin.getLeftHanded());
+        assertEquals(options.getFov(), skin.getParent().getFov());
+    }
+
+    @Test
+    void musicAndSkinWritesRoundTripThroughReadBack() throws Exception {
+        ClientApi.Options options = api.getOptions();
+        ClientApi.MusicOptions music = options.getMusic();
+        ClientApi.SkinOptions skin = options.getSkin();
+
+        music.setMasterVolume(0.75).get(1, TimeUnit.SECONDS);
+        assertEquals(0.75, music.getMasterVolume());
+        assertEquals(0.75, music.getVolumes().get("master"));
+
+        music.setRecordVolume(0.25).get(1, TimeUnit.SECONDS);
+        assertEquals(0.25, music.getRecordVolume());
+
+        music.setUiVolume(0.5).get(1, TimeUnit.SECONDS);
+        assertEquals(0.5, music.getUiVolume());
+
+        music.setSoundDevice("headphones").get(1, TimeUnit.SECONDS);
+        assertEquals("headphones", music.getSoundDevice());
+
+        music.setShowSubtitles(true).get(1, TimeUnit.SECONDS);
+        assertEquals(Boolean.TRUE, music.getShowSubtitles());
+
+        skin.setCape(false).get(1, TimeUnit.SECONDS);
+        assertEquals(Boolean.FALSE, skin.getCape());
+
+        skin.setLeftPantsLeg(false).get(1, TimeUnit.SECONDS);
+        assertEquals(Boolean.FALSE, skin.getLeftPantsLeg());
+
+        skin.setMainHand("left").get(1, TimeUnit.SECONDS);
+        assertEquals("left", skin.getMainHand());
+        assertEquals(Boolean.TRUE, skin.getLeftHanded());
+        assertEquals(Boolean.FALSE, skin.getRightHanded());
+    }
+
+    @Test
+    void musicAndSkinRefusedWritesRejectWithoutStoring() {
+        ClientApi.MusicOptions music = api.getOptions().getMusic();
+        ClientApi.SkinOptions skin = api.getOptions().getSkin();
+
+        ExecutionException range = assertThrows(ExecutionException.class,
+                () -> music.setMasterVolume(1.5).get(1, TimeUnit.SECONDS));
+        assertTrue(String.valueOf(range.getCause()).contains("out of range"),
+                "message was: " + range.getCause());
+        assertEquals(1.0, music.getMasterVolume());
+
+        ExecutionException device = assertThrows(ExecutionException.class,
+                () -> music.setSoundDevice("bluetooth").get(1, TimeUnit.SECONDS));
+        assertTrue(String.valueOf(device.getCause()).contains("unknown audio device"),
+                "message was: " + device.getCause());
+        assertEquals("speakers", music.getSoundDevice());
+
+        ExecutionException hand = assertThrows(ExecutionException.class,
+                () -> skin.setMainHand("middle").get(1, TimeUnit.SECONDS));
+        assertTrue(String.valueOf(hand.getCause()).contains("rejects value"),
+                "message was: " + hand.getCause());
+        assertEquals("right", skin.getMainHand());
+    }
+
+    @Test
+    void musicAndSkinWriteRejectsWhenTheClientStoresAnotherValue() {
+        client.ignore.add("blockVolume");
+        client.ignore.add("hat");
+        ExecutionException volume = assertThrows(ExecutionException.class,
+                () -> api.getOptions().getMusic()
+                        .setBlockVolume(0.25).get(1, TimeUnit.SECONDS));
+        assertTrue(String.valueOf(volume.getCause()).contains("was not applied"),
+                "message was: " + volume.getCause());
+        assertEquals(1.0, api.getOptions().getMusic().getBlockVolume());
+
+        ExecutionException part = assertThrows(ExecutionException.class,
+                () -> api.getOptions().getSkin()
+                        .setHat(false).get(1, TimeUnit.SECONDS));
+        assertTrue(String.valueOf(part.getCause()).contains("was not applied"),
+                "message was: " + part.getCause());
+        assertEquals(Boolean.TRUE, api.getOptions().getSkin().getHat());
+    }
+
+    @Test
     void removedOptionWritesSettleOnlyWhenTheStoredValueMatches() throws Exception {
         ClientApi.Options options = api.getOptions();
         // A node without the setting keeps its stored value: a matching write
@@ -309,6 +426,14 @@ class OptionsFaceTest {
         assertNull(options.getChat().getChatVisibility());
         assertNull(options.getControl().getSensitivity());
         assertNull(options.getAccessibility().getShowSubtitles());
+        assertNull(options.getMusic().getMasterVolume());
+        assertNull(options.getMusic().getSoundDevice());
+        assertNull(options.getMusic().getShowSubtitles());
+        assertTrue(options.getMusic().getAudioDevices().isEmpty());
+        assertTrue(options.getMusic().getVolumes().isEmpty());
+        assertNull(options.getSkin().getCape());
+        assertNull(options.getSkin().getMainHand());
+        assertNull(options.getSkin().getRightHanded());
         assertTrue(options.getControl().getKeys().isEmpty());
         assertTrue(options.getControl().getCategories().isEmpty());
         assertTrue(options.getControl().getKeyBindsByCategory().isEmpty());
@@ -316,6 +441,10 @@ class OptionsFaceTest {
                 () -> options.setFov(70).get(1, TimeUnit.SECONDS));
         assertThrows(ExecutionException.class,
                 () -> options.getChat().setChatOpacity(0.5).get(1, TimeUnit.SECONDS));
+        assertThrows(ExecutionException.class,
+                () -> options.getMusic().setMasterVolume(0.5).get(1, TimeUnit.SECONDS));
+        assertThrows(ExecutionException.class,
+                () -> options.getSkin().setCape(false).get(1, TimeUnit.SECONDS));
         assertThrows(ExecutionException.class,
                 () -> options.saveOptions().get(1, TimeUnit.SECONDS));
         assertFalse(client.actions.contains("save"));
@@ -355,16 +484,26 @@ class OptionsFaceTest {
         }
 
         @Override
-        public Optional<ink.tuanzi.neomacros.port.model.KeybindCatalogData> keybindCatalog() {
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.KeybindCatalogData> keybindCatalog() {
             return present
                     ? Optional.of(ClientGapExpansionsTest.cannedKeybinds())
-                    : Optional.empty();
+                    : java.util.Optional.empty();
         }
+
+        @Override
+        public List<String> audioDevices() {
+            return present ? List.of("", "speakers", "headphones") : List.of();
+        }
+
 
         @Override
         public CompletableFuture<Void> setOption(String name, Object value) {
             if (!present) {
                 return failed("game options are unavailable");
+            }
+            String rejection = invalidWrite(name, value);
+            if (rejection != null) {
+                return failed(rejection);
             }
             if (ignore.contains(name)) {
                 actions.add("option:" + name);
@@ -452,6 +591,28 @@ class OptionsFaceTest {
         @Override
         public void sendSyncedOptions() {
             actions.add("sync");
+        }
+
+        /** Mirrors the adapter's write validation so refused writes behave alike. */
+        private String invalidWrite(String name, Object value) {
+            if (name != null && name.endsWith("Volume")) {
+                if (!(value instanceof Number number)) {
+                    return "option '" + name + "' requires a number";
+                }
+                double level = number.doubleValue();
+                if (!(level >= 0.0 && level <= 1.0)) {
+                    return "option '" + name + "' out of range: " + level;
+                }
+            }
+            if ("soundDevice".equals(name) && value instanceof String device
+                    && !device.isEmpty() && !audioDevices().contains(device)) {
+                return "unknown audio device: " + device;
+            }
+            if ("mainHand".equals(name) && value instanceof String hand
+                    && !"left".equalsIgnoreCase(hand) && !"right".equalsIgnoreCase(hand)) {
+                return "option '" + name + "' rejects value " + hand;
+            }
+            return null;
         }
 
         private static CompletableFuture<Void> failed(String message) {

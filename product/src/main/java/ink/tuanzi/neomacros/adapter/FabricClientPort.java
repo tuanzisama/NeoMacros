@@ -277,8 +277,40 @@ public final class FabricClientPort implements ClientPort {
                     options.showSubtitles().get(),
                     options.backgroundForChatOnly().get(),
                     options.darkMojangStudiosBackground().get(),
-                    options.hideLightningFlash().get()));
+                    options.hideLightningFlash().get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MASTER).get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MUSIC).get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.RECORDS).get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.WEATHER).get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.BLOCKS).get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.HOSTILE).get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.NEUTRAL).get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.PLAYERS).get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.AMBIENT).get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.VOICE).get(),
+                    options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.UI).get(),
+                    options.soundDevice().get(),
+                    options.isModelPartEnabled(net.minecraft.world.entity.player.PlayerModelPart.CAPE),
+                    options.isModelPartEnabled(net.minecraft.world.entity.player.PlayerModelPart.JACKET),
+                    options.isModelPartEnabled(net.minecraft.world.entity.player.PlayerModelPart.LEFT_SLEEVE),
+                    options.isModelPartEnabled(net.minecraft.world.entity.player.PlayerModelPart.RIGHT_SLEEVE),
+                    options.isModelPartEnabled(net.minecraft.world.entity.player.PlayerModelPart.LEFT_PANTS_LEG),
+                    options.isModelPartEnabled(net.minecraft.world.entity.player.PlayerModelPart.RIGHT_PANTS_LEG),
+                    options.isModelPartEnabled(net.minecraft.world.entity.player.PlayerModelPart.HAT),
+                    options.mainHand().get().name().toLowerCase(java.util.Locale.ROOT)));
         });
+    }
+
+    @Override
+    public List<String> audioDevices() {
+        List<String> available = availableAudioDevices();
+        List<String> devices = new ArrayList<>(available.size() + 1);
+        // The empty identifier selects the system default device and is part
+        // of the script-facing list, so a read-back of the default always
+        // matches an entry of this list.
+        devices.add("");
+        devices.addAll(available);
+        return devices;
     }
 
     /**
@@ -399,6 +431,20 @@ public final class FabricClientPort implements ClientPort {
             if (options == null || name == null || value == null) {
                 throw new IllegalArgumentException("option unavailable: " + name);
             }
+            net.minecraft.sounds.SoundSource volume = soundVolumeOf(name);
+            if (volume != null) {
+                options.getSoundSourceOptionInstance(volume).set(volumeLevel(name, value));
+                return;
+            }
+            net.minecraft.world.entity.player.PlayerModelPart modelPart = modelPartOf(name);
+            if (modelPart != null) {
+                if (!(value instanceof Boolean flag)) {
+                    throw new IllegalArgumentException(
+                            "option '" + name + "' requires a boolean");
+                }
+                options.setModelPart(modelPart, flag);
+                return;
+            }
             java.lang.reflect.Method getter;
             String accessor = nodeOptionAccessor(name);
             if (accessor == null) {
@@ -465,10 +511,81 @@ public final class FabricClientPort implements ClientPort {
         return name;
     }
 
+    /**
+     * Resolves one volume option name onto the vanilla sound category it
+     * addresses, or {@code null} when the name is not a volume option. The
+     * categories carry no per-name accessor on {@code Options}, so they are
+     * reached through their option-instance map instead of by reflection.
+     */
+    private static net.minecraft.sounds.SoundSource soundVolumeOf(String name) {
+        return switch (name) {
+            case "masterVolume" -> net.minecraft.sounds.SoundSource.MASTER;
+            case "musicVolume" -> net.minecraft.sounds.SoundSource.MUSIC;
+            case "recordVolume" -> net.minecraft.sounds.SoundSource.RECORDS;
+            case "weatherVolume" -> net.minecraft.sounds.SoundSource.WEATHER;
+            case "blockVolume" -> net.minecraft.sounds.SoundSource.BLOCKS;
+            case "hostileVolume" -> net.minecraft.sounds.SoundSource.HOSTILE;
+            case "neutralVolume" -> net.minecraft.sounds.SoundSource.NEUTRAL;
+            case "playerVolume" -> net.minecraft.sounds.SoundSource.PLAYERS;
+            case "ambientVolume" -> net.minecraft.sounds.SoundSource.AMBIENT;
+            case "voiceVolume" -> net.minecraft.sounds.SoundSource.VOICE;
+            case "uiVolume" -> net.minecraft.sounds.SoundSource.UI;
+            default -> null;
+        };
+    }
+
+    /**
+     * Resolves one skin option name onto the vanilla player model part it
+     * addresses, or {@code null} when the name is not a model-part option.
+     * Model parts are a plain set rather than option instances, so they are
+     * reached through {@code Options.setModelPart} instead of by reflection.
+     */
+    private static net.minecraft.world.entity.player.PlayerModelPart modelPartOf(String name) {
+        return switch (name) {
+            case "cape" -> net.minecraft.world.entity.player.PlayerModelPart.CAPE;
+            case "jacket" -> net.minecraft.world.entity.player.PlayerModelPart.JACKET;
+            case "leftSleeve" -> net.minecraft.world.entity.player.PlayerModelPart.LEFT_SLEEVE;
+            case "rightSleeve" -> net.minecraft.world.entity.player.PlayerModelPart.RIGHT_SLEEVE;
+            case "leftPantsLeg" -> net.minecraft.world.entity.player.PlayerModelPart.LEFT_PANTS_LEG;
+            case "rightPantsLeg" -> net.minecraft.world.entity.player.PlayerModelPart.RIGHT_PANTS_LEG;
+            case "hat" -> net.minecraft.world.entity.player.PlayerModelPart.HAT;
+            default -> null;
+        };
+    }
+
+    /**
+     * Coerces one incoming volume write onto a level the vanilla unit slider
+     * accepts. Rejecting here keeps a refused write from falling back to the
+     * option's default level the way {@code OptionInstance.set} does.
+     */
+    private static double volumeLevel(String name, Object value) {
+        if (!(value instanceof Number number)) {
+            throw new IllegalArgumentException("option '" + name + "' requires a number");
+        }
+        double level = number.doubleValue();
+        if (!(level >= 0.0 && level <= 1.0)) {
+            throw new IllegalArgumentException(
+                    "option '" + name + "' out of range: " + level);
+        }
+        return level;
+    }
+
+    /** The audio-device identifiers the sound engine currently reports. */
+    private static List<String> availableAudioDevices() {
+        var soundManager = Minecraft.getInstance().getSoundManager();
+        return soundManager == null ? List.of() : soundManager.getAvailableSoundDevices();
+    }
+
     /** Coerces an incoming script value onto the option's current type. */
     private static Object convertOptionValue(String name, Object current, Object value) {
         if (current == null) {
             throw new IllegalArgumentException("option '" + name + "' has no reference value");
+        }
+        if ("soundDevice".equals(name) && value instanceof String device
+                && !device.isEmpty() && !availableAudioDevices().contains(device)) {
+            // Vanilla keeps the default device for an unknown identifier, so the
+            // write is refused here to leave the stored selection untouched.
+            throw new IllegalArgumentException("unknown audio device: " + device);
         }
         try {
             if (current instanceof Enum<?> constant && value instanceof String text) {
@@ -735,8 +852,9 @@ public final class FabricClientPort implements ClientPort {
 
     /** Option names shared by every supported node (checked before lookup). */
     private static final java.util.Set<String> OPTION_NAMES = java.util.Set.of(
-            "allowServerListing", "ambientOcclusion", "attackIndicator", "autoJump",
-            "autoSuggestions", "backgroundForChatOnly", "biomeBlendRadius", "bobView",
+            "allowServerListing", "ambientOcclusion", "ambientVolume", "attackIndicator",
+            "autoJump", "autoSuggestions", "backgroundForChatOnly", "biomeBlendRadius",
+            "blockVolume", "bobView", "cape",
             "chatColors", "chatDelay", "chatHeightFocused", "chatHeightUnfocused",
             "chatLineSpacing", "chatLinks", "chatLinksPrompt", "chatOpacity",
             "chatScale", "chatVisibility", "chatWidth", "cloudRange", "cloudStatus",
@@ -744,17 +862,22 @@ public final class FabricClientPort implements ClientPort {
             "directionalAudio", "discreteMouseScroll", "enableVsync",
             "entityDistanceScaling", "entityShadows", "forceUnicodeFont", "fov",
             "fovEffectScale", "framerateLimit", "fullscreen", "gamma", "glintSpeed",
-            "glintStrength", "guiScale", "hideLightningFlash", "hideMatchedNames",
+            "glintStrength", "guiScale", "hat", "hideLightningFlash", "hideMatchedNames",
             "hideSplashTexts", "highContrast", "highContrastBlockOutline",
-            "inactivityFpsLimit", "japaneseGlyphVariants", "mainHand",
+            "hostileVolume", "inactivityFpsLimit", "japaneseGlyphVariants",
+            "leftPantsLeg", "leftSleeve", "mainHand", "masterVolume",
             "menuBackgroundBlurriness", "mipmapLevels", "mouseWheelSensitivity",
-            "musicFrequency", "narrator", "narratorHotkey", "notificationDisplayTime",
+            "musicFrequency", "musicVolume", "narrator", "narratorHotkey",
+            "neutralVolume", "notificationDisplayTime",
             "onlyShowSecureChat", "operatorItemsTab", "panoramaSpeed", "particles",
-            "prioritizeChunkUpdates", "realmsNotifications", "reducedDebugInfo",
-            "renderDistance", "rotateWithMinecart", "screenEffectScale",
+            "playerVolume", "prioritizeChunkUpdates", "realmsNotifications",
+            "recordVolume", "reducedDebugInfo",
+            "renderDistance", "rightPantsLeg", "rightSleeve", "rotateWithMinecart",
+            "screenEffectScale",
             "sensitivity", "showAutosaveIndicator", "showSubtitles",
             "simulationDistance", "soundDevice", "telemetryOptInExtra",
-            "textBackgroundOpacity", "toggleCrouch", "toggleSprint");
+            "textBackgroundOpacity", "toggleCrouch", "toggleSprint", "uiVolume",
+            "voiceVolume", "weatherVolume");
 
     @Override
     public java.util.Optional<Object> optionValue(String name) {
@@ -762,6 +885,15 @@ public final class FabricClientPort implements ClientPort {
             var options = Minecraft.getInstance().options;
             if (options == null || name == null || !OPTION_NAMES.contains(name)) {
                 return java.util.Optional.empty();
+            }
+            net.minecraft.sounds.SoundSource volume = soundVolumeOf(name);
+            if (volume != null) {
+                return java.util.Optional.of(
+                        options.getSoundSourceOptionInstance(volume).get());
+            }
+            net.minecraft.world.entity.player.PlayerModelPart modelPart = modelPartOf(name);
+            if (modelPart != null) {
+                return java.util.Optional.of(options.isModelPartEnabled(modelPart));
             }
             try {
                 var instance = (net.minecraft.client.OptionInstance<?>)

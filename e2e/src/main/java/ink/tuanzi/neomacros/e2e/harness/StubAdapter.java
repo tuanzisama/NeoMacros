@@ -223,7 +223,14 @@ public final class StubAdapter implements NeomacrosAdapter {
                     false, true,
                     false, false, false,
                     false, false,
-                    false, false);
+                    false, false,
+                    1.0, 0.5, 0.75, 1.0,
+                    1.0, 1.0, 1.0, 1.0,
+                    1.0, 1.0, 0.25,
+                    "speakers",
+                    true, true, true, true,
+                    true, true, true,
+                    "right");
         }
 
         /** A plausible canned key-mapping catalog for the harness. */
@@ -238,6 +245,11 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public Optional<ink.tuanzi.neomacros.port.model.KeybindCatalogData> keybindCatalog() {
             return Optional.of(cannedKeybinds());
+        }
+
+        @Override
+        public List<String> audioDevices() {
+            return List.of("", "speakers", "headphones");
         }
 
         @Override
@@ -262,6 +274,11 @@ public final class StubAdapter implements NeomacrosAdapter {
 
         @Override
         public java.util.concurrent.CompletableFuture<Void> setOption(String name, Object value) {
+            String rejection = invalidWrite(name, value);
+            if (rejection != null) {
+                return java.util.concurrent.CompletableFuture.failedFuture(
+                        new IllegalArgumentException(rejection));
+            }
             if (ignoredWrites.contains(name)) {
                 actions.add("option:" + name);
                 return java.util.concurrent.CompletableFuture.completedFuture(null);
@@ -273,6 +290,28 @@ public final class StubAdapter implements NeomacrosAdapter {
             }
             actions.add("option:" + name);
             return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        /** Mirrors the adapter's write validation so refused writes behave alike. */
+        private String invalidWrite(String name, Object value) {
+            if (name != null && name.endsWith("Volume")) {
+                if (!(value instanceof Number number)) {
+                    return "option '" + name + "' requires a number";
+                }
+                double level = number.doubleValue();
+                if (!(level >= 0.0 && level <= 1.0)) {
+                    return "option '" + name + "' out of range: " + level;
+                }
+            }
+            if ("soundDevice".equals(name) && value instanceof String device
+                    && !device.isEmpty() && !audioDevices().contains(device)) {
+                return "unknown audio device: " + device;
+            }
+            if ("mainHand".equals(name) && value instanceof String hand
+                    && !"left".equalsIgnoreCase(hand) && !"right".equalsIgnoreCase(hand)) {
+                return "option '" + name + "' rejects value " + hand;
+            }
+            return null;
         }
 
         @Override
