@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.e2e.harness;
 
+import ink.tuanzi.neomacros.core.api.CommandArg;
 import ink.tuanzi.neomacros.core.api.CommandRegistry;
+import ink.tuanzi.neomacros.core.api.SuggestionsBuilder;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -14,7 +16,9 @@ import java.util.function.Consumer;
  * declarative specs scripts register and replays them the way
  * {@code FabricCommandPort} does: one dispatch hands the wrapped handler a
  * single {@code Object[]} whose first element is the raw remainder string
- * after the command name, so the typed slot parsing runs end to end.
+ * after the command name, so the typed slot parsing runs end to end, and
+ * one completion request routes through the core slot metadata the same way
+ * the port's suggestion provider does.
  */
 public final class StubCommandRegistry implements CommandRegistry {
 
@@ -47,6 +51,63 @@ public final class StubCommandRegistry implements CommandRegistry {
         String remainder = split < 0 ? "" : line.substring(split + 1).trim();
         executed.add(line);
         return CompletableFuture.completedFuture(dispatch(name, remainder));
+    }
+
+    /** The registered command names, mirroring the port's tree listing. */
+    @Override
+    public List<String> names() {
+        return List.copyOf(registered.keySet());
+    }
+
+    /**
+     * Completes one partial command line the way the port does: an unknown
+     * or incomplete name lists registered names by prefix, and a registered
+     * command routes its tail through {@link CommandArg#suggestAt}.
+     */
+    @Override
+    public CompletableFuture<List<String>> suggestions(String commandPart) {
+        String line = commandPart != null && commandPart.startsWith("/")
+                ? commandPart.substring(1) : commandPart;
+        if (line == null || line.isEmpty()) {
+            return CompletableFuture.completedFuture(names());
+        }
+        int split = line.indexOf(' ');
+        String name = split < 0 ? line : line.substring(0, split);
+        Map<String, Object> spec = registered.get(name);
+        if (spec == null || split < 0) {
+            // The command name itself (or an unknown one) completes against
+            // the registered names, with an exact match suppressed the way
+            // the game drops a suggestion identical to the input.
+            String prefix = line.toLowerCase(java.util.Locale.ROOT);
+            List<String> matches = new ArrayList<>();
+            for (String candidate : registered.keySet()) {
+                if (candidate.toLowerCase(java.util.Locale.ROOT).startsWith(prefix)
+                        && !candidate.equals(line)) {
+                    matches.add(candidate);
+                }
+            }
+            return CompletableFuture.completedFuture(matches);
+        }
+        int tailStart = split < 0 ? line.length() : split + 1;
+        Map<String, CommandArg> slots = spec.get("args") instanceof Map<?, ?> raw
+                ? castSlots(raw) : Map.of();
+        SuggestionsBuilder builder = CommandArg.suggestAt(slots, line, tailStart);
+        List<String> texts = new ArrayList<>();
+        for (SuggestionsBuilder.Entry entry : builder.entries()) {
+            texts.add(entry.text());
+        }
+        return CompletableFuture.completedFuture(texts);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, CommandArg> castSlots(Map<?, ?> raw) {
+        Map<String, CommandArg> slots = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : raw.entrySet()) {
+            if (entry.getValue() instanceof CommandArg arg) {
+                slots.put(String.valueOf(entry.getKey()), arg);
+            }
+        }
+        return slots;
     }
 
     /** Whether the registry currently holds the command name. */

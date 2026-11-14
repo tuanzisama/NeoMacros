@@ -67,15 +67,22 @@ public final class CommandArg {
     private final Number rangeMax;
     /** Required word for {@code literal} slots; {@code null} = the slot key. */
     private final String literalWord;
+    /**
+     * Completion metadata: a candidate string list or a script callback
+     * ({@code Consumer<Object[]>}); {@code null} means none.
+     */
+    private final Object suggestSpec;
 
     private CommandArg(Kind kind, boolean optional, Object fallback,
-                       Number rangeMin, Number rangeMax, String literalWord) {
+                       Number rangeMin, Number rangeMax, String literalWord,
+                       Object suggestSpec) {
         this.kind = kind;
         this.optional = optional;
         this.fallback = fallback;
         this.rangeMin = rangeMin;
         this.rangeMax = rangeMax;
         this.literalWord = literalWord;
+        this.suggestSpec = suggestSpec;
     }
 
     /** Builds one slot from a factory member name; unknown names raise. */
@@ -112,7 +119,7 @@ public final class CommandArg {
                 && factoryArgs[0] != null) {
             literalWord = String.valueOf(factoryArgs[0]);
         }
-        return new CommandArg(kind, false, null, null, null, literalWord);
+        return new CommandArg(kind, false, null, null, null, literalWord, null);
     }
 
     /** Marks the slot optional (missing input falls back, never raises).
@@ -121,7 +128,8 @@ public final class CommandArg {
     @ApiMC("*")
     @ApiLoader("*")
     public CommandArg optional() {
-        return new CommandArg(kind, true, fallback, rangeMin, rangeMax, literalWord);
+        return new CommandArg(kind, true, fallback, rangeMin, rangeMax, literalWord,
+                suggestSpec);
     }
 
     /** Supplies the fallback value for an optional slot.
@@ -130,7 +138,8 @@ public final class CommandArg {
     @ApiMC("*")
     @ApiLoader("*")
     public CommandArg defaultTo(@ApiType("number | string | boolean") Object value) {
-        return new CommandArg(kind, true, value, rangeMin, rangeMax, literalWord);
+        return new CommandArg(kind, true, value, rangeMin, rangeMax, literalWord,
+                suggestSpec);
     }
 
     /**
@@ -159,7 +168,134 @@ public final class CommandArg {
             throw new IllegalArgumentException(
                     "range() min must not exceed max: " + min + " > " + max);
         }
-        return new CommandArg(kind, optional, fallback, min, max, literalWord);
+        return new CommandArg(kind, optional, fallback, min, max, literalWord,
+                suggestSpec);
+    }
+
+    /**
+     * Attaches completion metadata to the slot: either a fixed candidate
+     * list, or a callback receiving the {@link SuggestionsBuilder} while the
+     * player tabs through this slot. This is the declarative home of
+     * JsMacros' {@code CommandBuilder.suggest}/{@code suggestMatching} chain
+     * members — they attach to the argument node being built; here they
+     * attach to the slot itself.
+     *
+     * @zh 为槽位挂载补全元数据：固定候选列表，或在玩家 Tab 到该槽位时收到 {@link SuggestionsBuilder} 的回调。这是 JsMacros {@code CommandBuilder.suggest}/{@code suggestMatching} 链式成员的声明式归位——它们在那边挂在正在构建的参数节点上，这里挂在槽位本身。
+     * @zh-param value 候选字符串数组，或 {@code (builder) => void} 回调
+     * @zh-return 新的带补全槽位（原槽位不变）
+     * @zh-throws IllegalArgumentException 传入的不是字符串数组或回调
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public CommandArg suggests(
+            @ApiType("string[] | ((builder: SuggestionsBuilder) => void)") Object value) {
+        if (value instanceof java.util.List<?> list) {
+            for (Object element : list) {
+                if (!(element instanceof String)) {
+                    throw new IllegalArgumentException(
+                            "suggests(...) candidate lists take strings");
+                }
+            }
+            return new CommandArg(kind, optional, fallback, rangeMin, rangeMax,
+                    literalWord, List.copyOf(list));
+        }
+        if (value instanceof java.util.function.Consumer<?>) {
+            return new CommandArg(kind, optional, fallback, rangeMin, rangeMax,
+                    literalWord, value);
+        }
+        throw new IllegalArgumentException(
+                "suggests(...) takes a string array or a callback");
+    }
+
+    /** The attached completion metadata (list or callback), or {@code null}. */
+    @ApiInternal
+    public Object suggestSpec() {
+        return suggestSpec;
+    }
+
+    /**
+     * Builds the completion for one command line: locates the token under
+     * the cursor within the tail after {@code tailStart}, then queues the
+     * slot's metadata for that position — a script callback receives the
+     * builder, a fixed list is prefix-filtered, and a literal slot offers
+     * its fixed word. Input beyond the declared slots queues nothing.
+     *
+     * @zh 构造一行命令的补全：定位 {@code tailStart} 之后光标处的 token，再按该位置排入槽位元数据——脚本回调收到构建器、固定列表按前缀过滤、literal 槽提供其固定词。超出已声明槽位的输入不排入任何候选。
+     * @zh-param slots 声明顺序的槽位表
+     * @zh-param input 已输入的命令行（截断至光标）
+     * @zh-param tailStart 命令名之后余串的起始偏移
+     * @zh-return 已排入候选的补全构建器
+     */
+    @ApiInternal
+    public static SuggestionsBuilder suggestAt(Map<String, CommandArg> slots,
+                                               String input, int tailStart) {
+        String line = input == null ? "" : input;
+        int from = Math.max(0, Math.min(tailStart, line.length()));
+        String tail = line.substring(from);
+        List<Token> tokens;
+        try {
+            tokens = tail.isBlank() ? List.of() : tokenize(tail);
+        } catch (IllegalArgumentException malformed) {
+            // An unterminated quote is the handler's problem to report;
+            // completion stays silent instead of failing the whole request.
+            return new SuggestionsBuilder(line, line.length());
+        }
+        int tokenStart;
+        int tokenIndex;
+        if (tail.isEmpty() || Character.isWhitespace(tail.charAt(tail.length() - 1))) {
+            tokenStart = line.length();
+            tokenIndex = tokens.size();
+        } else {
+            Token last = tokens.get(tokens.size() - 1);
+            tokenStart = from + last.start();
+            tokenIndex = tokens.size() - 1;
+        }
+        SuggestionsBuilder builder = new SuggestionsBuilder(line, tokenStart);
+        if (slots == null || slots.isEmpty()) {
+            return builder;
+        }
+        CommandArg slot = null;
+        String slotKey = null;
+        int index = 0;
+        for (Map.Entry<String, CommandArg> entry : slots.entrySet()) {
+            if (index++ == tokenIndex) {
+                slot = entry.getValue();
+                slotKey = entry.getKey();
+                break;
+            }
+        }
+        if (slot == null) {
+            return builder;
+        }
+        if (slot.suggestSpec instanceof java.util.function.Consumer<?> consumer) {
+            @SuppressWarnings("unchecked")
+            java.util.function.Consumer<Object[]> callback =
+                    (java.util.function.Consumer<Object[]>) consumer;
+            callback.accept(new Object[]{builder});
+            return builder;
+        }
+        if (slot.suggestSpec instanceof List<?> list) {
+            List<String> values = new ArrayList<>(list.size());
+            for (Object value : list) {
+                values.add(String.valueOf(value));
+            }
+            return builder.suggestMatching(values);
+        }
+        if (slot.kind == Kind.LITERAL) {
+            String word = slot.literalWord != null ? slot.literalWord : slotKey;
+            if (word != null && word.toLowerCase(Locale.ROOT)
+                    .startsWith(builder.getRemainingLowerCase())) {
+                builder.suggest(word);
+            }
+        }
+        return builder;
+    }
+
+    /** Whether one string has the resource-location shape. */
+    @ApiInternal
+    static boolean isIdentifierText(String value) {
+        return IDENTIFIER_PATTERN.matcher(value).matches();
     }
 
     /** Extracts the slot map from a raw binding value (engine-unwrapped). */
@@ -181,7 +317,8 @@ public final class CommandArg {
 
     /**
      * Parses the raw remainder against the slot map, in order. Raises for
-     * missing required slots and malformed values; greedy consumes the rest.
+     * missing required slots, malformed values and trailing input beyond the
+     * declared slots; greedy consumes the rest and closes the line.
      */
     @ApiInternal
     public static Map<String, Object> parseAll(Map<String, CommandArg> slots,
@@ -190,6 +327,7 @@ public final class CommandArg {
                 ? List.of() : tokenize(remainder);
         Map<String, Object> out = new LinkedHashMap<>();
         int index = 0;
+        boolean greedyClosed = false;
         for (Map.Entry<String, CommandArg> entry : slots.entrySet()) {
             CommandArg slot = entry.getValue();
             if (slot.kind == Kind.GREEDY) {
@@ -199,6 +337,7 @@ public final class CommandArg {
                         : remainder.substring(tokens.get(index).start());
                 out.put(entry.getKey(), rest.isEmpty() && slot.fallback != null
                         ? slot.fallback : rest);
+                greedyClosed = true;
                 continue;
             }
             if (index >= tokens.size()) {
@@ -218,6 +357,13 @@ public final class CommandArg {
                         + (error.getMessage() == null ? ""
                         : ": " + error.getMessage()));
             }
+        }
+        // The flat parser owns the whole line: trailing tokens beyond the
+        // declared slots are rejected here so the handler, not the brigadier
+        // tree, decides what input is acceptable.
+        if (!greedyClosed && index < tokens.size()) {
+            throw new IllegalArgumentException("unexpected input '"
+                    + tokens.get(index).text() + "'");
         }
         return out;
     }
