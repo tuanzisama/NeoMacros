@@ -509,6 +509,61 @@ public final class FabricPlayerPort implements PlayerPort {
     }
 
     @Override
+    public java.util.Map<String, String> formattedStatistics() {
+        java.util.Map<String, String> result = MainThread.run(() -> {
+            LocalPlayer player = Minecraft.getInstance().player;
+            if (player == null) {
+                return java.util.Map.<String, String>of();
+            }
+            var counter = player.getStats();
+            java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+            for (net.minecraft.stats.StatType<?> type : BuiltInRegistries.STAT_TYPE) {
+                collectFormattedStats(counter, type, out);
+            }
+            return out;
+        });
+        return result != null ? result : java.util.Map.of();
+    }
+
+    /** Collects the formatted non-zero values of one stat type. */
+    @SuppressWarnings("unchecked")
+    private static void collectFormattedStats(net.minecraft.stats.StatsCounter counter,
+            net.minecraft.stats.StatType<?> type, java.util.Map<String, String> out) {
+        var registry = (net.minecraft.core.Registry<Object>) type.getRegistry();
+        String typeId = BuiltInRegistries.STAT_TYPE.getKey(type).toString();
+        for (Object value : registry) {
+            int count = counter.getValue(
+                    (net.minecraft.stats.StatType<Object>) type, value);
+            if (count != 0) {
+                var stat = ((net.minecraft.stats.StatType<Object>) type).get(value);
+                out.put(typeId + ":" + registry.getKey(value), stat.format(count));
+            }
+        }
+    }
+
+    @Override
+    public java.util.Optional<String> statTypeDisplayName(String statKey) {
+        java.util.Optional<String> result = MainThread.run(() -> {
+            if (statKey == null || statKey.isEmpty()) {
+                return java.util.Optional.<String>empty();
+            }
+            int first = statKey.indexOf(':');
+            int second = first < 0 ? -1 : statKey.indexOf(':', first + 1);
+            String typeId = second < 0 ? statKey : statKey.substring(0, second);
+            var parsed = net.minecraft.resources.Identifier.tryParse(typeId);
+            if (parsed == null) {
+                return java.util.Optional.<String>empty();
+            }
+            var type = BuiltInRegistries.STAT_TYPE.getValue(parsed);
+            if (type == null) {
+                return java.util.Optional.<String>empty();
+            }
+            return java.util.Optional.of(type.getDisplayName().getString());
+        });
+        return result != null ? result : java.util.Optional.empty();
+    }
+
+    @Override
     public double blockInteractionRange() {
         Double range = MainThread.run(() -> {
             LocalPlayer player = Minecraft.getInstance().player;
@@ -686,28 +741,149 @@ public final class FabricPlayerPort implements PlayerPort {
     @Override
     public java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressData>
             advancementProgress(String id) {
-        return MainThread.run(() -> {
-            var connection = Minecraft.getInstance().getConnection();
-            Identifier parsed = id == null ? null : Identifier.tryParse(id);
-            if (connection == null || parsed == null) {
-                return java.util.Optional
-                        .<ink.tuanzi.neomacros.port.model.AdvancementProgressData>empty();
+        java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressData> result =
+                MainThread.run(() -> {
+                    var progress = advancementProgressOf(id);
+                    if (progress == null) {
+                        return java.util.Optional
+                                .<ink.tuanzi.neomacros.port.model.AdvancementProgressData>empty();
+                    }
+                    return java.util.Optional.of(
+                            new ink.tuanzi.neomacros.port.model.AdvancementProgressData(
+                                    progress.isDone(),
+                                    copyCriteria(progress.getCompletedCriteria()),
+                                    copyCriteria(progress.getRemainingCriteria())));
+                });
+        return result != null ? result : java.util.Optional.empty();
+    }
+
+    @Override
+    public java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementDefinitionData>
+            advancementDefinition(String id) {
+        java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementDefinitionData> result =
+                MainThread.run(() -> {
+                    var node = advancementNodeOf(id);
+                    if (node == null) {
+                        return java.util.Optional
+                                .<ink.tuanzi.neomacros.port.model.AdvancementDefinitionData>empty();
+                    }
+                    var advancement = node.advancement();
+                    var rewards = advancement.rewards();
+                    java.util.List<String> loot = new java.util.ArrayList<>();
+                    //? if <26.3 {
+                    /* for (var lootKey : rewards.loot()) {
+                        loot.add(rewardKeyId(lootKey));
+                    } */
+                    //?}
+                    //? if >=26.3 {
+                    for (var holder : rewards.loot()) {
+                        holder.unwrapKey().ifPresent(key -> loot.add(rewardKeyId(key)));
+                    }
+                    //?}
+                    java.util.List<String> recipes = new java.util.ArrayList<>();
+                    for (var recipeKey : rewards.recipes()) {
+                        recipes.add(rewardKeyId(recipeKey));
+                    }
+                    return java.util.Optional.of(
+                            new ink.tuanzi.neomacros.port.model.AdvancementDefinitionData(
+                                    node.holder().id().toString(),
+                                    advancement.requirements().requirements(),
+                                    rewards.experience(),
+                                    java.util.List.copyOf(loot),
+                                    java.util.List.copyOf(recipes)));
+                });
+        return result != null ? result : java.util.Optional.empty();
+    }
+
+    @Override
+    public java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressDetailData>
+            advancementProgressDetail(String id) {
+        java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressDetailData> result =
+                MainThread.run(() -> {
+                    var progress = advancementProgressOf(id);
+                    if (progress == null) {
+                        return java.util.Optional
+                                .<ink.tuanzi.neomacros.port.model.AdvancementProgressDetailData>
+                                empty();
+                    }
+                    java.util.Map<String, Long> dates = new java.util.LinkedHashMap<>();
+                    for (String criterion : progress.getCompletedCriteria()) {
+                        var criterionProgress = progress.getCriterion(criterion);
+                        if (criterionProgress == null || !criterionProgress.isDone()) {
+                            continue;
+                        }
+                        java.time.Instant obtained = criterionProgress.getObtained();
+                        if (obtained != null) {
+                            dates.put(criterion, obtained.toEpochMilli());
+                        }
+                    }
+                    var text = progress.getProgressText();
+                    return java.util.Optional.of(
+                            new ink.tuanzi.neomacros.port.model.AdvancementProgressDetailData(
+                                    dates, text == null ? null : text.getString()));
+                });
+        return result != null ? result : java.util.Optional.empty();
+    }
+
+    @Override
+    public java.util.Optional<String> advancementJson(String id) {
+        java.util.Optional<String> result = MainThread.run(() -> {
+            var node = advancementNodeOf(id);
+            if (node == null) {
+                return java.util.Optional.<String>empty();
             }
-            var clientAdvancements = connection.getAdvancements();
-            var accessor = (ink.tuanzi.neomacros.adapter.mixin.ClientAdvancementsAccessor)
-                    clientAdvancements;
-            var node = accessor.neomacros$tree().get(parsed);
-            var progress = node == null ? null
-                    : accessor.neomacros$progress().get(node.holder());
-            if (progress == null) {
-                return java.util.Optional
-                        .<ink.tuanzi.neomacros.port.model.AdvancementProgressData>empty();
-            }
-            return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.AdvancementProgressData(
-                    progress.isDone(),
-                    copyCriteria(progress.getCompletedCriteria()),
-                    copyCriteria(progress.getRemainingCriteria())));
+            // Plain JsonOps is enough for encoding: every registry reference
+            // (items, loot tables, recipes, triggers) serializes to its
+            // namespaced id on the encode path without a registry lookup.
+            var encoded = net.minecraft.advancements.Advancement.CODEC.encodeStart(
+                    com.mojang.serialization.JsonOps.INSTANCE, node.advancement());
+            return encoded.result().map(com.google.gson.JsonElement::toString);
         });
+        return result != null ? result : java.util.Optional.empty();
+    }
+
+    /**
+     * Resolves one advancement tree node by id over the client connection, or
+     * null when there is no connection or the id is unknown.
+     */
+    private static net.minecraft.advancements.AdvancementNode advancementNodeOf(String id) {
+        var connection = Minecraft.getInstance().getConnection();
+        Identifier parsed = id == null ? null : Identifier.tryParse(id);
+        if (connection == null || parsed == null) {
+            return null;
+        }
+        var clientAdvancements = connection.getAdvancements();
+        var accessor = (ink.tuanzi.neomacros.adapter.mixin.ClientAdvancementsAccessor)
+                clientAdvancements;
+        return accessor.neomacros$tree().get(parsed);
+    }
+
+    /** Resolves one client-known progress entry by id, or null when absent. */
+    private static net.minecraft.advancements.AdvancementProgress advancementProgressOf(
+            String id) {
+        var connection = Minecraft.getInstance().getConnection();
+        Identifier parsed = id == null ? null : Identifier.tryParse(id);
+        if (connection == null || parsed == null) {
+            return null;
+        }
+        var clientAdvancements = connection.getAdvancements();
+        var accessor = (ink.tuanzi.neomacros.adapter.mixin.ClientAdvancementsAccessor)
+                clientAdvancements;
+        var node = accessor.neomacros$tree().get(parsed);
+        return node == null ? null : accessor.neomacros$progress().get(node.holder());
+    }
+
+    /**
+     * The namespaced id of one advancement-reward resource key (loot table or
+     * recipe); the accessor renamed with the 1.21.11 identifier pivot.
+     */
+    private static String rewardKeyId(net.minecraft.resources.ResourceKey<?> key) {
+        //? if <1.21.11 {
+        /* return key.location().toString(); */
+        //?}
+        //? if >=1.21.11 {
+        return key.identifier().toString();
+        //?}
     }
 
     /** Copies one criteria iterable into an ordered list. */

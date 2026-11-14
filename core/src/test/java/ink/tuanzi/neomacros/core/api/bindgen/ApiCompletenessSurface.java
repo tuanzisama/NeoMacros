@@ -64,6 +64,8 @@ final class ApiCompletenessSurface {
             ClientApi.AccessibilityOptions.class,
             PlayerApi.Inventory.class, PlayerApi.PlayerInventory.class,
             PlayerApi.Interactions.class, PlayerApi.BreakBlockResult.class,
+            PlayerApi.Statistics.class, PlayerApi.Advancements.class,
+            PlayerApi.Advancement.class,
             Pos2D.class, Pos3D.class, BlockPos.class, ChunkPos.class,
             Block.class, BlockState.class, RayHit.class,
             ItemStack.class, ItemStackBuilder.class, Enchantment.class,

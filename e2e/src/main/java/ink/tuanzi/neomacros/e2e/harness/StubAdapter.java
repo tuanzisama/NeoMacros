@@ -2202,6 +2202,118 @@ public final class StubAdapter implements NeomacrosAdapter {
             signEditSinks.add(sink);
         }
 
+        // --- G-018 advancement/statistics canned face: deterministic reads
+        // the progress/statistics scenarios assert against.
+
+        volatile java.util.Map<String, Integer> statistics = java.util.Map.of();
+        volatile java.util.Map<String, String> formattedStatistics = java.util.Map.of();
+        volatile java.util.Map<String, String> statTypeNames = java.util.Map.of();
+        volatile List<ink.tuanzi.neomacros.port.model.AdvancementData> advancements =
+                List.of();
+        volatile java.util.Map<String,
+                ink.tuanzi.neomacros.port.model.AdvancementProgressData> progressById =
+                java.util.Map.of();
+        volatile java.util.Map<String,
+                ink.tuanzi.neomacros.port.model.AdvancementDefinitionData> definitionById =
+                java.util.Map.of();
+        volatile java.util.Map<String,
+                ink.tuanzi.neomacros.port.model.AdvancementProgressDetailData> detailById =
+                java.util.Map.of();
+        volatile java.util.Map<String, String> jsonById = java.util.Map.of();
+
+        /** Sets the canned non-zero stat counters ({@code statTypeId:valueId -> value}). */
+        public void setStatistics(java.util.Map<String, Integer> statistics) {
+            this.statistics = statistics;
+        }
+
+        /** Sets the canned formatted counters (same keys as {@link #setStatistics}). */
+        public void setFormattedStatistics(java.util.Map<String, String> formatted) {
+            this.formattedStatistics = formatted;
+        }
+
+        /** Sets the canned stat-type display names ({@code statTypeId -> name}). */
+        public void setStatTypeNames(java.util.Map<String, String> names) {
+            this.statTypeNames = names;
+        }
+
+        /** Sets the canned client-known advancements (display entries). */
+        public void setAdvancements(
+                List<ink.tuanzi.neomacros.port.model.AdvancementData> advancements) {
+            this.advancements = advancements;
+        }
+
+        /** Sets the canned progress entries by advancement id. */
+        public void setAdvancementProgress(java.util.Map<String,
+                ink.tuanzi.neomacros.port.model.AdvancementProgressData> progressById) {
+            this.progressById = progressById;
+        }
+
+        /** Sets the canned definition data by advancement id. */
+        public void setAdvancementDefinitions(java.util.Map<String,
+                ink.tuanzi.neomacros.port.model.AdvancementDefinitionData> definitions) {
+            this.definitionById = definitions;
+        }
+
+        /** Sets the canned progress detail (criterion dates + fraction) by id. */
+        public void setAdvancementProgressDetails(java.util.Map<String,
+                ink.tuanzi.neomacros.port.model.AdvancementProgressDetailData> details) {
+            this.detailById = details;
+        }
+
+        /** Sets the canned advancement JSON by id. */
+        public void setAdvancementJson(java.util.Map<String, String> jsonById) {
+            this.jsonById = jsonById;
+        }
+
+        @Override
+        public java.util.Map<String, Integer> statistics() {
+            return statistics;
+        }
+
+        @Override
+        public java.util.Map<String, String> formattedStatistics() {
+            return formattedStatistics;
+        }
+
+        @Override
+        public Optional<String> statTypeDisplayName(String statKey) {
+            if (statKey == null || statKey.isEmpty()) {
+                return Optional.empty();
+            }
+            int first = statKey.indexOf(':');
+            int second = first < 0 ? -1 : statKey.indexOf(':', first + 1);
+            String typeId = second < 0 ? statKey : statKey.substring(0, second);
+            return Optional.ofNullable(statTypeNames.get(typeId));
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.AdvancementData> advancements() {
+            return advancements;
+        }
+
+        @Override
+        public Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressData>
+                advancementProgress(String id) {
+            return Optional.ofNullable(progressById.get(id));
+        }
+
+        @Override
+        public Optional<ink.tuanzi.neomacros.port.model.AdvancementDefinitionData>
+                advancementDefinition(String id) {
+            return Optional.ofNullable(definitionById.get(id));
+        }
+
+        @Override
+        public Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressDetailData>
+                advancementProgressDetail(String id) {
+            return Optional.ofNullable(detailById.get(id));
+        }
+
+        @Override
+        public Optional<String> advancementJson(String id) {
+            return Optional.ofNullable(jsonById.get(id));
+        }
+
         /** Runs every sink; true when any sink cancels. */
         private static <T> boolean fireAll(List<Function<T, Boolean>> sinks, T payload) {
             boolean canceled = false;

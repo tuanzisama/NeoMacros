@@ -189,6 +189,53 @@ public interface PlayerPort {
     }
 
     /**
+     * Returns the definition data (requirement groups plus rewards) of one
+     * advancement id, or empty when the id is unknown or no server is
+     * connected.
+     */
+    default java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementDefinitionData>
+            advancementDefinition(String id) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the progress detail (criterion completion times plus the
+     * vanilla progress text) of one advancement id, or empty when the id is
+     * unknown, no progress entry exists, or no server is connected.
+     */
+    default java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressDetailData>
+            advancementProgressDetail(String id) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns one advancement's definition encoded as a JSON string, or empty
+     * when the id is unknown, no server is connected, or the definition does
+     * not encode.
+     */
+    default java.util.Optional<String> advancementJson(String id) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Returns the formatted counters as {@code statTypeId:valueId ->
+     * formatted} entries; only non-zero values appear, keyed exactly like
+     * {@link #statistics()}. Empty without a world.
+     */
+    default java.util.Map<String, String> formattedStatistics() {
+        return java.util.Map.of();
+    }
+
+    /**
+     * Returns the display name of the stat type behind one stat key (the
+     * {@code statTypeId} prefix of {@code statTypeId:valueId}), or empty when
+     * the key or its stat type is unknown.
+     */
+    default java.util.Optional<String> statTypeDisplayName(String statKey) {
+        return java.util.Optional.empty();
+    }
+
+    /**
      * Returns the four armor slots in feet, legs, chest, head order; empty
      * slots read as {@code minecraft:air}.
      */
