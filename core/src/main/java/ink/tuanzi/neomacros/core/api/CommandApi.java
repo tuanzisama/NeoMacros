@@ -174,6 +174,43 @@ public final class CommandApi {
         return registry.execute(commandLine);
     }
 
+    /**
+     * The names of every command in the client-visible command tree: server
+     * commands plus client-side registrations, read as a snapshot. Empty
+     * before a session opens. This is the declarative home of JsMacros'
+     * {@code CommandManager.getValidCommands}.
+     *
+     * @zh 客户端可见命令树中的全部命令名快照：服务端命令加客户端注册命令。会话建立前为空。对应 JsMacros 的 {@code CommandManager.getValidCommands}。
+     * @zh-return 命令名数组
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    @ApiType("string[]")
+    public List<String> getNames() {
+        return registry.names();
+    }
+
+    /**
+     * Completes one partial command line against the live command tree and
+     * resolves with the suggestion texts a player would see on tab. The
+     * leading slash is optional; without a connection the promise resolves
+     * to an empty list. This is the declarative home of JsMacros'
+     * {@code CommandManager.getArgumentAutocompleteOptions}.
+     *
+     * @zh 对活跃命令树补全部分命令行，以玩家 Tab 时可见的建议文本数组兑现。前导斜杠可省略；无连接时以空数组兑现。对应 JsMacros 的 {@code CommandManager.getArgumentAutocompleteOptions}。
+     * @zh-param commandPart 待补全的部分命令行
+     * @zh-return 建议文本数组
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<string[]>")
+    public CompletableFuture<List<String>> suggestions(String commandPart) {
+        return registry.suggestions(commandPart);
+    }
+
     /** Kind names the slot factory answers to (kept for tests and docs).
      * @zh 参数槽工厂应答的全部槽位类型名（供测试与文档保留）。 */
     @ApiSince("0.1.0")

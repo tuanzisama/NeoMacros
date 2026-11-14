@@ -112,6 +112,7 @@ final class ApiCompletenessSurface {
             PlayerApi.LoomInventory.class, PlayerApi.CreativeInventory.class,
             PlayerApi.Abilities.class,
             Component.class, TextComponent.class,
+            ink.tuanzi.neomacros.core.api.SuggestionsBuilder.class,
             PlayerApi.Screen.class, PlayerApi.InventoryScreen.class,
             PlayerApi.ContainerScreen.class, PlayerApi.ChatScreen.class,
             PlayerApi.SignScreen.class, PlayerApi.BookEditScreen.class,
