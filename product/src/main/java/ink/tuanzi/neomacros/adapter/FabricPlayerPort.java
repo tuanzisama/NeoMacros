@@ -65,60 +65,69 @@ public final class FabricPlayerPort implements PlayerPort {
     @Override
     public java.util.concurrent.CompletableFuture<Void> useEntity(EntitySnapshot target,
             String hand) {
-        return dispatch(() -> {
-            var player = Minecraft.getInstance().player;
-            var entity = findEntity(target.uuid());
-            if (player == null || entity == null) {
-                throw new IllegalStateException("target entity is not loaded: " + target.uuid());
-            }
-            //? if <26.1 {
-            /* Minecraft.getInstance().gameMode.interact(player, entity,
-                    parseHand(hand)); */
-            //?}
-            //? if >=26.1 {
-            Minecraft.getInstance().gameMode.interact(player, entity,
-                    new net.minecraft.world.phys.EntityHitResult(entity), parseHand(hand));
-            //?}
-        });
+        return dispatch(() -> useEntityNow(target, hand));
+    }
+
+    /** Runs one entity use on the caller (main) thread. */
+    private void useEntityNow(EntitySnapshot target, String hand) {
+        var player = Minecraft.getInstance().player;
+        var entity = findEntity(target.uuid());
+        if (player == null || entity == null) {
+            throw new IllegalStateException("target entity is not loaded: " + target.uuid());
+        }
+        //? if <26.1 {
+        /* Minecraft.getInstance().gameMode.interact(player, entity,
+                parseHand(hand)); */
+        //?}
+        //? if >=26.1 {
+        Minecraft.getInstance().gameMode.interact(player, entity,
+                new net.minecraft.world.phys.EntityHitResult(entity), parseHand(hand));
+        //?}
     }
 
     @Override
     public java.util.concurrent.CompletableFuture<Void> useBlock(BlockInteraction hit,
             String hand) {
-        return dispatch(() -> {
-            var player = Minecraft.getInstance().player;
-            if (player == null) {
-                throw new IllegalStateException("no local player");
-            }
-            var pos = new BlockPos((int) Math.floor(hit.pos().x()),
-                    (int) Math.floor(hit.pos().y()), (int) Math.floor(hit.pos().z()));
-            var hitResult = new net.minecraft.world.phys.BlockHitResult(
-                    net.minecraft.world.phys.Vec3.atCenterOf(pos),
-                    parseFace(hit.face()), pos, false);
-            //? if <26.1 {
-            /* Minecraft.getInstance().gameMode.useItemOn(player,
-                    parseHand(hand), hitResult); */
-            //?}
-            //? if >=26.1 {
-            Minecraft.getInstance().gameMode.useItemOn(player,
-                    parseHand(hand), hitResult);
-            //?}
-        });
+        return dispatch(() -> useBlockNow(hit, hand));
+    }
+
+    /** Runs one block use on the caller (main) thread. */
+    private void useBlockNow(BlockInteraction hit, String hand) {
+        var player = Minecraft.getInstance().player;
+        if (player == null) {
+            throw new IllegalStateException("no local player");
+        }
+        var pos = new BlockPos((int) Math.floor(hit.pos().x()),
+                (int) Math.floor(hit.pos().y()), (int) Math.floor(hit.pos().z()));
+        var hitResult = new net.minecraft.world.phys.BlockHitResult(
+                net.minecraft.world.phys.Vec3.atCenterOf(pos),
+                parseFace(hit.face()), pos, false);
+        //? if <26.1 {
+        /* Minecraft.getInstance().gameMode.useItemOn(player,
+                parseHand(hand), hitResult); */
+        //?}
+        //? if >=26.1 {
+        Minecraft.getInstance().gameMode.useItemOn(player,
+                parseHand(hand), hitResult);
+        //?}
     }
 
     @Override
     public java.util.concurrent.CompletableFuture<Void> useItem(String hand) {
-        return dispatch(() -> {
-            var player = Minecraft.getInstance().player;
-            var gameMode = Minecraft.getInstance().gameMode;
-            if (player == null || gameMode == null) {
-                throw new IllegalStateException("no local player");
-            }
-            var used = gameMode.useItem(player, parseHand(hand));
-            if (used.consumesAction()) {
-                swing(player, parseHand(hand));
-            }
-        });
+        return dispatch(() -> useItemNow(hand));
+    }
+
+    /** Runs one held-item use on the caller (main) thread. */
+    private void useItemNow(String hand) {
+        var player = Minecraft.getInstance().player;
+        var gameMode = Minecraft.getInstance().gameMode;
+        if (player == null || gameMode == null) {
+            throw new IllegalStateException("no local player");
+        }
+        var used = gameMode.useItem(player, parseHand(hand));
+        if (used.consumesAction()) {
+            swing(player, parseHand(hand));
+        }
     }
 
     @Override
@@ -363,6 +372,8 @@ public final class FabricPlayerPort implements PlayerPort {
                                 hitResult.getDirection().getName()))));
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) ->
                 verdict(shouldFail(interactEntitySinks, FabricEntityPort.snapshotOf(entity))));
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+                .END_CLIENT_TICK.register(client -> tickInteractionOverrides());
     }
 
     @Override
@@ -517,31 +528,119 @@ public final class FabricPlayerPort implements PlayerPort {
 
     @Override
     public java.util.Optional<ink.tuanzi.neomacros.port.model.RayHit> target() {
-        return MainThread.run(() -> {
-            LocalPlayer player = Minecraft.getInstance().player;
-            var hitResult = Minecraft.getInstance().hitResult;
-            if (player == null || hitResult == null
-                    || hitResult.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+        return MainThread.run(this::evaluateTargetRead);
+    }
+
+    /**
+     * Reads the effective pick on the main thread: the stored target
+     * override when one exists (running the configured checks, which may
+     * auto-clear it), otherwise the real crosshair raycast. Checks never
+     * run against the vanilla pick, so the game itself keeps acting on
+     * what the player actually aims at.
+     */
+    private java.util.Optional<ink.tuanzi.neomacros.port.model.RayHit> evaluateTargetRead() {
+        var override = targetOverride;
+        if (override == null) {
+            return realPick();
+        }
+        var mc = Minecraft.getInstance();
+        var player = mc.player;
+        if ("miss".equals(override.kind())) {
+            return java.util.Optional.empty();
+        }
+        if ("entity".equals(override.kind())) {
+            var entity = findEntity(override.entity());
+            if (entity == null) {
+                // A dead or unloaded override target is invalid: drop it.
+                setTargetOverrideNow(null);
+                return java.util.Optional.empty();
+            }
+            if (player == null) {
+                return java.util.Optional.empty();
+            }
+            var eye = player.getEyePosition();
+            var picked = entity.pick(player.entityInteractionRange() + 1.0, 0.0f, false);
+            var location = picked.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY
+                    ? picked.getLocation()
+                    : entity.position();
+            if (targetCheckRange
+                    && eye.distanceTo(location) >= player.entityInteractionRange()) {
+                if (targetClearIfOutOfRange) {
+                    setTargetOverrideNow(null);
+                }
+                return java.util.Optional.empty();
+            }
+            return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.RayHit(
+                    null, FabricEntityPort.snapshotOf(entity), toPos3d(location),
+                    eye.distanceTo(location)));
+        }
+        // Block override: air, shape and range checks against the stored pos.
+        var level = mc.level;
+        if (level == null || player == null) {
+            return java.util.Optional.empty();
+        }
+        var pos = new BlockPos(override.x(), override.y(), override.z());
+        var state = level.getBlockState(pos);
+        if (targetCheckAir && state.isAir()) {
+            if (targetClearIfIsAir) {
+                setTargetOverrideNow(null);
+            }
+            return java.util.Optional.empty();
+        }
+        if (targetCheckShape && !state.isAir()
+                && state.getCollisionShape(level, pos).isEmpty()) {
+            if (targetClearIfEmptyShape) {
+                setTargetOverrideNow(null);
+            }
+            return java.util.Optional.empty();
+        }
+        var eye = player.getEyePosition();
+        if (targetCheckRange) {
+            // The block passes when the nearest point of its unit cube is
+            // strictly inside the block interaction reach (JsMacros rule).
+            double closestX = Math.min(Math.max(eye.x, pos.getX()), pos.getX() + 1.0);
+            double closestY = Math.min(Math.max(eye.y, pos.getY()), pos.getY() + 1.0);
+            double closestZ = Math.min(Math.max(eye.z, pos.getZ()), pos.getZ() + 1.0);
+            double reach = eye.distanceTo(new net.minecraft.world.phys.Vec3(
+                    closestX, closestY, closestZ));
+            if (reach >= player.blockInteractionRange()) {
+                if (targetClearIfOutOfRange) {
+                    setTargetOverrideNow(null);
+                }
+                return java.util.Optional.empty();
+            }
+        }
+        var center = net.minecraft.world.phys.Vec3.atCenterOf(pos);
+        return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.RayHit(
+                blockHit(level, pos, override.face()), null, toPos3d(center),
+                eye.distanceTo(center)));
+    }
+
+    /** The real crosshair raycast (the vanilla pick, never overridden). */
+    private java.util.Optional<ink.tuanzi.neomacros.port.model.RayHit> realPick() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        var hitResult = Minecraft.getInstance().hitResult;
+        if (player == null || hitResult == null
+                || hitResult.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+            return java.util.Optional.<ink.tuanzi.neomacros.port.model.RayHit>empty();
+        }
+        double distance = player.getEyePosition().distanceTo(hitResult.getLocation());
+        if (hitResult instanceof net.minecraft.world.phys.BlockHitResult blockHit) {
+            var world = Minecraft.getInstance().level;
+            if (world == null) {
                 return java.util.Optional.<ink.tuanzi.neomacros.port.model.RayHit>empty();
             }
-            double distance = player.getEyePosition().distanceTo(hitResult.getLocation());
-            if (hitResult instanceof net.minecraft.world.phys.BlockHitResult blockHit) {
-                var world = Minecraft.getInstance().level;
-                if (world == null) {
-                    return java.util.Optional.<ink.tuanzi.neomacros.port.model.RayHit>empty();
-                }
-                var block = blockHit(world, blockHit.getBlockPos(),
-                        blockHit.getDirection().getName());
-                return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.RayHit(
-                        block, null, toPos3d(blockHit.getLocation()), distance));
-            }
-            if (hitResult instanceof net.minecraft.world.phys.EntityHitResult entityHit) {
-                return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.RayHit(
-                        null, FabricEntityPort.snapshotOf(entityHit.getEntity()),
-                        toPos3d(entityHit.getLocation()), distance));
-            }
-            return java.util.Optional.<ink.tuanzi.neomacros.port.model.RayHit>empty();
-        });
+            var block = blockHit(world, blockHit.getBlockPos(),
+                    blockHit.getDirection().getName());
+            return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.RayHit(
+                    block, null, toPos3d(blockHit.getLocation()), distance));
+        }
+        if (hitResult instanceof net.minecraft.world.phys.EntityHitResult entityHit) {
+            return java.util.Optional.of(new ink.tuanzi.neomacros.port.model.RayHit(
+                    null, FabricEntityPort.snapshotOf(entityHit.getEntity()),
+                    toPos3d(entityHit.getLocation()), distance));
+        }
+        return java.util.Optional.<ink.tuanzi.neomacros.port.model.RayHit>empty();
     }
 
     @Override
@@ -651,5 +750,587 @@ public final class FabricPlayerPort implements PlayerPort {
             return gameMode != null && gameMode.isDestroying();
         });
         return Boolean.TRUE.equals(breaking);
+    }
+
+    // --- Interaction override face (G-028): a script-set crosshair target,
+    // the break-outcome override and the held-use override. All three are
+    // client-side script state over the local player's interaction loop.
+    // The target override rewrites what target() reports (and therefore
+    // what the crosshair-driven NeoMacros actions act on); it never
+    // rewrites the vanilla crosshair, so it grants no server reach. Writes
+    // marshal onto the game main thread and settle once applied.
+
+    /** Stored crosshair target override: a block, an entity, or a fixed miss. */
+    private record TargetOverride(String kind, int x, int y, int z, String face,
+            java.util.UUID entity) {
+        static TargetOverride block(int x, int y, int z, String face) {
+            return new TargetOverride("block", x, y, z, face, null);
+        }
+
+        static TargetOverride entity(java.util.UUID uuid) {
+            return new TargetOverride("entity", 0, 0, 0, null, uuid);
+        }
+
+        static TargetOverride miss() {
+            return new TargetOverride("miss", 0, 0, 0, null, null);
+        }
+    }
+
+    private volatile TargetOverride targetOverride;
+    private volatile boolean targetCheckRange = true;
+    private volatile boolean targetClearIfOutOfRange = true;
+    private volatile boolean targetCheckAir = false;
+    private volatile boolean targetClearIfIsAir = false;
+    private volatile boolean targetCheckShape = true;
+    private volatile boolean targetClearIfEmptyShape = false;
+
+    private volatile boolean breakArmed;
+    private volatile boolean breakTracked;
+    private volatile int breakX;
+    private volatile int breakY;
+    private volatile int breakZ;
+    /** Whether the tracked position follows the real pick (look-away ends it). */
+    private volatile boolean breakCrosshairDriven;
+    private volatile String breakFace = "down";
+    /** The block state recorded when the tracked position was set (main thread). */
+    private BlockState breakStartState;
+    private volatile CompletableFuture<ink.tuanzi.neomacros.port.model.BreakBlockResult>
+            breakFuture;
+    private final List<java.util.function.Consumer<ink.tuanzi.neomacros.port.model.BreakBlockResult>>
+            breakCallbacks = new CopyOnWriteArrayList<>();
+
+    private volatile boolean holdActive;
+    /** Ticks until the next held-use issue (main thread). */
+    private int holdUseDelay;
+    /** Remaining ticks of a timed hold, -1 when none (main thread). */
+    private int holdForRemaining = -1;
+    private boolean holdForStopOnPause = true;
+    private CompletableFuture<Integer> holdForFuture;
+
+    @Override
+    public CompletableFuture<Void> setTargetOverride(int x, int y, int z, String face) {
+        return dispatch(() -> setTargetOverrideNow(TargetOverride.block(x, y, z, face)));
+    }
+
+    @Override
+    public CompletableFuture<Void> setTargetEntityOverride(java.util.UUID entity) {
+        return dispatch(() -> {
+            if (findEntity(entity) == null) {
+                throw new IllegalStateException("target entity is not loaded: " + entity);
+            }
+            setTargetOverrideNow(TargetOverride.entity(entity));
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> setTargetMissedOverride() {
+        return dispatch(() -> setTargetOverrideNow(TargetOverride.miss()));
+    }
+
+    @Override
+    public CompletableFuture<Void> clearTargetOverride() {
+        return dispatch(() -> setTargetOverrideNow(null));
+    }
+
+    @Override
+    public boolean hasTargetOverride() {
+        // A stored read never revalidates (JsMacros Target.hasOverride).
+        return targetOverride != null;
+    }
+
+    @Override
+    public CompletableFuture<Void> setTargetRangeCheck(boolean enabled, boolean autoClear) {
+        return dispatch(() -> {
+            targetCheckRange = enabled;
+            targetClearIfOutOfRange = autoClear;
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> setTargetAirCheck(boolean enabled, boolean autoClear) {
+        return dispatch(() -> {
+            targetCheckAir = enabled;
+            targetClearIfIsAir = autoClear;
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> setTargetShapeCheck(boolean enabled, boolean autoClear) {
+        return dispatch(() -> {
+            targetCheckShape = enabled;
+            targetClearIfEmptyShape = autoClear;
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> resetTargetChecks() {
+        return dispatch(() -> {
+            targetCheckRange = true;
+            targetClearIfOutOfRange = true;
+            targetCheckAir = false;
+            targetClearIfIsAir = false;
+            targetCheckShape = true;
+            targetClearIfEmptyShape = false;
+        });
+    }
+
+    @Override
+    public boolean targetInRange(float tickDelta) {
+        Boolean inRange = MainThread.run(() -> {
+            var override = targetOverride;
+            if (override == null) {
+                return false;
+            }
+            if ("miss".equals(override.kind())) {
+                return true;
+            }
+            var mc = Minecraft.getInstance();
+            var player = mc.player;
+            if (player == null) {
+                return false;
+            }
+            var eye = player.getEyePosition();
+            if ("entity".equals(override.kind())) {
+                var entity = findEntity(override.entity());
+                if (entity == null) {
+                    return false;
+                }
+                var picked =
+                        entity.pick(player.entityInteractionRange() + 1.0, tickDelta, false);
+                var location = picked.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY
+                        ? picked.getLocation()
+                        : entity.position();
+                // Query only: it never clears the override.
+                return eye.distanceTo(location) < player.entityInteractionRange();
+            }
+            var level = mc.level;
+            if (level == null) {
+                return false;
+            }
+            var pos = new BlockPos(override.x(), override.y(), override.z());
+            double closestX = Math.min(Math.max(eye.x, pos.getX()), pos.getX() + 1.0);
+            double closestY = Math.min(Math.max(eye.y, pos.getY()), pos.getY() + 1.0);
+            double closestZ = Math.min(Math.max(eye.z, pos.getZ()), pos.getZ() + 1.0);
+            return eye.distanceTo(new net.minecraft.world.phys.Vec3(
+                    closestX, closestY, closestZ)) < player.blockInteractionRange();
+        });
+        return Boolean.TRUE.equals(inRange);
+    }
+
+    @Override
+    public CompletableFuture<ink.tuanzi.neomacros.port.model.BreakBlockResult> breakBlock() {
+        CompletableFuture<ink.tuanzi.neomacros.port.model.BreakBlockResult> future =
+                new CompletableFuture<>();
+        dispatch(() -> {
+            boolean pinned = targetOverride != null;
+            var hit = evaluateTargetRead().orElse(null);
+            if (hit == null || hit.block() == null) {
+                future.complete(new ink.tuanzi.neomacros.port.model.BreakBlockResult(
+                        "NO_TARGET", null));
+                return;
+            }
+            var bp = hit.block().pos();
+            startBreakAt((int) Math.floor(bp.x()), (int) Math.floor(bp.y()),
+                    (int) Math.floor(bp.z()), !pinned, future);
+        });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<ink.tuanzi.neomacros.port.model.BreakBlockResult>
+            breakBlockAt(int x, int y, int z) {
+        CompletableFuture<ink.tuanzi.neomacros.port.model.BreakBlockResult> future =
+                new CompletableFuture<>();
+        // An explicit position is crosshair-independent: the pick is
+        // neither consulted nor moved (only target writes can end it).
+        dispatch(() -> startBreakAt(x, y, z, false, future));
+        return future;
+    }
+
+    /** Arms the break override at the position and starts the destroy path. */
+    private void startBreakAt(int x, int y, int z, boolean crosshairDriven,
+            CompletableFuture<ink.tuanzi.neomacros.port.model.BreakBlockResult> future) {
+        var mc = Minecraft.getInstance();
+        var level = mc.level;
+        var gameMode = mc.gameMode;
+        if (level == null || gameMode == null) {
+            future.complete(new ink.tuanzi.neomacros.port.model.BreakBlockResult(
+                    "NOT_BREAKING", null));
+            return;
+        }
+        var pos = new BlockPos(x, y, z);
+        var state = level.getBlockState(pos);
+        if (state.isAir()) {
+            future.complete(new ink.tuanzi.neomacros.port.model.BreakBlockResult(
+                    "IS_AIR", null));
+            return;
+        }
+        // A new break supersedes any pending one.
+        if (breakFuture != null) {
+            settleBreak("TARGET_CHANGE", null);
+        }
+        breakArmed = true;
+        breakTracked = true;
+        breakX = x;
+        breakY = y;
+        breakZ = z;
+        breakStartState = state;
+        breakCrosshairDriven = crosshairDriven;
+        var override = targetOverride;
+        breakFace = override != null && "block".equals(override.kind())
+                && override.x() == x && override.y() == y && override.z() == z
+                ? override.face() : "down";
+        breakFuture = future;
+        var player = mc.player;
+        if (player != null) {
+            swing(player, InteractionHand.MAIN_HAND);
+        }
+        if (!gameMode.startDestroyBlock(pos, parseFace(breakFace))) {
+            settleBreak("NOT_BREAKING", null);
+            return;
+        }
+        // Instant-break modes destroy synchronously: settle right away.
+        if (!level.getBlockState(pos).equals(state)) {
+            settleBreak("SUCCESS", new Pos3d(x, y, z));
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setBreakOverride(boolean value, String reason) {
+        return dispatch(() -> {
+            if (value) {
+                breakArmed = true;
+                breakTracked = false;
+                breakStartState = null;
+                breakCrosshairDriven = false;
+                return;
+            }
+            settleBreak(reason, null);
+        });
+    }
+
+    @Override
+    public boolean hasBreakBlockOverride() {
+        Boolean active = MainThread.run(() -> {
+            if (!breakArmed) {
+                return false;
+            }
+            var mc = Minecraft.getInstance();
+            if (mc.level == null || mc.gameMode == null) {
+                settleBreak("NOT_BREAKING", null);
+                return false;
+            }
+            if (!breakTracked) {
+                return true;
+            }
+            var state = mc.level.getBlockState(new BlockPos(breakX, breakY, breakZ));
+            if (breakStartState != null && !state.equals(breakStartState)) {
+                settleBreak("SUCCESS", new Pos3d(breakX, breakY, breakZ));
+                return false;
+            }
+            if (state.isAir()) {
+                settleBreak("IS_AIR", null);
+                return false;
+            }
+            return true;
+        });
+        return Boolean.TRUE.equals(active);
+    }
+
+    @Override
+    public CompletableFuture<Void> cancelBreakBlock() {
+        return dispatch(() -> settleBreak("CANCELLED", null));
+    }
+
+    @Override
+    public CompletableFuture<Void> reportBreakBlock(int x, int y, int z, boolean broken) {
+        return dispatch(() -> {
+            if (broken && breakArmed) {
+                settleBreak("SUCCESS", new Pos3d(x, y, z));
+            }
+        });
+    }
+
+    @Override
+    public void addBreakCallback(
+            java.util.function.Consumer<ink.tuanzi.neomacros.port.model.BreakBlockResult>
+                    callback,
+            boolean breaking) {
+        dispatch(() -> {
+            if (callback != null) {
+                breakCallbacks.add(callback);
+            }
+            if (breaking) {
+                breakArmed = true;
+                breakTracked = false;
+                breakStartState = null;
+                breakCrosshairDriven = false;
+            }
+        });
+    }
+
+    /**
+     * Ends the break override episode: disarms it, stops client-side
+     * breaking when the attack key is up, completes the pending break and
+     * dispatches (then clears) the queued outcome callbacks.
+     */
+    private void settleBreak(String reason, Pos3d position) {
+        boolean wasArmed = breakArmed;
+        breakArmed = false;
+        breakTracked = false;
+        breakStartState = null;
+        breakCrosshairDriven = false;
+        var future = breakFuture;
+        breakFuture = null;
+        if (wasArmed && !"SUCCESS".equals(reason)) {
+            var mc = Minecraft.getInstance();
+            var gameMode = mc.gameMode;
+            if (gameMode != null && !mc.options.keyAttack.isDown()) {
+                gameMode.stopDestroyBlock();
+            }
+        }
+        var result = new ink.tuanzi.neomacros.port.model.BreakBlockResult(reason, position);
+        if (future != null) {
+            future.complete(result);
+        }
+        if (!breakCallbacks.isEmpty()) {
+            for (var callback : breakCallbacks) {
+                try {
+                    callback.accept(result);
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+            breakCallbacks.clear();
+        }
+    }
+
+    /** Stores (or clears) the target override and revalidates a pending break. */
+    private void setTargetOverrideNow(TargetOverride next) {
+        var previous = targetOverride;
+        targetOverride = next;
+        if (!breakArmed || !breakTracked) {
+            return;
+        }
+        if (previous != null && next == null) {
+            // Clearing a stored pin ends a pending break (JsMacros parity).
+            settleBreak("TARGET_LOST", null);
+            return;
+        }
+        if (next == null) {
+            return;
+        }
+        if ("block".equals(next.kind())) {
+            if (next.x() == breakX && next.y() == breakY && next.z() == breakZ) {
+                return;
+            }
+            settleBreak("TARGET_CHANGE", null);
+            return;
+        }
+        settleBreak("TARGET_LOST", null);
+    }
+
+    @Override
+    public CompletableFuture<Void> setHoldInteract(boolean holding) {
+        return dispatch(() -> {
+            if (holding) {
+                holdActive = true;
+                holdUseDelay = 0;
+                issueUseNow();
+                return;
+            }
+            releaseHold();
+        });
+    }
+
+    @Override
+    public CompletableFuture<Integer> holdInteractFor(int ticks, boolean stopOnPause) {
+        CompletableFuture<Integer> future = new CompletableFuture<>();
+        dispatch(() -> {
+            if (holdForRemaining >= 0 && holdForFuture != null
+                    && !holdForFuture.isDone()) {
+                holdForFuture.complete(holdForRemaining);
+            }
+            holdForFuture = null;
+            holdForRemaining = -1;
+            if (ticks <= 0) {
+                future.complete(0);
+                return;
+            }
+            holdActive = true;
+            holdUseDelay = 0;
+            issueUseNow();
+            holdForRemaining = ticks;
+            holdForStopOnPause = stopOnPause;
+            holdForFuture = future;
+        });
+        return future;
+    }
+
+    @Override
+    public boolean hasInteractOverride() {
+        // The flag only: it does not query the physical use key.
+        return holdActive;
+    }
+
+    /** Releases the held-use override (deferring the item release check). */
+    private void releaseHold() {
+        if (!holdActive) {
+            return;
+        }
+        holdActive = false;
+        var mc = Minecraft.getInstance();
+        var player = mc.player;
+        var gameMode = mc.gameMode;
+        if (gameMode != null && player != null && player.isUsingItem()
+                && !mc.options.keyUse.isDown()) {
+            gameMode.releaseUsingItem(player);
+        }
+    }
+
+    /** Issues one crosshair-driven use action (the held-use loop's step). */
+    private void issueUseNow() {
+        var mc = Minecraft.getInstance();
+        var player = mc.player;
+        var gameMode = mc.gameMode;
+        if (player == null || gameMode == null) {
+            return;
+        }
+        if (gameMode.isDestroying() || player.isHandsBusy()) {
+            return;
+        }
+        var hit = evaluateTargetRead().orElse(null);
+        if (hit != null && hit.block() != null) {
+            useBlockNow(hit.block(), "main");
+        } else if (hit != null && hit.entity() != null) {
+            useEntityNow(hit.entity(), "main");
+        } else {
+            useItemNow("main");
+        }
+    }
+
+    /** Drives the break and held-use overrides once per client tick. */
+    private void tickInteractionOverrides() {
+        try {
+            var mc = Minecraft.getInstance();
+            tickBreakOverride(mc);
+            tickHoldOverride(mc);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    private void tickBreakOverride(Minecraft mc) {
+        if (!breakArmed) {
+            return;
+        }
+        var level = mc.level;
+        var gameMode = mc.gameMode;
+        if (level == null || gameMode == null) {
+            settleBreak("NOT_BREAKING", null);
+            return;
+        }
+        if (!breakTracked) {
+            // Adopt the first valid block target; never starts a break.
+            var hit = evaluateTargetRead().orElse(null);
+            if (hit != null && hit.block() != null) {
+                var bp = hit.block().pos();
+                var pos = new BlockPos((int) Math.floor(bp.x()),
+                        (int) Math.floor(bp.y()), (int) Math.floor(bp.z()));
+                var state = level.getBlockState(pos);
+                if (!state.isAir()) {
+                    breakTracked = true;
+                    breakX = pos.getX();
+                    breakY = pos.getY();
+                    breakZ = pos.getZ();
+                    breakStartState = state;
+                    breakFace = hit.block().face();
+                    breakCrosshairDriven = targetOverride == null;
+                }
+            }
+            return;
+        }
+        var pos = new BlockPos(breakX, breakY, breakZ);
+        var state = level.getBlockState(pos);
+        if (breakStartState != null && !state.equals(breakStartState)) {
+            settleBreak("SUCCESS", new Pos3d(breakX, breakY, breakZ));
+            return;
+        }
+        if (state.isAir()) {
+            settleBreak("IS_AIR", null);
+            return;
+        }
+        if (breakCrosshairDriven && targetOverride == null) {
+            // No pin stored: looking away from the tracked block ends it.
+            var hit = realPick().orElse(null);
+            if (hit == null || hit.block() == null) {
+                settleBreak("TARGET_LOST", null);
+                return;
+            }
+            var bp = hit.block().pos();
+            if ((int) Math.floor(bp.x()) != breakX
+                    || (int) Math.floor(bp.y()) != breakY
+                    || (int) Math.floor(bp.z()) != breakZ) {
+                settleBreak("TARGET_CHANGE", null);
+                return;
+            }
+        }
+        if (breakFuture != null && !gameMode.continueDestroyBlock(pos, parseFace(breakFace))) {
+            var after = level.getBlockState(pos);
+            if (breakStartState != null && !after.equals(breakStartState)) {
+                settleBreak("SUCCESS", new Pos3d(breakX, breakY, breakZ));
+            } else {
+                settleBreak("NOT_BREAKING", null);
+            }
+        }
+    }
+
+    private void tickHoldOverride(Minecraft mc) {
+        if (holdActive && mc.options.keyUse.isDown()) {
+            // The physical use key takes over: drop the override flag.
+            holdActive = false;
+        }
+        if (holdActive && holdUseDelay > 0) {
+            holdUseDelay--;
+        } else if (holdActive) {
+            var player = mc.player;
+            var gameMode = mc.gameMode;
+            if (player != null && gameMode != null && !player.isUsingItem()
+                    && !player.isHandsBusy() && !gameMode.isDestroying()) {
+                issueUseNow();
+                holdUseDelay = 4; // mirrors the vanilla right-click delay
+            }
+        }
+        if (holdForRemaining < 0) {
+            return;
+        }
+        if (!holdActive) {
+            finishHoldFor();
+            return;
+        }
+        boolean paused = mc.isPaused();
+        if (paused && holdForStopOnPause) {
+            releaseHold();
+            finishHoldFor();
+            return;
+        }
+        if (paused) {
+            return; // paused ticks never count
+        }
+        holdForRemaining--;
+        if (holdForRemaining <= 0) {
+            releaseHold();
+            finishHoldFor();
+        }
+    }
+
+    private void finishHoldFor() {
+        int remaining = Math.max(holdForRemaining, 0);
+        holdForRemaining = -1;
+        var future = holdForFuture;
+        holdForFuture = null;
+        if (future != null) {
+            future.complete(remaining);
+        }
     }
 }

@@ -1841,6 +1841,243 @@ public final class StubAdapter implements NeomacrosAdapter {
             return record("drop:" + all);
         }
 
+        // --- G-028 interaction override canned face: deterministic state
+        // plus the recorded dispatch log the scenarios assert against.
+
+        volatile boolean targetOverrideSet;
+        volatile String targetOverrideKind = "block";
+        volatile int overrideX;
+        volatile int overrideY;
+        volatile int overrideZ;
+        volatile String overrideFace = "down";
+        volatile boolean breakArmed;
+        volatile boolean holdActive;
+        volatile boolean rangeCheck = true;
+        volatile boolean rangeAutoClear = true;
+        volatile boolean airCheck;
+        volatile boolean airAutoClear;
+        volatile boolean shapeCheck = true;
+        volatile boolean shapeAutoClear;
+        volatile boolean targetInRangeAnswer = true;
+        volatile ink.tuanzi.neomacros.port.model.BreakBlockResult breakOutcome =
+                new ink.tuanzi.neomacros.port.model.BreakBlockResult(
+                        "SUCCESS", new Pos3d(1, 64, 1));
+        volatile int holdRemainingAnswer;
+        final List<Consumer<ink.tuanzi.neomacros.port.model.BreakBlockResult>>
+                breakCallbacks = new CopyOnWriteArrayList<>();
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setTargetOverride(
+                int x, int y, int z, String face) {
+            actions.add("setTarget:" + x + "," + y + "," + z + ":" + face);
+            targetOverrideSet = true;
+            targetOverrideKind = "block";
+            overrideX = x;
+            overrideY = y;
+            overrideZ = z;
+            overrideFace = face;
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setTargetEntityOverride(
+                UUID entity) {
+            actions.add("setTargetEntity:" + entity);
+            targetOverrideSet = true;
+            targetOverrideKind = "entity";
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setTargetMissedOverride() {
+            actions.add("setTargetMissed");
+            targetOverrideSet = true;
+            targetOverrideKind = "miss";
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> clearTargetOverride() {
+            actions.add("clearTarget");
+            targetOverrideSet = false;
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public boolean hasTargetOverride() {
+            return targetOverrideSet;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setTargetRangeCheck(
+                boolean enabled, boolean autoClear) {
+            actions.add("rangeCheck:" + enabled + ":" + autoClear);
+            rangeCheck = enabled;
+            rangeAutoClear = autoClear;
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setTargetAirCheck(
+                boolean enabled, boolean autoClear) {
+            actions.add("airCheck:" + enabled + ":" + autoClear);
+            airCheck = enabled;
+            airAutoClear = autoClear;
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setTargetShapeCheck(
+                boolean enabled, boolean autoClear) {
+            actions.add("shapeCheck:" + enabled + ":" + autoClear);
+            shapeCheck = enabled;
+            shapeAutoClear = autoClear;
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> resetTargetChecks() {
+            actions.add("resetChecks");
+            rangeCheck = true;
+            rangeAutoClear = true;
+            airCheck = false;
+            airAutoClear = false;
+            shapeCheck = true;
+            shapeAutoClear = false;
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public boolean targetInRange(float tickDelta) {
+            return targetOverrideSet && targetInRangeAnswer;
+        }
+
+        @Override
+        public Optional<ink.tuanzi.neomacros.port.model.RayHit> target() {
+            if (!targetOverrideSet || !"block".equals(targetOverrideKind)) {
+                // Miss and entity overrides read as no pick in the stub;
+                // without a stored override the stub world has no pick.
+                return Optional.empty();
+            }
+            return Optional.of(new ink.tuanzi.neomacros.port.model.RayHit(
+                    new BlockInteraction("minecraft:stone",
+                            new Pos3d(overrideX, overrideY, overrideZ), overrideFace),
+                    null,
+                    new Pos3d(overrideX + 0.5, overrideY + 0.5, overrideZ + 0.5),
+                    2.5));
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<
+                ink.tuanzi.neomacros.port.model.BreakBlockResult> breakBlock() {
+            actions.add("breakBlock");
+            return settleBreak(breakOutcome);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<
+                ink.tuanzi.neomacros.port.model.BreakBlockResult> breakBlockAt(
+                        int x, int y, int z) {
+            actions.add("breakBlockAt:" + x + "," + y + "," + z);
+            return settleBreak(breakOutcome);
+        }
+
+        /** Disarms and dispatches the canned outcome to queued callbacks. */
+        private java.util.concurrent.CompletableFuture<
+                ink.tuanzi.neomacros.port.model.BreakBlockResult> settleBreak(
+                        ink.tuanzi.neomacros.port.model.BreakBlockResult outcome) {
+            breakArmed = false;
+            fireBreakCallbacks(outcome);
+            return java.util.concurrent.CompletableFuture.completedFuture(outcome);
+        }
+
+        /** Runs (then clears) the queued break callbacks with one outcome. */
+        private void fireBreakCallbacks(ink.tuanzi.neomacros.port.model.BreakBlockResult outcome) {
+            if (breakCallbacks.isEmpty()) {
+                return;
+            }
+            for (var callback : breakCallbacks) {
+                try {
+                    callback.accept(outcome);
+                } catch (Throwable ignored) {
+                    // one bad callback must not stop the others
+                }
+            }
+            breakCallbacks.clear();
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setBreakOverride(
+                boolean value, String reason) {
+            actions.add("breakOverride:" + value + ":" + reason);
+            breakArmed = value;
+            if (!value) {
+                fireBreakCallbacks(new ink.tuanzi.neomacros.port.model.BreakBlockResult(
+                        reason, null));
+            }
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public boolean hasBreakBlockOverride() {
+            return breakArmed;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> cancelBreakBlock() {
+            actions.add("cancelBreak");
+            breakArmed = false;
+            fireBreakCallbacks(new ink.tuanzi.neomacros.port.model.BreakBlockResult(
+                    "CANCELLED", null));
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> reportBreakBlock(
+                int x, int y, int z, boolean broken) {
+            actions.add("reportBreak:" + x + "," + y + "," + z + ":" + broken);
+            if (broken && breakArmed) {
+                breakArmed = false;
+                fireBreakCallbacks(new ink.tuanzi.neomacros.port.model.BreakBlockResult(
+                        "SUCCESS", new Pos3d(x, y, z)));
+            }
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public void addBreakCallback(
+                Consumer<ink.tuanzi.neomacros.port.model.BreakBlockResult> callback,
+                boolean breaking) {
+            actions.add("addBreakCallback:" + breaking);
+            if (callback != null) {
+                breakCallbacks.add(callback);
+            }
+            if (breaking) {
+                breakArmed = true;
+            }
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> setHoldInteract(boolean holding) {
+            actions.add("holdInteract:" + holding);
+            holdActive = holding;
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Integer> holdInteractFor(
+                int ticks, boolean stopOnPause) {
+            actions.add("holdInteractFor:" + ticks + ":" + stopOnPause);
+            // The timed hold releases before the call resolves (parity).
+            holdActive = false;
+            return java.util.concurrent.CompletableFuture.completedFuture(holdRemainingAnswer);
+        }
+
+        @Override
+        public boolean hasInteractOverride() {
+            return holdActive;
+        }
+
         /** Sets the active status effect list served to the wiring. */
         public void setEffects(List<ink.tuanzi.neomacros.port.model.EffectSnapshot> effects) {
             this.effects = List.copyOf(effects);

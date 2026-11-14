@@ -367,6 +367,35 @@ function start() {
         && typeof self.entityInteractionRange === 'number');
     // A no-arg is/getter publishes as a property (isBreakingBlock -> breakingBlock).
     check('player.isBreakingBlock', typeof self.breakingBlock === 'boolean');
+    // G-028 interaction override face: shape checks only; outside a world
+    // the interactions handle reads absent and still counts as present.
+    const g028 = self.interactions;
+    if (g028 === undefined || g028 === null) {
+      check('g028.interactions-absent', true);
+    } else {
+      check('g028.interactions-handle', typeof g028 === 'object');
+      check('g028.interactions-actions',
+          typeof g028.setTarget === 'function'
+          && typeof g028.breakBlock === 'function'
+          && typeof g028.interact === 'function'
+          && typeof g028.reset === 'function'
+          && typeof g028.addBreakCallback === 'function'
+          && typeof g028.isTargetInRange === 'function');
+      // No-arg is/getters publish as properties on the handle.
+      check('g028.interactions-props',
+          typeof g028.targetOverride === 'boolean'
+          && typeof g028.breakOverride === 'boolean'
+          && typeof g028.interactOverride === 'boolean');
+    }
+    const g028Target = self.target;
+    check('g028.target-null-or-handle',
+        g028Target === undefined || g028Target === null
+            || typeof g028Target === 'object');
+    if (g028Target !== undefined && g028Target !== null) {
+      check('g028.target-face',
+          g028Target.face === undefined || typeof g028Target.face === 'string');
+      check('g028.target-hit', typeof g028Target.hit === 'boolean');
+    }
     const selfInv = self.inventory;
     check('player.self-inventory-craft-grid',
         typeof selfInv === 'object' && selfInv.craftingWidth === 2

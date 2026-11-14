@@ -9,6 +9,7 @@ import ink.tuanzi.neomacros.port.model.SignEditVerdict;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -246,5 +247,167 @@ public interface PlayerPort {
      */
     default float itemCooldownPercent(String itemId) {
         return 0;
+    }
+
+    // --- Interaction override face (G-028): a script-set crosshair target,
+    // the break-outcome override, and the held-use override. All three are
+    // client-side script state over the local player's interaction loop. The
+    // target override rewrites what target() reports (and therefore what the
+    // crosshair-driven NeoMacros actions act on); it never rewrites the
+    // vanilla crosshair, so it grants no server reach. Writes marshal onto
+    // the game main thread and settle once applied.
+
+    /**
+     * Stores a block target override at the block center on the named face;
+     * the face is the one recorded on the overridden pick.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setTargetOverride(
+            int x, int y, int z, String face) {
+        throw new UnsupportedOperationException("setTargetOverride requires the fabric adapter");
+    }
+
+    /** Stores an entity target override for the loaded entity. */
+    default java.util.concurrent.CompletableFuture<Void> setTargetEntityOverride(
+            java.util.UUID entity) {
+        throw new UnsupportedOperationException(
+                "setTargetEntityOverride requires the fabric adapter");
+    }
+
+    /** Stores a fixed miss override: the pick reports nothing at all. */
+    default java.util.concurrent.CompletableFuture<Void> setTargetMissedOverride() {
+        throw new UnsupportedOperationException("setTargetMissedOverride requires the fabric adapter");
+    }
+
+    /** Clears the target override so {@link #target()} reports the real pick again. */
+    default java.util.concurrent.CompletableFuture<Void> clearTargetOverride() {
+        throw new UnsupportedOperationException("clearTargetOverride requires the fabric adapter");
+    }
+
+    /** Whether a target override is stored, including a stored miss. */
+    default boolean hasTargetOverride() {
+        return false;
+    }
+
+    /**
+     * Configures the range check: {@code enabled} runs it during target
+     * evaluation, {@code autoClear} drops an out-of-range override instead
+     * of rendering it as a miss.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setTargetRangeCheck(
+            boolean enabled, boolean autoClear) {
+        throw new UnsupportedOperationException("setTargetRangeCheck requires the fabric adapter");
+    }
+
+    /**
+     * Configures the air check: {@code enabled} rejects an air block target,
+     * {@code autoClear} drops it instead of rendering it as a miss.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setTargetAirCheck(
+            boolean enabled, boolean autoClear) {
+        throw new UnsupportedOperationException("setTargetAirCheck requires the fabric adapter");
+    }
+
+    /**
+     * Configures the empty-shape check: {@code enabled} rejects a block whose
+     * collision shape is empty, {@code autoClear} drops it instead of
+     * rendering it as a miss.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setTargetShapeCheck(
+            boolean enabled, boolean autoClear) {
+        throw new UnsupportedOperationException("setTargetShapeCheck requires the fabric adapter");
+    }
+
+    /** Restores the three target checks to their defaults (see the facade). */
+    default java.util.concurrent.CompletableFuture<Void> resetTargetChecks() {
+        throw new UnsupportedOperationException("resetTargetChecks requires the fabric adapter");
+    }
+
+    /**
+     * Tests the stored target override against the client interaction reach
+     * at the interpolation fraction; false with no override, no player or no
+     * game mode. A stored miss always passes.
+     */
+    default boolean targetInRange(float tickDelta) {
+        return false;
+    }
+
+    /**
+     * Breaks the block the pick currently reports (the override when one is
+     * set), resolving with the break outcome.
+     */
+    default java.util.concurrent.CompletableFuture<ink.tuanzi.neomacros.port.model.BreakBlockResult>
+            breakBlock() {
+        throw new UnsupportedOperationException("breakBlock requires the fabric adapter");
+    }
+
+    /**
+     * Breaks the block at the coordinates, resolving with the break outcome;
+     * the crosshair is neither consulted nor moved.
+     */
+    default java.util.concurrent.CompletableFuture<ink.tuanzi.neomacros.port.model.BreakBlockResult>
+            breakBlockAt(int x, int y, int z) {
+        throw new UnsupportedOperationException("breakBlockAt requires the fabric adapter");
+    }
+
+    /**
+     * Enables or disables the break override. Disabling reports {@code reason}
+     * to a pending break (null position) and stops client-side breaking while
+     * the attack key is up; enabling only arms the override.
+     */
+    default java.util.concurrent.CompletableFuture<Void> setBreakOverride(
+            boolean value, String reason) {
+        throw new UnsupportedOperationException("setBreakOverride requires the fabric adapter");
+    }
+
+    /** Whether the break override is currently armed and still valid. */
+    default boolean hasBreakBlockOverride() {
+        return false;
+    }
+
+    /** Cancels the active break override, reporting {@code CANCELLED}. */
+    default java.util.concurrent.CompletableFuture<Void> cancelBreakBlock() {
+        throw new UnsupportedOperationException("cancelBreakBlock requires the fabric adapter");
+    }
+
+    /**
+     * Reports a client-side destruction call result to the active break
+     * override: a true result ends the override and settles a pending break
+     * with {@code SUCCESS} at the position; false leaves it unchanged.
+     */
+    default java.util.concurrent.CompletableFuture<Void> reportBreakBlock(
+            int x, int y, int z, boolean broken) {
+        throw new UnsupportedOperationException("reportBreakBlock requires the fabric adapter");
+    }
+
+    /**
+     * Queues a one-shot outcome callback for the next break-override
+     * settlement; {@code breaking} true arms the override (resetting the
+     * tracked position, starting no break action), false leaves it unchanged.
+     * Callbacks run once on the game main thread, then the queue clears.
+     */
+    default void addBreakCallback(
+            Consumer<ink.tuanzi.neomacros.port.model.BreakBlockResult> callback,
+            boolean breaking) {
+        throw new UnsupportedOperationException("addBreakCallback requires the fabric adapter");
+    }
+
+    /** Starts or stops the continuous held-use override. */
+    default java.util.concurrent.CompletableFuture<Void> setHoldInteract(boolean holding) {
+        throw new UnsupportedOperationException("setHoldInteract requires the fabric adapter");
+    }
+
+    /**
+     * Holds the use override for up to {@code ticks} unpaused ticks and then
+     * releases it; resolves with the ticks that did not elapse (0 when the
+     * full duration ran out, nonzero when the hold stopped early).
+     */
+    default java.util.concurrent.CompletableFuture<Integer> holdInteractFor(
+            int ticks, boolean stopOnPause) {
+        throw new UnsupportedOperationException("holdInteractFor requires the fabric adapter");
+    }
+
+    /** Whether the held-use override is currently active. */
+    default boolean hasInteractOverride() {
+        return false;
     }
 }
