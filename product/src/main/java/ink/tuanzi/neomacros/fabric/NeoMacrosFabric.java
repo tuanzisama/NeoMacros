@@ -1312,6 +1312,16 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         return options;
     }
 
+    /**
+     * The macro root folder scripts and macro assets live under (the
+     * configured {@code macrosDir}, defaulting below the config directory);
+     * {@code null} before bootstrap. Read by the adapter for the panorama
+     * capture target.
+     */
+    public static Path macrosDir() {
+        return macrosDir;
+    }
+
     /** Saves the config; used as the Cloth screen save hook. */
     static void saveConfig() {
         configManager.save();

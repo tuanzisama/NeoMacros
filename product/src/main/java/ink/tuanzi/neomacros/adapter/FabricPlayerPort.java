@@ -1509,4 +1509,74 @@ public final class FabricPlayerPort implements PlayerPort {
             future.complete(remaining);
         }
     }
+
+    // --- Sign editor write face and panorama capture (G-037) ---
+
+    @Override
+    public boolean writeSign(List<String> lines) {
+        Boolean open = MainThread.run(() -> {
+            var screen = FabricLifecyclePort.currentScreen();
+            if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen
+                    editor)) {
+                return false;
+            }
+            String[] messages = ((ink.tuanzi.neomacros.adapter.mixin.AbstractSignEditScreenAccessor)
+                    editor).neomacros$messages();
+            if (messages != null && lines != null) {
+                for (int i = 0; i < lines.size() && i < messages.length; i++) {
+                    String line = lines.get(i);
+                    if (line != null) {
+                        messages[i] = line;
+                    }
+                }
+            }
+            // The buffer is the editor's live text: it renders from it and
+            // submits it to the server when the editor closes (vanilla
+            // AbstractSignEditScreen.removed), so nothing else is needed.
+            return true;
+        });
+        if (open == null) {
+            throw new IllegalStateException(
+                    "sign editor write never reached the game main thread");
+        }
+        return open;
+    }
+
+    @Override
+    public CompletableFuture<String> takePanorama(String folder) {
+        CompletableFuture<String> future = new CompletableFuture<>();
+        Minecraft.getInstance().execute(() -> {
+            try {
+                var root = ink.tuanzi.neomacros.fabric.NeoMacrosFabric.macrosDir();
+                if (root == null) {
+                    throw new IllegalStateException("the macro folder is not initialized");
+                }
+                java.nio.file.Path base = root.toAbsolutePath().normalize();
+                java.nio.file.Path target = base.resolve(folder).normalize();
+                if (!target.startsWith(base)) {
+                    throw new SecurityException(
+                            "path escapes the macro folder: " + folder);
+                }
+                // The capture routine writes panorama_0..5.png into this
+                // directory; vanilla assumes it exists, so create it here.
+                java.nio.file.Path screenshots = target.resolve("screenshots");
+                java.nio.file.Files.createDirectories(screenshots);
+
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.player == null || mc.level == null) {
+                    throw new IllegalStateException(
+                            "panorama capture requires an in-world player");
+                }
+                // Renders the six faces on this (main) thread, resizes the
+                // framebuffer to the routine's fixed 4096x4096 and queues the
+                // six PNG writes; the message names the target directory.
+                var message = mc.grabPanoramixScreenshot(screenshots.toFile());
+                future.complete(message != null ? message.getString()
+                        : screenshots.toString());
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
 }

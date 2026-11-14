@@ -155,6 +155,114 @@ public final class PlayerApi {
         return BuiltScreen.open(screenPort(), spec);
     }
 
+    /**
+     * Writes up to four lines, top to bottom, into the open sign editor; a
+     * {@code null} line is left unchanged. Synchronous by decision (the same
+     * exemption as {@code close()}): the write only fills the editor's line
+     * buffer, which the vanilla editor shows at once and submits to the
+     * server when it closes — no packet is sent while the editor stays open,
+     * and the new text reads back through {@code player.screen.getText()}.
+     *
+     * @param l1 first line, or {@code null} to leave it unchanged
+     * @param l2 second line, or {@code null} to leave it unchanged
+     * @param l3 third line, or {@code null} to leave it unchanged
+     * @param l4 fourth line, or {@code null} to leave it unchanged
+     * @return whether a sign editor was open (the write only lands then)
+     * @throws IllegalStateException when the write cannot reach the game main thread
+     * @zh 把最多四行文本自上而下写入已打开的告示牌编辑器；{@code null} 行保持不变。同步语义（与 {@code close()} 同一豁免）：只写入编辑器的行缓冲——编辑器立即显示，且在关闭时由原版提交给服务端；编辑器开着时不发任何包，新文本可经 {@code player.screen.getText()} 回读。
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public boolean writeSign(String l1, String l2, String l3, String l4) {
+        return adapter().writeSign(java.util.Arrays.asList(l1, l2, l3, l4));
+    }
+
+    /**
+     * Writes one line into the open sign editor (the JsMacros
+     * {@code writeSign(int, String)} overload under its own name: the module
+     * binding exposes one function per name, so the two shapes cannot share
+     * it). The index is zero-based from the top and must be 0 through 3; it
+     * is checked even when no sign editor is open. Unlike
+     * {@link #writeSign(String, String, String, String)}, this method does
+     * not accept {@code null} to leave a line unchanged.
+     *
+     * @param index zero-based sign line, 0 through 3
+     * @param message the text to write
+     * @return whether a sign editor was open (the write only lands then)
+     * @throws IndexOutOfBoundsException if the index is outside 0 to 3
+     * @throws NullPointerException if {@code message} is {@code null}
+     * @throws IllegalStateException when the write cannot reach the game main thread
+     * @zh 向已打开的告示牌编辑器写入一行（对应 JsMacros 的 {@code writeSign(int, String)} 重载，因模块绑定每个名字只暴露一个函数而另取此名）。行号自顶向下从 0 起，必须在 0–3 之间；即使没有打开的编辑器也会校验行号。与四行版不同，本方法不接受 {@code null} 表示“保持不变”。
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public boolean writeSignLine(int index, String message) {
+        if (index < 0 || index > 3) {
+            throw new IndexOutOfBoundsException("sign line index must be 0..3: " + index);
+        }
+        java.util.Objects.requireNonNull(message, "message");
+        String[] lines = {null, null, null, null};
+        lines[index] = message;
+        return adapter().writeSign(java.util.Arrays.asList(lines));
+    }
+
+    /**
+     * Captures a panorama of the current world as six PNGs
+     * ({@code panorama_0.png} .. {@code panorama_5.png}) below
+     * {@code <macro root>/<folder>/screenshots/}, which is created on
+     * demand. The capture routine renders the six directions on the game
+     * main thread at its fixed 4096x4096 size — the JsMacros width/height
+     * parameters are ignored there too — and the promise resolves with the
+     * routine's message once the six grabs are queued, so it does not
+     * guarantee that the files exist yet (they are written asynchronously).
+     *
+     * @param folder folder under the macro root to save into
+     * @return promise settling with the capture routine's message; it rejects
+     *         when the capture cannot run (no in-world player, macro root
+     *         unavailable, I/O failure) and when the folder is invalid
+     * @throws IllegalArgumentException if {@code folder} is {@code null}, blank, absolute, or escapes the macro root (host-level; the script binding surfaces it as a rejected promise)
+     * @zh 把当前世界的全景抓成六张 PNG（{@code panorama_0.png} .. {@code panorama_5.png}），存到 {@code <宏根>/<folder>/screenshots/}（按需创建）。抓取例程在游戏主线程以固定 4096x4096 渲染六个方向（JsMacros 的宽高参数在例程里同样被忽略）；Promise 在六次抓取入队后以例程消息落定，因此不保证文件已存在（文件异步写入）。抓取无法执行（不在世界内、宏根不可用、IO 失败）或目录非法时 Promise 拒绝（脚本侧为可捕获的 rejection）。
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiType("Promise<string>")
+    public CompletableFuture<String> takePanorama(String folder) {
+        checkMacroFolder(folder);
+        return adapter().takePanorama(folder);
+    }
+
+    /**
+     * Rejects a panorama folder that is {@code null}, blank, absolute, or
+     * walks out of the macro root, before the port runs (host-level; the
+     * script binding surfaces it as a rejected promise).
+     *
+     * @zh 在端口执行之前拒绝 {@code null}、空白、绝对路径或越出宏根的全景目标目录（宿主层抛错；脚本绑定层表现为被拒绝的 Promise）。
+     */
+    private static void checkMacroFolder(String folder) {
+        if (folder == null || folder.isBlank()) {
+            throw new IllegalArgumentException("folder must not be blank");
+        }
+        java.nio.file.Path path;
+        try {
+            path = java.nio.file.Path.of(folder);
+        } catch (java.nio.file.InvalidPathException e) {
+            throw new IllegalArgumentException("invalid folder: " + folder, e);
+        }
+        if (path.isAbsolute()) {
+            throw new IllegalArgumentException(
+                    "folder must be relative to the macro root: " + folder);
+        }
+        for (java.nio.file.Path part : path) {
+            if ("..".equals(part.toString())) {
+                throw new IllegalArgumentException(
+                        "folder must stay inside the macro root: " + folder);
+            }
+        }
+    }
+
     /** The player port behind the API (single adapter access point). */
     private static ink.tuanzi.neomacros.port.PlayerPort adapter() {
         return ScriptApiEnvironment.adapter().player();
@@ -5176,8 +5284,8 @@ public final class PlayerApi {
         }
     }
 
-    /** The sign editor with the front-face text.
-     * @zh 告示牌编辑界面，可读正面文本。 */
+    /** The sign editor with the text under edit.
+     * @zh 告示牌编辑界面，可读正在编辑的文本。 */
     @ApiClass(name = "SignScreen", kind = ApiClassKind.HANDLE,
             wraps = "net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen")
     public static final class SignScreen extends Screen {
@@ -5186,8 +5294,9 @@ public final class PlayerApi {
             super(mcClass, "sign", title);
         }
 
-        /** The front-face sign text, line-joined.
-         * @zh 告示牌正面文本（按行拼接）。 */
+        /** The sign text under edit, line-joined; reflects {@code writeSign}
+         * immediately (the editor's live buffer, submitted on close).
+         * @zh 正在编辑的告示牌文本（按行拼接）；{@code writeSign} 的写入立即可见（编辑器实时缓冲，关闭时提交）。 */
         @ApiSince("0.3.0")
         @ApiLoader("*")
         @ApiMC("*")
