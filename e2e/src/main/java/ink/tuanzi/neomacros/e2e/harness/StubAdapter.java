@@ -407,6 +407,17 @@ public final class StubAdapter implements NeomacrosAdapter {
         public volatile Boolean correctToolForDrops;
         public volatile Float destroySpeed;
         public volatile Boolean repairable;
+        /** Canned enchantment definition, relations and pairwise verdicts
+         * ({@code null} = undefined). */
+        public volatile ink.tuanzi.neomacros.port.model.EnchantmentSpec enchantmentSpec;
+        public volatile ink.tuanzi.neomacros.port.model.EnchantmentRelations enchantmentRelations;
+        public volatile java.util.function.BiPredicate<String, String> enchantmentCompatibility;
+        /** Canned food component and enchantment listings ({@code null} = undefined). */
+        public volatile ink.tuanzi.neomacros.port.model.FoodData food;
+        public volatile java.util.List<String> possibleEnchantments;
+        /** Canned enchanting-table subset ({@code null} = undefined). */
+        public volatile java.util.List<String> possibleEnchantmentsFromTable;
+        public volatile ink.tuanzi.neomacros.port.model.ChatComponent enchantmentLevelName;
 
         @Override
         public java.util.Optional<java.util.List<String>> creativeTabs(String itemId) {
@@ -471,6 +482,44 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public java.util.Optional<Boolean> canBeRepairedWith(String itemId, String materialId) {
             return java.util.Optional.ofNullable(repairable);
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.EnchantmentSpec>
+                enchantmentSpec(String enchantmentId) {
+            return java.util.Optional.ofNullable(enchantmentSpec);
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.EnchantmentRelations>
+                enchantmentRelations(String enchantmentId) {
+            return java.util.Optional.ofNullable(enchantmentRelations);
+        }
+
+        @Override
+        public java.util.Optional<Boolean> enchantmentsCompatible(String firstId,
+                String secondId) {
+            var verdict = enchantmentCompatibility;
+            return verdict == null ? java.util.Optional.empty()
+                    : java.util.Optional.of(verdict.test(firstId, secondId));
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.FoodData> food(String itemId) {
+            return java.util.Optional.ofNullable(food);
+        }
+
+        @Override
+        public java.util.Optional<java.util.List<String>> possibleEnchantments(String itemId,
+                boolean enchantingTable) {
+            return java.util.Optional.ofNullable(enchantingTable
+                    ? possibleEnchantmentsFromTable : possibleEnchantments);
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.ChatComponent>
+                enchantmentLevelName(String enchantmentId, int level) {
+            return java.util.Optional.ofNullable(enchantmentLevelName);
         }
     }
 

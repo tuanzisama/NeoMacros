@@ -256,13 +256,24 @@ public final class ItemStack implements ScriptHandle {
         return lore;
     }
 
-    /** The enchantments as {@code {id, level}} entries, in stored order.
-     * @zh 按 {id, level} 形态的附魔列表，按存储顺序。 */
+    /** The enchantments on this stack, in stored order.
+     * @zh 该物品堆上的附魔列表，按存储顺序。 */
     @ApiSince("0.2.0")
-    @ApiLoader("*")
     @ApiMC("*")
+    @ApiLoader("*")
     @ApiReadOnly
-    public List<ink.tuanzi.neomacros.port.model.EnchantmentData> getEnchantments() {
+    public List<Enchantment> getEnchantments() {
+        List<Enchantment> out = new ArrayList<>(enchantments.size());
+        for (ink.tuanzi.neomacros.port.model.EnchantmentData entry : enchantments) {
+            out.add(new Enchantment(entry.id(), entry.level()));
+        }
+        return out;
+    }
+
+    /** The neutral enchantment entries, for the builder's copy path
+     * (package access).
+     * @zh 中立附魔条目（构建器拷贝路径用，包内访问）。 */
+    List<ink.tuanzi.neomacros.port.model.EnchantmentData> enchantmentData() {
         return enchantments;
     }
 
@@ -619,6 +630,86 @@ public final class ItemStack implements ScriptHandle {
         }
         return ScriptApiEnvironment.adapter().item()
                 .canBeRepairedWith(id, material.getId()).orElse(null);
+    }
+
+    /** The food component of this stack's item type (hunger, saturation,
+     * always-edible); undefined for a non-food item or an unknown item.
+     * @zh 该物品堆所属物品类型的食物组件（饥饿、饱和度、可随时食用）；非食物物品或未知物品为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public ink.tuanzi.neomacros.port.model.FoodData getFood() {
+        return ScriptApiEnvironment.adapter().item().food(id).orElse(null);
+    }
+
+    /** The enchantments that can be applied to this item type (level 0),
+     * in registry order; undefined without the item port or for an
+     * unknown item.
+     * @zh 可应用于该物品类型的附魔（等级 0），按注册表顺序；无物品端口或物品未知时为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public List<Enchantment> getPossibleEnchantments() {
+        return possibleEnchantments(false);
+    }
+
+    /** The subset of {@link #getPossibleEnchantments()} offered by an
+     * enchanting table (level 0), in registry order; undefined without the
+     * item port or for an unknown item.
+     * @zh {@link #getPossibleEnchantments()} 中附魔台会给出的子集（等级 0），按注册表顺序；无物品端口或物品未知时为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public List<Enchantment> getPossibleEnchantmentsFromTable() {
+        return possibleEnchantments(true);
+    }
+
+    /**
+     * Whether the given enchantment fits this stack: its item type is
+     * supported and it combines with every enchantment already present;
+     * undefined when either side cannot be resolved.
+     *
+     * @zh 给定附魔是否适配本物品堆：物品类型受支持且与已有全部附魔可叠加；任一侧无法解析时为 undefined。
+     * @zh-param enchantment 要检查的附魔
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean canBeApplied(Enchantment enchantment) {
+        if (enchantment == null) {
+            return null;
+        }
+        return enchantment.canBeApplied(this);
+    }
+
+    /** A builder draft seeded with this stack, for component editing; the
+     * draft is local data and enters the world only through a privileged
+     * creative write.
+     * @zh 以本物品堆为底稿的构建器草稿（用于组件编辑）；草稿是本地数据，只能经特权创造写入进入世界。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public ItemStackBuilder getCreative() {
+        return new ItemStackBuilder(id).copyFrom(this);
+    }
+
+    /** Resolves one possible-enchantment query through the item port. */
+    private List<Enchantment> possibleEnchantments(boolean enchantingTable) {
+        List<String> ids = ScriptApiEnvironment.adapter().item()
+                .possibleEnchantments(id, enchantingTable).orElse(null);
+        if (ids == null) {
+            return null;
+        }
+        List<Enchantment> out = new ArrayList<>(ids.size());
+        for (String enchantmentId : ids) {
+            out.add(new Enchantment(enchantmentId, 0));
+        }
+        return out;
     }
 
     /** Whether the stack represents nothing (air or a zero count).

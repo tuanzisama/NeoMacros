@@ -7,11 +7,15 @@ import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
+import ink.tuanzi.neomacros.doc.api.ApiType;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Builder for local {@link ItemStack} values; the single construction path
@@ -40,7 +44,7 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
     private int damage;
     private int maxDamage;
     private boolean unbreakable;
-    private Map<String, Object> baseExtras = Map.of();
+    private final Map<String, Object> baseExtras = new LinkedHashMap<>();
 
     /** Creates the builder for one item id (namespace optional).
      * @zh 为某物品 id 创建构建器（命名空间可省略）。 */
@@ -155,6 +159,219 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
         return this;
     }
 
+    // ---- creative write face ----
+    // Every write applies to the draft immediately and settles with the
+    // builder itself, so `await` keeps the chain alive.
+
+    /** Sets the remaining durability (the item's maximum damage minus this
+     * value); items without maximum damage take no damage.
+     * @zh 设置剩余耐久（物品最大耐久减去该值）；无最大耐久的物品不受损伤。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> setDurability(int durability) {
+        this.damage = this.maxDamage > 0 ? Math.max(0, this.maxDamage - durability) : 0;
+        return CompletableFuture.completedFuture(this);
+    }
+
+    /**
+     * Adds or upgrades one enchantment: an identifier with an explicit
+     * level, or an {@link Enchantment} handle carrying its own level.
+     * Existing entries of the same enchantment are replaced.
+     *
+     * @zh 添加或升级一条附魔：带显式等级的标识，或自带等级的 {@link Enchantment} 句柄；同名附魔的既有条目会被替换。
+     * @zh-param enchantment 附魔句柄或附魔标识
+     * @zh-param level 等级（传入附魔句柄时可省略）
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> addEnchantment(
+            @ApiType("Enchantment | string") Object enchantment,
+            @ApiOptional Integer level) {
+        if (enchantment == null) {
+            throw new IllegalArgumentException("enchantment is required");
+        }
+        String enchantId;
+        int resolved;
+        if (enchantment instanceof Enchantment handle) {
+            enchantId = handle.getId();
+            resolved = level == null ? handle.getLevel() : level;
+        } else if (enchantment instanceof String text) {
+            if (level == null) {
+                throw new IllegalArgumentException("level is required for an enchantment id");
+            }
+            enchantId = ItemStack.namespaced(text);
+            resolved = level;
+        } else {
+            throw new IllegalArgumentException("expected Enchantment or enchantment id");
+        }
+        this.enchantments.removeIf(entry -> entry.id().equals(enchantId));
+        this.enchantments.add(new ink.tuanzi.neomacros.port.model.EnchantmentData(
+                enchantId, resolved));
+        return CompletableFuture.completedFuture(this);
+    }
+
+    /** Removes every enchantment from the draft.
+     * @zh 移除草稿上的全部附魔。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> clearEnchantments() {
+        this.enchantments.clear();
+        return CompletableFuture.completedFuture(this);
+    }
+
+    /**
+     * Removes one enchantment, keeping the others.
+     *
+     * @zh 移除一条附魔，保留其余附魔。
+     * @zh-param enchantment 要移除的附魔句柄或附魔标识
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> removeEnchantment(
+            @ApiType("Enchantment | string") Object enchantment) {
+        String enchantId;
+        if (enchantment instanceof Enchantment handle) {
+            enchantId = handle.getId();
+        } else if (enchantment instanceof String text) {
+            enchantId = ItemStack.namespaced(text);
+        } else if (enchantment == null) {
+            throw new IllegalArgumentException("enchantment is required");
+        } else {
+            throw new IllegalArgumentException("expected Enchantment or enchantment id");
+        }
+        this.enchantments.removeIf(entry -> entry.id().equals(enchantId));
+        return CompletableFuture.completedFuture(this);
+    }
+
+    /** Clears every lore line from the draft.
+     * @zh 清空草稿上的全部 Lore 行。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> clearLore() {
+        this.lore.clear();
+        return CompletableFuture.completedFuture(this);
+    }
+
+    /**
+     * Appends one lore line, or every line of an array of lines; values are
+     * rendered with their string form (integral numbers without decimals).
+     *
+     * @zh 追加一行 Lore，或一个数组中的全部 Lore 行；值按其字符串形式渲染（整数不带小数）。
+     * @zh-param line 一行文本，或文本/数值数组
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> addLore(
+            @ApiType("string | number | Array<string | number>") Object line) {
+        if (line == null) {
+            return CompletableFuture.completedFuture(this);
+        }
+        if (line instanceof Iterable<?> many) {
+            for (Object one : many) {
+                if (one != null) {
+                    this.lore.add(loreLine(one));
+                }
+            }
+        } else {
+            this.lore.add(loreLine(line));
+        }
+        return CompletableFuture.completedFuture(this);
+    }
+
+    /** Renders one lore value the way a guest string conversion would. */
+    private static String loreLine(Object value) {
+        if (value instanceof Number number) {
+            double decimal = number.doubleValue();
+            if (!Double.isInfinite(decimal) && decimal == Math.floor(decimal)) {
+                return String.valueOf(number.longValue());
+            }
+        }
+        return String.valueOf(value);
+    }
+
+    /** Hides or shows the enchantments in the tooltip without changing
+     * them; does not remove the enchantments.
+     * @zh 在提示框中隐藏或显示附魔（不改变附魔本身），不会移除附魔。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> hideEnchantments(boolean hide) {
+        return CompletableFuture.completedFuture(hideFlag("enchantmentsHidden", hide));
+    }
+
+    /** Hides or shows the attribute modifiers in the tooltip.
+     * @zh 在提示框中隐藏或显示属性修饰符。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> hideModifiers(boolean hide) {
+        return CompletableFuture.completedFuture(hideFlag("modifiersHidden", hide));
+    }
+
+    /** Hides or shows the unbreakable flag in the tooltip without changing
+     * whether the stack is unbreakable.
+     * @zh 在提示框中隐藏或显示不可破坏标记（不改变物品堆是否不可破坏）。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> hideUnbreakable(boolean hide) {
+        return CompletableFuture.completedFuture(hideFlag("unbreakableHidden", hide));
+    }
+
+    /** Hides or shows the can-destroy restriction in the tooltip without
+     * changing the restriction itself.
+     * @zh 在提示框中隐藏或显示禁破坏限制（不改变限制本身）。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> hideCanDestroy(boolean hide) {
+        return CompletableFuture.completedFuture(hideFlag("canDestroyHidden", hide));
+    }
+
+    /** Hides or shows the can-place-on restriction in the tooltip without
+     * changing the restriction itself.
+     * @zh 在提示框中隐藏或显示禁放置限制（不改变限制本身）。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> hideCanPlace(boolean hide) {
+        return CompletableFuture.completedFuture(hideFlag("canPlaceHidden", hide));
+    }
+
+    /** Hides or shows the dyed colour in the tooltip without changing the
+     * colour itself.
+     * @zh 在提示框中隐藏或显示染色（不改变颜色本身）。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiType("Promise<ItemStackBuilder>")
+    public CompletableFuture<ItemStackBuilder> hideDye(boolean hide) {
+        return CompletableFuture.completedFuture(hideFlag("dyeHidden", hide));
+    }
+
+    /** Writes one tooltip-hidden flag into the draft's fact map. */
+    private ItemStackBuilder hideFlag(String key, boolean hide) {
+        this.baseExtras.put(key, hide);
+        return this;
+    }
+
     /** Copies all fields from an existing stack as the base draft, then lets
      * chained calls override.
      * @zh 以现有物品堆为底稿拷贝全部字段，随后链式调用逐项覆盖。 */
@@ -173,8 +390,9 @@ public final class ItemStackBuilder implements ScriptHandle, SelfConstructing {
         this.lore.clear();
         this.lore.addAll(stack.getLore());
         this.enchantments.clear();
-        this.enchantments.addAll(stack.getEnchantments());
-        this.baseExtras = stack.extrasView();
+        this.enchantments.addAll(stack.enchantmentData());
+        this.baseExtras.clear();
+        this.baseExtras.putAll(stack.extrasView());
         return this;
     }
 

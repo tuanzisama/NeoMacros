@@ -106,6 +106,7 @@ public final class E2ERuntime implements AutoCloseable {
         registry.registerGuestType("RayHit", ink.tuanzi.neomacros.core.api.types.RayHit.class);
         registry.registerGuestType("ItemStack", ink.tuanzi.neomacros.core.api.types.ItemStack.class);
         registry.registerGuestType("ItemStackBuilder", ink.tuanzi.neomacros.core.api.types.ItemStackBuilder.class);
+        registry.registerGuestType("Enchantment", ink.tuanzi.neomacros.core.api.types.Enchantment.class);
         registry.registerGuestType("Component", ink.tuanzi.neomacros.core.api.types.Component.class);
         registry.registerGuestType("TextComponent", ink.tuanzi.neomacros.core.api.types.TextComponent.class);
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
