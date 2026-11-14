@@ -73,6 +73,29 @@ function start() {
     check('g017.state-position-queries',
         typeof state.allowsSpawning(0, 64, 0, 'sheep') === 'boolean'
         && typeof state.shouldSuffocate(0, 64, 0) === 'boolean');
+    // G-029 typed state-property query: shapes that hold on any block;
+    // absent properties read undefined and unknown keys never throw.
+    check('g029.state-generic-accessors',
+        typeof state.getProp === 'function'
+        && typeof state.hasProp === 'function'
+        && typeof state.getPropRange === 'function');
+    check('g029.state-prop-unknown',
+        state.getProp('definitely_not_a_prop') === undefined
+        && state.hasProp('definitely_not_a_prop') === false);
+    check('g029.state-convenience-shape',
+        (state.facing === undefined || typeof state.facing === 'string')
+        && (state.axis === undefined || typeof state.axis === 'string')
+        && (state.half === undefined || typeof state.half === 'string')
+        && (state.level === undefined || typeof state.level === 'number')
+        && (state.waterlogged === undefined || typeof state.waterlogged === 'boolean')
+        && (state.slabType === undefined || typeof state.slabType === 'string')
+        && (state.stairShape === undefined || typeof state.stairShape === 'string'));
+    const range = state.getPropRange('level');
+    check('g029.state-range-shape',
+        range === undefined || (Array.isArray(range) && range.length === 2
+            && typeof range[0] === 'number' && range[0] <= range[1]));
+    check('g029.state-range-unknown',
+        state.getPropRange('definitely_not_a_prop') === undefined);
   }
   const chunk = neo.world.chunkAt(0, 64, 0);
   if (chunk === undefined) {

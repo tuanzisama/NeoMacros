@@ -151,12 +151,30 @@ public final class FabricWorldPort implements WorldPort {
     }
 
 
-    /** Flattens the vanilla state property values into a string map. */
+    /**
+     * Flattens the vanilla state property values into a string map. Values
+     * go through {@code Property.getName}, the canonical serialized form
+     * (blockstate-JSON spelling): {@code String.valueOf} on the raw enum
+     * would print the uppercase constant for the six enums without a
+     * {@code toString} override (chest type, attach face, structure mode,
+     * note-block instrument, tilt, bell attachment).
+     */
     private static Map<String, String> stateProperties(BlockState state) {
         Map<String, String> out = new LinkedHashMap<>();
         state.getProperties().forEach(property ->
-                out.put(property.getName(), String.valueOf(state.getValue(property))));
+                out.put(property.getName(), serializedValue(state, property)));
         return out;
+    }
+
+    /**
+     * Reads one property in its canonical serialized form. The helper keeps
+     * the wildcard capture of {@code property} fixed across the value read
+     * and the name lookup (a direct nested call re-captures and fails to
+     * unify the two capture variables).
+     */
+    private static <T extends Comparable<T>> String serializedValue(
+            BlockState state, net.minecraft.world.level.block.state.properties.Property<T> property) {
+        return property.getName(state.getValue(property));
     }
     /** The namespaced identifier of one block state. */
     private static String blockId(BlockState state) {
