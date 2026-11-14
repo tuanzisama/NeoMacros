@@ -200,6 +200,8 @@ class Draw2DElementBaseTest {
         assertNull(el.getScaledHeight());
         assertNull(el.getScaledLeft());
         assertNull(el.getScaledTop());
+        assertNull(el.getScaledRight());
+        assertNull(el.getScaledBottom());
         assertNull(el.getParentWidth());
         assertNull(el.getParentHeight());
 
@@ -215,6 +217,14 @@ class Draw2DElementBaseTest {
         assertThrows(IllegalStateException.class, () -> el.setZIndex(1));
         assertThrows(IllegalStateException.class, () -> el.setVisible(false));
         assertThrows(IllegalStateException.class, () -> el.moveTo(1, 1));
+        assertThrows(IllegalStateException.class, () -> el.moveToX(1));
+        assertThrows(IllegalStateException.class, () -> el.moveToY(1));
+        assertThrows(IllegalStateException.class,
+                () -> el.alignHorizontally("left"));
+        assertThrows(IllegalStateException.class,
+                () -> el.alignVertically("top"));
+        assertThrows(IllegalStateException.class,
+                () -> el.align("left", "top"));
     }
 
     @Test

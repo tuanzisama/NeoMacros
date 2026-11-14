@@ -7,9 +7,12 @@ import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
+
+import java.util.Locale;
 
 /**
  * Handle to one element living inside a HUD layer, obtained from
@@ -48,7 +51,7 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
 @ApiSince("0.5.0")
 @ApiMC("*")
 @ApiLoader("*")
-public class Draw2DElement implements ScriptHandle {
+public class Draw2DElement implements ScriptHandle, Alignable, RenderElement {
 
     private static final String DISPOSED_MESSAGE = "element no longer valid";
 
@@ -703,6 +706,417 @@ public class Draw2DElement implements ScriptHandle {
     }
 
     /**
+     * The resolved right edge — the left edge plus the scaled width;
+     * {@code undefined} once disposed.
+     *
+     * @zh 求值后的右边缘——左边缘加缩放宽度；失效后为 {@code undefined}。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Integer getScaledRight() {
+        Integer left = getScaledLeft();
+        Integer width = getScaledWidth();
+        return (left == null || width == null) ? null : left + width;
+    }
+
+    /**
+     * The resolved bottom edge — the top edge plus the scaled height;
+     * {@code undefined} once disposed.
+     *
+     * @zh 求值后的下边缘——上边缘加缩放高度；失效后为 {@code undefined}。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Integer getScaledBottom() {
+        Integer top = getScaledTop();
+        Integer height = getScaledHeight();
+        return (top == null || height == null) ? null : top + height;
+    }
+
+    /**
+     * Moves this element to {@code x}, retaining its current y coordinate —
+     * the raw form, so a percentage y keeps reflowing with the viewport;
+     * {@code undefined} once disposed. Zero and negative positions are
+     * allowed.
+     *
+     * @param x absolute scaled pixels, or a percentage string such as {@code "50%"}
+     * @return this element for chaining
+     * @zh 把本元素移到 {@code x} 并保留当前 y 坐标——保留原始形态，因此百分比 y 仍随视口 reflow；失效后为 {@code undefined}。允许 0 与负坐标。
+     * @zh-param x 缩放像素绝对值，或 {@code "50%"} 形式的百分比字符串
+     * @zh-return 本元素（可链式调用）
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Draw2DElement moveToX(@ApiType("number | string") Object x) {
+        ensureAlive();
+        return moveTo(x, backend.spec().y().raw());
+    }
+
+    /**
+     * Moves this element to {@code y}, retaining its current x coordinate —
+     * the raw form, so a percentage x keeps reflowing with the viewport;
+     * {@code undefined} once disposed. Zero and negative positions are
+     * allowed.
+     *
+     * @param y absolute scaled pixels, or a percentage string such as {@code "50%"}
+     * @return this element for chaining
+     * @zh 把本元素移到 {@code y} 并保留当前 x 坐标——保留原始形态，因此百分比 x 仍随视口 reflow；失效后为 {@code undefined}。允许 0 与负坐标。
+     * @zh-param y 缩放像素绝对值，或 {@code "50%"} 形式的百分比字符串
+     * @zh-return 本元素（可链式调用）
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Draw2DElement moveToY(@ApiType("number | string") Object y) {
+        ensureAlive();
+        return moveTo(backend.spec().x().raw(), y);
+    }
+
+    /**
+     * Aligns this element horizontally within its parent box, or against a
+     * sibling element when the first argument is an element. Parent-relative
+     * tokens are {@code left}, {@code center}, {@code right} or a
+     * whole-number percentage of the space the element's scaled width leaves
+     * unused; the offset is added to the resulting x. Sibling-relative
+     * tokens take the form {@code <thisAnchor>On<otherAnchor>} (a bare
+     * token aligns the same anchor on both elements); malformed sibling
+     * alignments throw, unsupported parent tokens do nothing. The y
+     * coordinate keeps its raw form; {@code undefined} once disposed.
+     *
+     * @param alignmentOrParentOffset parent form: the alignment token
+     * @param alignmentOrOffset sibling form: the alignment token; parent form: pixels added to the result
+     * @param offset sibling form: pixels added to the resulting x position
+     * @return this element for chaining
+     * @zh 在父盒内水平对齐本元素；首参为元素时改为相对兄弟元素对齐。父盒相对词为 {@code left}、{@code center}、{@code right} 或占自身缩放宽度用剩空间的整数百分比，偏移加到结果 x 上。兄弟相对词形如 {@code <本元素锚>On<对方锚>}（裸词表示两侧同锚）；畸形兄弟对齐抛错，父盒不支持词静默不动。y 坐标保留原始形态；失效后为 {@code undefined}。
+     * @zh-param alignmentOrParentOffset 父盒形：对齐词
+     * @zh-param alignmentOrOffset 兄弟形：对齐词；父盒形：加到结果上的像素
+     * @zh-param offset 兄弟形：加到结果 x 位置上的像素
+     * @zh-return 本元素（可链式调用）
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Draw2DElement alignHorizontally(
+            @ApiType("string | Draw2DElement") Object alignmentOrParentOffset,
+            @ApiOptional @ApiType("string | number") Object alignmentOrOffset,
+            @ApiOptional @ApiType("number") Object offset) {
+        ensureAlive();
+        if (alignmentOrParentOffset instanceof Alignable other) {
+            String alignment = requireAlignment(alignmentOrOffset, "alignment");
+            return moveTo(elementShift(this, other, alignment, true,
+                    requireOffset(offset, "offset")), backend.spec().y().raw());
+        }
+        if (alignmentOrParentOffset instanceof String alignment) {
+            Integer shift = parentShift(alignment, true,
+                    size(getParentWidth()) - size(getScaledWidth()));
+            if (shift == null) {
+                return this;
+            }
+            return moveTo(shift + requireOffset(alignmentOrOffset, "offset"),
+                    backend.spec().y().raw());
+        }
+        throw new IllegalArgumentException(
+                "alignment must be a string or an element: "
+                        + alignmentOrParentOffset);
+    }
+
+    /**
+     * Aligns this element vertically within its parent box, or against a
+     * sibling element when the first argument is an element.
+     * Parent-relative tokens are {@code top}, {@code center},
+     * {@code bottom} or a whole-number percentage of the space the
+     * element's scaled height leaves unused; the offset is added to the
+     * resulting y. Sibling-relative tokens take the form
+     * {@code <thisAnchor>On<otherAnchor>} (a bare token aligns the same
+     * anchor on both elements); malformed sibling alignments throw,
+     * unsupported parent tokens do nothing. The x coordinate keeps its raw
+     * form; {@code undefined} once disposed.
+     *
+     * @param alignmentOrParentOffset parent form: the alignment token
+     * @param alignmentOrOffset sibling form: the alignment token; parent form: pixels added to the result
+     * @param offset sibling form: pixels added to the resulting y position
+     * @return this element for chaining
+     * @zh 在父盒内垂直对齐本元素；首参为元素时改为相对兄弟元素对齐。父盒相对词为 {@code top}、{@code center}、{@code bottom} 或占自身缩放高度用剩空间的整数百分比，偏移加到结果 y 上。兄弟相对词形如 {@code <本元素锚>On<对方锚>}（裸词表示两侧同锚）；畸形兄弟对齐抛错，父盒不支持词静默不动。x 坐标保留原始形态；失效后为 {@code undefined}。
+     * @zh-param alignmentOrParentOffset 父盒形：对齐词
+     * @zh-param alignmentOrOffset 兄弟形：对齐词；父盒形：加到结果上的像素
+     * @zh-param offset 兄弟形：加到结果 y 位置上的像素
+     * @zh-return 本元素（可链式调用）
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Draw2DElement alignVertically(
+            @ApiType("string | Draw2DElement") Object alignmentOrParentOffset,
+            @ApiOptional @ApiType("string | number") Object alignmentOrOffset,
+            @ApiOptional @ApiType("number") Object offset) {
+        ensureAlive();
+        if (alignmentOrParentOffset instanceof Alignable other) {
+            String alignment = requireAlignment(alignmentOrOffset, "alignment");
+            return moveTo(backend.spec().x().raw(), elementShift(this, other,
+                    alignment, false, requireOffset(offset, "offset")));
+        }
+        if (alignmentOrParentOffset instanceof String alignment) {
+            Integer shift = parentShift(alignment, false,
+                    size(getParentHeight()) - size(getScaledHeight()));
+            if (shift == null) {
+                return this;
+            }
+            return moveTo(backend.spec().x().raw(),
+                    shift + requireOffset(alignmentOrOffset, "offset"));
+        }
+        throw new IllegalArgumentException(
+                "alignment must be a string or an element: "
+                        + alignmentOrParentOffset);
+    }
+
+    /**
+     * Aligns this element on both axes within its parent box, or against a
+     * sibling element when the first argument is an element. Four call
+     * shapes are accepted: {@code align(horizontal, vertical)},
+     * {@code align(horizontal, horizontalOffset, vertical, verticalOffset)},
+     * {@code align(other, horizontal, vertical)} and
+     * {@code align(other, horizontal, horizontalOffset, vertical, verticalOffset)}.
+     * An axis whose parent-relative token is unsupported stays put;
+     * sibling-relative tokens always resolve or throw. {@code undefined}
+     * once disposed.
+     *
+     * @param horizontalOrOther parent form: the horizontal alignment; sibling form: the element to align against
+     * @param alignmentOrOffset parent {@code align(h, v)}: the vertical alignment; sibling {@code align(other, h, v)}: the horizontal alignment; offset forms: the horizontal offset
+     * @param verticalOrHorizontalOffset parent offset form: the vertical alignment; sibling offset form: the horizontal offset; sibling {@code align(other, h, v)}: the vertical alignment
+     * @param verticalOrVerticalOffset sibling offset form: the vertical alignment; parent offset form: the vertical offset
+     * @param verticalOffset sibling offset form: the vertical offset
+     * @return this element for chaining
+     * @zh 在父盒内双轴对齐本元素；首参为元素时改为相对兄弟元素对齐。接受四种调用形：{@code align(水平, 垂直)}、{@code align(水平, 水平偏移, 垂直, 垂直偏移)}、{@code align(other, 水平, 垂直)} 与 {@code align(other, 水平, 水平偏移, 垂直, 垂直偏移)}。父盒相对词不支持的轴保持原位；兄弟相对词要么求值要么抛错。失效后为 {@code undefined}。
+     * @zh-param horizontalOrOther 父盒形：水平对齐词；兄弟形：作为对齐基准的元素
+     * @zh-param alignmentOrOffset 父盒 {@code align(h, v)}：垂直对齐词；兄弟 {@code align(other, h, v)}：水平对齐词；带偏移形：水平偏移
+     * @zh-param verticalOrHorizontalOffset 父盒带偏移形：垂直对齐词；兄弟带偏移形：水平偏移；兄弟 {@code align(other, h, v)}：垂直对齐词
+     * @zh-param verticalOrVerticalOffset 兄弟带偏移形：垂直对齐词；父盒带偏移形：垂直偏移
+     * @zh-param verticalOffset 兄弟带偏移形：垂直偏移
+     * @zh-return 本元素（可链式调用）
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Draw2DElement align(
+            @ApiType("string | Draw2DElement") Object horizontalOrOther,
+            @ApiType("string | number") Object alignmentOrOffset,
+            @ApiOptional @ApiType("string | number") Object verticalOrHorizontalOffset,
+            @ApiOptional @ApiType("string | number") Object verticalOrVerticalOffset,
+            @ApiOptional @ApiType("number") Object verticalOffset) {
+        ensureAlive();
+        if (horizontalOrOther instanceof Alignable other) {
+            String horizontal = requireAlignment(alignmentOrOffset, "horizontal");
+            String vertical;
+            int horizontalOffset;
+            int verticalOffsetValue;
+            if (verticalOrHorizontalOffset instanceof String verticalToken) {
+                horizontalOffset = 0;
+                verticalOffsetValue = 0;
+                vertical = verticalToken;
+            } else {
+                horizontalOffset = requireOffset(verticalOrHorizontalOffset,
+                        "horizontalOffset");
+                vertical = requireAlignment(verticalOrVerticalOffset, "vertical");
+                verticalOffsetValue = requireOffset(verticalOffset, "verticalOffset");
+            }
+            return moveTo(elementShift(this, other, horizontal, true,
+                            horizontalOffset),
+                    elementShift(this, other, vertical, false, verticalOffsetValue));
+        }
+        if (horizontalOrOther instanceof String horizontal) {
+            String vertical;
+            int horizontalOffset;
+            int verticalOffsetValue;
+            if (alignmentOrOffset instanceof String verticalToken) {
+                horizontalOffset = 0;
+                verticalOffsetValue = 0;
+                vertical = verticalToken;
+            } else {
+                horizontalOffset = requireOffset(alignmentOrOffset,
+                        "horizontalOffset");
+                vertical = requireAlignment(verticalOrHorizontalOffset, "vertical");
+                verticalOffsetValue = requireOffset(verticalOrVerticalOffset,
+                        "verticalOffset");
+            }
+            Integer shiftX = parentShift(horizontal, true,
+                    size(getParentWidth()) - size(getScaledWidth()));
+            Integer shiftY = parentShift(vertical, false,
+                    size(getParentHeight()) - size(getScaledHeight()));
+            if (shiftX == null && shiftY == null) {
+                return this;
+            }
+            if (shiftX == null) {
+                return moveTo(backend.spec().x().raw(),
+                        shiftY + verticalOffsetValue);
+            }
+            if (shiftY == null) {
+                return moveTo(shiftX + horizontalOffset,
+                        backend.spec().y().raw());
+            }
+            return moveTo(shiftX + horizontalOffset, shiftY + verticalOffsetValue);
+        }
+        throw new IllegalArgumentException(
+                "alignment must be a string or an element: " + horizontalOrOther);
+    }
+
+    // ---- host-side alignment overloads: the folded members above own the
+    // ---- script surface (one member per name); these mirror the ergonomic
+    // ---- call shapes for Java callers and stay off it.
+
+    /**
+     * Java-side shortcut for
+     * {@link #alignHorizontally(Object, Object, Object)} without an offset;
+     * hidden from the script surface.
+     *
+     * @zh {@link #alignHorizontally(Object, Object, Object)} 的 Java 捷径（省略偏移），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement alignHorizontally(String alignment) {
+        return alignHorizontally(alignment, null, null);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #alignHorizontally(Object, Object, Object)} with a
+     * parent-relative offset; hidden from the script surface.
+     *
+     * @zh {@link #alignHorizontally(Object, Object, Object)} 的 Java 捷径（带父盒偏移），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement alignHorizontally(String alignment, int offset) {
+        return alignHorizontally(alignment, offset, null);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #alignHorizontally(Object, Object, Object)} against a sibling;
+     * hidden from the script surface.
+     *
+     * @zh {@link #alignHorizontally(Object, Object, Object)} 的 Java 捷径（相对兄弟元素），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement alignHorizontally(Alignable other, String alignment) {
+        return alignHorizontally((Object) other, alignment, null);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #alignHorizontally(Object, Object, Object)} against a sibling
+     * with an offset; hidden from the script surface.
+     *
+     * @zh {@link #alignHorizontally(Object, Object, Object)} 的 Java 捷径（相对兄弟元素带偏移），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement alignHorizontally(Alignable other, String alignment,
+            int offset) {
+        return alignHorizontally((Object) other, alignment, offset);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #alignVertically(Object, Object, Object)} without an offset;
+     * hidden from the script surface.
+     *
+     * @zh {@link #alignVertically(Object, Object, Object)} 的 Java 捷径（省略偏移），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement alignVertically(String alignment) {
+        return alignVertically(alignment, null, null);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #alignVertically(Object, Object, Object)} with a
+     * parent-relative offset; hidden from the script surface.
+     *
+     * @zh {@link #alignVertically(Object, Object, Object)} 的 Java 捷径（带父盒偏移），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement alignVertically(String alignment, int offset) {
+        return alignVertically(alignment, offset, null);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #alignVertically(Object, Object, Object)} against a sibling;
+     * hidden from the script surface.
+     *
+     * @zh {@link #alignVertically(Object, Object, Object)} 的 Java 捷径（相对兄弟元素），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement alignVertically(Alignable other, String alignment) {
+        return alignVertically((Object) other, alignment, null);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #alignVertically(Object, Object, Object)} against a sibling
+     * with an offset; hidden from the script surface.
+     *
+     * @zh {@link #alignVertically(Object, Object, Object)} 的 Java 捷径（相对兄弟元素带偏移），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement alignVertically(Alignable other, String alignment,
+            int offset) {
+        return alignVertically((Object) other, alignment, offset);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #align(Object, Object, Object, Object, Object)} without
+     * offsets; hidden from the script surface.
+     *
+     * @zh {@link #align(Object, Object, Object, Object, Object)} 的 Java 捷径（省略偏移），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement align(String horizontal, String vertical) {
+        return align(horizontal, vertical, null, null, null);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #align(Object, Object, Object, Object, Object)} with offsets;
+     * hidden from the script surface.
+     *
+     * @zh {@link #align(Object, Object, Object, Object, Object)} 的 Java 捷径（带偏移），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement align(String horizontal, int horizontalOffset,
+            String vertical, int verticalOffset) {
+        return align(horizontal, horizontalOffset, vertical, verticalOffset, null);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #align(Object, Object, Object, Object, Object)} against a
+     * sibling without offsets; hidden from the script surface.
+     *
+     * @zh {@link #align(Object, Object, Object, Object, Object)} 的 Java 捷径（相对兄弟元素省略偏移），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement align(Alignable other, String horizontal,
+            String vertical) {
+        return align((Object) other, horizontal, vertical, null, null);
+    }
+
+    /**
+     * Java-side shortcut for
+     * {@link #align(Object, Object, Object, Object, Object)} against a
+     * sibling with offsets; hidden from the script surface.
+     *
+     * @zh {@link #align(Object, Object, Object, Object, Object)} 的 Java 捷径（相对兄弟元素带偏移），不进脚本面。
+     */
+    @ApiInternal
+    public Draw2DElement align(Alignable other, String horizontal,
+            int horizontalOffset, String vertical, int verticalOffset) {
+        return align((Object) other, horizontal, horizontalOffset, vertical,
+                verticalOffset);
+    }
+
+    /**
      * The state bridge for component subclasses (G-034 / G-034B): read the
      * current {@link ElementSpec} and republish a modified copy. Protected
      * visibility keeps it off the script surface (the engine binds public
@@ -732,5 +1146,125 @@ public class Draw2DElement implements ScriptHandle {
     /** Truncates {@code value * scale} toward zero (JsMacros semantics). */
     private static int scaled(int value, float scale) {
         return (int) (value * scale);
+    }
+
+    /** Requires a string alignment token in a folded align argument. */
+    private static String requireAlignment(Object value, String what) {
+        if (value instanceof String text) {
+            return text;
+        }
+        throw new IllegalArgumentException(
+                what + " must be a string: " + value);
+    }
+
+    /** Requires a folded align offset: null is zero, anything else a number. */
+    private static int requireOffset(Object value, String what) {
+        if (value == null) {
+            return 0;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        throw new IllegalArgumentException(what + " must be a number: " + value);
+    }
+
+    /** Unboxes a live geometry read; a null read means a disposed element. */
+    private static int size(Integer value) {
+        if (value == null) {
+            throw new IllegalStateException(DISPOSED_MESSAGE);
+        }
+        return value;
+    }
+
+    /**
+     * Resolves a parent-relative alignment token against the unused space
+     * ({@code parent - self}) and adds the pixel offset; {@code null} means
+     * the token is unsupported on this axis and nothing moves.
+     */
+    private static Integer parentShift(String alignment, boolean horizontal,
+            int available) {
+        String token = alignment.trim().toLowerCase(Locale.ROOT);
+        Integer anchor = keywordAnchor(token, horizontal, available);
+        if (anchor != null) {
+            return anchor;
+        }
+        if (token.endsWith("%")) {
+            int percentage = Alignable.parsePercentage(token);
+            if (percentage < 0) {
+                return null;
+            }
+            return (int) Math.round(available * percentage / 100.0);
+        }
+        return null;
+    }
+
+    /**
+     * Resolves a sibling-relative {@code <this>On<other>} alignment: this
+     * element's anchor lands on the sibling's anchor, plus the pixel
+     * offset. A bare token aligns the same anchor on both elements;
+     * malformed tokens throw.
+     */
+    private static int elementShift(Draw2DElement self, Alignable other,
+            String alignment, boolean horizontal, int offset) {
+        String[] anchors = splitAnchors(alignment);
+        int ownSize = horizontal ? size(self.getScaledWidth())
+                : size(self.getScaledHeight());
+        int otherSize = horizontal ? size(other.getScaledWidth())
+                : size(other.getScaledHeight());
+        int otherOrigin = horizontal ? size(other.getScaledLeft())
+                : size(other.getScaledTop());
+        int ownAnchor = anchorShift(anchors[0], horizontal, ownSize);
+        int otherAnchor = anchorShift(anchors[1], horizontal, otherSize);
+        return otherOrigin + otherAnchor - ownAnchor + offset;
+    }
+
+    /** Splits {@code <this>On<other>} case-insensitively; a bare token
+     *  aligns the same anchor on both sides. */
+    private static String[] splitAnchors(String alignment) {
+        String[] parts = alignment.trim().toLowerCase(Locale.ROOT)
+                .split("on", -1);
+        if (parts.length == 1 && !parts[0].isEmpty()) {
+            return new String[] {parts[0], parts[0]};
+        }
+        if (parts.length != 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
+            throw new IllegalArgumentException(
+                    "alignment must be <anchor>On<anchor>: " + alignment);
+        }
+        return parts;
+    }
+
+    /** A keyword anchor ({@code left}/{@code center}/{@code right} or the
+     *  vertical set) at {@code size}, or null when the token is not one. */
+    private static Integer keywordAnchor(String token, boolean horizontal,
+            int size) {
+        if (horizontal) {
+            return switch (token) {
+                case "left" -> 0;
+                case "center", "middle" -> size / 2;
+                case "right" -> size;
+                default -> null;
+            };
+        }
+        return switch (token) {
+            case "top" -> 0;
+            case "center", "middle" -> size / 2;
+            case "bottom" -> size;
+            default -> null;
+        };
+    }
+
+    /** An element-relative anchor: keyword, percentage, or throw. */
+    private static int anchorShift(String token, boolean horizontal, int size) {
+        Integer anchor = keywordAnchor(token, horizontal, size);
+        if (anchor != null) {
+            return anchor;
+        }
+        if (token.endsWith("%")) {
+            int percentage = Alignable.parsePercentage(token);
+            if (percentage >= 0) {
+                return (int) Math.round(size * percentage / 100.0);
+            }
+        }
+        throw new IllegalArgumentException("unsupported alignment: " + token);
     }
 }
