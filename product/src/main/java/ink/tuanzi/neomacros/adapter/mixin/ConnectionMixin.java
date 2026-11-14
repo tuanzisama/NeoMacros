@@ -29,13 +29,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *       deferred onto the main thread (cancel + re-send, G-002 §7.3 甲)
  *       so the synchronous {@code packet:send} subscribers always run
  *       inline there; on the main thread the sinks fire and either cancel
- *       the packet or stage a replacement. The two
- *       {@code @ModifyVariable} argument loads (both branches of the
- *       funnel: in-event-loop and lambda-capture, present on all four
- *       nodes) swap in the staged replacement.</li>
+ *       the packet or stage a replacement. One {@code @ModifyVariable}
+ *       swap sits below the hook, right after the entry counter bump and
+ *       before either branch reads the packet argument, so the staged
+ *       replacement reaches both the in-event-loop call and the lambda
+ *       capture.</li>
  * </ul>
  *
- * @zh 客户端网络连接上的两个包事件钩子（G-002 §7.2，四节点 javap 已证目标；任务卡的 {@code ClientPacketListenerMixin} 落点按 §1 偏离声明由本文件取代）。{@code channelRead0} HEAD（netty 线程）为收包源：{@link PacketHub} 跑抑制名单与 {@code hasDispatchTarget} 快路径，再把投递跃迁到游戏主线程；收包纯观测、永不取消。私有 {@code sendPacket} HEAD 是所有公有 {@code send} 重载到达的唯一漏斗：非主线程发送先推迟到主线程（取消 + 重发，G-002 §7.3 甲），使同步 {@code packet:send} 订阅者总在主线程内联执行；主线程上各 sink 触发后或取消该包、或暂存替换。两处 {@code @ModifyVariable} 参数加载（漏斗两个分支：事件循环内与 lambda 捕获，四节点均在）换入暂存的替换。
+ * @zh 客户端网络连接上的两个包事件钩子（G-002 §7.2，四节点 javap 已证目标；任务卡的 {@code ClientPacketListenerMixin} 落点按 §1 偏离声明由本文件取代）。{@code channelRead0} HEAD（netty 线程）为收包源：{@link PacketHub} 跑抑制名单与 {@code hasDispatchTarget} 快路径，再把投递跃迁到游戏主线程；收包纯观测、永不取消。私有 {@code sendPacket} HEAD 是所有公有 {@code send} 重载到达的唯一漏斗：非主线程发送先推迟到主线程（取消 + 重发，G-002 §7.3 甲），使同步 {@code packet:send} 订阅者总在主线程内联执行；主线程上各 sink 触发后或取消该包、或暂存替换。单一 {@code @ModifyVariable} 换参点位于该钩子之后、入口计数自增之后、任一分支读取包参数之前，使暂存替换同时覆盖事件循环内调用与 lambda 捕获两条路径。
  */
 @Mixin(Connection.class)
 public abstract class ConnectionMixin {
@@ -76,17 +77,22 @@ public abstract class ConnectionMixin {
         }
     }
 
-    // The funnel loads its packet argument twice (in-event-loop call and
-    // lambda capture). Swap the replacement at both loads; with the
-    // deferral above, only the lambda-capture load runs under active
-    // interception, but covering both keeps every path consistent.
-    @ModifyVariable(method = "sendPacket", at = @At("LOAD"), argsOnly = true, ordinal = 0)
-    private Packet<?> neomacros$replaceSendFirst(Packet<?> packet) {
-        return PacketHub.applyPending(packet);
-    }
-
-    @ModifyVariable(method = "sendPacket", at = @At("LOAD"), argsOnly = true, ordinal = 1)
-    private Packet<?> neomacros$replaceSendSecond(Packet<?> packet) {
+    // The funnel reads its packet argument twice on mutually exclusive
+    // branches (in-event-loop call and lambda capture). Swap the staged
+    // replacement into the argument slot once, right after the entry
+    // counter bump: both reads then see it, the swap stays on the caller
+    // thread where the verdict was staged, and the bytecode position sits
+    // strictly below the packet:send hook above regardless of injector
+    // declaration order. (Hooking the two argument loads separately is
+    // fragile: an @ModifyVariable ordinal selects the variable slot, not
+    // the load instruction, so a second ordinal matches nothing here.)
+    @ModifyVariable(
+            method = "sendPacket",
+            at = @At(value = "FIELD",
+                    target = "Lnet/minecraft/network/Connection;sentPackets:I",
+                    shift = At.Shift.AFTER),
+            argsOnly = true)
+    private Packet<?> neomacros$swapSendArgument(Packet<?> packet) {
         return PacketHub.applyPending(packet);
     }
 }
