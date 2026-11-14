@@ -23,7 +23,7 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 @ApiSince("0.5.0")
 @ApiLoader("*")
 @ApiMC("*")
-public class Button extends Widget {
+public class Button extends Widget<Button> {
 
     Button(BuiltScreen screen, String id) {
         super(screen, id);

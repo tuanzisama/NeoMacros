@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.adapter;
 
 import ink.tuanzi.neomacros.adapter.mixin.CheckboxAccessor;
+import ink.tuanzi.neomacros.adapter.mixin.CycleButtonAccessor;
 import ink.tuanzi.neomacros.fabric.ScriptScreen;
 import ink.tuanzi.neomacros.port.ScreenPort;
 import net.minecraft.client.Minecraft;
@@ -12,6 +13,7 @@ import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.components.LockIconButton;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -193,7 +195,7 @@ public final class FabricScreenPort implements ScreenPort {
 
     /** Patch keys that are transient widget ops and never enter the mirror. */
     private static final java.util.Set<String> TRANSIENT_KEYS = java.util.Set.of(
-            "cursor", "cursorTo", "shift", "selection");
+            "cursor", "cursorTo", "shift", "selection", "click", "cycle");
 
     @Override
     public void writeControl(long session, String id, Map<String, Object> patch) {
@@ -225,6 +227,18 @@ public final class FabricScreenPort implements ScreenPort {
             }
             if (patch.get("visible") instanceof Boolean visible) {
                 widget.visible = visible;
+            }
+            if (patch.get("x") instanceof Number x) {
+                widget.setX(x.intValue());
+            }
+            if (patch.get("y") instanceof Number y) {
+                widget.setY(y.intValue());
+            }
+            if (patch.get("width") instanceof Number width) {
+                widget.setWidth(width.intValue());
+            }
+            if (patch.containsKey("tooltip")) {
+                widget.setTooltip(tooltipOf(patch.get("tooltip")));
             }
             if (patch.get("checked") instanceof Boolean checked
                     && widget instanceof Checkbox box) {
@@ -289,9 +303,55 @@ public final class FabricScreenPort implements ScreenPort {
                     && widget instanceof LockIconButton lock) {
                 lock.setLocked(locked);
             }
+            // G-036B transient ops: a press+release at the widget's
+            // top-left corner, and a value-list cycle through vanilla's
+            // own cycleValue (fires the change callback exactly once).
+            if (Boolean.TRUE.equals(patch.get("click"))) {
+                pressWidget(widget);
+            }
+            if (patch.get("cycle") instanceof Number amount
+                    && widget instanceof CycleButton<?> cycle) {
+                ((CycleButtonAccessor) cycle).neomacros$cycle(amount.intValue());
+            }
             // z is the ordering key only: it applies at the next rebuild.
             return null;
         });
+    }
+
+    /**
+     * Sends a left-button press and release at the widget's top-left
+     * corner (G-036B {@code click()}): the same validation path a real
+     * click takes (active/visible/hit-test → down sound → {@code onClick}).
+     */
+    private static void pressWidget(AbstractWidget widget) {
+        //? if >=26.1 {
+        net.minecraft.client.input.MouseButtonEvent event =
+                new net.minecraft.client.input.MouseButtonEvent(
+                        widget.getX(), widget.getY(),
+                        new net.minecraft.client.input.MouseButtonInfo(0, 0));
+        widget.mouseClicked(event, false);
+        widget.mouseReleased(event);
+        //?} else {
+        /*
+        widget.mouseClicked(widget.getX(), widget.getY(), 0);
+        widget.mouseReleased(widget.getX(), widget.getY(), 0);
+        */
+        //?}
+    }
+
+    /** Builds the widget tooltip from one neutral string list (empty = clear). */
+    private static Tooltip tooltipOf(Object value) {
+        if (!(value instanceof List<?> lines) || lines.isEmpty()) {
+            return null;
+        }
+        StringBuilder text = new StringBuilder();
+        for (Object line : lines) {
+            if (text.length() > 0) {
+                text.append('\n');
+            }
+            text.append(String.valueOf(line));
+        }
+        return Tooltip.create(Component.literal(text.toString()));
     }
 
     @Override
@@ -502,9 +562,20 @@ public final class FabricScreenPort implements ScreenPort {
                 for (Object value : values) {
                     primary.add(String.valueOf(value));
                 }
-                String prefix = str(control.get("prefix"));
-                Function<String, Component> valueToText = value ->
-                        Component.literal(prefix != null ? prefix + value : value);
+                String prefix = control.get("prefix") instanceof String text
+                        ? text : null;
+                boolean omitOption = Boolean.TRUE.equals(control.get("omitTextOption"));
+                Map<String, String> labels = labelsOf(control.get("valueLabels"));
+                Function<String, Component> valueToText = value -> {
+                    String rendered = value;
+                    if (labels != null && labels.get(value) != null) {
+                        rendered = labels.get(value);
+                    }
+                    if (omitOption || prefix == null) {
+                        return Component.literal(rendered);
+                    }
+                    return Component.literal(prefix + rendered);
+                };
                 String initial = control.get("initial") instanceof String text
                         ? text : primary.get(0);
                 // 1.21.6 seeds the initial value through the builder chain;
@@ -523,7 +594,17 @@ public final class FabricScreenPort implements ScreenPort {
                     for (Object value : extra) {
                         secondary.add(String.valueOf(value));
                     }
-                    builder.withValues(primary, secondary);
+                    if (Boolean.TRUE.equals(control.get("alternateToggle"))) {
+                        // Script-built toggle: consult the session per cycle
+                        // (an empty alternate list never wins, so the
+                        // vanilla modulo cannot divide by zero).
+                        builder.withValues(() -> {
+                            boolean alternate = session.sink.alternateToggle(id);
+                            return alternate && !secondary.isEmpty();
+                        }, primary, secondary);
+                    } else {
+                        builder.withValues(primary, secondary);
+                    }
                 } else {
                     builder.withValues(primary);
                 }
@@ -567,6 +648,12 @@ public final class FabricScreenPort implements ScreenPort {
         }
         if (control.get("visible") instanceof Boolean visible) {
             widget.visible = visible;
+        }
+        if (control.get("alpha") instanceof Number alpha) {
+            widget.setAlpha((float) alpha.doubleValue());
+        }
+        if (control.containsKey("tooltip")) {
+            widget.setTooltip(tooltipOf(control.get("tooltip")));
         }
     }
 
@@ -655,6 +742,14 @@ public final class FabricScreenPort implements ScreenPort {
                 text = String.valueOf(cycle.getValue());
             }
         }
+        if (text == null && "cycleButton".equals(type)) {
+            // No live widget yet: seed the value slot from the neutral
+            // mirror (initial option, else the first value).
+            text = control.get("initial") instanceof String seeded ? seeded
+                    : control.get("values") instanceof List<?> first
+                            && !first.isEmpty()
+                            ? String.valueOf(first.get(0)) : null;
+        }
         return new ControlState(id, type, x, y, width, height, z,
                 label != null ? label : "", active, visible,
                 checked, value, text, locked,
@@ -715,6 +810,21 @@ public final class FabricScreenPort implements ScreenPort {
 
     private static String str(Object value) {
         return value instanceof String text ? text : "";
+    }
+
+    /** Reads the neutral {@code valueLabels} map, or null when absent. */
+    private static Map<String, String> labelsOf(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return null;
+        }
+        Map<String, String> labels = new LinkedHashMap<>(raw.size());
+        for (Map.Entry<?, ?> entry : raw.entrySet()) {
+            if (entry.getKey() instanceof String key
+                    && entry.getValue() instanceof String text) {
+                labels.put(key, text);
+            }
+        }
+        return labels;
     }
 
     /**

@@ -26,10 +26,13 @@ import java.util.concurrent.atomic.AtomicLong;
  * <b>no getter readback on the builder</b> — the engine would map a
  * no-arg {@code getX()}/{@code isX()} to the same script property as the
  * fluent {@code x(int)} method (one member per name), so readback lives on
- * the {@link ControlSpec} product instead. The remaining base members
- * (alpha/layout helpers) are the G-036B account.</p>
+ * the {@link ControlSpec} product instead. G-036B completes the base
+ * face: {@code alpha}/{@code moveTo} plus the layout reads
+ * ({@code getScaled…} / {@code getParent…}), while the conflicting
+ * readbacks ({@code getWidth/getX/isActive/…}) stay compat-held on
+ * {@code build()}.</p>
  *
- * @zh 脚本控件构建器骨架（G-036）：公共链式面（id/x/y/pos/width/height/size/zIndex/message/active/visible）加终结 {@link #build()}（产出已校验的 {@link ControlSpec}，即 JsMacros {@code createWidget()} 对位）。具体构建器经 {@link #contribute(Map)} 贡献类型专属字段。按 G-003 §5.2：根构造器 {@code new neo.ButtonBuilder()}、链式 setter 用名词原词、构建器不设属性回读（引擎会把无参 getX/isX 与链式 x(int) 映射到同一脚本属性）——回读走 build() 产物；其余基类成员（alpha/布局助手）属 G-036B 账。
+ * @zh 脚本控件构建器骨架（G-036）：公共链式面（id/x/y/pos/width/height/size/zIndex/message/active/visible）加终结 {@link #build()}（产出已校验的 {@link ControlSpec}，即 JsMacros {@code createWidget()} 对位）。具体构建器经 {@link #contribute(Map)} 贡献类型专属字段。按 G-003 §5.2：根构造器 {@code new neo.ButtonBuilder()}、链式 setter 用名词原词、构建器不设属性回读（引擎会把无参 getX/isX 与链式 x(int) 映射到同一脚本属性）——回读走 build() 产物。G-036B 补齐基类面：{@code alpha}/{@code moveTo} 与布局读（{@code getScaled…} / {@code getParent…}）；冲突的回读项（{@code getWidth/getX/isActive/…}）保持 compat 自持、能力在 {@code build()}。
  */
 @ApiClass(name = "AbstractWidgetBuilder", kind = ApiClassKind.DATA)
 @ApiSince("0.5.0")
@@ -49,6 +52,7 @@ public abstract class AbstractWidgetBuilder<B extends AbstractWidgetBuilder<B>>
     private String label;
     private Boolean active;
     private Boolean visible;
+    private Double alpha;
 
     /** The control type discriminator this builder produces. */
     protected abstract String type();
@@ -174,6 +178,89 @@ public abstract class AbstractWidgetBuilder<B extends AbstractWidgetBuilder<B>>
     }
 
     /**
+     * Sets the alpha the built widget is drawn with, clamped to
+     * {@code 0.0} (transparent) through {@code 1.0} (opaque); the default
+     * is {@code 1.0} ({@code alpha}).
+     *
+     * @zh 设置构建控件的绘制透明度，截断到 {@code 0.0}（全透明）至 {@code 1.0}（不透明），默认 {@code 1.0}（{@code alpha}）。
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public B alpha(@ApiType("number") double alpha) {
+        this.alpha = Math.max(0.0, Math.min(1.0, alpha));
+        return self();
+    }
+
+    /** Sets both absolute coordinates ({@code moveTo}, the alignment helper).
+     * @zh 同时设置绝对坐标（{@code moveTo}，对齐助手）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public B moveTo(@ApiType("number") int x, @ApiType("number") int y) {
+        return pos(x, y);
+    }
+
+    /** The configured width alignment reads before build ({@code getScaledWidth}).
+     * @zh 构建前对齐读取的配置宽度（{@code getScaledWidth}）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public int getScaledWidth() {
+        return width;
+    }
+
+    /** The configured height alignment reads before build ({@code getScaledHeight}).
+     * @zh 构建前对齐读取的配置高度（{@code getScaledHeight}）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public int getScaledHeight() {
+        return height;
+    }
+
+    /** The configured x alignment reads before build ({@code getScaledLeft}).
+     * @zh 构建前对齐读取的配置 x（{@code getScaledLeft}）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public int getScaledLeft() {
+        return x;
+    }
+
+    /** The configured y alignment reads before build ({@code getScaledTop}).
+     * @zh 构建前对齐读取的配置 y（{@code getScaledTop}）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public int getScaledTop() {
+        return y;
+    }
+
+    /**
+     * The host window width a built control aligns against
+     * ({@code getParentWidth}); a root-constructed builder has no screen
+     * yet, so this reads the full-window extent its screen will have.
+     *
+     * @zh 构建控件对齐所用的宿主窗口宽度（{@code getParentWidth}）；根构造构建器尚无屏幕，读的是其屏幕将占满的窗口范围。
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public int getParentWidth() {
+        return Widget.parentWidth();
+    }
+
+    /** The host window height a built control aligns against ({@code getParentHeight}).
+     * @zh 构建控件对齐所用的宿主窗口高度（{@code getParentHeight}）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public int getParentHeight() {
+        return Widget.parentHeight();
+    }
+
+    /**
      * Assembles and validates the declarative control ({@code createWidget}
      * → {@code build()}); add the result through
      * {@link BuiltScreen#add(Map)}.
@@ -201,6 +288,9 @@ public abstract class AbstractWidgetBuilder<B extends AbstractWidgetBuilder<B>>
         }
         if (visible != null) {
             raw.put("visible", visible);
+        }
+        if (alpha != null) {
+            raw.put("alpha", alpha);
         }
         contribute(raw);
         return ControlSpec.parse(raw);

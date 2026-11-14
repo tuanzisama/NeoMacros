@@ -59,13 +59,16 @@ public final class BuiltScreen implements ScriptHandle {
 
     /**
      * Patch keys {@code setControl} accepts (G-003 §4 + G-036 control
-     * fields): state keys land in the cache, the transient keys
-     * ({@code cursor/cursorTo/shift/selection}) reach the widget only.
+     * fields + G-036B widget face): state keys land in the cache, the
+     * transient keys ({@code cursor/cursorTo/shift/selection/click/cycle})
+     * reach the widget only.
      */
     private static final java.util.Set<String> PATCH_KEYS = java.util.Set.of(
             "checked", "value", "text", "locked", "label", "active", "visible", "z",
+            "x", "y", "width", "tooltip",
             "steps", "editable", "maxLength", "suggestion", "textColor",
-            "uneditableColor", "cursor", "cursorTo", "shift", "selection");
+            "uneditableColor", "cursor", "cursorTo", "shift", "selection",
+            "click", "cycle");
 
     private static final AtomicLong LAST_LOG = new AtomicLong();
 
@@ -82,6 +85,11 @@ public final class BuiltScreen implements ScriptHandle {
     private final Map<String, Consumer<Object[]>> changeCallbacks = new ConcurrentHashMap<>();
     /** Per-control text filters installed through the EditBox handle (G-036). */
     private final Map<String, java.util.function.Function<String, Object>> textFilters =
+            new ConcurrentHashMap<>();
+    /** Per-control tooltip lists held by the widget face (G-036B). */
+    private final Map<String, List<String>> tooltips = new ConcurrentHashMap<>();
+    /** Per-control cycling-button list toggles (G-036B, builder-supplied). */
+    private final Map<String, java.util.function.BooleanSupplier> alternateToggles =
             new ConcurrentHashMap<>();
     /** The mutable control order (spec mirror; the port owns its own neutral copy). */
     private final List<ControlSpec> controls = new ArrayList<>();
@@ -291,9 +299,27 @@ public final class BuiltScreen implements ScriptHandle {
         return specOf(id, "editBox") == null ? null : new EditBox(this, id);
     }
 
+    /** The live cycling-button handle for one control (G-036B).
+     * @zh 单个 cycleButton 控件的活句柄（G-036B）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public CycleButton cycleButton(@ApiType("string") String id) {
+        return specOf(id, "cycleButton") == null ? null : new CycleButton(this, id);
+    }
+
+    /** The live lock-button handle for one control (G-036B).
+     * @zh 单个 lockButton 控件的活句柄（G-036B）。 */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public LockButton lockButton(@ApiType("string") String id) {
+        return specOf(id, "lockButton") == null ? null : new LockButton(this, id);
+    }
+
     /** Resolves one control for a typed handle: null when closed/unknown,
      * throws when the id names a control of another type. */
-    private ControlSpec specOf(String id, String... types) {
+    ControlSpec specOf(String id, String... types) {
         if (closed || id == null) {
             return null;
         }
@@ -353,6 +379,11 @@ public final class BuiltScreen implements ScriptHandle {
         if (parsed.onChange() != null) {
             changeCallbacks.put(parsed.id(), parsed.onChange());
         }
+        if (parsed.alternateToggle() != null) {
+            alternateToggles.put(parsed.id(), parsed.alternateToggle());
+        } else {
+            alternateToggles.remove(parsed.id());
+        }
         port.addControl(session, parsed.toNeutral());
         return this;
     }
@@ -373,6 +404,8 @@ public final class BuiltScreen implements ScriptHandle {
         clickCallbacks.remove(id);
         changeCallbacks.remove(id);
         textFilters.remove(id);
+        tooltips.remove(id);
+        alternateToggles.remove(id);
         port.removeControl(session, id);
         return this;
     }
@@ -571,6 +604,38 @@ public final class BuiltScreen implements ScriptHandle {
         return accept[0];
     }
 
+    /**
+     * Runs the registered cycling-button list toggle for one control
+     * (G-036B): no supplier answers {@code false} (the default list), a
+     * supplier that throws fails to the default list as well — the
+     * adapter only reaches this channel when the control was built with
+     * a script {@code alternateToggle}.
+     */
+    private boolean sessionAlternateToggle(String id) {
+        if (closed || closing || session < 0) {
+            return false;
+        }
+        java.util.function.BooleanSupplier toggle = alternateToggles.get(id);
+        if (toggle == null) {
+            return false;
+        }
+        if (ScreenPort.isDispatchActive()) {
+            // A widget rebuilt from inside a guest callback would re-enter
+            // the loop that is already parked on this thread (deadlock);
+            // answer the default list for that construction-time pick.
+            return false;
+        }
+        boolean[] alternate = {false};
+        dispatch("altToggle." + id, () -> {
+            try {
+                alternate[0] = toggle.getAsBoolean();
+            } catch (Throwable t) {
+                logThrottled("screen alternate toggle failed: " + t);
+            }
+        });
+        return alternate[0];
+    }
+
     /** Terminal transition: fires the close callback once, then invalidates. */
     private void sessionClosed() {
         if (closed || closing) {
@@ -593,6 +658,8 @@ public final class BuiltScreen implements ScriptHandle {
             closing = false;
             cache.clear();
             textFilters.clear();
+            tooltips.clear();
+            alternateToggles.clear();
         }
     }
 
@@ -660,6 +727,18 @@ public final class BuiltScreen implements ScriptHandle {
         textFilters.remove(id);
     }
 
+    /** Replaces the tooltip list of one control (handle path, G-036B). */
+    void replaceTooltips(String id, List<String> lines) {
+        ensureOpen();
+        tooltips.put(id, List.copyOf(lines));
+    }
+
+    /** The tooltip list of one control; empty when none/closed (G-036B). */
+    List<String> tooltipsOf(String id) {
+        List<String> lines = tooltips.get(id);
+        return lines != null ? lines : List.of();
+    }
+
     private void refreshIfDirty() {
         if (!cacheDirty) {
             return;
@@ -675,9 +754,9 @@ public final class BuiltScreen implements ScriptHandle {
         return new ControlState(
                 state.id(),
                 state.type(),
-                state.x(),
-                state.y(),
-                state.width(),
+                patchInteger(patch, "x", state.x()),
+                patchInteger(patch, "y", state.y()),
+                patchInteger(patch, "width", state.width()),
                 state.height(),
                 patchInteger(patch, "z", state.z()),
                 patch.containsKey("label") && patch.get("label") instanceof String label
@@ -783,6 +862,11 @@ public final class BuiltScreen implements ScriptHandle {
         @Override
         public boolean filterText(String controlId, String candidate) {
             return sessionFilterText(controlId, candidate);
+        }
+
+        @Override
+        public boolean alternateToggle(String controlId) {
+            return sessionAlternateToggle(controlId);
         }
 
         @Override

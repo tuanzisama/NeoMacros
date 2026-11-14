@@ -34,7 +34,7 @@ import java.util.function.Function;
 @ApiSince("0.5.0")
 @ApiLoader("*")
 @ApiMC("*")
-public class EditBox extends Widget {
+public class EditBox extends Widget<EditBox> {
 
     EditBox(BuiltScreen screen, String id) {
         super(screen, id);

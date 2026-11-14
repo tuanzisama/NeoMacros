@@ -57,6 +57,11 @@ public record ControlSpec(
         @ApiOptional @ApiType("boolean") Boolean active,
         @ApiOptional @ApiType("boolean") Boolean visible,
         @ApiOptional @ApiType("Record<string, string>") Map<String, String> sprites,
+        @ApiOptional @ApiType("number") Double alpha,
+        @ApiOptional @ApiType("Record<string, string>") Map<String, String> valueLabels,
+        @ApiOptional @ApiType("boolean") Boolean omitTextOption,
+        @ApiOptional @ApiType("() => boolean")
+                java.util.function.BooleanSupplier alternateToggle,
         @ApiOptional @ApiType("(e: {id: string, type: string}) => void")
                 Consumer<Object[]> onClick,
         @ApiOptional @ApiType("(e: {id: string, type: string, checked?: boolean,"
@@ -82,13 +87,14 @@ public record ControlSpec(
             "editBox", Set.of("label", "text", "maxLength", "suggestion",
                     "editable", "active", "visible", "onChange"),
             "cycleButton", Set.of("values", "initial", "alternatives", "prefix",
+                    "valueLabels", "omitTextOption", "alternateToggle",
                     "active", "visible", "onChange"),
             "lockButton", Set.of("locked", "active", "visible", "onClick"));
 
     /** Common layout/status keys every control accepts. */
     private static final Set<String> COMMON_KEYS = Set.of(
             "type", "id", "x", "y", "width", "height", "z", "label", "active",
-            "visible", "onClick", "onChange");
+            "visible", "alpha", "onClick", "onChange");
 
     /**
      * Parses and validates one script control literal.
@@ -149,6 +155,10 @@ public record ControlSpec(
                 boolOf(raw.get("active")),
                 boolOf(raw.get("visible")),
                 spritesOf(raw.get("sprites"), id),
+                doubleOf(raw.get("alpha")),
+                stringsMapOf(raw.get("valueLabels"), id, "valueLabels"),
+                boolOf(raw.get("omitTextOption")),
+                toggleOf(raw.get("alternateToggle"), id),
                 consumerOf(raw.get("onClick"), id, "onClick"),
                 consumerOf(raw.get("onChange"), id, "onChange"));
     }
@@ -193,16 +203,33 @@ public record ControlSpec(
         if (sprites != null) {
             map.put("sprites", new LinkedHashMap<>(sprites));
         }
+        putIfPresent(map, "alpha", alpha);
+        if (valueLabels != null) {
+            map.put("valueLabels", new LinkedHashMap<>(valueLabels));
+        }
+        putIfPresent(map, "omitTextOption", omitTextOption);
+        if (alternateToggle != null) {
+            // Callbacks never cross the port: the neutral form is a marker
+            // flag, the supplier stays in the session (G-036 filterText rule).
+            map.put("alternateToggle", Boolean.TRUE);
+        }
         return map;
     }
 
     /** The initial state snapshot (cache seed before any widget exists). */
     ControlState toState() {
+        String seedText = text;
+        if (seedText == null && "cycleButton".equals(type)) {
+            // Cycling buttons carry their live value in the text slot; seed
+            // it from the initial option so reads answer before any widget.
+            seedText = initial != null ? initial
+                    : values != null && values.length > 0 ? values[0] : null;
+        }
         return new ControlState(id, type, x, y, width, height, z,
                 label != null ? label : "",
                 active == null || active,
                 visible == null || visible,
-                checked, value, text, locked,
+                checked, value, seedText, locked,
                 steps, editable, maxLength, null);
     }
 
@@ -253,6 +280,49 @@ public record ControlSpec(
         }
         throw new IllegalArgumentException(
                 "control option arrays must be string arrays: " + value);
+    }
+
+    private static Map<String, String> stringsMapOf(Object value, String id,
+                                                    String field) {
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof Map<?, ?> raw)) {
+            throw new IllegalArgumentException(
+                    "control '" + id + "' " + field + " must be an object: " + value);
+        }
+        Map<String, String> out = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : raw.entrySet()) {
+            if (!(entry.getKey() instanceof String key)
+                    || !(entry.getValue() instanceof String text)) {
+                throw new IllegalArgumentException("control '" + id + "' " + field
+                        + " must map strings to strings: " + value);
+            }
+            out.put(key, text);
+        }
+        return out;
+    }
+
+    /**
+     * The cycling-button list toggle: the builder hands over a live
+     * {@link java.util.function.BooleanSupplier}. A function that arrived
+     * through an object literal has already been flattened to a
+     * {@link Consumer} (whose return value the engine drops), so it cannot
+     * answer the per-cycle question — that path fails loudly instead of
+     * silently pinning the default list.
+     */
+    private static java.util.function.BooleanSupplier toggleOf(Object value,
+                                                               String id) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof java.util.function.BooleanSupplier supplier) {
+            return supplier;
+        }
+        throw new IllegalArgumentException(
+                "control '" + id + "' alternateToggle must be set through"
+                        + " CyclicButtonBuilder.alternateToggle(fn): a function"
+                        + " in an object literal cannot return its verdict");
     }
 
     private static Map<String, String> spritesOf(Object value, String id) {

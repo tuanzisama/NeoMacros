@@ -157,6 +157,10 @@ final class ApiCompletenessSurface {
             ink.tuanzi.neomacros.core.api.render.screen.CheckBoxBuilder.class,
             ink.tuanzi.neomacros.core.api.render.screen.SliderBuilder.class,
             ink.tuanzi.neomacros.core.api.render.screen.TextFieldBuilder.class,
+            ink.tuanzi.neomacros.core.api.render.screen.CycleButton.class,
+            ink.tuanzi.neomacros.core.api.render.screen.LockButton.class,
+            ink.tuanzi.neomacros.core.api.render.screen.CyclicButtonBuilder.class,
+            ink.tuanzi.neomacros.core.api.render.screen.LockButtonBuilder.class,
             TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */
