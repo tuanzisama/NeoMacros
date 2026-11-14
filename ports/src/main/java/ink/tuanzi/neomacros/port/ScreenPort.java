@@ -25,10 +25,18 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public interface ScreenPort {
 
-    /** Control state snapshot (read face of one control). */
+    /**
+     * Control state snapshot (read face of one control). The four trailing
+     * fields are G-036 additions: {@code steps} (slider discretization),
+     * {@code editable}/{@code maxLength} (edit box configuration, script-
+     * written so the mirror is authoritative), and {@code selectedText}
+     * (live widget selection, read-only).
+     */
     record ControlState(String id, String type, int x, int y, int width, int height, int z,
                         String label, boolean active, boolean visible,
-                        Boolean checked, Double value, String text, Boolean locked) {
+                        Boolean checked, Double value, String text, Boolean locked,
+                        Integer steps, Boolean editable, Integer maxLength,
+                        String selectedText) {
     }
 
     /** One neutral mouse input (button press/drag/release). */
@@ -75,6 +83,19 @@ public interface ScreenPort {
 
         /** Live control state changed inside the widget (text/value/checked...). */
         void stateChanged(String controlId, ControlState state);
+
+        /**
+         * Text-filter gate for one edit box (G-036): the adapter calls this
+         * with the candidate full text before accepting a user edit; the
+         * facade runs the script's {@code setFilter} predicate and answers
+         * whether the text may enter the widget. Only neutral data crosses;
+         * the default accepts everything (no predicate registered).
+         * Script-initiated writes go through {@link #writeControl} and never
+         * consult this gate.
+         */
+        default boolean filterText(String controlId, String candidate) {
+            return true;
+        }
 
         /** Session reached its terminal state; idempotent across all paths. */
         void closed();

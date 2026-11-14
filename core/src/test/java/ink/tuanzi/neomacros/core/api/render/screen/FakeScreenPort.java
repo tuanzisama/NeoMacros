@@ -36,6 +36,7 @@ final class FakeScreenPort implements ScreenPort {
     volatile boolean alt;
 
     final List<String> actions = new CopyOnWriteArrayList<>();
+    final List<Map<String, Object>> patches = new CopyOnWriteArrayList<>();
     final List<Map<String, Object>> neutralSpecs = new ArrayList<>();
     final Map<Long, SessionSink> sinks = new ConcurrentHashMap<>();
     final Map<Long, Map<String, ControlState>> states = new ConcurrentHashMap<>();
@@ -107,6 +108,7 @@ final class FakeScreenPort implements ScreenPort {
     @Override
     public void writeControl(long session, String id, Map<String, Object> patch) {
         actions.add("write:" + session + ":" + id);
+        patches.add(new LinkedHashMap<>(patch));
         Map<String, ControlState> sessionStates = states.get(session);
         ControlState state = sessionStates == null ? null : sessionStates.get(id);
         if (state == null) {
@@ -121,7 +123,13 @@ final class FakeScreenPort implements ScreenPort {
                 patch.get("checked") instanceof Boolean c ? c : state.checked(),
                 patch.get("value") instanceof Number n ? n.doubleValue() : state.value(),
                 patch.get("text") instanceof String t ? t : state.text(),
-                patch.get("locked") instanceof Boolean l ? l : state.locked()));
+                patch.get("locked") instanceof Boolean l ? l : state.locked(),
+                patch.get("steps") instanceof Number s ? s.intValue() : state.steps(),
+                patch.containsKey("editable") && patch.get("editable") instanceof Boolean e
+                        ? e : state.editable(),
+                patch.get("maxLength") instanceof Number m ? m.intValue()
+                        : state.maxLength(),
+                state.selectedText()));
     }
 
     @Override
@@ -207,7 +215,11 @@ final class FakeScreenPort implements ScreenPort {
                 control.get("checked") instanceof Boolean c ? c : null,
                 control.get("value") instanceof Number n ? n.doubleValue() : null,
                 control.get("text") instanceof String text ? text : null,
-                control.get("locked") instanceof Boolean l ? l : null);
+                control.get("locked") instanceof Boolean l ? l : null,
+                control.get("steps") instanceof Number n ? n.intValue() : null,
+                control.get("editable") instanceof Boolean e ? e : null,
+                control.get("maxLength") instanceof Number n ? n.intValue() : null,
+                null);
     }
 
     /** Adapter exposing only the screen port; every other port throws. */

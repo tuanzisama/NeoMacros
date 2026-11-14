@@ -315,6 +315,18 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
         registry.registerGuestType("Screen", ink.tuanzi.neomacros.core.api.player.PlayerApi.Screen.class);
         registry.registerGuestType("BuiltScreen", ink.tuanzi.neomacros.core.api.render.screen.BuiltScreen.class);
+        registry.registerGuestType("Widget", ink.tuanzi.neomacros.core.api.render.screen.Widget.class);
+        registry.registerGuestType("Button", ink.tuanzi.neomacros.core.api.render.screen.Button.class);
+        registry.registerGuestType("ImageButton", ink.tuanzi.neomacros.core.api.render.screen.ImageButton.class);
+        registry.registerGuestType("Checkbox", ink.tuanzi.neomacros.core.api.render.screen.Checkbox.class);
+        registry.registerGuestType("Slider", ink.tuanzi.neomacros.core.api.render.screen.Slider.class);
+        registry.registerGuestType("EditBox", ink.tuanzi.neomacros.core.api.render.screen.EditBox.class);
+        registry.registerGuestType("AbstractWidgetBuilder", ink.tuanzi.neomacros.core.api.render.screen.AbstractWidgetBuilder.class);
+        registry.registerGuestType("ButtonBuilder", ink.tuanzi.neomacros.core.api.render.screen.ButtonBuilder.class);
+        registry.registerGuestType("TexturedButtonBuilder", ink.tuanzi.neomacros.core.api.render.screen.TexturedButtonBuilder.class);
+        registry.registerGuestType("CheckBoxBuilder", ink.tuanzi.neomacros.core.api.render.screen.CheckBoxBuilder.class);
+        registry.registerGuestType("SliderBuilder", ink.tuanzi.neomacros.core.api.render.screen.SliderBuilder.class);
+        registry.registerGuestType("TextFieldBuilder", ink.tuanzi.neomacros.core.api.render.screen.TextFieldBuilder.class);
         registry.registerGuestType("InventoryScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.InventoryScreen.class);
         registry.registerGuestType("ContainerScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.ContainerScreen.class);
         registry.registerGuestType("ChatScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.ChatScreen.class);

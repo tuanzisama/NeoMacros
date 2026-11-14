@@ -149,7 +149,7 @@ class BuiltScreenDispatchTest {
 
         port.sink().stateChanged("name", new ScreenPort.ControlState(
                 "name", "editBox", 0, 0, 0, 0, 0, "", true, true,
-                null, null, "typed", null));
+                null, null, "typed", null, null, null, null, null));
 
         assertEquals("typed", gui.control("name").text());
         assertEquals("typed", gui.getControls().get(0).text());

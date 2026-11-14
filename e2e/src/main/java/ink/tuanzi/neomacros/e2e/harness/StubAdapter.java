@@ -2838,7 +2838,14 @@ public final class StubAdapter implements NeomacrosAdapter {
                     patch.get("checked") instanceof Boolean c ? c : state.checked(),
                     patch.get("value") instanceof Number n ? n.doubleValue() : state.value(),
                     patch.get("text") instanceof String t ? t : state.text(),
-                    patch.get("locked") instanceof Boolean l ? l : state.locked()));
+                    patch.get("locked") instanceof Boolean l ? l : state.locked(),
+                    patch.get("steps") instanceof Number s ? s.intValue() : state.steps(),
+                    patch.containsKey("editable")
+                            && patch.get("editable") instanceof Boolean e
+                            ? e : state.editable(),
+                    patch.get("maxLength") instanceof Number m ? m.intValue()
+                            : state.maxLength(),
+                    state.selectedText()));
         }
 
         @Override
@@ -2951,6 +2958,12 @@ public final class StubAdapter implements NeomacrosAdapter {
             }
         }
 
+        /** Asks the session's edit-box text filter (G-036); answers the verdict. */
+        public boolean fireFilterText(String controlId, String candidate) {
+            SessionSink sink = activeSink();
+            return sink == null || sink.filterText(controlId, candidate);
+        }
+
         /** Fires the terminal close notification (replacement path). */
         public void fireClosed() {
             long session = active;
@@ -2988,7 +3001,11 @@ public final class StubAdapter implements NeomacrosAdapter {
                     control.get("checked") instanceof Boolean c ? c : null,
                     control.get("value") instanceof Number n ? n.doubleValue() : null,
                     control.get("text") instanceof String text ? text : null,
-                    control.get("locked") instanceof Boolean l ? l : null);
+                    control.get("locked") instanceof Boolean l ? l : null,
+                    control.get("steps") instanceof Number n ? n.intValue() : null,
+                    control.get("editable") instanceof Boolean e ? e : null,
+                    control.get("maxLength") instanceof Number n ? n.intValue() : null,
+                    null);
         }
     }
 
