@@ -6,6 +6,7 @@ import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiModule;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiPermission;
 import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
@@ -3107,6 +3108,297 @@ public final class ClientApi {
     }
 
     /**
+     * The default stack of one registered item, e.g. {@code stone} or
+     * {@code minecraft:stone}; unknown identifiers read {@code undefined}.
+     * The item face shares {@link #getItemStack(String, String)}: NeoMacros
+     * has no separate item-type handle.
+     *
+     * @zh 一个注册物品的默认物品堆（如 {@code stone}）；未知标识为 undefined。物品类型面与 {@link #getItemStack(String, String)} 同值（NeoMacros 无独立物品类型句柄）。
+     * @zh-param id 物品标识
+     * @zh-return 物品堆句柄或 undefined
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public ink.tuanzi.neomacros.core.api.types.ItemStack getItem(String id) {
+        return adapter().itemStack(id, null)
+                .map(ink.tuanzi.neomacros.core.api.types.ItemStack::of)
+                .orElse(null);
+    }
+
+    /**
+     * One item stack of the given item: the default instance when
+     * {@code components} is omitted, otherwise parsed from vanilla item
+     * command syntax (e.g. {@code [damage=12]}). Unknown identifiers read
+     * {@code undefined}; malformed component syntax rejects; component
+     * parsing needs a connection and reads {@code undefined} without one.
+     *
+     * @zh 指定物品的一个物品堆：省略 components 时为默认实例，否则按原版物品命令语法解析（如 {@code [damage=12]}）；未知标识为 undefined；组件语法错误会拒绝；组件解析需要连接，无连接时为 undefined。
+     * @zh-param id 物品标识
+     * @zh-param components 组件数据（原版物品命令语法，含方括号）
+     * @zh-return 物品堆句柄或 undefined
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public ink.tuanzi.neomacros.core.api.types.ItemStack getItemStack(String id,
+            @ApiOptional String components) {
+        return adapter().itemStack(id, components)
+                .map(ink.tuanzi.neomacros.core.api.types.ItemStack::of)
+                .orElse(null);
+    }
+
+    /**
+     * The default state of one registered block, e.g. {@code oak_stairs};
+     * unknown identifiers read {@code undefined}. The block face shares
+     * {@link #getBlockState(String, String)}: the NeoMacros {@code Block}
+     * handle is position-bound, so registry lookups answer with the
+     * default state (G-017 / G-027 口径).
+     *
+     * @zh 一个注册方块的默认状态（如 {@code oak_stairs}）；未知标识为 undefined。方块面与 {@link #getBlockState(String, String)} 同值（NeoMacros 的 Block 句柄位置绑定，注册表查找返回默认状态）。
+     * @zh-param id 方块标识
+     * @zh-return 方块状态或 undefined
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public ink.tuanzi.neomacros.core.api.types.BlockState getBlock(String id) {
+        return adapter().blockState(id, null)
+                .map(data -> new ink.tuanzi.neomacros.core.api.types.BlockState(
+                        data.id(), data.props()))
+                .orElse(null);
+    }
+
+    /**
+     * One block state of the given block: the default state when
+     * {@code props} is omitted, otherwise parsed from vanilla command
+     * property syntax (e.g. {@code [facing=north]}). Unknown identifiers
+     * read {@code undefined}; malformed property syntax rejects.
+     *
+     * @zh 指定方块的一个状态：省略 props 时为默认状态，否则按原版命令属性语法解析（如 {@code [facing=north]}）；未知标识为 undefined；属性语法错误会拒绝。
+     * @zh-param id 方块标识
+     * @zh-param props 状态属性（原版命令语法，含方括号）
+     * @zh-return 方块状态或 undefined
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public ink.tuanzi.neomacros.core.api.types.BlockState getBlockState(String id,
+            @ApiOptional String props) {
+        return adapter().blockState(id, props)
+                .map(data -> new ink.tuanzi.neomacros.core.api.types.BlockState(
+                        data.id(), data.props()))
+                .orElse(null);
+    }
+
+    /**
+     * One registered status effect as {@code {id, duration, amplifier,
+     * infinite}} with a zero-tick duration; unknown identifiers read
+     * {@code undefined}.
+     *
+     * @zh 一个注册状态效果 {@code {id, duration, amplifier, infinite}}（时长 0 tick）；未知标识为 undefined。
+     * @zh-param id 状态效果标识
+     * @zh-return 状态效果数据或 undefined
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData getStatusEffect(
+            String id) {
+        String resolved = registryLookup("mob_effect", id);
+        return resolved == null ? null
+                : new ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData(
+                        resolved, 0, 0, false);
+    }
+
+    /**
+     * Every registered status effect as {@code {id, duration, amplifier,
+     * infinite}} entries with a zero-tick duration, sorted by identifier.
+     *
+     * @zh 全部注册状态效果 {@code {id, duration, amplifier, infinite}}（时长 0 tick），按标识排序。
+     * @zh-return 状态效果数据数组
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public List<ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData>
+            getStatusEffects() {
+        List<ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData> out =
+                new java.util.ArrayList<>();
+        for (String resolved : adapter().registryIds("mob_effect")) {
+            out.add(new ink.tuanzi.neomacros.core.api.entity.EntityApi.StatusEffectData(
+                    resolved, 0, 0, false));
+        }
+        return out;
+    }
+
+    /**
+     * One enchantment handle from the connected server's registry, carrying
+     * {@code level} (unclamped; 0 when omitted). Unknown identifiers and a
+     * missing connection read {@code undefined}.
+     *
+     * @zh 从连接侧附魔注册表取一个附魔句柄，携带 {@code level}（不按上限截断；省略时为 0）；未知标识或无连接时为 undefined。
+     * @zh-param id 附魔标识
+     * @zh-param level 附魔等级
+     * @zh-return 附魔句柄或 undefined
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public ink.tuanzi.neomacros.core.api.types.Enchantment getEnchantment(String id,
+            @ApiOptional @ApiType("number") Object level) {
+        if (id == null) {
+            return null;
+        }
+        var spec = itemPort().enchantmentSpec(id);
+        if (spec.isEmpty()) {
+            return null;
+        }
+        if (level != null && !(level instanceof Number)) {
+            throw new IllegalArgumentException("level must be a number: " + level);
+        }
+        return enchantmentHandle(spec.get().id(),
+                level == null ? 0 : ((Number) level).intValue());
+    }
+
+    /**
+     * Every registered item as a default stack, sorted by identifier.
+     *
+     * @zh 全部注册物品的默认物品堆，按标识排序。
+     * @zh-return 物品堆数组
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public List<ink.tuanzi.neomacros.core.api.types.ItemStack> getItems() {
+        List<ink.tuanzi.neomacros.core.api.types.ItemStack> out = new java.util.ArrayList<>();
+        for (ink.tuanzi.neomacros.port.model.ItemStackData data : adapter().defaultItemStacks()) {
+            out.add(ink.tuanzi.neomacros.core.api.types.ItemStack.of(data));
+        }
+        return out;
+    }
+
+    /**
+     * Every registered block as its default state, sorted by identifier.
+     *
+     * @zh 全部注册方块的默认状态，按标识排序。
+     * @zh-return 方块状态数组
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public List<ink.tuanzi.neomacros.core.api.types.BlockState> getBlocks() {
+        List<ink.tuanzi.neomacros.core.api.types.BlockState> out = new java.util.ArrayList<>();
+        for (ink.tuanzi.neomacros.port.model.BlockStateData data : adapter().blockStates()) {
+            out.add(new ink.tuanzi.neomacros.core.api.types.BlockState(
+                    data.id(), data.props()));
+        }
+        return out;
+    }
+
+    /**
+     * The connected server's enchantment identifiers, sorted; empty without
+     * a connection (enchantments are data-driven and live on the
+     * connection, not in the built-in registries).
+     *
+     * @zh 连接侧附魔注册表的全部标识，按序排列；无连接时为空（附魔为数据驱动，存在连接侧而非内置注册表）。
+     * @zh-return 附魔标识数组
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public List<String> getEnchantmentIds() {
+        return adapter().enchantmentIds();
+    }
+
+    /**
+     * The connected server's painting variant identifiers, sorted; empty
+     * without a connection (paintings are data-driven).
+     *
+     * @zh 连接侧画作变体注册表的全部标识，按序排列；无连接时为空（画作为数据驱动）。
+     * @zh-return 画作变体标识数组
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public List<String> getPaintingIds() {
+        return adapter().paintingIds();
+    }
+
+    /**
+     * The world-generation feature identifiers, sorted; the registry name
+     * moved between nodes ({@code worldgen/feature} before 26.3,
+     * {@code worldgen/feature_type} from 26.3 on) and the port follows the
+     * active node.
+     *
+     * @zh 世界生成 feature 的全部标识，按序排列；注册表名随节点变化（26.3 前为 {@code worldgen/feature}，26.3 起为 {@code worldgen/feature_type}），端口跟随当前节点。
+     * @zh-return feature 标识数组
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    @ApiReadOnly
+    public List<String> getFeatureIds() {
+        return adapter().featureIds();
+    }
+
+    /**
+     * The identifier with the {@code minecraft} namespace filled in when the
+     * input carries no colon; the input passes through unchanged otherwise.
+     *
+     * @zh 补全命名空间：输入不含冒号时补 {@code minecraft:}，否则原样返回。
+     * @zh-param id 标识
+     * @zh-return 补全后的标识
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public String parseNameSpace(String id) {
+        if (id == null || id.isEmpty()) {
+            throw new IllegalArgumentException("identifier is required");
+        }
+        return id.indexOf(':') >= 0 ? id : "minecraft:" + id;
+    }
+
+    /**
+     * One normalized namespaced identifier without a registry lookup; the
+     * {@code minecraft} namespace is filled in when missing and malformed
+     * identifier syntax rejects. NeoMacros answers the plain string form
+     * instead of the host identifier object (escape layer: {@code java}).
+     *
+     * @zh 规范化为带命名空间的标识（不做注册表查找）；缺省补 {@code minecraft} 命名空间，语法非法则拒绝。NeoMacros 返回字符串形式而非宿主标识对象（穿透层 {@code java}）。
+     * @zh-param id 标识
+     * @zh-return 规范化后的标识
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public String parseIdentifier(String id) {
+        String namespaced = parseNameSpace(id);
+        int colon = namespaced.indexOf(':');
+        String namespace = namespaced.substring(0, colon);
+        String path = namespaced.substring(colon + 1);
+        if (!NAMESPACE_PATTERN.matcher(namespace).matches()
+                || !PATH_PATTERN.matcher(path).matches()) {
+            throw new IllegalArgumentException("invalid identifier: " + id);
+        }
+        return namespaced;
+    }
+
+    /** Namespace charset of one vanilla identifier ({@code a-z0-9_.-}). */
+    private static final java.util.regex.Pattern NAMESPACE_PATTERN =
+            java.util.regex.Pattern.compile("[a-z0-9_.-]+");
+
+    /** Path charset of one vanilla identifier ({@code a-z0-9/._-}). */
+    private static final java.util.regex.Pattern PATH_PATTERN =
+            java.util.regex.Pattern.compile("[a-z0-9/._-]+");
+
+    /**
      * Captures the game framebuffer as an {@code Image}; the promise resolves
      * after the next frame read.
      *
@@ -3136,6 +3428,25 @@ public final class ClientApi {
     /** The client port behind the API (single adapter access point). */
     private static ink.tuanzi.neomacros.port.ClientPort adapter() {
         return ScriptApiEnvironment.adapter().client();
+    }
+
+    /** The item port behind the registry enchantment reads. */
+    private static ink.tuanzi.neomacros.port.ItemPort itemPort() {
+        return ScriptApiEnvironment.adapter().item();
+    }
+
+    /**
+     * Builds one enchantment handle carrying the level on its entry; the
+     * entry rides a throw-away stack snapshot because the handle's own
+     * constructor stays package-private in the types package.
+     */
+    private static ink.tuanzi.neomacros.core.api.types.Enchantment enchantmentHandle(
+            String id, int level) {
+        var data = new ink.tuanzi.neomacros.port.model.ItemStackData(
+                "minecraft:air", 1, "", 0, 0, List.of(),
+                List.of(new ink.tuanzi.neomacros.port.model.EnchantmentData(id, level)));
+        return ink.tuanzi.neomacros.core.api.types.ItemStack.of(data)
+                .getEnchantments().get(0);
     }
 
     /** The current option face, or null when it is unavailable. */
