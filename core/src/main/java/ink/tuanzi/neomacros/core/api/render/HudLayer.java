@@ -2,6 +2,9 @@ package ink.tuanzi.neomacros.core.api.render;
 
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DElement;
+import ink.tuanzi.neomacros.core.api.render.components.Draw2DLine;
+import ink.tuanzi.neomacros.core.api.render.components.Draw2DRect;
+import ink.tuanzi.neomacros.core.api.render.components.Draw2DText;
 import ink.tuanzi.neomacros.core.api.render.components.ElementSpec;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
@@ -9,6 +12,7 @@ import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
 import ink.tuanzi.neomacros.doc.api.ApiOptional;
+import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 import ink.tuanzi.neomacros.port.RenderPort;
@@ -91,6 +95,7 @@ public final class HudLayer implements ScriptHandle {
      *
      * @zh 公开层 id（不含 owner 前缀）；层失效后为 {@code undefined}。
      */
+    @ApiReadOnly
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
@@ -104,6 +109,7 @@ public final class HudLayer implements ScriptHandle {
      *
      * @zh 层相对其他层的绘制序；数值小者先画。默认 {@code 0}。
      */
+    @ApiReadOnly
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
@@ -137,6 +143,7 @@ public final class HudLayer implements ScriptHandle {
      *
      * @zh 层是否渲染。不可见层保留注册与元素，只是不绘制。默认 {@code true}。
      */
+    @ApiReadOnly
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
@@ -164,6 +171,7 @@ public final class HudLayer implements ScriptHandle {
      *
      * @zh 当前视口宽度（缩放后 GUI 像素，窗口未就绪时为 {@code 0}）；层失效后为 {@code undefined}。
      */
+    @ApiReadOnly
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
@@ -177,6 +185,7 @@ public final class HudLayer implements ScriptHandle {
      *
      * @zh 当前视口高度（缩放后 GUI 像素，窗口未就绪时为 {@code 0}）；层失效后为 {@code undefined}。
      */
+    @ApiReadOnly
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
@@ -189,6 +198,7 @@ public final class HudLayer implements ScriptHandle {
      *
      * @zh 层是否已移除。永远可读。
      */
+    @ApiReadOnly
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
@@ -208,37 +218,44 @@ public final class HudLayer implements ScriptHandle {
      *             string, default {@code 0}), {@code color} (ARGB number or
      *             {@code '#rgb'}/{@code '#rrggbbaa'}/vanilla color name,
      *             default white), {@code scale} (default {@code 1}),
+     *             {@code shadow} (drop shadow, default {@code false}),
      *             {@code rotation} (degrees, default {@code 0}),
      *             {@code zIndex} (default {@code 0}),
-     *             {@code visible} (default {@code true})
-     * @return the live element handle
+     *             {@code visible} (default {@code true}). The font-measured
+     *             width and line height seed the element's box.
+     * @return the live text element handle
      * @zh 按 id 插入或更新文本元素：同 id 原地更新（插入位与句柄不变）；同 id 不同组件类型则替换并使旧句柄失效。
      * @zh-param id 元素 id（不得以 {@code $} 开头）
      * @zh-param text 要绘制的文本
-     * @zh-param opts 文本选项：{@code x}、{@code y}（数字或百分比字符串，默认 {@code 0}）、{@code color}（ARGB 数字或 {@code '#rgb'}/{@code '#rrggbbaa'}/原版颜色名，默认白色）、{@code scale}（默认 {@code 1}）、{@code rotation}（度，默认 {@code 0}）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）
-     * @zh-return 存活的元素句柄
+     * @zh-param opts 文本选项：{@code x}、{@code y}（数字或百分比字符串，默认 {@code 0}）、{@code color}（ARGB 数字或 {@code '#rgb'}/{@code '#rrggbbaa'}/原版颜色名，默认白色）、{@code scale}（默认 {@code 1}）、{@code shadow}（投影，默认 {@code false}）、{@code rotation}（度，默认 {@code 0}）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）。字体度量的宽度与行高作为元素盒的初值。
+     * @zh-return 存活的文本元素句柄
      */
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public Draw2DElement text(String id, String text,
+    public Draw2DText text(String id, String text,
             @ApiOptional @ApiType("TextOptions") Map<String, Object> opts) {
         ensureAlive();
         requireElementId(id);
         Map<String, Object> options = opts == null ? Map.of() : opts;
+        String value = text == null ? "" : text;
         ElementSpec spec = new ElementSpec(ElementSpec.Kind.TEXT,
                 ElementSpec.Coord.parse(options.getOrDefault("x", 0), "text x"),
                 ElementSpec.Coord.parse(options.getOrDefault("y", 0), "text y"),
-                ElementSpec.Coord.at(0),
-                ElementSpec.Coord.at(0),
+                ElementSpec.Coord.at(port.textWidth(value)),
+                ElementSpec.Coord.at(port.textLineHeight()),
                 colorOf(options.get("color"), 0xFFFFFFFF),
-                text == null ? "" : text,
+                value,
                 intOf(options.get("zIndex"), 0),
                 boolOf(options.get("visible"), true),
                 scaleOf(options.get("scale")),
                 rotationOf(options.get("rotation")),
+                false,
+                boolOf(options.get("shadow"), false),
+                1f,
+                false,
                 false);
-        return scene.upsert(id, ElementSpec.Kind.TEXT, spec);
+        return (Draw2DText) scene.upsert(id, ElementSpec.Kind.TEXT, spec);
     }
 
     /**
@@ -254,16 +271,16 @@ public final class HudLayer implements ScriptHandle {
      *             {@code 1}), {@code rotation} (degrees, default
      *             {@code 0}), {@code zIndex} (default {@code 0}),
      *             {@code visible} (default {@code true})
-     * @return the live element handle
+     * @return the live rect element handle
      * @zh 按 id 插入或更新填充矩形元素：同 id 语义同 {@link #text}。选项包必须给出矩形（{@code x}、{@code y}、{@code w}、{@code h}）。
      * @zh-param id 元素 id（不得以 {@code $} 开头）
      * @zh-param opts 矩形选项：{@code x}、{@code y}、{@code w}、{@code h}（数字或百分比字符串，必填）、{@code color}（ARGB 数字或 {@code '#rgb'}/{@code '#rrggbbaa'}/原版颜色名，默认白色）、{@code scale}（默认 {@code 1}）、{@code rotation}（度，默认 {@code 0}）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）
-     * @zh-return 存活的元素句柄
+     * @zh-return 存活的矩形元素句柄
      */
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public Draw2DElement rect(String id,
+    public Draw2DRect rect(String id,
             @ApiType("RectOptions") Map<String, Object> opts) {
         ensureAlive();
         requireElementId(id);
@@ -281,8 +298,102 @@ public final class HudLayer implements ScriptHandle {
                 boolOf(opts.get("visible"), true),
                 scaleOf(opts.get("scale")),
                 rotationOf(opts.get("rotation")),
+                false,
+                false,
+                1f,
+                false,
                 false);
-        return scene.upsert(id, ElementSpec.Kind.RECT, spec);
+        return (Draw2DRect) scene.upsert(id, ElementSpec.Kind.RECT, spec);
+    }
+
+    /**
+     * Inserts or updates a straight line element under {@code id}:
+     * same-id semantics as {@link #text}. The options bag must carry both
+     * endpoints ({@code x1}, {@code y1}, {@code x2}, {@code y2} — plain
+     * pixel numbers); corners may be given in either order (the stored box
+     * is the min-corner extent, the endpoint order stays observable through
+     * the handle). The G-032 {@code addLine} overloads fold into this one
+     * member (G-033 overload-fold rule).
+     *
+     * @param id   element id (must not start with {@code $})
+     * @param opts line options: {@code x1}, {@code y1}, {@code x2},
+     *             {@code y2} (pixel numbers, required), {@code color}
+     *             (ARGB number or {@code '#rgb'}/{@code '#rrggbbaa'}/vanilla
+     *             color name, default white), {@code width} (stroke
+     *             thickness in pixels, default {@code 1}), {@code rotation}
+     *             (degrees, default {@code 0}), {@code zIndex} (default
+     *             {@code 0}), {@code visible} (default {@code true})
+     * @return the live line element handle
+     * @zh 按 id 插入或更新直线元素：同 id 语义同 {@link #text}。选项包必须给出两端点（{@code x1}、{@code y1}、{@code x2}、{@code y2}——纯像素数字）；端点顺序可任意（存储盒为最小角跨度，端点次序经句柄仍可观测）。G-032 的 {@code addLine} 重载组折叠进本成员（G-033 重载折叠铁律）。
+     * @zh-param id 元素 id（不得以 {@code $} 开头）
+     * @zh-param opts 直线选项：{@code x1}、{@code y1}、{@code x2}、{@code y2}（像素数字，必填）、{@code color}（ARGB 数字或 {@code '#rgb'}/{@code '#rrggbbaa'}/原版颜色名，默认白色）、{@code width}（笔画粗细像素，默认 {@code 1}）、{@code rotation}（度，默认 {@code 0}）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）
+     * @zh-return 存活的直线元素句柄
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Draw2DLine line(String id,
+            @ApiType("LineOptions") Map<String, Object> opts) {
+        ensureAlive();
+        requireElementId(id);
+        if (opts == null) {
+            throw new IllegalArgumentException(
+                    "line requires x1, y1, x2 and y2 options");
+        }
+        int x1 = intOf(opts.get("x1"), Integer.MIN_VALUE);
+        int y1 = intOf(opts.get("y1"), Integer.MIN_VALUE);
+        int x2 = intOf(opts.get("x2"), Integer.MIN_VALUE);
+        int y2 = intOf(opts.get("y2"), Integer.MIN_VALUE);
+        if (x1 == Integer.MIN_VALUE || y1 == Integer.MIN_VALUE
+                || x2 == Integer.MIN_VALUE || y2 == Integer.MIN_VALUE) {
+            throw new IllegalArgumentException(
+                    "line option 'x1', 'y1', 'x2' and 'y2' are required");
+        }
+        ElementSpec spec = new ElementSpec(ElementSpec.Kind.LINE,
+                ElementSpec.Coord.at(Math.min(x1, x2)),
+                ElementSpec.Coord.at(Math.min(y1, y2)),
+                ElementSpec.Coord.at(Math.abs(x2 - x1)),
+                ElementSpec.Coord.at(Math.abs(y2 - y1)),
+                colorOf(opts.get("color"), 0xFFFFFFFF),
+                "",
+                intOf(opts.get("zIndex"), 0),
+                boolOf(opts.get("visible"), true),
+                scaleOf(opts.get("scale")),
+                rotationOf(opts.get("rotation")),
+                false,
+                false,
+                strokeOf(opts.get("width")),
+                x1 > x2,
+                y1 > y2);
+        return (Draw2DLine) scene.upsert(id, ElementSpec.Kind.LINE, spec);
+    }
+
+    /**
+     * Font width of one string on this layer's port — the measurement a
+     * {@code Draw2DText} caches when its text is set. Host-side only.
+     *
+     * @param text the string to measure
+     * @return the advance width in scaled pixels
+     * @zh 本层端口上的字体宽度度量——{@code Draw2DText} 设置文本时缓存的值。仅宿主侧。
+     * @zh-param text 待度量字符串
+     * @zh-return 缩放像素下的前进宽度
+     */
+    @ApiInternal
+    public int measureTextWidth(String text) {
+        return disposed ? 0 : port.textWidth(text);
+    }
+
+    /**
+     * The font line height on this layer's port — the unscaled height of
+     * a {@code Draw2DText} element. Host-side only.
+     *
+     * @return one text line's height in scaled pixels
+     * @zh 本层端口上的字体行高——{@code Draw2DText} 元素的未缩放高度。仅宿主侧。
+     * @zh-return 单行文本高度（缩放像素）
+     */
+    @ApiInternal
+    public int measureTextLineHeight() {
+        return disposed ? 0 : port.textLineHeight();
     }
 
     /**
@@ -306,6 +417,7 @@ public final class HudLayer implements ScriptHandle {
      *
      * @zh 全部存活元素句柄，按绘制序（元素 z 升序，同 z 按插入序）；层失效后为 {@code undefined}。
      */
+    @ApiReadOnly
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
@@ -319,6 +431,7 @@ public final class HudLayer implements ScriptHandle {
      *
      * @zh 全部存活元素 id，与 {@link #getElements()} 平行；层失效后为 {@code undefined}。
      */
+    @ApiReadOnly
     @ApiSince("0.5.0")
     @ApiMC("*")
     @ApiLoader("*")
@@ -450,53 +563,25 @@ public final class HudLayer implements ScriptHandle {
     /**
      * Color normalization (拍板④ double form): numbers are ARGB ints,
      * strings are {@code #rgb} / {@code #rrggbbaa} hex or a vanilla
-     * formatting color name.
+     * formatting color name. Delegates to the shared element-side parser.
      */
     private static int colorOf(Object value, int fallback) {
+        return ElementSpec.parseColor(value, fallback);
+    }
+
+    /**
+     * Stroke-thickness option of {@link #line}: a number of screen pixels,
+     * default {@code 1}. Non-positive values are stored as-is (JsMacros
+     * parity — a non-positive stroke simply draws nothing).
+     */
+    private static float strokeOf(Object value) {
         if (value == null) {
-            return fallback;
+            return 1f;
         }
         if (value instanceof Number number) {
-            return (int) number.longValue();
+            return number.floatValue();
         }
-        if (value instanceof String text) {
-            String trimmed = text.trim().toLowerCase(java.util.Locale.ROOT);
-            Integer named = NAMED_COLORS.get(trimmed);
-            if (named != null) {
-                return named;
-            }
-            String hex = trimmed.startsWith("#") ? trimmed.substring(1) : trimmed;
-            switch (hex.length()) {
-                case 3 -> {
-                    int r = Character.digit(hex.charAt(0), 16);
-                    int g = Character.digit(hex.charAt(1), 16);
-                    int b = Character.digit(hex.charAt(2), 16);
-                    if (r >= 0 && g >= 0 && b >= 0) {
-                        return 0xFF000000 | (r << 20) | (r << 16)
-                                | (g << 12) | (g << 8) | (b << 4) | b;
-                    }
-                }
-                case 6 -> {
-                    try {
-                        return 0xFF000000 | (int) Long.parseLong(hex, 16);
-                    } catch (NumberFormatException ignored) {
-                        // fall through to the rejection below
-                    }
-                }
-                case 8 -> {
-                    try {
-                        return (int) Long.parseLong(hex, 16);
-                    } catch (NumberFormatException ignored) {
-                        // fall through to the rejection below
-                    }
-                }
-                default -> {
-                    // fall through to the rejection below
-                }
-            }
-            throw new IllegalArgumentException("unknown color: " + text);
-        }
-        throw new IllegalArgumentException("color must be a number or a color string");
+        throw new IllegalArgumentException("expected a number, got: " + value);
     }
 
     private static int intOf(Object value, int fallback) {
@@ -518,23 +603,4 @@ public final class HudLayer implements ScriptHandle {
         }
         throw new IllegalArgumentException("expected a boolean, got: " + value);
     }
-
-    /** Vanilla formatting colors, opaque ARGB (the Text COLOR list). */
-    private static final Map<String, Integer> NAMED_COLORS = Map.ofEntries(
-            Map.entry("black", 0xFF000000),
-            Map.entry("dark_blue", 0xFF0000AA),
-            Map.entry("dark_green", 0xFF00AA00),
-            Map.entry("dark_aqua", 0xFF00AAAA),
-            Map.entry("dark_red", 0xFFAA0000),
-            Map.entry("dark_purple", 0xFFAA00AA),
-            Map.entry("gold", 0xFFFFAA00),
-            Map.entry("gray", 0xFFAAAAAA),
-            Map.entry("dark_gray", 0xFF555555),
-            Map.entry("blue", 0xFF5555FF),
-            Map.entry("green", 0xFF55FF55),
-            Map.entry("aqua", 0xFF55FFFF),
-            Map.entry("red", 0xFFFF5555),
-            Map.entry("light_purple", 0xFFFF55FF),
-            Map.entry("yellow", 0xFFFFFF55),
-            Map.entry("white", 0xFFFFFFFF));
 }

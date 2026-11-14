@@ -1065,6 +1065,49 @@ function start() {
   neo.hud.removeLayer('gap-api-g034c');
   check('g034c.remove-layer', g034c.disposed === true);
 
+  // G-034 component faces: subclass upserts, text metrics (measured, so
+  // only positivity is portable between the stub and a real font), the
+  // corner/endpoint views, the folded color face and the stroke face
+  // (frame prims and port silence are e2e-A covered by
+  // Draw2DComponentScenariosTest over the stub render port).
+  const g034 = neo.hud.layer('gap-api-g034');
+  const g034Text = g034.text('t', 'hello', {x: 1, y: 2, shadow: true});
+  check('g034.text-shape', typeof g034Text.setText === 'function'
+      && typeof g034Text.hasShadow === 'function'
+      && typeof g034Text.setColor === 'function'
+      && typeof g034Text.text === 'string');
+  check('g034.text-state', g034Text.text === 'hello'
+      && g034Text.hasShadow() === true
+      && typeof g034Text.width === 'number' && g034Text.width > 0
+      && typeof g034Text.height === 'number' && g034Text.height > 0);
+  g034Text.setText('hi');
+  check('g034.text-set', g034Text.text === 'hi' && g034Text.width > 0);
+  g034Text.setColor(0x00FF0000, 0x80);
+  check('g034.text-color', (g034Text.color >>> 0) === 0x80FF0000);
+  const g034Rect = g034.rect('r', {x: 10, y: 10, w: 40, h: 20, color: '#f00'});
+  check('g034.rect-corners', g034Rect.x1 === 10 && g034Rect.y1 === 10
+      && g034Rect.x2 === 50 && g034Rect.y2 === 30
+      && g034Rect.width === 40 && g034Rect.height === 20
+      && (g034Rect.color >>> 0) === 0xFFFF0000);
+  g034Rect.setX2(70);
+  check('g034.rect-x2', g034Rect.x2 === 70 && g034Rect.width === 60);
+  const g034Line = g034.line('l', {x1: 100, y1: 50, x2: 40, y2: 80,
+      color: '#0f0', width: 3});
+  check('g034.line', g034Line.x1 === 100 && g034Line.y1 === 50
+      && g034Line.x2 === 40 && g034Line.y2 === 80
+      && g034Line.strokeWidth === 3 && g034Line.width === 60
+      && g034Line.height === 30 && g034Line.scaledLeft === 40
+      && g034Line.scaledTop === 50);
+  g034Line.setStrokeWidth(2);
+  check('g034.line-stroke', g034Line.strokeWidth === 2);
+  g034.remove('l');
+  let g034Threw = false;
+  try { g034Line.setX1(0); } catch (e) { g034Threw = true; }
+  check('g034.disposed', g034Threw && g034Line.x1 === undefined
+      && g034Line.strokeWidth === undefined);
+  neo.hud.removeLayer('gap-api-g034');
+  check('g034.remove-layer', g034.disposed === true);
+
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
     neo.chat.log('[E2E] ' + key + '=' + value);
