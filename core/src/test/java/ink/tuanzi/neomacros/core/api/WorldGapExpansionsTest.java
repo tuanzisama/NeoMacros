@@ -13,12 +13,15 @@ import ink.tuanzi.neomacros.port.RenderPort;
 import ink.tuanzi.neomacros.port.WorldPort;
 import ink.tuanzi.neomacros.core.api.world.WorldApi;
 import ink.tuanzi.neomacros.port.model.BlockData;
-import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
+import ink.tuanzi.neomacros.port.model.BossBarInfoData;
 import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.LightData;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.ScoreboardData;
-import ink.tuanzi.neomacros.port.model.TabListData;
+import ink.tuanzi.neomacros.port.model.ScoreboardObjectiveData;
+import ink.tuanzi.neomacros.port.model.TabListEntryInfoData;
+import ink.tuanzi.neomacros.port.model.TabListInfoData;
+import ink.tuanzi.neomacros.port.model.TeamData;
 import ink.tuanzi.neomacros.port.model.TpsData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -85,13 +89,20 @@ class WorldGapExpansionsTest {
 
     @Test
     void tabListRendersEntries() {
-        world.tabList = new TabListData("header", "footer", List.of(
-                new TabListData.TabListEntry("u-1", "Alice", 42, "survival", "Al"),
-                new TabListData.TabListEntry("u-2", "Bob", 7, "creative", null)));
-        TabListData view = api.getTabList();
+        TeamData team = new TeamData("red", "Red Team", "red", 14, 0xFF5555,
+                List.of("Alice"));
+        world.tabList = new TabListInfoData("header", "footer", List.of(
+                new TabListEntryInfoData("u-1", "Alice", 42, "survival", "Al",
+                        new byte[] {1, 2, 3},
+                        "minecraft:textures/entity/steve.png",
+                        "https://skins.example/steve.png",
+                        "minecraft:textures/entity/cape.png", null, true, false, team),
+                new TabListEntryInfoData("u-2", "Bob", 7, "creative", null,
+                        null, null, null, null, null, false, true, null)));
+        TabListInfoData view = api.getTabList();
         assertEquals("header", view.header());
         assertEquals("footer", view.footer());
-        List<TabListData.TabListEntry> entries = view.entries();
+        List<TabListEntryInfoData> entries = view.entries();
         assertEquals(2, entries.size());
         assertEquals("u-1", entries.get(0).uuid());
         assertEquals("Alice", entries.get(0).name());
@@ -99,18 +110,40 @@ class WorldGapExpansionsTest {
         assertEquals("survival", entries.get(0).gamemode());
         assertEquals("Al", entries.get(0).displayName());
         assertNull(entries.get(1).displayName());
+        // G-018B profile facts: key, skin, cape, slim model, team
+        assertEquals(3, entries.get(0).publicKey().length);
+        assertEquals("minecraft:textures/entity/steve.png",
+                entries.get(0).skinTexture());
+        assertEquals("https://skins.example/steve.png", entries.get(0).skinUrl());
+        assertEquals("minecraft:textures/entity/cape.png",
+                entries.get(0).capeTexture());
+        assertNull(entries.get(0).elytraTexture());
+        assertTrue(entries.get(0).cape());
+        assertFalse(entries.get(0).slimModel());
+        assertEquals("red", entries.get(0).team().colorName());
+        assertNull(entries.get(1).publicKey());
+        assertNull(entries.get(1).skinTexture());
+        assertNull(entries.get(1).capeTexture());
+        assertFalse(entries.get(1).cape());
+        assertTrue(entries.get(1).slimModel());
+        assertNull(entries.get(1).team());
     }
 
     @Test
     void bossBarsRenderShapeAndStayEmptyByDefault() {
         assertTrue(api.getBossBars().isEmpty());
-        world.bossBars.add(new BossBarSnapshot("b-1", "Ender Dragon", 0.5f, "purple"));
-        List<BossBarSnapshot> bars = api.getBossBars();
+        world.bossBars.add(new BossBarInfoData("b-1", "Ender Dragon", 0.5f, "purple",
+                "notched_10", 0xAA00AA, "dark_purple"));
+        List<BossBarInfoData> bars = api.getBossBars();
         assertEquals(1, bars.size());
         assertEquals("b-1", bars.get(0).uuid());
         assertEquals("Ender Dragon", bars.get(0).name());
         assertEquals(0.5f, bars.get(0).progress());
         assertEquals("purple", bars.get(0).color());
+        // G-018B bar style and derived color facts
+        assertEquals("notched_10", bars.get(0).style());
+        assertEquals(0xAA00AA, bars.get(0).colorValue());
+        assertEquals("dark_purple", bars.get(0).colorFormat());
     }
 
     @Test
@@ -134,6 +167,108 @@ class WorldGapExpansionsTest {
     void scoreboardsNullWithoutWorld() {
         world.scoreboard = null;
         assertNull(api.getScoreboards());
+    }
+
+    @Test
+    void scoreboardObjectiveRendersDerivedFace() {
+        ScoreboardObjectiveData objective = new ScoreboardObjectiveData(
+                "sidebar", "Sidebar", "dummy", "integer",
+                Map.of("Alice", 12, "Bob", 7),
+                Map.of(12, "Alice", 7, "Bob"),
+                List.of("Alice", "Bob"),
+                List.of("Alice", "Bob"),
+                List.of("Alice", "Bob"));
+        world.displayObjectives.put(1, objective);
+
+        ScoreboardObjectiveData sidebar = api.getObjectiveSlot(1);
+        assertNotNull(sidebar, "slot 1 serves the canned objective");
+        assertEquals("sidebar", sidebar.name());
+        assertEquals("Sidebar", sidebar.displayName());
+        assertEquals("dummy", sidebar.criteria());
+        assertEquals("integer", sidebar.renderType());
+        assertEquals(12, sidebar.playerScores().get("Alice"));
+        assertEquals(7, sidebar.playerScores().get("Bob"));
+        assertEquals("Alice", sidebar.scoreToDisplayName().get(12));
+        assertEquals("Bob", sidebar.scoreToDisplayName().get(7));
+        assertEquals(List.of("Alice", "Bob"), sidebar.texts());
+        assertEquals(List.of("Alice", "Bob"), sidebar.knownPlayers());
+        assertEquals(List.of("Alice", "Bob"), sidebar.knownPlayersDisplayNames());
+
+        assertNull(api.getObjectiveSlot(99), "out-of-range slot reads undefined");
+        assertNull(api.getObjectiveForTeamColorIndex(-1),
+                "negative colour index reads undefined");
+        assertNull(api.getObjectiveForTeamColorIndex(16),
+                "colour index past white reads undefined");
+
+        // No local team yet: the plain sidebar fallback.
+        ScoreboardObjectiveData fallback = api.getCurrentScoreboard();
+        assertNotNull(fallback, "the plain sidebar answers without a team");
+        assertEquals("sidebar", fallback.name());
+
+        // With a team whose colour index maps onto slot 17, the team
+        // sidebar wins and the colour-index lookup resolves it too.
+        world.localTeam = new TeamData("red", "Red Team", "red", 14, 0xFF5555,
+                List.of("Alice"));
+        world.displayObjectives.put(17, objective);
+        assertEquals("sidebar", api.getCurrentScoreboard().name());
+        assertNotNull(api.getObjectiveForTeamColorIndex(14));
+        assertEquals("sidebar", api.getObjectiveForTeamColorIndex(14).name());
+    }
+
+    @Test
+    void teamsAndTeamColorsRenderFromCannedTeams() {
+        TeamData red = new TeamData("red", "Red Team", "red", 14, 0xFF5555,
+                List.of("Alice"));
+        TeamData plain = new TeamData("plain", "Plain Team", "reset", -1, -1,
+                List.of("Bob"));
+        world.teams.add(red);
+        world.teams.add(plain);
+
+        List<TeamData> teams = api.getTeams();
+        assertEquals(2, teams.size());
+        assertEquals("Red Team", teams.get(0).displayName());
+        assertEquals(List.of("Alice"), teams.get(0).players());
+        assertEquals(14, teams.get(0).colorIndex());
+        assertEquals(0xFF5555, teams.get(0).colorValue());
+
+        var alice = new ink.tuanzi.neomacros.core.api.player.PlayerApi.Player(
+                java.util.UUID.randomUUID());
+
+        // Local player on the coloured team.
+        world.localTeam = red;
+        assertEquals("red", api.getPlayerTeam().name());
+        assertEquals(14, api.getPlayerTeamColorIndex());
+        assertEquals(0xFF5555, api.getTeamColor());
+        assertEquals("red", api.getTeamColorName());
+        assertEquals("red", api.getTeamColorFormatting());
+
+        // The explicit player resolves through team membership.
+        assertEquals("red", api.getPlayerTeam(alice).name());
+        assertEquals(14, api.getPlayerTeamColorIndex(alice));
+        assertEquals(0xFF5555, api.getTeamColor(alice));
+        assertEquals("red", api.getTeamColorName(alice));
+        assertEquals("red", api.getTeamColorFormatting(alice));
+
+        // A team without a colour reports the reset formatting.
+        world.localTeam = plain;
+        assertEquals("plain", api.getPlayerTeam().name());
+        assertEquals(-1, api.getPlayerTeamColorIndex());
+        assertEquals(-1, api.getTeamColor());
+        assertEquals("reset", api.getTeamColorName());
+        assertEquals("reset", api.getTeamColorFormatting());
+
+        // No world/team at all: absent team, -1 sentinels, null names.
+        world.teams.clear();
+        world.localTeam = null;
+        assertNull(api.getPlayerTeam());
+        assertNull(api.getPlayerTeam(alice));
+        assertEquals(-1, api.getPlayerTeamColorIndex());
+        assertEquals(-1, api.getPlayerTeamColorIndex(alice));
+        assertEquals(-1, api.getTeamColor());
+        assertNull(api.getTeamColorName());
+        assertNull(api.getTeamColorName(alice));
+        assertNull(api.getTeamColorFormatting(alice));
+        assertNull(api.getPlayerTeam(null), "a null player reads null");
     }
 
     @Test
@@ -237,11 +372,15 @@ class WorldGapExpansionsTest {
     static final class CannedWorld implements WorldPort {
         String levelName = "";
         int moonPhase;
-        TabListData tabList;
+        TabListInfoData tabList;
         ScoreboardData scoreboard;
         TpsData tps;
         ChunkData chunk;
-        final List<BossBarSnapshot> bossBars = new java.util.ArrayList<>();
+        final List<BossBarInfoData> bossBars = new java.util.ArrayList<>();
+        final List<TeamData> teams = new java.util.ArrayList<>();
+        TeamData localTeam;
+        final java.util.Map<Integer, ScoreboardObjectiveData> displayObjectives =
+                new java.util.HashMap<>();
         final List<Pos3d> foundBlocks = new java.util.ArrayList<>();
         String lastSound;
         double lastVolume;
@@ -291,13 +430,28 @@ class WorldGapExpansionsTest {
         }
 
         @Override
-        public java.util.Optional<TabListData> tabList() {
+        public java.util.Optional<TabListInfoData> tabList() {
             return java.util.Optional.ofNullable(tabList);
         }
 
         @Override
-        public java.util.List<BossBarSnapshot> bossBars() {
+        public java.util.List<BossBarInfoData> bossBars() {
             return List.copyOf(bossBars);
+        }
+
+        @Override
+        public java.util.List<TeamData> teams() {
+            return List.copyOf(teams);
+        }
+
+        @Override
+        public java.util.Optional<TeamData> localPlayerTeam() {
+            return java.util.Optional.ofNullable(localTeam);
+        }
+
+        @Override
+        public java.util.Optional<ScoreboardObjectiveData> displayObjective(int slot) {
+            return java.util.Optional.ofNullable(displayObjectives.get(slot));
         }
 
         @Override
@@ -375,7 +529,25 @@ class WorldGapExpansionsTest {
 
         @Override
         public EntityPort entity() {
-            throw new UnsupportedOperationException();
+            // Canned so player handles resolve a scoreboard name for the
+            // G-018B team lookups; only byUuid is ever consulted here.
+            return new EntityPort() {
+                @Override
+                public java.util.Optional<ink.tuanzi.neomacros.port.model.EntitySnapshot>
+                        byUuid(java.util.UUID uuid) {
+                    return java.util.Optional.of(
+                            new ink.tuanzi.neomacros.port.model.EntitySnapshot(uuid,
+                                    "minecraft:player", "Alice", new Pos3d(0, 64, 0), 20));
+                }
+
+                @Override
+                public List<ink.tuanzi.neomacros.port.model.EntitySnapshot> inRadius(
+                        Pos3d center, double range,
+                        java.util.function.Predicate<
+                                ink.tuanzi.neomacros.port.model.EntitySnapshot> filter) {
+                    return List.of();
+                }
+            };
         }
 
         @Override

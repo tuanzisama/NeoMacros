@@ -7,12 +7,13 @@ import ink.tuanzi.neomacros.port.ClientPort;
 import ink.tuanzi.neomacros.port.model.BlockStateData;
 import ink.tuanzi.neomacros.port.model.ItemStackData;
 import ink.tuanzi.neomacros.port.model.KeybindCatalogData;
-import ink.tuanzi.neomacros.port.model.ModData;
+import ink.tuanzi.neomacros.port.model.ModInfoData;
 import ink.tuanzi.neomacros.port.model.OptionsData;
 import ink.tuanzi.neomacros.port.model.PacketRef;
 import ink.tuanzi.neomacros.port.model.PacketSendVerdict;
 import ink.tuanzi.neomacros.port.model.Pos2d;
 import ink.tuanzi.neomacros.port.model.ServerInfoData;
+import ink.tuanzi.neomacros.port.model.StatusEffectInfoData;
 import ink.tuanzi.neomacros.port.model.WindowData;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.SharedConstants;
@@ -144,16 +145,30 @@ public final class FabricClientPort implements ClientPort {
     }
 
     @Override
-    public List<ModData> mods() {
-        List<ModData> out = new ArrayList<>();
+    public List<ModInfoData> mods() {
+        List<ModInfoData> out = new ArrayList<>();
         for (var container : FabricLoader.getInstance().getAllMods()) {
             var metadata = container.getMetadata();
             List<String> authors = new ArrayList<>();
             metadata.getAuthors().forEach(person -> authors.add(person.getName()));
-            out.add(new ModData(metadata.getId(), metadata.getName(),
-                    metadata.getVersion().getFriendlyString(), authors));
+            List<String> dependencies = new ArrayList<>();
+            metadata.getDependencies()
+                    .forEach(dependency -> dependencies.add(dependency.getModId()));
+            out.add(new ModInfoData(metadata.getId(), metadata.getName(),
+                    metadata.getVersion().getFriendlyString(), authors,
+                    metadata.getDescription(), envName(metadata.getEnvironment()),
+                    dependencies));
         }
         return out;
+    }
+
+    /** Maps the loader environment onto the script-facing env words. */
+    private static String envName(net.fabricmc.loader.api.metadata.ModEnvironment env) {
+        return switch (env) {
+            case CLIENT -> "CLIENT";
+            case SERVER -> "SERVER";
+            case UNIVERSAL -> "BOTH";
+        };
     }
 
     @Override
@@ -832,6 +847,34 @@ public final class FabricClientPort implements ClientPort {
             return Optional.empty();
         }
         return Optional.of(resolved.toString());
+    }
+
+    @Override
+    public Optional<StatusEffectInfoData> statusEffect(String id) {
+        Identifier resolved = resolveId(id);
+        if (resolved == null || !BuiltInRegistries.MOB_EFFECT.containsKey(resolved)) {
+            return Optional.empty();
+        }
+        var effect = BuiltInRegistries.MOB_EFFECT.getValue(resolved);
+        // Zero-duration wrap of the effect type, mirroring the JsMacros
+        // registry helper: the instance flags read back their
+        // fresh-instance defaults (ambient false, icon and visibility on).
+        var instance = new net.minecraft.world.effect.MobEffectInstance(
+                BuiltInRegistries.MOB_EFFECT.wrapAsHolder(effect), 0);
+        boolean instant;
+        //? if >=26.2 {
+        instant = effect.isInstantaneous();
+        //?} else {
+        /* instant = effect.isInstantenous(); */
+        //?}
+        var category = effect.getCategory();
+        return Optional.of(new StatusEffectInfoData(resolved.toString(),
+                instance.getDuration(), instance.getAmplifier(),
+                instance.isInfiniteDuration(), instance.isAmbient(),
+                instance.showIcon(), instance.isVisible(), instant,
+                category == net.minecraft.world.effect.MobEffectCategory.BENEFICIAL,
+                category == net.minecraft.world.effect.MobEffectCategory.NEUTRAL,
+                category == net.minecraft.world.effect.MobEffectCategory.HARMFUL));
     }
 
     @Override

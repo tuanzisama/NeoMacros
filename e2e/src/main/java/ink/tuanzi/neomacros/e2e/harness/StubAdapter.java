@@ -15,7 +15,7 @@ import ink.tuanzi.neomacros.port.WorldPort;
 import ink.tuanzi.neomacros.port.model.BlockData;
 import ink.tuanzi.neomacros.port.model.BlockInteraction;
 import ink.tuanzi.neomacros.port.model.BlockTypeData;
-import ink.tuanzi.neomacros.port.model.BossBarSnapshot;
+import ink.tuanzi.neomacros.port.model.BossBarInfoData;
 import ink.tuanzi.neomacros.port.model.ChunkData;
 import ink.tuanzi.neomacros.port.model.LightData;
 import ink.tuanzi.neomacros.port.model.ChatComponent;
@@ -23,8 +23,12 @@ import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.ScoreboardData;
+import ink.tuanzi.neomacros.port.model.ScoreboardObjectiveData;
 import ink.tuanzi.neomacros.port.model.ShapeSpec;
-import ink.tuanzi.neomacros.port.model.TabListData;
+import ink.tuanzi.neomacros.port.model.StatusEffectInfoData;
+import ink.tuanzi.neomacros.port.model.TabListEntryInfoData;
+import ink.tuanzi.neomacros.port.model.TabListInfoData;
+import ink.tuanzi.neomacros.port.model.TeamData;
 import ink.tuanzi.neomacros.port.model.TpsData;
 
 import java.util.ArrayList;
@@ -260,6 +264,14 @@ public final class StubAdapter implements NeomacrosAdapter {
         /** The canned option face served to reads. */
         public volatile ink.tuanzi.neomacros.port.model.OptionsData options =
                 cannedOptions();
+        /** The canned connected-server entry (null = singleplayer). */
+        public volatile ink.tuanzi.neomacros.port.model.ServerInfoData serverInfo;
+        /** The canned installed-mods list served to {@code client.mods}. */
+        public volatile List<ink.tuanzi.neomacros.port.model.ModInfoData> mods =
+                List.of(new ink.tuanzi.neomacros.port.model.ModInfoData(
+                        "neomacros", "NeoMacros", "0.1.0", List.of("tuanzi"),
+                        "ECMAScript scripting for Minecraft clients", "BOTH",
+                        List.of("fabricloader")));
         /** Names whose writes are accepted but not stored (simulated clamps). */
         public final java.util.Set<String> ignoredWrites =
                 java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -483,6 +495,38 @@ public final class StubAdapter implements NeomacrosAdapter {
                     ? id : "minecraft:" + id;
             return registryIds(kind).contains(full)
                     ? Optional.of(full) : Optional.empty();
+        }
+
+        @Override
+        public Optional<StatusEffectInfoData> statusEffect(String id) {
+            String full = id != null && id.indexOf(':') >= 0
+                    ? id : "minecraft:" + id;
+            if ("minecraft:speed".equals(full)) {
+                // beneficial, not instant; fresh-instance flags
+                return Optional.of(new StatusEffectInfoData(full, 0, 0, false,
+                        false, true, true, false, true, false, false));
+            }
+            if ("minecraft:slowness".equals(full)) {
+                // harmful, not instant; fresh-instance flags
+                return Optional.of(new StatusEffectInfoData(full, 0, 0, false,
+                        false, true, true, false, false, false, true));
+            }
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<ink.tuanzi.neomacros.port.model.ServerInfoData> serverInfo() {
+            return Optional.ofNullable(serverInfo);
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.ModInfoData> mods() {
+            return mods;
+        }
+
+        @Override
+        public boolean isModLoaded(String id) {
+            return mods.stream().anyMatch(mod -> mod.id().equals(id));
         }
 
         @Override
@@ -1843,12 +1887,19 @@ public final class StubAdapter implements NeomacrosAdapter {
         BlockInteraction raycastHit;
         String levelName = "";
         int moonPhase;
-        TabListData tabList;
+        TabListInfoData tabList;
         ScoreboardData scoreboard;
         TpsData tps;
         ChunkData chunk;
         public Pos3d respawnPos;
         public LightData light;
+        /** Canned scoreboard teams backing the G-018B team faces. */
+        public final List<TeamData> teams = new ArrayList<>();
+        /** Canned local-player team (null = none). */
+        public TeamData localTeam;
+        /** Canned display-slot objectives keyed by slot index. */
+        public final java.util.Map<Integer, ScoreboardObjectiveData> displayObjectives =
+                new java.util.HashMap<>();
         /** Canned registry-level block type facts (null = unknown block). */
         public BlockTypeData blockType;
         /** Canned answer for containsAny queries (null = no world). */
@@ -1866,7 +1917,7 @@ public final class StubAdapter implements NeomacrosAdapter {
         public final java.util.List<String> playedSoundFiles = new ArrayList<>();
         /** Volume recorded by the last playSoundFile call. */
         public double lastSoundFileVolume;
-        final List<BossBarSnapshot> bossBars = new ArrayList<>();
+        final List<BossBarInfoData> bossBars = new ArrayList<>();
         final List<String> playedSounds = new ArrayList<>();
         final List<String> spawnedParticles = new ArrayList<>();
 
@@ -1915,6 +1966,35 @@ public final class StubAdapter implements NeomacrosAdapter {
         /** Sets the canned light levels (null = no world). */
         public void setLight(LightData data) {
             this.light = data;
+        }
+
+        /** Sets the canned tab list (null = none). */
+        public void setTabList(TabListInfoData data) {
+            this.tabList = data;
+        }
+
+        /** Adds one canned boss bar to the tracked list. */
+        public void addBossBar(BossBarInfoData bar) {
+            this.bossBars.add(bar);
+        }
+
+        /** Adds one canned scoreboard team. */
+        public void addTeam(TeamData team) {
+            this.teams.add(team);
+        }
+
+        /** Sets the canned local-player team (null = none). */
+        public void setLocalTeam(TeamData team) {
+            this.localTeam = team;
+        }
+
+        /** Cans one display-slot objective (null clears the slot). */
+        public void setDisplayObjective(int slot, ScoreboardObjectiveData objective) {
+            if (objective == null) {
+                this.displayObjectives.remove(slot);
+            } else {
+                this.displayObjectives.put(slot, objective);
+            }
         }
 
         @Override
@@ -1987,13 +2067,28 @@ public final class StubAdapter implements NeomacrosAdapter {
         }
 
         @Override
-        public Optional<TabListData> tabList() {
+        public Optional<TabListInfoData> tabList() {
             return Optional.ofNullable(tabList);
         }
 
         @Override
-        public List<BossBarSnapshot> bossBars() {
+        public List<BossBarInfoData> bossBars() {
             return List.copyOf(bossBars);
+        }
+
+        @Override
+        public List<TeamData> teams() {
+            return List.copyOf(teams);
+        }
+
+        @Override
+        public Optional<TeamData> localPlayerTeam() {
+            return Optional.ofNullable(localTeam);
+        }
+
+        @Override
+        public Optional<ScoreboardObjectiveData> displayObjective(int slot) {
+            return Optional.ofNullable(displayObjectives.get(slot));
         }
 
         @Override
