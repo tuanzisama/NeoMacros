@@ -74,7 +74,8 @@ class Draw2DElementInheritanceTest {
                 false,
                 1f,
                 false,
-                false);
+                false,
+                null, 0, 0, 0, 0, 0, 0, null, false, null);
         private volatile boolean disposed;
 
         @Override

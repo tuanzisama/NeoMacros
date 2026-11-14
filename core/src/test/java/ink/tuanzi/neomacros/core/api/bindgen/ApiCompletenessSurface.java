@@ -76,6 +76,8 @@ final class ApiCompletenessSurface {
             ink.tuanzi.neomacros.core.api.render.components.Draw2DText.class,
             ink.tuanzi.neomacros.core.api.render.components.Draw2DRect.class,
             ink.tuanzi.neomacros.core.api.render.components.Draw2DLine.class,
+            ink.tuanzi.neomacros.core.api.render.components.Draw2DImage.class,
+            ink.tuanzi.neomacros.core.api.render.components.Draw2DItem.class,
             ink.tuanzi.neomacros.core.api.types.PacketBuffer.class,
             FsApi.FileHandle.class, NetApi.Ws.class,
             SpeciesEntities.MobEntity.class, SpeciesEntities.AnimalEntity.class, SpeciesEntities.TamableAnimalEntity.class,

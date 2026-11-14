@@ -1189,6 +1189,51 @@ function start() {
   neo.hud.removeLayer('gap-api-g034');
   check('g034.remove-layer', g034.disposed === true);
 
+  // G-034B component faces: the image texture/region/tint view and the
+  // item stack/overlay view on the real engine (frame prims, the
+  // CustomImage snapshot upload and port silence are e2e-A covered by
+  // Draw2DImageItemScenariosTest over the stub render port).
+  const g034b = neo.hud.layer('gap-api-g034b');
+  const g034bImage = g034b.image('i', {x: 10, y: 20, w: 32, h: 32,
+      texture: 'neomacros:image/badge',
+      region: {x: 4, y: 5, w: 6, h: 7}, color: '#80ff0000'});
+  check('g034b.image-shape', typeof g034bImage.setImage === 'function'
+      && typeof g034bImage.color === 'number'
+      && typeof g034bImage.image === 'string');
+  check('g034b.image-state', g034bImage.image === 'neomacros:image/badge'
+      && g034bImage.imageX === 4 && g034bImage.imageY === 5
+      && g034bImage.regionWidth === 6 && g034bImage.regionHeight === 7
+      && g034bImage.textureWidth === 256 && g034bImage.textureHeight === 256
+      && g034bImage.width === 32 && g034bImage.height === 32
+      && (g034bImage.color >>> 0) === 0x80FF0000);
+  g034bImage.setImage('a:b', 1, 2, 3, 4, 64, 64);
+  check('g034b.image-set', g034bImage.image === 'a:b'
+      && g034bImage.imageX === 1 && g034bImage.regionWidth === 3
+      && g034bImage.textureWidth === 64 && g034bImage.width === 32);
+  const g034bItem = g034b.item('it', 'minecraft:stone',
+      {x: 5, y: 6, overlay: true});
+  check('g034b.item-shape', typeof g034bItem.setItem === 'function'
+      && typeof g034bItem.shouldShowOverlay === 'function'
+      && typeof g034bItem.item === 'object');
+  check('g034b.item-state', g034bItem.item.id === 'minecraft:stone'
+      && g034bItem.item.count === 1
+      && g034bItem.width === 16 && g034bItem.scaledWidth === 16
+      && g034bItem.x === 5 && g034bItem.y === 6
+      && g034bItem.shouldShowOverlay() === true);
+  g034bItem.setItem('minecraft:diamond', 5).setOverlayText('x5');
+  check('g034b.item-set', g034bItem.item.id === 'minecraft:diamond'
+      && g034bItem.item.count === 5 && g034bItem.overlayText === 'x5'
+      && g034bItem.shouldShowOverlay() === true);
+  const g034bGone = g034b.image('gone', {x: 0, y: 0, w: 4, h: 4});
+  g034b.remove('gone');
+  let g034bThrew = false;
+  try { g034bGone.setImage('a:b', 0, 0, 0, 0, 1, 1); }
+    catch (e) { g034bThrew = true; }
+  check('g034b.disposed', g034bThrew && g034bGone.image === undefined
+      && g034bGone.imageX === undefined);
+  neo.hud.removeLayer('gap-api-g034b');
+  check('g034b.remove-layer', g034b.disposed === true);
+
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
     neo.chat.log('[E2E] ' + key + '=' + value);

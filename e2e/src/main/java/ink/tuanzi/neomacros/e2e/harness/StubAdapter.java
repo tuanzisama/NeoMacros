@@ -1431,6 +1431,35 @@ public final class StubAdapter implements NeomacrosAdapter {
                 prims.add(new Prim("sprite", x, y, width, height, 0, textureId));
             }
 
+            /**
+             * The tinted/region sprite: the text slot carries the
+             * identifier plus the source rect ({@code id@u,v,rw,rh}) so
+             * assertions can see the crop, the color slot the tint.
+             */
+            @Override
+            public void sprite(int x, int y, int width, int height,
+                    String textureId, int color, int u, int v, int regionWidth,
+                    int regionHeight, int textureWidth, int textureHeight) {
+                prims.add(new Prim("sprite", x, y, width, height, color,
+                        textureId + "@" + u + "," + v + "," + regionWidth
+                                + "," + regionHeight));
+            }
+
+            /**
+             * The item icon: the text slot carries
+             * {@code id,count,overlay[,label]} so assertions can see the
+             * stack and the decoration state.
+             */
+            @Override
+            public void item(int x, int y,
+                    ink.tuanzi.neomacros.port.model.ItemStackData stack,
+                    boolean overlay, String overlayText) {
+                String body = stack == null ? "none"
+                        : stack.id() + "," + stack.count() + "," + overlay
+                                + (overlayText == null ? "" : "," + overlayText);
+                prims.add(new Prim("item", x, y, 0, 0, 0, body));
+            }
+
             @Override
             public void line(int x1, int y1, int x2, int y2, int color, float width) {
                 prims.add(new Prim("line", x1, y1, x2, y2, color,

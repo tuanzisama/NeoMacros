@@ -1,6 +1,8 @@
 package ink.tuanzi.neomacros.core.api.render;
 
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DElement;
+import ink.tuanzi.neomacros.core.api.render.components.Draw2DImage;
+import ink.tuanzi.neomacros.core.api.render.components.Draw2DItem;
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DLine;
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DRect;
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DText;
@@ -105,14 +107,17 @@ final class HudScene {
     /**
      * The component handle for one kind — the scene factory that hands
      * scripts their {@code Draw2DText}/{@code Draw2DRect}/{@code Draw2DLine}
-     * subclass instances (G-034). Unknown kinds cannot reach here: the
-     * {@code Kind} switch is exhaustive.
+     * /{@code Draw2DImage}/{@code Draw2DItem} subclass instances (G-034 /
+     * G-034B). Unknown kinds cannot reach here: the {@code Kind} switch is
+     * exhaustive.
      */
     private Draw2DElement newHandle(ElementSpec.Kind kind, String id, Cell cell) {
         return switch (kind) {
             case TEXT -> new Draw2DText(id, owner, backendFor(cell));
             case RECT -> new Draw2DRect(id, owner, backendFor(cell));
             case LINE -> new Draw2DLine(id, owner, backendFor(cell));
+            case IMAGE -> new Draw2DImage(id, owner, backendFor(cell));
+            case ITEM -> new Draw2DItem(id, owner, backendFor(cell));
         };
     }
 
@@ -315,6 +320,40 @@ final class HudScene {
                     float pivotY = spec.rotateCenter() ? centerY : y1;
                     withTransform(spec, pivotX, pivotY, centerX, centerY, ctx,
                             () -> ctx.line(x1, y1, x2, y2, spec.color(), stroke));
+                }
+            }
+            case IMAGE -> {
+                int w = spec.w().resolve(viewportWidth);
+                int h = spec.h().resolve(viewportHeight);
+                String texture = spec.texture();
+                // JsMacros parity: an image without a texture draws nothing.
+                if (texture != null && !texture.isEmpty()) {
+                    // Region dims select the sampled texels; zero falls back
+                    // to the JsMacros 2D rule (extent = destination size).
+                    int sourceWidth = spec.regionWidth() > 0
+                            ? spec.regionWidth() : w;
+                    int sourceHeight = spec.regionHeight() > 0
+                            ? spec.regionHeight() : h;
+                    int textureWidth = spec.textureWidth() > 0
+                            ? spec.textureWidth() : 256;
+                    int textureHeight = spec.textureHeight() > 0
+                            ? spec.textureHeight() : 256;
+                    withTransform(spec, x, y, x + w / 2f, y + h / 2f, ctx,
+                            () -> ctx.sprite(x, y, w, h, texture, spec.color(),
+                                    spec.imageX(), spec.imageY(), sourceWidth,
+                                    sourceHeight, textureWidth, textureHeight));
+                }
+            }
+            case ITEM -> {
+                ink.tuanzi.neomacros.port.model.ItemStackData stack =
+                        spec.stack();
+                // JsMacros parity: a null stack draws nothing.
+                if (stack != null) {
+                    int w = spec.w().resolve(viewportWidth);
+                    int h = spec.h().resolve(viewportHeight);
+                    withTransform(spec, x, y, x + w / 2f, y + h / 2f, ctx,
+                            () -> ctx.item(x, y, stack, spec.overlay(),
+                                    spec.overlayText()));
                 }
             }
         }
