@@ -42,6 +42,7 @@
     ,"ServerPackPromptAccessor"
     ,"AdventureModePredicateAccessor"
     ,"CheckboxAccessor"
+    ,"CycleButtonAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

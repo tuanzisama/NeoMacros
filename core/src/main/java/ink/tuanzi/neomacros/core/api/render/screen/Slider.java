@@ -22,7 +22,7 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
 @ApiSince("0.5.0")
 @ApiLoader("*")
 @ApiMC("*")
-public class Slider extends Widget {
+public class Slider extends Widget<Slider> {
 
     Slider(BuiltScreen screen, String id) {
         super(screen, id);

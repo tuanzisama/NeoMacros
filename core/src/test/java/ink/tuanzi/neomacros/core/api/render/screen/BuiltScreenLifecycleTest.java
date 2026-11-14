@@ -157,8 +157,12 @@ class BuiltScreenLifecycleTest {
     void setControlRejectsUnknownPatchFields() {
         BuiltScreen gui = open(Map.of("controls", List.of(
                 Map.of("type", "checkbox", "id", "dbg"))));
+        // x/y/width joined the whitelist with the G-036B widget face;
+        // height has no writer member and stays rejected.
         assertThrows(IllegalArgumentException.class,
-                () -> gui.setControl("dbg", Map.of("x", 5)));
+                () -> gui.setControl("dbg", Map.of("height", 5)));
+        assertThrows(IllegalArgumentException.class,
+                () -> gui.setControl("dbg", Map.of("nope", 5)));
         assertThrows(IllegalArgumentException.class,
                 () -> gui.setControl("dbg", Map.of()));
     }

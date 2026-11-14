@@ -97,6 +97,19 @@ public interface ScreenPort {
             return true;
         }
 
+        /**
+         * Alternate-list toggle for one cycling button (G-036B): the
+         * adapter consults this when the control was built with a script
+         * {@code alternateToggle} and asks which value list the next cycle
+         * uses ({@code true} = the alternate list). Only neutral data
+         * crosses; the default answers {@code false} (the default list),
+         * and a control without a registered toggle never reaches this
+         * channel (the adapter keeps the vanilla Alt-key selector there).
+         */
+        default boolean alternateToggle(String controlId) {
+            return false;
+        }
+
         /** Session reached its terminal state; idempotent across all paths. */
         void closed();
     }

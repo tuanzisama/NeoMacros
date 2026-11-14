@@ -21,7 +21,7 @@ import ink.tuanzi.neomacros.doc.api.ApiType;
 @ApiSince("0.5.0")
 @ApiLoader("*")
 @ApiMC("*")
-public class Checkbox extends Widget {
+public class Checkbox extends Widget<Checkbox> {
 
     Checkbox(BuiltScreen screen, String id) {
         super(screen, id);

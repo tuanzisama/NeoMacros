@@ -2971,10 +2971,24 @@ public final class StubAdapter implements NeomacrosAdapter {
                 new java.util.concurrent.ConcurrentHashMap<>();
         private volatile long active = -1L;
         private final List<String> drawn = new CopyOnWriteArrayList<>();
+        private final List<java.util.Map<String, Object>> patches =
+                new CopyOnWriteArrayList<>();
+        private final List<java.util.Map<String, Object>> added =
+                new CopyOnWriteArrayList<>();
 
         /** The ordered action log ({@code open}/{@code close:1}/{@code write:1:dbg}...). */
         public List<String> actions() {
             return List.copyOf(actions);
+        }
+
+        /** Every recorded write patch in order (G-036B transient keys). */
+        public List<java.util.Map<String, Object>> patches() {
+            return List.copyOf(patches);
+        }
+
+        /** Every neutral control handed to {@code addControl}, in order. */
+        public List<java.util.Map<String, Object>> addedControls() {
+            return List.copyOf(added);
         }
 
         /** Text/rect draws recorded by {@link #fireRender}, for assertions. */
@@ -3025,6 +3039,7 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public void addControl(long session, java.util.Map<String, Object> control) {
             actions.add("add:" + session + ":" + control.get("id"));
+            added.add(new java.util.LinkedHashMap<>(control));
             java.util.Map<String, ControlState> sessionStates = states.get(session);
             if (sessionStates != null) {
                 ControlState state = stateOf(control);
@@ -3045,6 +3060,7 @@ public final class StubAdapter implements NeomacrosAdapter {
         public void writeControl(long session, String id,
                                  java.util.Map<String, Object> patch) {
             actions.add("write:" + session + ":" + id);
+            patches.add(new java.util.LinkedHashMap<>(patch));
             java.util.Map<String, ControlState> sessionStates = states.get(session);
             if (sessionStates == null) {
                 return;
@@ -3053,8 +3069,12 @@ public final class StubAdapter implements NeomacrosAdapter {
             if (state == null) {
                 return;
             }
-            sessionStates.put(id, new ControlState(state.id(), state.type(), state.x(),
-                    state.y(), state.width(), state.height(),
+            sessionStates.put(id, new ControlState(state.id(), state.type(),
+                    patch.get("x") instanceof Number x ? x.intValue() : state.x(),
+                    patch.get("y") instanceof Number y ? y.intValue() : state.y(),
+                    patch.get("width") instanceof Number w ? w.intValue()
+                            : state.width(),
+                    state.height(),
                     patch.get("z") instanceof Number z ? z.intValue() : state.z(),
                     patch.get("label") instanceof String label ? label : state.label(),
                     patch.get("active") instanceof Boolean a ? a : state.active(),
@@ -3188,6 +3208,12 @@ public final class StubAdapter implements NeomacrosAdapter {
             return sink == null || sink.filterText(controlId, candidate);
         }
 
+        /** Asks the session's cycling-button list toggle (G-036B). */
+        public boolean fireAlternateToggle(String controlId) {
+            SessionSink sink = activeSink();
+            return sink != null && sink.alternateToggle(controlId);
+        }
+
         /** Fires the terminal close notification (replacement path). */
         public void fireClosed() {
             long session = active;
@@ -3213,6 +3239,13 @@ public final class StubAdapter implements NeomacrosAdapter {
         private static ControlState stateOf(java.util.Map<String, Object> control) {
             String id = control.get("id") instanceof String text ? text : "";
             String type = control.get("type") instanceof String text ? text : "";
+            String value = control.get("text") instanceof String text ? text : null;
+            if (value == null && "cycleButton".equals(type)) {
+                value = control.get("initial") instanceof String seeded ? seeded
+                        : control.get("values") instanceof java.util.List<?> first
+                                && !first.isEmpty()
+                                ? String.valueOf(first.get(0)) : null;
+            }
             return new ControlState(id, type,
                     control.get("x") instanceof Number n ? n.intValue() : 0,
                     control.get("y") instanceof Number n ? n.intValue() : 0,
@@ -3224,7 +3257,7 @@ public final class StubAdapter implements NeomacrosAdapter {
                     !(control.get("visible") instanceof Boolean v) || v,
                     control.get("checked") instanceof Boolean c ? c : null,
                     control.get("value") instanceof Number n ? n.doubleValue() : null,
-                    control.get("text") instanceof String text ? text : null,
+                    value,
                     control.get("locked") instanceof Boolean l ? l : null,
                     control.get("steps") instanceof Number n ? n.intValue() : null,
                     control.get("editable") instanceof Boolean e ? e : null,

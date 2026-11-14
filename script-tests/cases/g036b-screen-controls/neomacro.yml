@@ -1,0 +1,8 @@
+name: g036b-screen-controls
+version: 1.0.0
+author: neomacros
+description: G-036B secondary control handles and builder family case
+permissions: []
+config:
+  event:
+    on: [game:start]

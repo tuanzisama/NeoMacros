@@ -114,8 +114,11 @@ final class FakeScreenPort implements ScreenPort {
         if (state == null) {
             return;
         }
-        sessionStates.put(id, new ControlState(state.id(), state.type(), state.x(),
-                state.y(), state.width(), state.height(),
+        sessionStates.put(id, new ControlState(state.id(), state.type(),
+                patch.get("x") instanceof Number x ? x.intValue() : state.x(),
+                patch.get("y") instanceof Number y ? y.intValue() : state.y(),
+                patch.get("width") instanceof Number w ? w.intValue() : state.width(),
+                state.height(),
                 patch.get("z") instanceof Number z ? z.intValue() : state.z(),
                 patch.get("label") instanceof String label ? label : state.label(),
                 patch.get("active") instanceof Boolean a ? a : state.active(),
@@ -203,18 +206,25 @@ final class FakeScreenPort implements ScreenPort {
     private static ControlState stateOf(Map<String, Object> control) {
         String id = control.get("id") instanceof String text ? text : "";
         String type = control.get("type") instanceof String text ? text : "";
+        String text = control.get("text") instanceof String value ? value : null;
+        if (text == null && "cycleButton".equals(type)) {
+            text = control.get("initial") instanceof String seeded ? seeded
+                    : control.get("values") instanceof List<?> first
+                            && !first.isEmpty()
+                            ? String.valueOf(first.get(0)) : null;
+        }
         return new ControlState(id, type,
                 control.get("x") instanceof Number n ? n.intValue() : 0,
                 control.get("y") instanceof Number n ? n.intValue() : 0,
                 control.get("width") instanceof Number n ? n.intValue() : 0,
                 control.get("height") instanceof Number n ? n.intValue() : 0,
                 control.get("z") instanceof Number n ? n.intValue() : 0,
-                control.get("label") instanceof String text ? text : "",
+                control.get("label") instanceof String label ? label : "",
                 !(control.get("active") instanceof Boolean a) || a,
                 !(control.get("visible") instanceof Boolean v) || v,
                 control.get("checked") instanceof Boolean c ? c : null,
                 control.get("value") instanceof Number n ? n.doubleValue() : null,
-                control.get("text") instanceof String text ? text : null,
+                text,
                 control.get("locked") instanceof Boolean l ? l : null,
                 control.get("steps") instanceof Number n ? n.intValue() : null,
                 control.get("editable") instanceof Boolean e ? e : null,
@@ -256,7 +266,32 @@ final class FakeScreenPort implements ScreenPort {
 
         @Override
         public ClientPort client() {
-            throw new UnsupportedOperationException();
+            // Canned window metrics so the widget face's parent-extent
+            // reads (G-036B getParentWidth/Height) answer real numbers.
+            return new ClientPort() {
+                @Override
+                public int fps() {
+                    return 60;
+                }
+
+                @Override
+                public String gameVersion() {
+                    return "test";
+                }
+
+                @Override
+                public Object minecraftInstance() {
+                    return null;
+                }
+
+                @Override
+                public java.util.Optional<ink.tuanzi.neomacros.port.model.WindowData>
+                        window() {
+                    return java.util.Optional.of(
+                            new ink.tuanzi.neomacros.port.model.WindowData(
+                                    1920, 1080, 640, 360));
+                }
+            };
         }
 
         @Override
