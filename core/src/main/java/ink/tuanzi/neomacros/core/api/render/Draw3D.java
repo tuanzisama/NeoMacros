@@ -1,14 +1,20 @@
 package ink.tuanzi.neomacros.core.api.render;
 
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
+import ink.tuanzi.neomacros.core.api.entity.EntityApi;
 import ink.tuanzi.neomacros.core.api.render.components3d.Box;
+import ink.tuanzi.neomacros.core.api.render.components3d.EntityTraceLine;
 import ink.tuanzi.neomacros.core.api.render.components3d.Line3D;
 import ink.tuanzi.neomacros.core.api.render.components3d.RenderElement3D;
+import ink.tuanzi.neomacros.core.api.render.components3d.Surface;
+import ink.tuanzi.neomacros.core.api.render.components3d.TraceLine;
+import ink.tuanzi.neomacros.core.api.types.Pos3D;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.doc.api.ApiLoader;
 import ink.tuanzi.neomacros.doc.api.ApiMC;
+import ink.tuanzi.neomacros.doc.api.ApiOptional;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.port.Draw3DPort;
 import ink.tuanzi.neomacros.port.model.ShapeSpec;
@@ -27,12 +33,14 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>Two faces share one layer: the immediate primitives on
  * {@code neo.render} ({@code drawBox}/{@code drawLine}/…) write fire-and-
  * forget shapes into this same layer (queryable only through the port),
- * while elements created here ({@code boxBuilder()}/{@code lineBuilder()})
+ * while elements created here ({@code boxBuilder()}/{@code lineBuilder()}/
+ * {@code traceLineBuilder()}/{@code entityTraceLineBuilder()}/
+ * {@code surfaceBuilder()}/{@code addDraw2D()})
  * are retained handles with {@link #getElements()}, {@link #remove} and
  * live mutation. Layers are keyed per module owner; a module's layers are
  * cleared automatically when it unloads.</p>
  *
- * @zh 世界坐标系的保留式 3D 图层句柄（{@code render.layer(id)} 取得）。图形跨帧保留，由引擎侧管线每帧重投，脚本无须注册每帧回调。即时原语（drawBox 等）与保留元素（boxBuilder 等）共享同一图层。
+ * @zh 世界坐标系的保留式 3D 图层句柄（{@code render.layer(id)} 取得）。图形跨帧保留，由引擎侧管线每帧重投，脚本无须注册每帧回调。即时原语（drawBox 等）与保留元素（boxBuilder、traceLineBuilder、surfaceBuilder、addDraw2D 等）共享同一图层。
  */
 @ApiClass(name = "Draw3D", kind = ApiClassKind.HANDLE)
 @ApiSince("0.5.0")
@@ -89,11 +97,13 @@ public final class Draw3D implements ScriptHandle {
      * Attaches an existing element (one returned by {@code build()}) to this
      * overlay. An element already attached elsewhere is rejected; attaching
      * the same instance twice is a no-op — unlike JsMacros duplicates, the
-     * keyed port keeps one entry per element.
+     * keyed port keeps one entry per element. This is also the attach face
+     * for JsMacros {@code addTraceLine(TraceLine)}, which folds here (the
+     * {@code addTraceLine} quick form owns that name).
      *
      * @param element the element to attach
      * @throws IllegalStateException when the element belongs to another overlay
-     * @zh 把已有元素（{@code build()} 的产物）挂到本图层；已在别处挂载时抛错，重复挂载为 no-op。
+     * @zh 把已有元素（{@code build()} 的产物）挂到本图层；已在别处挂载时抛错，重复挂载为 no-op。JsMacros 的 {@code addTraceLine(TraceLine)} 折叠于此。
      */
     @ApiSince("0.5.0")
     @ApiMC("*")
@@ -132,6 +142,230 @@ public final class Draw3D implements ScriptHandle {
         Line3D line = new Line3D();
         line.origin(this);
         return line;
+    }
+
+    /**
+     * Creates a trace-line builder bound to this overlay: a detached line
+     * targeting the origin, opaque white, drawn over the world. Its
+     * camera-side endpoint is recalculated from the camera every frame.
+     *
+     * @zh 创建绑定到本图层的追踪线构建器（目标为原点、白色不透明、画在世界之上）；摄像机一端每帧重算。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public TraceLine traceLineBuilder() {
+        TraceLine line = new TraceLine();
+        line.origin(this);
+        return line;
+    }
+
+    /**
+     * Creates an entity-trace-line builder bound to this overlay: a
+     * detached white, fully opaque, always-on-top line following an
+     * entity, with a {@code 0.5}-block vertical offset. No entity is set
+     * by default; a line built without one simply does not draw until one
+     * is bound.
+     *
+     * @zh 创建绑定到本图层的实体追踪线构建器（白色不透明、画在世界之上、跟随实体、垂直偏移 {@code 0.5} 格）；默认未绑定实体。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public EntityTraceLine entityTraceLineBuilder() {
+        EntityTraceLine line = new EntityTraceLine();
+        line.origin(this);
+        return line;
+    }
+
+    /**
+     * Creates a surface builder bound to this overlay: a detached
+     * {@code 10 × 10}-block panel with centred rotation, a rendered back,
+     * no depth culling, full-bright lighting and one subdivision across
+     * the smaller side.
+     *
+     * @zh 创建绑定到本图层的面板构建器（{@code 10 × 10} 格、绕中心旋转、绘制背面、不深度测试、全亮、较短边 1 细分）。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Surface surfaceBuilder() {
+        Surface surface = new Surface();
+        surface.origin(this);
+        surface.setRotateCenter(true);
+        surface.renderBack(true);
+        return surface;
+    }
+
+    /**
+     * Adds a camera-to-target line toward a fixed world position, drawn
+     * over terrain by default. The coordinates are read at call time;
+     * later changes to {@code pos} do not move the target.
+     *
+     * @param pos the target position (coordinates copied at call time)
+     * @param color packed colour (full-range JS literals accepted)
+     * @param alpha explicit alpha from 0 to 255; omitted applies the
+     *              zero-alpha rule from {@code color}
+     * @return the attached trace line
+     * @zh 添加一条指向固定世界位置的摄像机连线（默认画在世界之上）；坐标在调用时拷贝。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public TraceLine addTraceLine(Pos3D pos, long color, @ApiOptional Integer alpha) {
+        if (pos == null) {
+            throw new IllegalArgumentException("pos is required");
+        }
+        TraceLine line = traceLineBuilder();
+        line.setPos(pos);
+        line.setColor(color, alpha);
+        return line.buildAndAdd();
+    }
+
+    /**
+     * Adds a camera-to-entity line following {@code entity} at a chosen
+     * vertical offset above its feet, recalculated each frame. The line
+     * draws over terrain by default.
+     *
+     * @param entity the entity to point at
+     * @param color packed colour (full-range JS literals accepted)
+     * @param alpha explicit alpha from 0 to 255; omitted applies the
+     *              zero-alpha rule from {@code color}
+     * @param yOffset blocks above the entity's position; defaults to 0.5
+     * @param alwaysOnTop draw over the world instead of letting terrain
+     *                    hide the line; defaults to true
+     * @return the attached entity trace line
+     * @zh 添加一条跟随实体的摄像机连线（每帧重解析），默认画在世界之上。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public EntityTraceLine addEntityTraceLine(EntityApi.Entity entity, long color,
+            @ApiOptional Integer alpha, @ApiOptional Double yOffset,
+            @ApiOptional Boolean alwaysOnTop) {
+        if (entity == null) {
+            throw new IllegalArgumentException("entity is required");
+        }
+        EntityTraceLine line = entityTraceLineBuilder();
+        line.setEntity(entity);
+        line.setColor(color, alpha);
+        if (yOffset != null) {
+            line.setYOffset(yOffset);
+        }
+        if (alwaysOnTop != null) {
+            line.setAlwaysOnTop(alwaysOnTop);
+        }
+        return line.buildAndAdd();
+    }
+
+    /**
+     * Java-side shortcut for {@link #addEntityTraceLine} with default
+     * alpha, offset and depth bucket; hidden from the script surface.
+     *
+     * @zh {@link #addEntityTraceLine} 缺省参数的 Java 捷径，不进脚本面。
+     */
+    @ApiInternal
+    public EntityTraceLine addEntityTraceLine(EntityApi.Entity entity, long color) {
+        return addEntityTraceLine(entity, color, null, null, null);
+    }
+
+    /**
+     * Adds a world-space panel at {@code (x, y, z)} with the requested
+     * geometry and rendering options. Defaults follow the quick form: a
+     * {@code 1 × 1}-block panel, no rotation (corner pivot), 200 minimum
+     * subdivisions, no back-face rendering and no depth culling.
+     *
+     * @param x panel corner x
+     * @param y panel corner y
+     * @param z panel corner z
+     * @param xRot rotation about the x axis in degrees; defaults to 0
+     * @param yRot rotation about the y axis in degrees; defaults to 0
+     * @param zRot rotation about the z axis in degrees; defaults to 0
+     * @param width panel width in blocks; defaults to 1
+     * @param height panel height in blocks; defaults to 1
+     * @param minSubdivisions subdivisions across the shorter side,
+     *                        clamped to at least 1; defaults to 200
+     * @param renderBack whether the back face is drawn; defaults to false
+     * @param cull whether the panel is depth tested; defaults to false
+     * @return the attached surface
+     * @zh 按给定几何与渲染选项添加世界面板；缺省为快速形默认（{@code 1 × 1}、无旋转、200 细分、不绘制背面、不深度测试）。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Surface addDraw2D(double x, double y, double z,
+            @ApiOptional Double xRot, @ApiOptional Double yRot, @ApiOptional Double zRot,
+            @ApiOptional Double width, @ApiOptional Double height,
+            @ApiOptional Integer minSubdivisions, @ApiOptional Boolean renderBack,
+            @ApiOptional Boolean cull) {
+        Surface surface = new Surface();
+        surface.origin(this);
+        surface.setPos(new Pos3D(x, y, z));
+        surface.setRotations(xRot != null ? xRot : 0, yRot != null ? yRot : 0,
+                zRot != null ? zRot : 0);
+        surface.setSizes(width != null ? width : 1, height != null ? height : 1);
+        surface.setMinSubdivisions(minSubdivisions != null ? minSubdivisions : 200);
+        surface.renderBack(renderBack != null && renderBack);
+        surface.cull(cull != null && cull);
+        return surface.buildAndAdd();
+    }
+
+    /**
+     * Java-side shortcut for {@link #addDraw2D} with quick-form defaults;
+     * hidden from the script surface.
+     *
+     * @zh {@link #addDraw2D} 快速形缺省参数的 Java 捷径，不进脚本面。
+     */
+    @ApiInternal
+    public Surface addDraw2D(double x, double y, double z) {
+        return addDraw2D(x, y, z, null, null, null, null, null, null, null, null);
+    }
+
+    /**
+     * Adds an existing surface (one returned by {@code build()}) to this
+     * overlay. A surface already attached elsewhere is rejected; attaching
+     * the same instance twice is a no-op — the keyed port keeps one entry
+     * per element (JsMacros allows duplicate adds; see
+     * {@link #reAddElement(RenderElement3D)}).
+     *
+     * @param surface the surface to attach
+     * @throws IllegalStateException when the surface belongs to another overlay
+     * @zh 把已有面板挂到本图层；已在别处挂载时抛错，重复挂载为 no-op（键控端口每元素一格）。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public void addSurface(Surface surface) {
+        addElement(surface);
+    }
+
+    /**
+     * Removes the trace line from this overlay if present; detached state
+     * is kept so it can be re-attached.
+     *
+     * @param traceLine the trace line to remove
+     * @return this overlay
+     * @zh 从本图层摘除追踪线（若在）；状态保留，可再挂回。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Draw3D removeTraceLine(TraceLine traceLine) {
+        return remove(traceLine);
+    }
+
+    /**
+     * Removes the panel from this overlay if present; the surface object
+     * and its state are not modified.
+     *
+     * @param surface the surface to take off this overlay
+     * @zh 从本图层面板摘除（若在）；面板对象与其状态不受影响。
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public void removeDraw2D(Surface surface) {
+        remove(surface);
     }
 
     /**

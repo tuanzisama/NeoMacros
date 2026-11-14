@@ -940,6 +940,51 @@ function start() {
     neo.render.clearLayer('gap-api-g033-legacy');
   }
 
+  // G-033B retained Surface / TraceLine / EntityTraceLine over the real
+  // gizmo pipeline — keyed port writes are covered by the stub-driven
+  // SurfaceTraceLineScenariosTest; this face exercises the production
+  // adapter and the script property surface.
+  if (typeof neo.render.layer !== 'function') {
+    check('g033b.absent', false);
+  } else {
+    const layer3d = neo.render.layer('gap-api-g033b');
+    const trace = layer3d.traceLineBuilder()
+        .setPos(new neo.Pos3D(1, 64, 2))
+        .setColor(0x00FF0000, 200)
+        .setAlwaysOnTop(true)
+        .buildAndAdd();
+    check('g033b.trace', trace.pos.x === 1 && trace.pos.y === 64
+        && trace.color === 0xFF0000 && trace.alpha === 200
+        && trace.alwaysOnTop === true);
+    const panel = layer3d.surfaceBuilder()
+        .setPos(new neo.Pos3D(0.5, 64, 0.5))
+        .setSizes(1, 1)
+        .setMinSubdivisions(200)
+        .buildAndAdd();
+    check('g033b.surface', panel.sizes.x === 1 && panel.sizes.y === 1
+        && panel.minSubdivisions === 200 && panel.width === 200
+        && panel.rotatingCenter === true && panel.shouldRenderBack() === true
+        && panel.culled === false && panel.zIndex === 0);
+    const entityLine = layer3d.entityTraceLineBuilder();
+    entityLine.setYOffset(2.5);
+    entityLine.buildAndAdd();
+    check('g033b.entityTrace', entityLine.yOffset === 2.5
+        && entityLine.entity == null && entityLine.alwaysOnTop === true);
+    const quickTrace = layer3d.addTraceLine(
+        new neo.Pos3D(4, 64, 4), 0x00FF0000, 128);
+    check('g033b.addTraceLine', quickTrace.pos.x === 4
+        && quickTrace.color === 0xFF0000 && quickTrace.alpha === 128);
+    const quickPanel = layer3d.addDraw2D(8, 64, 8);
+    check('g033b.addDraw2D', quickPanel.minSubdivisions === 200
+        && quickPanel.sizes.x === 1 && quickPanel.width === 200
+        && quickPanel.culled === false && quickPanel.shouldRenderBack() === false);
+    check('g033b.elements', layer3d.elements.length === 4);
+    layer3d.removeTraceLine(quickTrace);
+    check('g033b.remove', layer3d.elements.length === 3);
+    layer3d.clear();
+    check('g033b.clear', layer3d.elements.length === 0);
+  }
+
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
     neo.chat.log('[E2E] ' + key + '=' + value);
