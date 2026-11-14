@@ -184,6 +184,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("RayHit", ink.tuanzi.neomacros.core.api.types.RayHit.class);
         registry.registerGuestType("ItemStack", ink.tuanzi.neomacros.core.api.types.ItemStack.class);
         registry.registerGuestType("ItemStackBuilder", ink.tuanzi.neomacros.core.api.types.ItemStackBuilder.class);
+        registry.registerGuestType("Enchantment", ink.tuanzi.neomacros.core.api.types.Enchantment.class);
         registry.registerGuestType("Image", ink.tuanzi.neomacros.core.api.types.Image.class);
         registry.registerGuestType("FileHandle",
                 ink.tuanzi.neomacros.core.api.FsApi.FileHandle.class);

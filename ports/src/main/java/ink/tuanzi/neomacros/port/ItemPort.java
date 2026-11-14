@@ -129,4 +129,60 @@ public interface ItemPort {
     default Optional<List<String>> itemTags(String itemId) {
         return Optional.empty();
     }
+
+    /**
+     * The registry definition of one enchantment (level bounds, weight,
+     * curse and treasure flags, supported items); empty when no connection
+     * is available or the identifier is unknown.
+     */
+    default Optional<ink.tuanzi.neomacros.port.model.EnchantmentSpec> enchantmentSpec(
+            String enchantmentId) {
+        return Optional.empty();
+    }
+
+    /**
+     * The pairwise enchantment relations against the whole registry: the
+     * identifiers conflicting with the enchantment (including itself) and
+     * the identifiers it combines with; empty when no connection is
+     * available or the identifier is unknown.
+     */
+    default Optional<ink.tuanzi.neomacros.port.model.EnchantmentRelations> enchantmentRelations(
+            String enchantmentId) {
+        return Optional.empty();
+    }
+
+    /**
+     * Whether two enchantments can be combined on one item; empty when no
+     * connection is available or either identifier is unknown.
+     */
+    default Optional<Boolean> enchantmentsCompatible(String firstId, String secondId) {
+        return Optional.empty();
+    }
+
+    /**
+     * The food component of one item type; empty when the identifier is
+     * unknown or the item carries no food component.
+     */
+    default Optional<ink.tuanzi.neomacros.port.model.FoodData> food(String itemId) {
+        return Optional.empty();
+    }
+
+    /**
+     * The enchantments that can be applied to one item type, optionally
+     * narrowed to the enchanting-table tag; empty when no connection is
+     * available or the item identifier is unknown.
+     */
+    default Optional<List<String>> possibleEnchantments(String itemId, boolean enchantingTable) {
+        return Optional.empty();
+    }
+
+    /**
+     * The styled display name of one enchantment at a level (roman numeral
+     * suffix, curse coloured red); empty when no connection is available or
+     * the identifier is unknown.
+     */
+    default Optional<ink.tuanzi.neomacros.port.model.ChatComponent> enchantmentLevelName(
+            String enchantmentId, int level) {
+        return Optional.empty();
+    }
 }

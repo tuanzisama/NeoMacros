@@ -608,6 +608,72 @@ function start() {
     check('fs.open-handle', false);
   }
 
+  // G-027B enchantment/food/creative face: shape checks over a builder
+  // stack. Offline definition reads stay undefined; every face accepts
+  // undefined or its designed type.
+  const g027b = new neo.ItemStackBuilder('minecraft:diamond_sword').build();
+  check('g027b.enchantment-type', typeof neo.Enchantment === 'function');
+  const g027bSword = new neo.ItemStackBuilder('minecraft:diamond_sword')
+      .enchant('minecraft:sharpness', 5).build();
+  const g027bEnch = g027bSword.enchantments[0];
+  check('g027b.enchantment-entry',
+      g027bEnch !== undefined
+      && g027bEnch.id === 'minecraft:sharpness'
+      && g027bEnch.level === 5
+      && (g027bEnch.minLevel === undefined || typeof g027bEnch.minLevel === 'number')
+      && (g027bEnch.maxLevel === undefined || typeof g027bEnch.maxLevel === 'number')
+      && (g027bEnch.weight === undefined || typeof g027bEnch.weight === 'number')
+      && (g027bEnch.cursed === undefined || typeof g027bEnch.cursed === 'boolean')
+      && (g027bEnch.treasure === undefined || typeof g027bEnch.treasure === 'boolean')
+      && (g027bEnch.acceptableItems === undefined
+          || Array.isArray(g027bEnch.acceptableItems))
+      && (g027bEnch.conflictingEnchantments === undefined
+          || Array.isArray(g027bEnch.conflictingEnchantments))
+      && (g027bEnch.compatibleEnchantments === undefined
+          || Array.isArray(g027bEnch.compatibleEnchantments))
+      && (g027bEnch.romanLevelName === undefined
+          || typeof g027bEnch.romanLevelName.plain === 'string'));
+  check('g027b.enchantment-predicates',
+      g027bEnch.isCompatible('minecraft:smite') === undefined
+          || typeof g027bEnch.isCompatible('minecraft:smite') === 'boolean');
+  check('g027b.enchantment-level-name',
+      g027bEnch.getRomanLevelName(3) === undefined
+          || typeof g027bEnch.getRomanLevelName(3).plain === 'string');
+  check('g027b.food',
+      g027b.food === undefined
+          || (typeof g027b.food.hunger === 'number'
+              && typeof g027b.food.saturation === 'number'
+              && typeof g027b.food.alwaysEdible === 'boolean'));
+  check('g027b.possibleEnchantments',
+      g027b.possibleEnchantments === undefined
+          || Array.isArray(g027b.possibleEnchantments));
+  check('g027b.possibleEnchantmentsFromTable',
+      g027b.possibleEnchantmentsFromTable === undefined
+          || Array.isArray(g027b.possibleEnchantmentsFromTable));
+  check('g027b.canBeApplied',
+      g027b.canBeApplied(g027bEnch) === undefined
+          || typeof g027b.canBeApplied(g027bEnch) === 'boolean');
+  const g027bDraft = g027b.creative;
+  check('g027b.creative-draft', g027bDraft !== undefined
+      && typeof g027bDraft.build === 'function');
+  check('g027b.creative-writes',
+      typeof g027bDraft.setDurability === 'function'
+      && typeof g027bDraft.addEnchantment === 'function'
+      && typeof g027bDraft.clearEnchantments === 'function'
+      && typeof g027bDraft.removeEnchantment === 'function'
+      && typeof g027bDraft.clearLore === 'function'
+      && typeof g027bDraft.addLore === 'function'
+      && typeof g027bDraft.hideEnchantments === 'function'
+      && typeof g027bDraft.hideModifiers === 'function'
+      && typeof g027bDraft.hideUnbreakable === 'function'
+      && typeof g027bDraft.hideCanDestroy === 'function'
+      && typeof g027bDraft.hideCanPlace === 'function'
+      && typeof g027bDraft.hideDye === 'function');
+  const g027bPending = g027bDraft.setDurability(10);
+  check('g027b.write-promise',
+      Boolean(g027bPending) && typeof g027bPending.then === 'function');
+  g027bPending.catch(() => {});
+
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
     neo.chat.log('[E2E] ' + key + '=' + value);

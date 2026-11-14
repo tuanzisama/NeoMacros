@@ -27,6 +27,7 @@ import ink.tuanzi.neomacros.core.api.types.Component;
 import ink.tuanzi.neomacros.core.api.types.TextComponent;
 import ink.tuanzi.neomacros.core.api.types.ItemStack;
 import ink.tuanzi.neomacros.core.api.types.ItemStackBuilder;
+import ink.tuanzi.neomacros.core.api.types.Enchantment;
 import ink.tuanzi.neomacros.core.api.types.Pos2D;
 import ink.tuanzi.neomacros.core.api.types.Pos3D;
 import ink.tuanzi.neomacros.core.api.types.RayHit;
@@ -64,7 +65,7 @@ final class ApiCompletenessSurface {
             PlayerApi.Inventory.class, PlayerApi.PlayerInventory.class,
             Pos2D.class, Pos3D.class, BlockPos.class, ChunkPos.class,
             Block.class, BlockState.class, RayHit.class,
-            ItemStack.class, ItemStackBuilder.class,
+            ItemStack.class, ItemStackBuilder.class, Enchantment.class,
             ink.tuanzi.neomacros.core.api.types.Image.class,
             FsApi.FileHandle.class, NetApi.Ws.class,
             SpeciesEntities.MobEntity.class, SpeciesEntities.AnimalEntity.class, SpeciesEntities.TamableAnimalEntity.class,
