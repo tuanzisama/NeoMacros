@@ -12,13 +12,19 @@ import java.util.function.Supplier;
  *
  * <p>Layers register with a stable identifier for replay and z-order
  * management. The render callback fires every frame on the game main
- * thread.</p>
+ * thread. Implementations must be safe for concurrent use: the facade
+ * hops registration/removal/z changes onto the main thread, while element
+ * state inside a painter may be published from any script thread.</p>
  */
 public interface RenderPort {
 
     /**
-     * Registers a HUD layer at the given z-order. Layers render after the
-     * vanilla HUD; higher z renders on top.
+     * Registers (or re-registers) a HUD layer at the given z-order. Layers
+     * render after the vanilla HUD; higher z renders on top. Re-registering
+     * the same id replaces its painter and z without creating a second
+     * backing element. The painter is a host-side (core) callback invoked on
+     * the game main thread once per frame with a tick count and a neutral
+     * draw context; it is never a script function.
      *
      * @param id stable identifier for this layer (replay/management)
      * @param z z-order (higher renders on top)
@@ -27,8 +33,19 @@ public interface RenderPort {
      */
     void addLayer(String id, int z, BiConsumer<Integer, DrawContext2d> painter);
 
-    /** Removes a previously registered layer. */
+    /** Removes a previously registered layer; unknown ids are ignored. */
     void removeLayer(String id);
+
+    /**
+     * Changes a registered layer's z-order without re-registering it or
+     * disturbing its painter. Unknown ids are ignored. Implementations must
+     * keep this safe to call from any thread and apply the new order to the
+     * next frame.
+     *
+     * @param id stable layer identifier from {@link #addLayer}
+     * @param z new z-order (higher renders on top)
+     */
+    void setLayerZ(String id, int z);
 
     /** Returns all registered layer identifiers in render order. */
     Supplier<List<String>> layerIds();
