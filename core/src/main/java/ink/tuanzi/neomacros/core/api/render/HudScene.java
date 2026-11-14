@@ -1,6 +1,9 @@
 package ink.tuanzi.neomacros.core.api.render;
 
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DElement;
+import ink.tuanzi.neomacros.core.api.render.components.Draw2DLine;
+import ink.tuanzi.neomacros.core.api.render.components.Draw2DRect;
+import ink.tuanzi.neomacros.core.api.render.components.Draw2DText;
 import ink.tuanzi.neomacros.core.api.render.components.ElementSpec;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.port.model.DrawContext2d;
@@ -93,10 +96,24 @@ final class HudScene {
             cells.remove(id);
         }
         Cell fresh = new Cell(id, nextSeq++, kind, spec);
-        fresh.handle = new Draw2DElement(id, owner, backendFor(fresh));
+        fresh.handle = newHandle(kind, id, fresh);
         cells.put(id, fresh);
         generation++;
         return fresh.handle;
+    }
+
+    /**
+     * The component handle for one kind — the scene factory that hands
+     * scripts their {@code Draw2DText}/{@code Draw2DRect}/{@code Draw2DLine}
+     * subclass instances (G-034). Unknown kinds cannot reach here: the
+     * {@code Kind} switch is exhaustive.
+     */
+    private Draw2DElement newHandle(ElementSpec.Kind kind, String id, Cell cell) {
+        return switch (kind) {
+            case TEXT -> new Draw2DText(id, owner, backendFor(cell));
+            case RECT -> new Draw2DRect(id, owner, backendFor(cell));
+            case LINE -> new Draw2DLine(id, owner, backendFor(cell));
+        };
     }
 
     /**
@@ -254,16 +271,78 @@ final class HudScene {
         }
     }
 
+    /**
+     * Replays one element into {@code ctx}, applying the G-032B-deferred
+     * render transform (scale/rotation — G-034): with the default
+     * {@code scale = 1} and {@code rotation = 0} the body draws straight at
+     * absolute coordinates, so untouched elements keep their exact prim
+     * shape; otherwise the body runs inside a {@link DrawContext2d#transform}
+     * scope about the element's pivot (the positioned corner, or the
+     * center when {@code rotateCenter} — a line pivots at its first
+     * endpoint or midpoint, JsMacros parity).
+     */
     private static void emit(ElementSpec spec, int viewportWidth, int viewportHeight,
             DrawContext2d ctx) {
         int x = spec.x().resolve(viewportWidth);
         int y = spec.y().resolve(viewportHeight);
         switch (spec.kind()) {
-            case TEXT -> ctx.text(x, y, spec.text(), spec.color());
-            case RECT -> ctx.rect(x, y,
-                    spec.w().resolve(viewportWidth),
-                    spec.h().resolve(viewportHeight),
-                    spec.color());
+            case TEXT -> {
+                int w = spec.w().resolve(viewportWidth);
+                int h = spec.h().resolve(viewportHeight);
+                withTransform(spec, x, y, x + w / 2f, y + h / 2f, ctx,
+                        () -> ctx.text(x, y, spec.text(), spec.color(),
+                                spec.shadow()));
+            }
+            case RECT -> {
+                int w = spec.w().resolve(viewportWidth);
+                int h = spec.h().resolve(viewportHeight);
+                withTransform(spec, x, y, x + w / 2f, y + h / 2f, ctx,
+                        () -> ctx.rect(x, y, w, h, spec.color()));
+            }
+            case LINE -> {
+                int w = spec.w().resolve(viewportWidth);
+                int h = spec.h().resolve(viewportHeight);
+                int x1 = spec.flipX() ? x + w : x;
+                int y1 = spec.flipY() ? y + h : y;
+                int x2 = spec.flipX() ? x : x + w;
+                int y2 = spec.flipY() ? y : y + h;
+                float stroke = spec.stroke();
+                // JsMacros parity: a non-positive stroke draws nothing.
+                if (stroke > 0) {
+                    float centerX = (x1 + x2) / 2f;
+                    float centerY = (y1 + y2) / 2f;
+                    float pivotX = spec.rotateCenter() ? centerX : x1;
+                    float pivotY = spec.rotateCenter() ? centerY : y1;
+                    withTransform(spec, pivotX, pivotY, centerX, centerY, ctx,
+                            () -> ctx.line(x1, y1, x2, y2, spec.color(), stroke));
+                }
+            }
+        }
+    }
+
+    /**
+     * Runs {@code body} under the element's scale/rotation scope. The
+     * default state draws untransformed; a lone scale (or a corner
+     * rotation) is one scope, and a center rotation nests a second scope
+     * so the scale stays anchored at the pivot while the rotation turns
+     * about the center (uniform scale commutes with the rotation, so the
+     * nesting is exact).
+     */
+    private static void withTransform(ElementSpec spec, float pivotX,
+            float pivotY, float centerX, float centerY, DrawContext2d ctx,
+            Runnable body) {
+        float scale = spec.scale();
+        float degrees = spec.rotation();
+        if (scale == 1f && degrees == 0f) {
+            body.run();
+        } else if (degrees == 0f) {
+            ctx.transform(pivotX, pivotY, 0f, scale, scale, body);
+        } else if (!spec.rotateCenter()) {
+            ctx.transform(pivotX, pivotY, degrees, scale, scale, body);
+        } else {
+            ctx.transform(pivotX, pivotY, 0f, scale, scale,
+                    () -> ctx.transform(centerX, centerY, degrees, 1f, 1f,
+                            body));
         }
     }
 

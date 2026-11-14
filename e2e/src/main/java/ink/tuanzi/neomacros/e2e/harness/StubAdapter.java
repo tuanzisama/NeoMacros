@@ -1411,6 +1411,12 @@ public final class StubAdapter implements NeomacrosAdapter {
             }
 
             @Override
+            public void text(int x, int y, String text, int color, boolean shadow) {
+                prims.add(new Prim(shadow ? "text-shadow" : "text",
+                        x, y, 0, 0, color, text));
+            }
+
+            @Override
             public void rect(int x, int y, int width, int height, int color) {
                 prims.add(new Prim("rect", x, y, width, height, color, null));
             }
@@ -1423,6 +1429,32 @@ public final class StubAdapter implements NeomacrosAdapter {
             @Override
             public void sprite(int x, int y, int width, int height, String textureId) {
                 prims.add(new Prim("sprite", x, y, width, height, 0, textureId));
+            }
+
+            @Override
+            public void line(int x1, int y1, int x2, int y2, int color, float width) {
+                prims.add(new Prim("line", x1, y1, x2, y2, color,
+                        Float.toString(width)));
+            }
+
+            /**
+             * Records the transform scope as an ordered push/pop pair:
+             * the push carries the pivot, degrees and scales
+             * ({@code d}/{@code color} hold {@code scaleX}/{@code scaleY}
+             * × 1000), the pop is a bare marker.
+             */
+            @Override
+            public void transform(float x, float y, float degrees,
+                    float scaleX, float scaleY, Runnable body) {
+                prims.add(new Prim("transform", Math.round(x), Math.round(y),
+                        Math.round(degrees), Math.round(scaleX * 1000),
+                        Math.round(scaleY * 1000), null));
+                try {
+                    body.run();
+                } finally {
+                    prims.add(new Prim("transform-pop",
+                            0, 0, 0, 0, 0, null));
+                }
             }
 
             /** The primitives drawn so far, in draw order. */

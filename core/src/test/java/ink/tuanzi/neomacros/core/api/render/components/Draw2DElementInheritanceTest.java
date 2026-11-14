@@ -70,6 +70,10 @@ class Draw2DElementInheritanceTest {
                 true,
                 1f,
                 0f,
+                false,
+                false,
+                1f,
+                false,
                 false);
         private volatile boolean disposed;
 

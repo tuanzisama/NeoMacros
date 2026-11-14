@@ -139,6 +139,12 @@ public final class E2ERuntime implements AutoCloseable {
                 ink.tuanzi.neomacros.core.api.render.HudLayer.class);
         registry.registerGuestType("Draw2DElement",
                 ink.tuanzi.neomacros.core.api.render.components.Draw2DElement.class);
+        registry.registerGuestType("Draw2DText",
+                ink.tuanzi.neomacros.core.api.render.components.Draw2DText.class);
+        registry.registerGuestType("Draw2DRect",
+                ink.tuanzi.neomacros.core.api.render.components.Draw2DRect.class);
+        registry.registerGuestType("Draw2DLine",
+                ink.tuanzi.neomacros.core.api.render.components.Draw2DLine.class);
         // The render module rides the stub 3D port so scenarios can drive the
         // retained Draw3D layer/element faces (G-033).
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.render.RenderApi(

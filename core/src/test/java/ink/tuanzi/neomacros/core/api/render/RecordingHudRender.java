@@ -93,6 +93,16 @@ public final class RecordingHudRender implements RenderPort {
         }
 
         @Override
+        public void text(int x, int y, String text, int color, boolean shadow) {
+            if (shadow) {
+                sink.add("text-shadow:" + x + "," + y + "," + text + ","
+                        + hex(color));
+            } else {
+                text(x, y, text, color);
+            }
+        }
+
+        @Override
         public void rect(int x, int y, int width, int height, int color) {
             sink.add("rect:" + x + "," + y + "," + width + "," + height + "," + hex(color));
         }
@@ -108,8 +118,33 @@ public final class RecordingHudRender implements RenderPort {
             sink.add("sprite:" + x + "," + y + "," + width + "," + height + "," + textureId);
         }
 
+        @Override
+        public void line(int x1, int y1, int x2, int y2, int color, float width) {
+            sink.add("line:" + x1 + "," + y1 + "," + x2 + "," + y2 + ","
+                    + hex(color) + "," + num(width));
+        }
+
+        @Override
+        public void transform(float x, float y, float degrees, float scaleX,
+                float scaleY, Runnable body) {
+            sink.add("transform:" + num(x) + "," + num(y) + "," + num(degrees)
+                    + "," + num(scaleX) + "," + num(scaleY));
+            try {
+                body.run();
+            } finally {
+                sink.add("transform-pop");
+            }
+        }
+
         private static String hex(int color) {
             return String.format("%08x", color);
+        }
+
+        /** Whole floats print as integers so assertions read naturally. */
+        private static String num(float value) {
+            return value == Math.floor(value) && !Float.isInfinite(value)
+                    ? String.valueOf((long) value)
+                    : String.valueOf(value);
         }
     }
 }

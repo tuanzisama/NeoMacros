@@ -108,18 +108,44 @@ class Draw2DElementScenariosTest {
             List<StubAdapter.StubRenderPort.Prim> frame = port.fireFrame(0);
             assertEquals(List.of(
                     "text:0,0,other,ffffffff",
-                    "text:30,40,hi,ffffffff"),
+                    // G-034 applies the element transform at paint time:
+                    // scale 2 about the corner (30, 40), then the 90°
+                    // rotation about the scaled center (30+50, 40+25).
+                    "transform:30,40,0,2x2",
+                    "transform:80,65,90,1x1",
+                    "text:30,40,hi,ffffffff",
+                    "transform-pop",
+                    "transform-pop"),
                     frame.stream().map(Draw2DElementScenariosTest::describe).toList(),
                     "frame order: the z0 element first, the fluent-moved z2 "
-                            + "text at its new position, the removed one gone");
+                            + "text at its new position inside its transform "
+                            + "scopes, the removed one gone");
         }
     }
 
-    /** One primitive as a readable {@code kind:a,b,c,d,color,text} line. */
+    /** One primitive as a readable {@code kind:...} line. */
     private static String describe(StubAdapter.StubRenderPort.Prim prim) {
-        return prim.kind() + ":" + prim.a() + "," + prim.b() + ","
-                + (prim.kind().equals("text") ? prim.text() + "," : "")
-                + (prim.kind().equals("rect") ? prim.c() + "," + prim.d() + "," : "")
-                + String.format("%08x", prim.color());
+        return switch (prim.kind()) {
+            case "text", "text-shadow" -> prim.kind() + ":" + prim.a() + ","
+                    + prim.b() + "," + prim.text() + ","
+                    + String.format("%08x", prim.color());
+            case "rect" -> "rect:" + prim.a() + "," + prim.b() + ","
+                    + prim.c() + "," + prim.d() + ","
+                    + String.format("%08x", prim.color());
+            case "transform" -> "transform:" + prim.a() + "," + prim.b() + ","
+                    + prim.c() + "," + num(prim.d() / 1000f) + "x"
+                    + num(prim.color() / 1000f);
+            case "transform-pop" -> "transform-pop";
+            default -> prim.kind() + ":" + prim.a() + "," + prim.b() + ","
+                    + prim.c() + "," + prim.d() + ","
+                    + String.format("%08x", prim.color());
+        };
+    }
+
+    /** Whole floats print as integers so assertions read naturally. */
+    private static String num(float value) {
+        return value == Math.floor(value) && !Float.isInfinite(value)
+                ? String.valueOf((long) value)
+                : String.valueOf(value);
     }
 }

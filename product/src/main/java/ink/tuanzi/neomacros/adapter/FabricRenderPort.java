@@ -77,8 +77,46 @@ public final class FabricRenderPort implements RenderPort {
                     }
 
                     @Override
+                    public void text(int x, int y, String text, int color,
+                            boolean shadow) {
+                        var mc = net.minecraft.client.Minecraft.getInstance();
+                        extractor.text(mc.font, text, x, y, color, shadow);
+                    }
+
+                    @Override
                     public void rect(int x, int y, int width, int height, int color) {
                         extractor.fill(x, y, x + width, y + height, color);
+                    }
+
+                    /**
+                     * The G-034 element transform: pose push, translate to
+                     * the pivot, scale, rotate (radians), translate back so
+                     * the pivot stays fixed, run the body, pop — the
+                     * five-piece scope G-001 §6.2 allows on both milestone
+                     * nodes ({@code pose()} returns the JOML stack on
+                     * 1.21.6 {@code GuiGraphics} and 26.x
+                     * {@code GuiGraphicsExtractor} alike, javap-verified).
+                     * The body keeps drawing at absolute coordinates.
+                     */
+                    @Override
+                    public void transform(float pivotX, float pivotY,
+                            float degrees, float scaleX, float scaleY,
+                            Runnable body) {
+                        var stack = extractor.pose();
+                        stack.pushMatrix();
+                        try {
+                            stack.translate(pivotX, pivotY);
+                            if (scaleX != 1f || scaleY != 1f) {
+                                stack.scale(scaleX, scaleY);
+                            }
+                            if (degrees != 0f) {
+                                stack.rotate((float) Math.toRadians(degrees));
+                            }
+                            stack.translate(-pivotX, -pivotY);
+                            body.run();
+                        } finally {
+                            stack.popMatrix();
+                        }
                     }
 
                     @Override
@@ -187,5 +225,24 @@ public final class FabricRenderPort implements RenderPort {
     @Override
     public Supplier<List<String>> textureIds() {
         return () -> List.copyOf(textureIds);
+    }
+
+    /**
+     * Real font measurement for the {@code Draw2DText} component: the live
+     * default font's advance width (the {@code FabricChatPort.textWidth}
+     * precedent — font reads happen off the render path on every node).
+     */
+    @Override
+    public int textWidth(String text) {
+        if (text == null) {
+            return 0;
+        }
+        return net.minecraft.client.Minecraft.getInstance().font.width(text);
+    }
+
+    /** The live font line height — the unscaled height of a text element. */
+    @Override
+    public int textLineHeight() {
+        return net.minecraft.client.Minecraft.getInstance().font.lineHeight;
     }
 }
