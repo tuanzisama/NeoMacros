@@ -314,6 +314,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("Inventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.Inventory.class);
         registry.registerGuestType("PlayerInventory", ink.tuanzi.neomacros.core.api.player.PlayerApi.PlayerInventory.class);
         registry.registerGuestType("Screen", ink.tuanzi.neomacros.core.api.player.PlayerApi.Screen.class);
+        registry.registerGuestType("BuiltScreen", ink.tuanzi.neomacros.core.api.render.screen.BuiltScreen.class);
         registry.registerGuestType("InventoryScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.InventoryScreen.class);
         registry.registerGuestType("ContainerScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.ContainerScreen.class);
         registry.registerGuestType("ChatScreen", ink.tuanzi.neomacros.core.api.player.PlayerApi.ChatScreen.class);
@@ -1105,7 +1106,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                     Msg.err(error.folder().getFileName()),
                                     Msg.err(error.message())));
                         }
-                        ScriptScreen.open(UiText.tr("neomacros.cmd.recent_errors"),
+                        ScriptViewerScreen.open(UiText.tr("neomacros.cmd.recent_errors"),
                                 lines.isEmpty() ? UiText.tr("neomacros.cmd.no_recent_errors")
                                         : String.join("\n\n", lines));
                         return Command.SINGLE_SUCCESS;

@@ -52,10 +52,16 @@ public final class StubAdapter implements NeomacrosAdapter {
     private final StubEntity entity = new StubEntity();
     private final StubPlayer player = new StubPlayer();
     private final StubInput input = new StubInput();
+    private final StubScreen screen = new StubScreen();
 
     /** The test-facing input port: fires key edges and wheel events. */
     public StubInput inputPort() {
         return input;
+    }
+
+    /** The test-facing screen port: records actions, fires sink events. */
+    public StubScreen screenPort() {
+        return screen;
     }
 
     /** Input port recording key-press sinks and firing wheel events. */
@@ -567,6 +573,11 @@ public final class StubAdapter implements NeomacrosAdapter {
     public ink.tuanzi.neomacros.port.DialogPort dialog() {
         return new ink.tuanzi.neomacros.port.DialogPort() {
         };
+    }
+
+    @Override
+    public ink.tuanzi.neomacros.port.ScreenPort screen() {
+        return screen;
     }
 
     /** The test-facing inventory port: reads canned data, records actions. */
@@ -2709,6 +2720,275 @@ public final class StubAdapter implements NeomacrosAdapter {
                 }
             }
             return canceled;
+        }
+    }
+
+    /**
+     * The screen port stub: records every mutation for assertions, can
+     * inject an open failure ({@link #failOpen}), and exposes synthetic
+     * sink triggers (input/control/state/close) for end-to-end callback
+     * chains — the recording pattern of {@code StubLifecycle#fireTick}.
+     */
+    public static final class StubScreen implements ink.tuanzi.neomacros.port.ScreenPort {
+
+        /** When true, {@code open} answers null (the facade throws; the script catches). */
+        public volatile boolean failOpen;
+        /** Modifier read answers for {@code gui.shiftDown/ctrlDown/altDown}. */
+        public volatile boolean shift;
+        public volatile boolean control;
+        public volatile boolean alt;
+
+        private final java.util.concurrent.atomic.AtomicLong sequence =
+                new java.util.concurrent.atomic.AtomicLong();
+        private final List<String> actions = new CopyOnWriteArrayList<>();
+        private final java.util.Map<Long, SessionSink> sinks =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        private final java.util.Map<Long, java.util.Map<String, ControlState>> states =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        private volatile long active = -1L;
+        private final List<String> drawn = new CopyOnWriteArrayList<>();
+
+        /** The ordered action log ({@code open}/{@code close:1}/{@code write:1:dbg}...). */
+        public List<String> actions() {
+            return List.copyOf(actions);
+        }
+
+        /** Text/rect draws recorded by {@link #fireRender}, for assertions. */
+        public List<String> drawings() {
+            return List.copyOf(drawn);
+        }
+
+        @Override
+        public Long open(java.util.Map<String, Object> normalizedSpec, SessionSink sink) {
+            actions.add("open");
+            if (failOpen) {
+                return null;
+            }
+            long id = sequence.incrementAndGet();
+            sinks.put(id, sink);
+            java.util.Map<String, ControlState> seeded = new java.util.LinkedHashMap<>();
+            Object controls = normalizedSpec.get("controls");
+            if (controls instanceof java.util.List<?> entries) {
+                for (Object entry : entries) {
+                    if (entry instanceof java.util.Map<?, ?> map) {
+                        ControlState state = stateOf(castMap(map));
+                        seeded.put(state.id(), state);
+                    }
+                }
+            }
+            states.put(id, seeded);
+            active = id;
+            return id;
+        }
+
+        @Override
+        public void close(long session) {
+            actions.add("close:" + session);
+            SessionSink sink = sinks.get(session);
+            if (sink != null) {
+                sink.closed();
+            }
+            if (active == session) {
+                active = -1L;
+            }
+        }
+
+        @Override
+        public void reload(long session) {
+            actions.add("reload:" + session);
+        }
+
+        @Override
+        public void addControl(long session, java.util.Map<String, Object> control) {
+            actions.add("add:" + session + ":" + control.get("id"));
+            java.util.Map<String, ControlState> sessionStates = states.get(session);
+            if (sessionStates != null) {
+                ControlState state = stateOf(control);
+                sessionStates.put(state.id(), state);
+            }
+        }
+
+        @Override
+        public void removeControl(long session, String id) {
+            actions.add("remove:" + session + ":" + id);
+            java.util.Map<String, ControlState> sessionStates = states.get(session);
+            if (sessionStates != null) {
+                sessionStates.remove(id);
+            }
+        }
+
+        @Override
+        public void writeControl(long session, String id,
+                                 java.util.Map<String, Object> patch) {
+            actions.add("write:" + session + ":" + id);
+            java.util.Map<String, ControlState> sessionStates = states.get(session);
+            if (sessionStates == null) {
+                return;
+            }
+            ControlState state = sessionStates.get(id);
+            if (state == null) {
+                return;
+            }
+            sessionStates.put(id, new ControlState(state.id(), state.type(), state.x(),
+                    state.y(), state.width(), state.height(),
+                    patch.get("z") instanceof Number z ? z.intValue() : state.z(),
+                    patch.get("label") instanceof String label ? label : state.label(),
+                    patch.get("active") instanceof Boolean a ? a : state.active(),
+                    patch.get("visible") instanceof Boolean v ? v : state.visible(),
+                    patch.get("checked") instanceof Boolean c ? c : state.checked(),
+                    patch.get("value") instanceof Number n ? n.doubleValue() : state.value(),
+                    patch.get("text") instanceof String t ? t : state.text(),
+                    patch.get("locked") instanceof Boolean l ? l : state.locked()));
+        }
+
+        @Override
+        public Optional<ControlState> readControl(long session, String id) {
+            java.util.Map<String, ControlState> sessionStates = states.get(session);
+            return sessionStates == null ? Optional.empty()
+                    : Optional.ofNullable(sessionStates.get(id));
+        }
+
+        @Override
+        public boolean isDisplayed(long session) {
+            return active == session && sinks.containsKey(session);
+        }
+
+        @Override
+        public boolean shiftDown() {
+            return shift;
+        }
+
+        @Override
+        public boolean controlDown() {
+            return control;
+        }
+
+        @Override
+        public boolean altDown() {
+            return alt;
+        }
+
+        // ---------------- synthetic triggers ----------------
+
+        /** Fires one screen-level mouse press; answers the consumption verdict. */
+        public boolean fireMouseDown(MouseInput input) {
+            SessionSink sink = activeSink();
+            return sink != null && sink.mouseDown(input);
+        }
+
+        /** Fires one screen-level mouse drag; answers the consumption verdict. */
+        public boolean fireMouseDrag(MouseInput input) {
+            SessionSink sink = activeSink();
+            return sink != null && sink.mouseDrag(input);
+        }
+
+        /** Fires one screen-level mouse release; answers the consumption verdict. */
+        public boolean fireMouseUp(MouseInput input) {
+            SessionSink sink = activeSink();
+            return sink != null && sink.mouseUp(input);
+        }
+
+        /** Fires one screen-level key press; answers the consumption verdict. */
+        public boolean fireKeyPress(KeyInput input) {
+            SessionSink sink = activeSink();
+            return sink != null && sink.keyPress(input);
+        }
+
+        /** Fires one screen-level char typed; answers the consumption verdict. */
+        public boolean fireCharTyped(CharInput input) {
+            SessionSink sink = activeSink();
+            return sink != null && sink.charTyped(input);
+        }
+
+        /** Fires the per-frame render callback through a recording canvas. */
+        public void fireRender(double mouseX, double mouseY, float partialTick) {
+            SessionSink sink = activeSink();
+            if (sink == null) {
+                return;
+            }
+            sink.render(new ink.tuanzi.neomacros.port.model.DrawContext2d() {
+                @Override
+                public void text(int x, int y, String text) {
+                    drawn.add("text:" + x + "," + y + "," + text);
+                }
+
+                @Override
+                public void text(int x, int y, String text, int color) {
+                    drawn.add("text:" + x + "," + y + "," + text + ":" + color);
+                }
+
+                @Override
+                public void rect(int x, int y, int width, int height, int color) {
+                    drawn.add("rect:" + x + "," + y + "," + width + "," + height);
+                }
+
+                @Override
+                public void outline(int x, int y, int width, int height, int color) {
+                    drawn.add("outline:" + x + "," + y + "," + width + "," + height);
+                }
+
+                @Override
+                public void sprite(int x, int y, int width, int height, String textureId) {
+                    drawn.add("sprite:" + textureId);
+                }
+            }, mouseX, mouseY, partialTick);
+        }
+
+        /** Fires one control interaction ({@code click}/{@code change}). */
+        public void fireControlEvent(String controlId, String event,
+                                     java.util.Map<String, Object> payload) {
+            SessionSink sink = activeSink();
+            if (sink != null) {
+                sink.controlEvent(controlId, event, payload);
+            }
+        }
+
+        /** Pushes a live control state into the facade cache. */
+        public void fireStateChanged(String controlId, ControlState state) {
+            SessionSink sink = activeSink();
+            if (sink != null) {
+                sink.stateChanged(controlId, state);
+            }
+        }
+
+        /** Fires the terminal close notification (replacement path). */
+        public void fireClosed() {
+            long session = active;
+            SessionSink sink = activeSink();
+            if (sink != null) {
+                sink.closed();
+            }
+            if (session >= 0) {
+                active = -1L;
+            }
+        }
+
+        private SessionSink activeSink() {
+            long session = active;
+            return session >= 0 ? sinks.get(session) : null;
+        }
+
+        @SuppressWarnings("unchecked")
+        private static java.util.Map<String, Object> castMap(java.util.Map<?, ?> map) {
+            return (java.util.Map<String, Object>) map;
+        }
+
+        private static ControlState stateOf(java.util.Map<String, Object> control) {
+            String id = control.get("id") instanceof String text ? text : "";
+            String type = control.get("type") instanceof String text ? text : "";
+            return new ControlState(id, type,
+                    control.get("x") instanceof Number n ? n.intValue() : 0,
+                    control.get("y") instanceof Number n ? n.intValue() : 0,
+                    control.get("width") instanceof Number n ? n.intValue() : 0,
+                    control.get("height") instanceof Number n ? n.intValue() : 0,
+                    control.get("z") instanceof Number n ? n.intValue() : 0,
+                    control.get("label") instanceof String text ? text : "",
+                    !(control.get("active") instanceof Boolean a) || a,
+                    !(control.get("visible") instanceof Boolean v) || v,
+                    control.get("checked") instanceof Boolean c ? c : null,
+                    control.get("value") instanceof Number n ? n.doubleValue() : null,
+                    control.get("text") instanceof String text ? text : null,
+                    control.get("locked") instanceof Boolean l ? l : null);
         }
     }
 

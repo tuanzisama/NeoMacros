@@ -35,6 +35,7 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
     private final FabricWorldPort world = new FabricWorldPort();
     private final FabricEntityPort entity = new FabricEntityPort();
     private final FabricPlayerPort player = new FabricPlayerPort();
+    private final FabricScreenPort screen = new FabricScreenPort();
 
     @Override
     public LifecyclePort lifecycle() {
@@ -94,5 +95,10 @@ public final class NeomacrosAdapterImpl implements NeomacrosAdapter {
     @Override
     public PlayerPort player() {
         return player;
+    }
+
+    @Override
+    public ink.tuanzi.neomacros.port.ScreenPort screen() {
+        return screen;
     }
 }

@@ -51,4 +51,13 @@ public interface NeomacrosAdapter {
 
     /** Returns the world-space shape render port. */
     Draw3DPort draw3d();
+
+    /**
+     * Returns the script-built screen session port. Defaulted so adapters
+     * written before the port keep compiling and answer screen building as
+     * unsupported (a catchable script error, never a crash).
+     */
+    default ScreenPort screen() {
+        return ScreenPort.NONE;
+    }
 }

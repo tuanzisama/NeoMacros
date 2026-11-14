@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.core.api.player;
 import ink.tuanzi.neomacros.core.api.ScriptApiEnvironment;
 import ink.tuanzi.neomacros.core.api.SnapshotViews;
 import ink.tuanzi.neomacros.core.api.entity.EntityApi;
+import ink.tuanzi.neomacros.core.api.render.screen.BuiltScreen;
 import ink.tuanzi.neomacros.core.api.types.ItemStack;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
@@ -129,9 +130,39 @@ public final class PlayerApi {
         return ScriptApiEnvironment.adapter().dialog().show(config);
     }
 
+    /**
+     * Builds and opens a client screen from a declarative spec and returns
+     * its {@code BuiltScreen} session handle. Spec keys: {@code title},
+     * {@code showTitle} (default true), {@code pause} (default false),
+     * {@code closeOnEsc} (default true), {@code returnTo}
+     * ({@code 'current'} | {@code 'game'}, default {@code 'current'}), the
+     * ordered {@code controls} array (seven types: {@code button},
+     * {@code imageButton}, {@code checkbox}, {@code slider}, {@code editBox},
+     * {@code cycleButton}, {@code lockButton}), and the screen-level
+     * callbacks {@code onMouseDown/onMouseDrag/onMouseUp/onKeyPress/
+     * onCharTyped/onRender/onClose}. Synchronous by decision (the same
+     * exemption as {@code close()}); an open failure throws a catchable
+     * script error — it never crashes the game. The read-only
+     * {@code player.screen} face keeps answering the neutral base snapshot
+     * ({@code kind='script'}) for this screen.
+     *
+     * @zh 从声明式 spec 构建并打开一个客户端屏幕，返回其 {@code BuiltScreen} 会话句柄。spec 键：{@code title}、{@code showTitle}（默认 true）、{@code pause}（默认 false）、{@code closeOnEsc}（默认 true）、{@code returnTo}（{@code 'current'} | {@code 'game'}，默认 {@code 'current'}）、有序 {@code controls} 数组（七类控件）与屏级回调 {@code onMouseDown/onMouseDrag/onMouseUp/onKeyPress/onCharTyped/onRender/onClose}。同步语义（与 {@code close()} 同一豁免）；开屏失败抛可捕获的脚本错误，绝不崩游戏。只读 {@code player.screen} 对该屏仍回中立基类快照（{@code kind='script'}）。
+     */
+    @ApiSince("0.5.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public BuiltScreen buildScreen(@ApiType("ScreenSpec") Map<String, Object> spec) {
+        return BuiltScreen.open(screenPort(), spec);
+    }
+
     /** The player port behind the API (single adapter access point). */
     private static ink.tuanzi.neomacros.port.PlayerPort adapter() {
         return ScriptApiEnvironment.adapter().player();
+    }
+
+    /** The screen port behind the build face (script-built sessions). */
+    private static ink.tuanzi.neomacros.port.ScreenPort screenPort() {
+        return ScriptApiEnvironment.adapter().screen();
     }
 
     /** The inventory port behind the API (container screen access). */

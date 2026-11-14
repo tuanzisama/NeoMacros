@@ -1,0 +1,8 @@
+name: g035-script-screen
+version: 1.0.0
+author: neomacros
+description: G-035 script-built screen shape and lifecycle case
+permissions: []
+config:
+  event:
+    on: [game:start]
