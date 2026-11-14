@@ -393,6 +393,32 @@ function start() {
   }
   if (self) {
     check('player.statistics', self.statistics === null || typeof self.statistics === 'object');
+    // G-018 progress/statistics faces: shape checks only; outside a world
+    // the handles read absent and still count as present.
+    const g018Stats = self.statistics;
+    if (g018Stats === undefined || g018Stats === null) {
+      check('g018.statistics-absent', true);
+    } else {
+      check('g018.statistics-face',
+          typeof g018Stats.formattedValue === 'function'
+          && typeof g018Stats.statText === 'function'
+          && typeof g018Stats.formattedStatMap === 'object');
+    }
+    const g018Advs = self.advancements;
+    if (g018Advs === undefined || g018Advs === null) {
+      check('g018.advancements-absent', true);
+    } else {
+      check('g018.advancements-face',
+          typeof g018Advs.missing === 'object'
+          && typeof g018Advs.get === 'function');
+      const g018Root = g018Advs.get('minecraft:story/root');
+      if (g018Root !== undefined && g018Root !== null) {
+        check('g018.advancement-face',
+            typeof g018Root.requirements === 'object'
+            && typeof g018Root.toJson === 'function'
+            && typeof g018Root.percentage === 'number');
+      }
+    }
     check('player.interactionRange', typeof self.blockInteractionRange === 'number'
         && typeof self.entityInteractionRange === 'number');
     // A no-arg is/getter publishes as a property (isBreakingBlock -> breakingBlock).

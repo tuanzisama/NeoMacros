@@ -893,7 +893,8 @@ public final class PlayerApi {
     @ApiSince("0.3.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static final class Statistics {
+    public static final class Statistics
+            implements ink.tuanzi.neomacros.core.api.ScriptHandle {
 
         /** Reads the live non-zero stat map ({@code statTypeId:valueId -> value}).
          * @zh 读取实时非零统计映射（{@code 类型id:条目id -> 数值}）。 */
@@ -1030,6 +1031,59 @@ public final class PlayerApi {
         public int custom(String statId) {
             return value("minecraft:custom", ItemStack.namespaced(statId));
         }
+
+        /**
+         * The formatted counter behind one stat key (the keys of
+         * {@link #getSnapshot()}), rendered by the stat's own formatter
+         * ({@code minecraft:custom:minecraft:play_time} reads as an elapsed
+         * time). Unknown or zero-valued keys read as {@code undefined}.
+         *
+         * @zh 单条统计键（{@link #getSnapshot()} 的键）的格式化计数，由该统计自身的格式化器渲染（{@code minecraft:custom:minecraft:play_time} 读作耗时）。未知或零值键为 undefined。
+         * @zh-param statKey 统计键（{@code 类型id:条目id}）
+         * @zh-return 格式化后的计数文本；键不存在时为 undefined
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public String formattedValue(String statKey) {
+            Map<String, String> formatted = adapter().formattedStatistics();
+            return formatted == null ? null : formatted.get(statKey);
+        }
+
+        /**
+         * Every non-zero stat as a formatted entry, keyed exactly like
+         * {@link #getSnapshot()}.
+         *
+         * @zh 每条非零统计的格式化条目，键与 {@link #getSnapshot()} 完全一致。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        @ApiType("Record<string, string>")
+        public Map<String, String> getFormattedStatMap() {
+            Map<String, String> formatted = adapter().formattedStatistics();
+            return formatted == null ? Map.of() : formatted;
+        }
+
+        /**
+         * The display name of the stat type behind one stat key (the
+         * {@code minecraft:mined} part of {@code minecraft:mined:minecraft:stone},
+         * rendered in the current language); unknown keys read as
+         * {@code undefined}.
+         *
+         * @zh 单条统计键背后的统计类型显示名（{@code minecraft:mined:minecraft:stone} 中的 {@code minecraft:mined} 部分，按当前语言渲染）；未知键为 undefined。
+         * @zh-param statKey 统计键（{@code 类型id:条目id}）
+         * @zh-return 统计类型的显示名文本；键不存在时为 undefined
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public ink.tuanzi.neomacros.core.api.types.TextComponent statText(String statKey) {
+            java.util.Optional<String> name = adapter().statTypeDisplayName(statKey);
+            return name == null || name.isEmpty() ? null
+                    : ink.tuanzi.neomacros.core.api.types.TextComponent.of(name.get());
+        }
     }
 
     /**
@@ -1044,7 +1098,8 @@ public final class PlayerApi {
     @ApiSince("0.3.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static final class Advancements {
+    public static final class Advancements
+            implements ink.tuanzi.neomacros.core.api.ScriptHandle {
 
         /** The ids of every client-known advancement, in registry order.
          * @zh 客户端已知的全部进度 id（按注册序）。 */
@@ -1111,6 +1166,28 @@ public final class PlayerApi {
         }
 
         /**
+         * The ids of advancements that have a progress entry but are not
+         * complete, including entries with no criterion obtained (the
+         * complement of {@link #getCompleted()} among progress entries).
+         *
+         * @zh 有进度条目但尚未完成的进度 id（含无任何已达成条件的条目，即 {@link #getCompleted()} 在进度条目中的补集）。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public List<String> getMissing() {
+            List<String> out = new java.util.ArrayList<>();
+            for (AdvancementData data : adapter().advancements()) {
+                var progress = adapter().advancementProgress(data.id()).orElse(null);
+                if (progress != null && !progress.done()) {
+                    out.add(data.id());
+                }
+            }
+            return out;
+        }
+
+        /**
          * The children (direct sub-advancements) of one advancement id, in
          * registry order; unknown ids return an empty list.
          *
@@ -1159,7 +1236,8 @@ public final class PlayerApi {
     @ApiSince("0.3.0")
     @ApiMC("*")
     @ApiLoader("*")
-    public static final class Advancement {
+    public static final class Advancement
+            implements ink.tuanzi.neomacros.core.api.ScriptHandle {
 
         private final String id;
 
@@ -1175,6 +1253,31 @@ public final class PlayerApi {
                 }
             }
             return null;
+        }
+
+        /** Reads the live definition data (requirements and rewards), or null when unknown. */
+        private ink.tuanzi.neomacros.port.model.AdvancementDefinitionData definition() {
+            java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementDefinitionData>
+                    definition = adapter().advancementDefinition(id);
+            return definition == null ? null : definition.orElse(null);
+        }
+
+        /**
+         * Counts the requirement groups with at least one obtained criterion:
+         * any one criterion of a group satisfies that group.
+         */
+        private static int satisfiedGroups(List<List<String>> requirements,
+                List<String> obtained) {
+            int satisfied = 0;
+            for (List<String> group : requirements) {
+                for (String criterion : group) {
+                    if (obtained.contains(criterion)) {
+                        satisfied++;
+                        break;
+                    }
+                }
+            }
+            return satisfied;
         }
 
         /** The namespaced advancement id.
@@ -1255,6 +1358,247 @@ public final class PlayerApi {
             return adapter().advancementProgress(id)
                     .map(p -> new AdvancementProgress(p.done(), p.obtained(), p.remaining()))
                     .orElse(null);
+        }
+
+        /**
+         * The criterion requirement groups: every group must be satisfied,
+         * and any one criterion of a group satisfies that group; the number
+         * of groups is {@code requirements.length}. {@code undefined} when
+         * the id is no longer known.
+         *
+         * @zh 条件需求组：每组都需满足，组内任一条件即满足该组；组数为 {@code requirements.length}。id 不再已知时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        @ApiType("Array<Array<string>>")
+        public List<List<String>> getRequirements() {
+            ink.tuanzi.neomacros.port.model.AdvancementDefinitionData definition =
+                    definition();
+            return definition != null ? definition.requirements() : null;
+        }
+
+        /**
+         * The experience points awarded when this advancement is earned;
+         * {@code undefined} when the id is no longer known.
+         *
+         * @zh 完成该进度时奖励的经验值；id 不再已知时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getExperience() {
+            ink.tuanzi.neomacros.port.model.AdvancementDefinitionData definition =
+                    definition();
+            return definition != null ? definition.experience() : null;
+        }
+
+        /**
+         * The loot table identifiers granted as rewards; {@code undefined}
+         * when the id is no longer known. Inline loot tables (Minecraft
+         * 26.3+) carry no registry identifier and are omitted.
+         *
+         * @zh 作为奖励发放的战利品表 id；id 不再已知时为 undefined。内联战利品表（Minecraft 26.3+）无注册表标识，不计入。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        @ApiType("Array<string>")
+        public List<String> getLoot() {
+            ink.tuanzi.neomacros.port.model.AdvancementDefinitionData definition =
+                    definition();
+            return definition != null ? definition.loot() : null;
+        }
+
+        /**
+         * The recipe identifiers unlocked as rewards; {@code undefined} when
+         * the id is no longer known.
+         *
+         * @zh 作为奖励解锁的配方 id；id 不再已知时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        @ApiType("Array<string>")
+        public List<String> getRecipes() {
+            ink.tuanzi.neomacros.port.model.AdvancementDefinitionData definition =
+                    definition();
+            return definition != null ? definition.recipes() : null;
+        }
+
+        /**
+         * This advancement's full definition encoded as a JSON string (the
+         * datapack shape: parent, display, criteria, requirements, rewards);
+         * {@code undefined} when the id is no longer known or the definition
+         * does not encode.
+         *
+         * @zh 该进度完整定义的 JSON 字符串（数据包形态：parent/display/criteria/requirements/rewards）；id 不再已知或定义无法编码时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public String toJson() {
+            java.util.Optional<String> json = adapter().advancementJson(id);
+            return json == null ? null : json.orElse(null);
+        }
+
+        /**
+         * The fraction of requirement groups satisfied ({@code 0} to
+         * {@code 1}; an empty requirement set yields {@code 0});
+         * {@code undefined} without a progress entry.
+         *
+         * @zh 已满足条件组的比例（{@code 0} 到 {@code 1}；无条件组时为 {@code 0}）；无进度条目时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Float getPercentage() {
+            ink.tuanzi.neomacros.port.model.AdvancementDefinitionData definition =
+                    definition();
+            java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressData>
+                    progress = adapter().advancementProgress(id);
+            if (definition == null || progress == null || progress.isEmpty()) {
+                return null;
+            }
+            List<List<String>> requirements = definition.requirements();
+            if (requirements.isEmpty()) {
+                return 0f;
+            }
+            return satisfiedGroups(requirements, progress.get().obtained())
+                    / (float) requirements.size();
+        }
+
+        /**
+         * The localized {@code n/m} progress text for the requirement groups
+         * (the tab-list fraction), or {@code undefined} when there are no
+         * criteria, at most one requirement group, or no progress entry.
+         *
+         * @zh 条件组的本地化 {@code n/m} 进度文本（tab 列表中的分数）；无条件、至多一个条件组或无进度条目时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public ink.tuanzi.neomacros.core.api.types.TextComponent getFraction() {
+            java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressDetailData>
+                    detail = adapter().advancementProgressDetail(id);
+            if (detail == null || detail.isEmpty()
+                    || detail.get().fraction() == null) {
+                return null;
+            }
+            return ink.tuanzi.neomacros.core.api.types.TextComponent.of(
+                    detail.get().fraction());
+        }
+
+        /**
+         * The number of requirement groups with at least one obtained
+         * criterion; {@code undefined} without a progress entry.
+         *
+         * @zh 至少有一个已达成条件的条件组数；无进度条目时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Integer getObtainedRequirementCount() {
+            ink.tuanzi.neomacros.port.model.AdvancementDefinitionData definition =
+                    definition();
+            java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressData>
+                    progress = adapter().advancementProgress(id);
+            if (definition == null || progress == null || progress.isEmpty()) {
+                return null;
+            }
+            return satisfiedGroups(definition.requirements(),
+                    progress.get().obtained());
+        }
+
+        /**
+         * Every obtained criterion with its completion time in milliseconds
+         * since the epoch; unobtained criteria are omitted.
+         * {@code undefined} without a progress entry.
+         *
+         * @zh 每条已达成条件及其自纪元起的毫秒完成时间；未达成条件不计入。无进度条目时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        @ApiType("Record<string, number>")
+        public Map<String, Long> getCriterionDates() {
+            java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressDetailData>
+                    detail = adapter().advancementProgressDetail(id);
+            return detail == null || detail.isEmpty() ? null
+                    : detail.get().criterionDates();
+        }
+
+        /**
+         * The earliest completion time among this advancement's criteria, in
+         * milliseconds since the epoch; {@code undefined} without a progress
+         * entry or with no criterion obtained.
+         *
+         * @zh 该进度所有条件中最早的完成时间（自纪元起的毫秒）；无进度条目或无任何已达成条件时为 undefined。
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        @ApiReadOnly
+        public Long getEarliestProgressObtainDate() {
+            Map<String, Long> dates = getCriterionDates();
+            if (dates == null || dates.isEmpty()) {
+                return null;
+            }
+            Long earliest = null;
+            for (Long date : dates.values()) {
+                if (earliest == null || date < earliest) {
+                    earliest = date;
+                }
+            }
+            return earliest;
+        }
+
+        /**
+         * The completion time of one criterion in milliseconds since the
+         * epoch; {@code -1} when the criterion is unknown or not yet
+         * obtained, {@code undefined} without a progress entry.
+         *
+         * @zh 单条条件的完成时间（自纪元起的毫秒）；条件未知或尚未达成为 {@code -1}，无进度条目时为 undefined。
+         * @zh-param criteria 条件名
+         * @zh-return 完成时间（毫秒）；未达成为 -1
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public Long getCriterionProgress(String criteria) {
+            Map<String, Long> dates = getCriterionDates();
+            if (dates == null) {
+                return null;
+            }
+            Long date = dates.get(criteria);
+            return date != null ? date : -1L;
+        }
+
+        /**
+         * Whether a named criterion is completed; unknown names read as
+         * {@code false} (no exception), without a progress entry as
+         * {@code false}.
+         *
+         * @zh 指定条件是否已达成；未知条件名读作 {@code false}（不抛异常），无进度条目时同样为 {@code false}。
+         * @zh-param criteria 条件名
+         * @zh-return 是否已达成
+         */
+        @ApiSince("0.5.0")
+        @ApiLoader("*")
+        @ApiMC("*")
+        public boolean isCriteriaObtained(String criteria) {
+            java.util.Optional<ink.tuanzi.neomacros.port.model.AdvancementProgressData>
+                    progress = adapter().advancementProgress(id);
+            return progress != null && progress.isPresent()
+                    && progress.get().obtained().contains(criteria);
         }
     }
 
