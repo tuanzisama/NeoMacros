@@ -899,6 +899,47 @@ function start() {
   neo.hud.removeLayer('gap-api-g032');
   check('g032.remove-layer', g032.disposed === true);
 
+  // G-033 Draw3D container: shape checks over the real gizmo pipeline —
+  // the stub-driven Draw3DContainerScenariosTest covers the keyed port
+  // writes; this face exercises the production adapter.
+  if (typeof neo.render.layer !== 'function') {
+    check('g033.absent', false);
+  } else {
+    const layer = neo.render.layer('gap-api-g033');
+    check('g033.layer', layer.id === 'gap-api-g033');
+    const box = layer.boxBuilder()
+        .setPos(0, 64, 0, 1, 65, 1)
+        .setColor(0x00FF0000)
+        .setFillColor(0x0000FF00, 128)
+        .setFill(true)
+        .cull(true)
+        .buildAndAdd();
+    check('g033.box', box.color === 0xFF0000 && box.alpha === 255
+        && box.fillColor === 0x00FF00 && box.fillAlpha === 128
+        && box.filled === true && box.culled === true
+        && box.pos1.y === 64 && box.pos2.x === 1);
+    const line = layer.lineBuilder()
+        .setPos(0, 64, 0, 4, 68, 0)
+        .setColor(0x0000FF00, 200)
+        .setAlwaysOnTop(true)
+        .buildAndAdd();
+    check('g033.line', line.color === 0x00FF00 && line.alpha === 200
+        && line.alwaysOnTop === true && line.culled === false
+        && line.pos1.z === 0 && line.pos2.x === 4);
+    check('g033.elements', layer.elements.length === 2);
+    layer.remove(line);
+    check('g033.remove', layer.elements.length === 1);
+    layer.reAddElement(line);
+    check('g033.readd', layer.elements.length === 2);
+    layer.clear();
+    check('g033.clear', layer.elements.length === 0);
+    // the immediate primitive still works alongside the retained face
+    neo.render.drawBox('gap-api-g033-legacy',
+        new neo.Pos3D(0, 64, 0), new neo.Pos3D(1, 65, 1), 0x112233);
+    check('g033.legacy', true);
+    neo.render.clearLayer('gap-api-g033-legacy');
+  }
+
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
     neo.chat.log('[E2E] ' + key + '=' + value);

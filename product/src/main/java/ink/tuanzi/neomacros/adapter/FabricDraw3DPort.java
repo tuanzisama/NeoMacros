@@ -2,6 +2,7 @@ package ink.tuanzi.neomacros.adapter;
 
 import ink.tuanzi.neomacros.port.Draw3DPort;
 import ink.tuanzi.neomacros.port.model.Pos3d;
+import ink.tuanzi.neomacros.port.model.ShapeSpec;
 import net.minecraft.world.phys.Vec3;
 
 //? if >=26.1 {
@@ -21,40 +22,44 @@ import org.joml.Matrix4f;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
- * World-space shape rendering: 26.x nodes emit through the vanilla gizmo
- * pipeline (one gizmo re-draws every layer each frame); 1.x nodes emit
- * lines into the world render through Fabric's WorldRenderEvents. Script
- * threads mutate copy-on-write shape lists while the render thread reads
+ * World-space shape rendering: shapes are keyed per layer and re-projected
+ * every frame — 26.x nodes emit through the vanilla gizmo pipeline (one
+ * resident gizmo per depth bucket re-draws all layers each frame), 1.x
+ * nodes emit into the world render through Fabric's WorldRenderEvents.
+ * Script threads mutate the keyed spec maps while the render thread reads
  * them.
+ *
+ * <p>Depth buckets: shapes with {@code cull} (or the legacy primitives,
+ * which behave as depth-tested) emit through the standard gizmo; shapes
+ * with {@code alwaysOnTop} semantics ({@code cull == false}) emit through a
+ * second gizmo registered with {@code setAlwaysOnTop()} — javap shows
+ * {@code LevelRenderer} collects gizmos into separate standard /
+ * alwaysOnTop primitive buckets. The 1.x pipeline has no always-on-top
+ * variant of {@code RenderType.lines()}, so it draws every line depth-
+ * tested and only honours {@code fill}.</p>
  */
 public final class FabricDraw3DPort implements Draw3DPort {
 
     private static final float LINE_WIDTH = 2.0f;
 
-    private sealed interface Shape permits Box, Line, Trace, Surface {
-    }
+    /** Auto id sequence for the immediate {@code drawBox}-style face. */
+    private final AtomicLong legacySeq = new AtomicLong();
 
-    private record Box(Pos3d min, Pos3d max, int color) implements Shape {
-    }
-
-    private record Line(Pos3d from, Pos3d to, int color) implements Shape {
-    }
-
-    private record Trace(java.util.UUID entityUuid, int color) implements Shape {
-    }
-
-    private record Surface(java.util.List<Pos3d> points, int color) implements Shape {
-    }
-
-    private final Map<String, CopyOnWriteArrayList<Shape>> layers = new ConcurrentHashMap<>();
+    /** layerId -> (shapeId -> current spec). */
+    private final Map<String, Map<String, ShapeSpec>> layers = new ConcurrentHashMap<>();
 
     //? if >=26.1 {
-    /** The persistent frame gizmo, re-added into vanilla's collector every frame. */
-    private final Gizmo frameGizmo = (Gizmo) (primitives, partialTick) -> emitAll(primitives);
+    /** Standard-depth frame gizmo: shapes with {@code cull} (and legacy primitives). */
+    private final Gizmo frameGizmo = (Gizmo) (primitives, partialTick) ->
+            emitAll(primitives, false);
+
+    /** Always-on-top frame gizmo: shapes drawn over the world ({@code cull == false}). */
+    private final Gizmo frameGizmoTop = (Gizmo) (primitives, partialTick) ->
+            emitAll(primitives, true);
     //?}
 
     /** Creates the port and registers its renderer with the active pipeline. */
@@ -68,35 +73,57 @@ public final class FabricDraw3DPort implements Draw3DPort {
         //?}
     }
 
-    /** Hands the port's gizmo to the collector active for the current frame. */
+    /** Hands the port's gizmos to the collector active for the current frame. */
     void addFrameGizmo() {
         //? if >=26.1 {
         Gizmos.addGizmo(frameGizmo);
+        Gizmos.addGizmo(frameGizmoTop).setAlwaysOnTop();
         //?}
     }
 
+    // ---- keyed shape face (retained components write through this) --------
+
+    @Override
+    public void putShape(String layerId, String shapeId, ShapeSpec spec) {
+        layers.computeIfAbsent(layerId, key -> new ConcurrentHashMap<>())
+                .put(shapeId, spec);
+    }
+
+    @Override
+    public void removeShape(String layerId, String shapeId) {
+        Map<String, ShapeSpec> shapes = layers.get(layerId);
+        if (shapes == null) {
+            return;
+        }
+        shapes.remove(shapeId);
+        if (shapes.isEmpty()) {
+            layers.remove(layerId, shapes);
+        }
+    }
+
+    // ---- immediate primitive face (compat: appends under a fresh id) ------
+
     @Override
     public void drawBox(String layerId, Pos3d min, Pos3d max, int argbColor) {
-        layers.computeIfAbsent(layerId, k -> new CopyOnWriteArrayList<>())
-                .add(new Box(min, max, argbColor));
+        // Legacy primitives keep their historical depth-tested behaviour.
+        putShape(layerId, nextLegacyId(),
+                new ShapeSpec.Box(min, max, argbColor, 0, false, true));
     }
 
     @Override
     public void drawLine(String layerId, Pos3d from, Pos3d to, int argbColor) {
-        layers.computeIfAbsent(layerId, k -> new CopyOnWriteArrayList<>())
-                .add(new Line(from, to, argbColor));
+        putShape(layerId, nextLegacyId(), new ShapeSpec.Line(from, to, argbColor, true));
     }
 
     @Override
     public void addTraceLine(String layerId, java.util.UUID entityUuid, int argbColor) {
-        layers.computeIfAbsent(layerId, k -> new CopyOnWriteArrayList<>())
-                .add(new Trace(entityUuid, argbColor));
+        putShape(layerId, nextLegacyId(), new ShapeSpec.Trace(entityUuid, argbColor));
     }
 
     @Override
     public void drawSurface(String layerId, java.util.List<Pos3d> points, int argbColor) {
-        layers.computeIfAbsent(layerId, k -> new CopyOnWriteArrayList<>())
-                .add(new Surface(java.util.List.copyOf(points), argbColor));
+        putShape(layerId, nextLegacyId(),
+                new ShapeSpec.Surface(java.util.List.copyOf(points), argbColor));
     }
 
     @Override
@@ -109,28 +136,59 @@ public final class FabricDraw3DPort implements Draw3DPort {
         return () -> List.copyOf(layers.keySet());
     }
 
+    /** One fresh auto id for the immediate primitive face. */
+    private String nextLegacyId() {
+        return "r" + legacySeq.incrementAndGet();
+    }
+
     //? if >=26.1 {
-    /** Emits every layer's shapes as gizmo lines for one frame. */
-    private void emitAll(GizmoPrimitives primitives) {
-        for (CopyOnWriteArrayList<Shape> shapes : layers.values()) {
-            for (Shape shape : shapes) {
-                if (shape instanceof Line(Pos3d from, Pos3d to, int color)) {
-                    primitives.addLine(vec(from), vec(to), color, LINE_WIDTH);
-                } else if (shape instanceof Box(Pos3d min, Pos3d max, int color)) {
-                    emitBoxEdges(primitives, min, max, color);
-                } else if (shape instanceof Trace(java.util.UUID uuid, int color)) {
-                    Vec3[] trace = traceEndpoints(uuid);
-                    if (trace != null) {
-                        primitives.addLine(trace[0], trace[1], color, LINE_WIDTH);
-                    }
-                } else if (shape instanceof Surface(java.util.List<Pos3d> points, int color)) {
-                    Vec3[] fan = new Vec3[points.size()];
-                    for (int i = 0; i < fan.length; i++) {
-                        fan[i] = vec(points.get(i));
-                    }
-                    primitives.addTriangleFan(fan, color);
+    /** Emits every layer's shapes in one depth bucket for one frame. */
+    private void emitAll(GizmoPrimitives primitives, boolean alwaysOnTopBucket) {
+        for (Map<String, ShapeSpec> shapes : layers.values()) {
+            for (ShapeSpec spec : shapes.values()) {
+                if (alwaysOnTop(spec) == alwaysOnTopBucket) {
+                    emitShape(primitives, spec);
                 }
             }
+        }
+    }
+
+    /**
+     * Bucket selector: boxes and lines without depth testing draw over the
+     * world; traces and surfaces (legacy face) stay in the standard bucket
+     * exactly as before the buckets existed.
+     */
+    private static boolean alwaysOnTop(ShapeSpec spec) {
+        if (spec instanceof ShapeSpec.Box box) {
+            return !box.cull();
+        }
+        if (spec instanceof ShapeSpec.Line line) {
+            return !line.cull();
+        }
+        return false;
+    }
+
+    /** Emits one shape's gizmo primitives. */
+    private static void emitShape(GizmoPrimitives primitives, ShapeSpec spec) {
+        if (spec instanceof ShapeSpec.Line line) {
+            primitives.addLine(vec(line.from()), vec(line.to()), line.argbColor(), LINE_WIDTH);
+        } else if (spec instanceof ShapeSpec.Box box) {
+            emitBoxEdges(primitives, box.min(), box.max(), box.argbColor());
+            if (box.fill()) {
+                emitBoxFill(primitives, box.min(), box.max(), box.argbFillColor());
+            }
+        } else if (spec instanceof ShapeSpec.Trace trace) {
+            Vec3[] endpoints = traceEndpoints(trace.entityUuid());
+            if (endpoints != null) {
+                primitives.addLine(endpoints[0], endpoints[1], trace.argbColor(), LINE_WIDTH);
+            }
+        } else if (spec instanceof ShapeSpec.Surface surface) {
+            java.util.List<Pos3d> points = surface.points();
+            Vec3[] fan = new Vec3[points.size()];
+            for (int i = 0; i < fan.length; i++) {
+                fan[i] = vec(points.get(i));
+            }
+            primitives.addTriangleFan(fan, surface.argbColor());
         }
     }
 
@@ -169,12 +227,39 @@ public final class FabricDraw3DPort implements Draw3DPort {
         }
     }
 
+    /**
+     * Emits the box interior as six quads. The corner orders mirror vanilla
+     * {@code CuboidGizmo}'s fill faces (javap of 26.3) so winding matches
+     * the pipeline's expectations; corners are normalised per axis so an
+     * unordered corner pair still fills the same volume the edges span.
+     */
+    private static void emitBoxFill(GizmoPrimitives primitives, Pos3d min, Pos3d max, int color) {
+        double mx = Math.min(min.x(), max.x());
+        double my = Math.min(min.y(), max.y());
+        double mz = Math.min(min.z(), max.z());
+        double Mx = Math.max(min.x(), max.x());
+        double My = Math.max(min.y(), max.y());
+        double Mz = Math.max(min.z(), max.z());
+        primitives.addQuad(new Vec3(Mx, my, mz), new Vec3(Mx, My, mz),
+                new Vec3(Mx, My, Mz), new Vec3(Mx, my, Mz), color);
+        primitives.addQuad(new Vec3(mx, my, mz), new Vec3(mx, my, Mz),
+                new Vec3(mx, My, Mz), new Vec3(mx, My, mz), color);
+        primitives.addQuad(new Vec3(mx, my, mz), new Vec3(mx, My, mz),
+                new Vec3(Mx, My, mz), new Vec3(Mx, my, mz), color);
+        primitives.addQuad(new Vec3(mx, my, Mz), new Vec3(Mx, my, Mz),
+                new Vec3(Mx, My, Mz), new Vec3(mx, My, Mz), color);
+        primitives.addQuad(new Vec3(mx, My, mz), new Vec3(mx, My, Mz),
+                new Vec3(Mx, My, Mz), new Vec3(Mx, My, mz), color);
+        primitives.addQuad(new Vec3(mx, my, mz), new Vec3(Mx, my, mz),
+                new Vec3(Mx, my, Mz), new Vec3(mx, my, Mz), color);
+    }
+
     private static Vec3 vec(Pos3d value) {
         return new Vec3(value.x(), value.y(), value.z());
     }
     //?} else {
     /*
-    /** Renders every layer's shapes as world-space lines for one frame. *^/
+    // Renders every layer's shapes as world-space geometry for one frame.
     private void emitWorld(WorldRenderContext context) {
         var consumers = context.consumers();
         if (consumers == null) {
@@ -186,51 +271,90 @@ public final class FabricDraw3DPort implements Draw3DPort {
         }
         var buffer = consumers.getBuffer(RenderType.lines());
         var pose = matrices.last().pose();
-        for (CopyOnWriteArrayList<Shape> shapes : layers.values()) {
-            for (Shape shape : shapes) {
-                if (shape instanceof Line(Pos3d from, Pos3d to, int color)) {
-                    addWorldLine(buffer, pose, from, to, color);
-                } else if (shape instanceof Trace(java.util.UUID uuid, int color)) {
+        VertexConsumer fill = null;
+        for (Map<String, ShapeSpec> shapes : layers.values()) {
+            for (ShapeSpec spec : shapes.values()) {
+                if (spec instanceof ShapeSpec.Line line) {
+                    addWorldLine(buffer, pose, line.from(), line.to(), line.argbColor());
+                } else if (spec instanceof ShapeSpec.Box box) {
+                    addWorldBoxEdges(buffer, pose, box.min(), box.max(), box.argbColor());
+                    if (box.fill()) {
+                        if (fill == null) {
+                            fill = consumers.getBuffer(RenderType.debugQuads());
+                        }
+                        addWorldBoxFill(fill, pose, box.min(), box.max(), box.argbFillColor());
+                    }
+                } else if (spec instanceof ShapeSpec.Trace trace) {
                     var level = net.minecraft.client.Minecraft.getInstance().level;
                     var player = net.minecraft.client.Minecraft.getInstance().player;
                     if (level != null && player != null) {
                         for (net.minecraft.world.entity.Entity entity : level.entitiesForRendering()) {
-                            if (entity.getUUID().equals(uuid)) {
+                            if (entity.getUUID().equals(trace.entityUuid())) {
                                 var eye = player.getEyePosition();
                                 var other = entity.getEyePosition();
                                 addWorldLine(buffer, pose,
                                         new double[] {eye.x, eye.y, eye.z},
-                                        new double[] {other.x, other.y, other.z}, color);
+                                        new double[] {other.x, other.y, other.z},
+                                        trace.argbColor());
                                 break;
                             }
                         }
                     }
-                } else if (shape instanceof Surface(
-                        java.util.List<Pos3d> points, int color)) {
+                } else if (spec instanceof ShapeSpec.Surface surface) {
+                    java.util.List<Pos3d> points = surface.points();
                     for (int i = 0; i < points.size(); i++) {
                         Pos3d a = points.get(i);
                         Pos3d b = points.get((i + 1) % points.size());
-                        addWorldLine(buffer, pose, a, b, color);
-                    }
-                } else if (shape instanceof Box(Pos3d min, Pos3d max, int color)) {
-                    double x1 = min.x(), y1 = min.y(), z1 = min.z();
-                    double x2 = max.x(), y2 = max.y(), z2 = max.z();
-                    double[][] corners = {
-                            {x1, y1, z1}, {x2, y1, z1},
-                            {x2, y1, z2}, {x1, y1, z2},
-                            {x1, y2, z1}, {x2, y2, z1},
-                            {x2, y2, z2}, {x1, y2, z2},
-                    };
-                    int[][] edges = {
-                            {0, 1}, {1, 2}, {2, 3}, {3, 0},
-                            {4, 5}, {5, 6}, {6, 7}, {7, 4},
-                            {0, 4}, {1, 5}, {2, 6}, {3, 7},
-                    };
-                    for (int[] edge : edges) {
-                        addWorldLine(buffer, pose,
-                                corners[edge[0]], corners[edge[1]], color);
+                        addWorldLine(buffer, pose, a, b, surface.argbColor());
                     }
                 }
+            }
+        }
+    }
+
+    private static void addWorldBoxEdges(VertexConsumer buffer, Matrix4f pose,
+            Pos3d min, Pos3d max, int color) {
+        double x1 = min.x(), y1 = min.y(), z1 = min.z();
+        double x2 = max.x(), y2 = max.y(), z2 = max.z();
+        double[][] corners = {
+                {x1, y1, z1}, {x2, y1, z1},
+                {x2, y1, z2}, {x1, y1, z2},
+                {x1, y2, z1}, {x2, y2, z1},
+                {x2, y2, z2}, {x1, y2, z2},
+        };
+        int[][] edges = {
+                {0, 1}, {1, 2}, {2, 3}, {3, 0},
+                {4, 5}, {5, 6}, {6, 7}, {7, 4},
+                {0, 4}, {1, 5}, {2, 6}, {3, 7},
+        };
+        for (int[] edge : edges) {
+            addWorldLine(buffer, pose, corners[edge[0]], corners[edge[1]], color);
+        }
+    }
+
+    // Fills the box interior with six quads; the 1.x line render type
+    // cannot draw triangles, so this goes through the position-colour
+    // debug quads type (alpha/depth presentation pending observe run).
+    private static void addWorldBoxFill(VertexConsumer fill, Matrix4f pose,
+            Pos3d min, Pos3d max, int color) {
+        double mx = Math.min(min.x(), max.x());
+        double my = Math.min(min.y(), max.y());
+        double mz = Math.min(min.z(), max.z());
+        double Mx = Math.max(min.x(), max.x());
+        double My = Math.max(min.y(), max.y());
+        double Mz = Math.max(min.z(), max.z());
+        double[][][] faces = {
+                {{Mx, my, mz}, {Mx, My, mz}, {Mx, My, Mz}, {Mx, my, Mz}},
+                {{mx, my, mz}, {mx, my, Mz}, {mx, My, Mz}, {mx, My, mz}},
+                {{mx, my, mz}, {mx, My, mz}, {Mx, My, mz}, {Mx, my, mz}},
+                {{mx, my, Mz}, {Mx, my, Mz}, {Mx, My, Mz}, {mx, My, Mz}},
+                {{mx, My, mz}, {mx, My, Mz}, {Mx, My, Mz}, {Mx, My, mz}},
+                {{mx, my, mz}, {Mx, my, mz}, {Mx, my, Mz}, {mx, my, Mz}},
+        };
+        for (double[][] face : faces) {
+            for (double[] corner : face) {
+                fill.addVertex(pose, (float) corner[0], (float) corner[1], (float) corner[2])
+                        .setColor(color);
             }
         }
     }

@@ -23,6 +23,7 @@ import ink.tuanzi.neomacros.port.model.EntitySnapshot;
 import ink.tuanzi.neomacros.port.model.PlayerSnapshot;
 import ink.tuanzi.neomacros.port.model.Pos3d;
 import ink.tuanzi.neomacros.port.model.ScoreboardData;
+import ink.tuanzi.neomacros.port.model.ShapeSpec;
 import ink.tuanzi.neomacros.port.model.TabListData;
 import ink.tuanzi.neomacros.port.model.TpsData;
 
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -1381,26 +1383,79 @@ public final class StubAdapter implements NeomacrosAdapter {
 
     /** World-space shape recorder for assertions. */
     public static final class StubDraw3D implements Draw3DPort {
-        /** One recorded shape. */
+        /** Separator between layer id and shape id in {@link #current} keys. */
+        private static final String KEY_SEP = "\0";
+
+        /** One recorded shape (immediate primitive face). */
         public record Shape(String kind, String layerId, Pos3d a, Pos3d b, int color) {
         }
 
+        /** One recorded keyed shape write (G-033 {@code putShape}/{@code removeShape}). */
+        public record KeyedShape(String op, String layerId, String shapeId, ShapeSpec spec) {
+        }
+
         final List<Shape> shapes = new CopyOnWriteArrayList<>();
+        final List<KeyedShape> keyed = new CopyOnWriteArrayList<>();
+        /** Live keyed state, keyed {@code layerId + NUL + shapeId}. */
+        final java.util.Map<String, ShapeSpec> current = new ConcurrentHashMap<>();
+
+        private final java.util.concurrent.atomic.AtomicLong legacySeq =
+                new java.util.concurrent.atomic.AtomicLong();
+
+        @Override
+        public void putShape(String layerId, String shapeId, ShapeSpec spec) {
+            keyed.add(new KeyedShape("put", layerId, shapeId, spec));
+            current.put(layerId + KEY_SEP + shapeId, spec);
+        }
+
+        @Override
+        public void removeShape(String layerId, String shapeId) {
+            keyed.add(new KeyedShape("remove", layerId, shapeId, null));
+            current.remove(layerId + KEY_SEP + shapeId);
+        }
+
+        /** Every keyed write in call order, for order-sensitive assertions. */
+        public List<KeyedShape> keyedShapes() {
+            return List.copyOf(keyed);
+        }
+
+        /** The current spec of one keyed shape, or null when absent. */
+        public ShapeSpec currentShape(String layerId, String shapeId) {
+            return current.get(layerId + KEY_SEP + shapeId);
+        }
+
+        /** Live keyed shapes of one layer as {@code shapeId -> spec}. */
+        public java.util.Map<String, ShapeSpec> liveShapes(String layerId) {
+            String prefix = layerId + KEY_SEP;
+            java.util.Map<String, ShapeSpec> result = new java.util.LinkedHashMap<>();
+            for (java.util.Map.Entry<String, ShapeSpec> entry : current.entrySet()) {
+                if (entry.getKey().startsWith(prefix)) {
+                    result.put(entry.getKey().substring(prefix.length()), entry.getValue());
+                }
+            }
+            return result;
+        }
 
         @Override
         public void drawBox(String layerId, Pos3d min, Pos3d max, int argbColor) {
             shapes.add(new Shape("box", layerId, min, max, argbColor));
+            putShape(layerId, "r" + legacySeq.incrementAndGet(),
+                    new ShapeSpec.Box(min, max, argbColor, 0, false, true));
         }
 
         @Override
         public void drawLine(String layerId, Pos3d from, Pos3d to, int argbColor) {
             shapes.add(new Shape("line", layerId, from, to, argbColor));
+            putShape(layerId, "r" + legacySeq.incrementAndGet(),
+                    new ShapeSpec.Line(from, to, argbColor, true));
         }
 
         @Override
         public void addTraceLine(String layerId, java.util.UUID entityUuid, int argbColor) {
             shapes.add(new Shape("trace", layerId,
                     new Pos3d(0, 0, 0), new Pos3d(0, 0, 0), argbColor));
+            putShape(layerId, "r" + legacySeq.incrementAndGet(),
+                    new ShapeSpec.Trace(entityUuid, argbColor));
         }
 
         @Override
@@ -1409,16 +1464,24 @@ public final class StubAdapter implements NeomacrosAdapter {
                     points.isEmpty() ? new Pos3d(0, 0, 0) : points.get(0),
                     points.size() > 1 ? points.get(points.size() - 1) : new Pos3d(0, 0, 0),
                     argbColor));
+            putShape(layerId, "r" + legacySeq.incrementAndGet(),
+                    new ShapeSpec.Surface(java.util.List.copyOf(points), argbColor));
         }
 
         @Override
         public void clearLayer(String layerId) {
             shapes.removeIf(shape -> shape.layerId().equals(layerId));
+            String prefix = layerId + KEY_SEP;
+            current.keySet().removeIf(key -> key.startsWith(prefix));
+            keyed.add(new KeyedShape("clear", layerId, null, null));
         }
 
         @Override
         public java.util.function.Supplier<List<String>> layerIds() {
-            return () -> shapes.stream().map(Shape::layerId).distinct().toList();
+            return () -> current.keySet().stream()
+                    .map(key -> key.substring(0, key.indexOf(KEY_SEP.charAt(0))))
+                    .distinct()
+                    .toList();
         }
     }
 
