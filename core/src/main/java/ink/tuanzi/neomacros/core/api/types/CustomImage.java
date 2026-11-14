@@ -60,6 +60,14 @@ public final class CustomImage implements ScriptHandle, SelfConstructing {
      */
     private static volatile ink.tuanzi.neomacros.core.api.FsApi.FsBridge fileRoot;
 
+    /**
+     * Registry sink installed by the hud facade (G-038): every named
+     * canvas registers itself so {@code hud.textures} lists it and module
+     * unload reclaims its GPU slot. Null before bootstrap — registration
+     * then stays a no-op (tests, embedders without a hud facade).
+     */
+    private static volatile java.util.function.Consumer<CustomImage> registrySink;
+
     private final String name;
     private final String identifier;
     private final BufferedImage surface;
@@ -85,6 +93,7 @@ public final class CustomImage implements ScriptHandle, SelfConstructing {
         this.surface = surface;
         this.graphics = surface.createGraphics();
         uploadBestEffort();
+        notifyRegistry();
     }
 
     /**
@@ -96,6 +105,31 @@ public final class CustomImage implements ScriptHandle, SelfConstructing {
     @ApiInternal
     public static void installRoot(ink.tuanzi.neomacros.core.api.FsApi.FsBridge bridge) {
         fileRoot = bridge;
+    }
+
+    /**
+     * Installs the texture-registry sink backing {@code hud.textures}
+     * (bootstrap-provided; the hud facade passes its registration
+     * callback).
+     *
+     * @zh 安装支撑 {@code hud.textures} 的纹理注册表接收器（启动时注入；hud 门面传入其登记回调）。
+     */
+    @ApiInternal
+    public static void installRegistry(java.util.function.Consumer<CustomImage> sink) {
+        registrySink = sink;
+    }
+
+    /** Best-effort self-registration; the canvas stays usable on failure. */
+    private void notifyRegistry() {
+        java.util.function.Consumer<CustomImage> sink = registrySink;
+        if (sink == null || name.isEmpty()) {
+            return;
+        }
+        try {
+            sink.accept(this);
+        } catch (RuntimeException ignored) {
+            // Registration is best-effort; drawing/uploading keep working.
+        }
     }
 
     /**

@@ -71,6 +71,7 @@ final class ApiCompletenessSurface {
             ItemStack.class, ItemStackBuilder.class, Enchantment.class,
             ink.tuanzi.neomacros.core.api.types.Image.class,
             ink.tuanzi.neomacros.core.api.types.CustomImage.class,
+            ink.tuanzi.neomacros.core.api.types.Texture.class,
             ink.tuanzi.neomacros.core.api.render.HudLayer.class,
             ink.tuanzi.neomacros.core.api.render.components.Draw2DElement.class,
             FsApi.FileHandle.class, NetApi.Ws.class,

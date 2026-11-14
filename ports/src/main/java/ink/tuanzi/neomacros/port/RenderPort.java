@@ -82,4 +82,22 @@ public interface RenderPort {
     default Supplier<List<String>> textureIds() {
         return java.util.List::of;
     }
+
+    /**
+     * Removes a previously registered texture so its GPU memory is
+     * released; unknown identifiers are ignored. Registration and upload
+     * happen on the game main thread, so the returned future settles
+     * there. Removing an identifier and later calling {@link #putTexture}
+     * with it registers a fresh texture.
+     *
+     * <p>Defaulted to a completed future: adapters without texture
+     * support have nothing to remove, and disposal stays best-effort for
+     * them.</p>
+     *
+     * @param id texture identifier passed to {@link #putTexture}
+     * @return future completing once the texture is removed
+     */
+    default CompletableFuture<Void> removeTexture(String id) {
+        return CompletableFuture.completedFuture(null);
+    }
 }
