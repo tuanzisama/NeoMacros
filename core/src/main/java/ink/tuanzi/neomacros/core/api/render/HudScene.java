@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.core.api.render;
 
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DElement;
+import ink.tuanzi.neomacros.core.api.render.components.ElementSpec;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
 import ink.tuanzi.neomacros.port.model.DrawContext2d;
 import ink.tuanzi.neomacros.port.model.WindowData;
@@ -26,91 +27,28 @@ import java.util.function.Supplier;
  * keeps the handle and insertion slot, while a kind change replaces the
  * cell and invalidates the previous handle.</p>
  *
+ * <p>The element handle reaches its cell through {@link Draw2DElement.Backend}:
+ * fluent setters republish an {@link ElementSpec} snapshot (a z change
+ * bumps the generation so the order rebuilds), and getters read the live
+ * volatile field — the G-001 §2.2 write-then-publish path.</p>
+ *
  * @zh 单个 HUD 图层背后的保留式场景图：以 id 为键的元素表，其不可变 spec 由引擎每帧重新投影。脚本可从任意线程修改（volatile spec 单元 + 结构代数计数器）；渲染线程只读取缓存的有序快照并重放中立 {@link DrawContext2d} 原语。渲染路径上永不进入脚本回调。
  * @zh 绘制序为「元素 z 升序 → 插入序」（同 z 稳定）。元素 id 在层内唯一；同 id 同类型重复 upsert 原地更新 spec 并保留句柄与插入位，类型不同则替换单元并使旧句柄失效。
+ * @zh 元素句柄经 {@link Draw2DElement.Backend} 抵达其单元：fluent setter 重新发布 {@link ElementSpec} 快照（z 变更推进代数使序重建），getter 读取 volatile 现值——即 G-001 §2.2 的写入即发布路径。
  */
 @ApiInternal
 final class HudScene {
-
-    /** Element kinds hosted by this wave's container face. */
-    enum Kind {
-        TEXT,
-        RECT
-    }
-
-    /**
-     * One immutable element snapshot published through a volatile cell.
-     * Geometry coordinates may be absolute pixels or a viewport percentage;
-     * they resolve against the current viewport at paint time.
-     */
-    record Spec(Kind kind, Coord x, Coord y, Coord w, Coord h,
-            int color, String text, int zIndex, boolean visible) {
-    }
-
-    /**
-     * A screen coordinate: either absolute scaled pixels or a percentage of
-     * the parent box (the layer viewport) resolved every frame.
-     */
-    static final class Coord {
-        private final int abs;
-        private final double pct;
-        private final boolean percent;
-
-        private Coord(int abs, double pct, boolean percent) {
-            this.abs = abs;
-            this.pct = pct;
-            this.percent = percent;
-        }
-
-        /** Absolute pixel coordinate. */
-        static Coord at(int value) {
-            return new Coord(value, 0, false);
-        }
-
-        /**
-         * Parses a script coordinate: a number is absolute pixels, a string
-         * of the form {@code "50%"} is a viewport percentage.
-         *
-         * @throws IllegalArgumentException on any other form
-         */
-        static Coord parse(Object value, String what) {
-            if (value instanceof Number number) {
-                return at(number.intValue());
-            }
-            if (value instanceof String text) {
-                String trimmed = text.trim();
-                if (trimmed.endsWith("%")) {
-                    try {
-                        return new Coord(0, Double.parseDouble(trimmed.substring(0,
-                                trimmed.length() - 1)), true);
-                    } catch (NumberFormatException e) {
-                        throw new IllegalArgumentException(
-                                what + " is not a percentage: " + text, e);
-                    }
-                }
-                throw new IllegalArgumentException(
-                        what + " must be a number or a percentage string: " + text);
-            }
-            throw new IllegalArgumentException(
-                    what + " must be a number or a percentage string");
-        }
-
-        /** Resolves against the given parent extent in pixels. */
-        int resolve(int parent) {
-            return percent ? (int) Math.round(parent * pct / 100.0) : abs;
-        }
-    }
 
     /** One element cell: identity, insertion slot, and the published spec. */
     static final class Cell {
         final String id;
         final long seq;
-        final Kind kind;
-        volatile Spec spec;
+        final ElementSpec.Kind kind;
+        volatile ElementSpec spec;
         volatile boolean removed;
         volatile Draw2DElement handle;
 
-        Cell(String id, long seq, Kind kind, Spec spec) {
+        Cell(String id, long seq, ElementSpec.Kind kind, ElementSpec spec) {
             this.id = id;
             this.seq = seq;
             this.kind = kind;
@@ -118,6 +56,7 @@ final class HudScene {
         }
     }
 
+    private final HudLayer owner;
     private final Supplier<WindowData> window;
     /** Live cells keyed by element id; guarded by {@code this}. */
     private final Map<String, Cell> cells = new LinkedHashMap<>();
@@ -129,7 +68,8 @@ final class HudScene {
     private volatile boolean visible = true;
     private volatile boolean disposed;
 
-    HudScene(Supplier<WindowData> window) {
+    HudScene(HudLayer owner, Supplier<WindowData> window) {
+        this.owner = owner;
         this.window = window;
     }
 
@@ -140,7 +80,8 @@ final class HudScene {
      *
      * @return the live element handle
      */
-    synchronized Draw2DElement upsert(String id, Kind kind, Spec spec) {
+    synchronized Draw2DElement upsert(String id, ElementSpec.Kind kind,
+            ElementSpec spec) {
         Cell existing = cells.get(id);
         if (existing != null && !existing.removed && existing.kind == kind) {
             existing.spec = spec;
@@ -152,10 +93,62 @@ final class HudScene {
             cells.remove(id);
         }
         Cell fresh = new Cell(id, nextSeq++, kind, spec);
-        fresh.handle = new Draw2DElement(id, () -> fresh.removed || disposed);
+        fresh.handle = new Draw2DElement(id, owner, backendFor(fresh));
         cells.put(id, fresh);
         generation++;
         return fresh.handle;
+    }
+
+    /**
+     * The scene-side bridge handed to one handle: reads the cell's live
+     * spec, republishes replacements (bumping the generation only when the
+     * z-order changed, so the ordering cache stays valid), and exposes the
+     * viewport for percentage geometry.
+     */
+    private Draw2DElement.Backend backendFor(Cell cell) {
+        return new Draw2DElement.Backend() {
+            @Override
+            public ElementSpec spec() {
+                return cell.spec;
+            }
+
+            @Override
+            public void publish(ElementSpec next) {
+                publishCell(cell, next);
+            }
+
+            @Override
+            public int viewportWidth() {
+                return width();
+            }
+
+            @Override
+            public int viewportHeight() {
+                return height();
+            }
+
+            @Override
+            public boolean disposed() {
+                return cell.removed || disposed;
+            }
+        };
+    }
+
+    /**
+     * Republishes one cell's state from a fluent setter. Runs synchronized
+     * so a z change bumps the structure generation atomically with the
+     * write; a cell that died between the setter's alive-check and here
+     * rejects the write (the handle turned disposed in between).
+     */
+    private synchronized void publishCell(Cell cell, ElementSpec next) {
+        if (cell.removed || disposed) {
+            throw new IllegalStateException("element no longer valid");
+        }
+        boolean zChanged = cell.spec.zIndex() != next.zIndex();
+        cell.spec = next;
+        if (zChanged) {
+            generation++;
+        }
     }
 
     /** Removes one element; its handle becomes disposed. Unknown ids are ignored. */
@@ -253,7 +246,7 @@ final class HudScene {
         int viewportWidth = width();
         int viewportHeight = height();
         for (Cell cell : orderedSnapshot()) {
-            Spec spec = cell.spec;
+            ElementSpec spec = cell.spec;
             if (spec == null || !spec.visible()) {
                 continue;
             }
@@ -261,7 +254,7 @@ final class HudScene {
         }
     }
 
-    private static void emit(Spec spec, int viewportWidth, int viewportHeight,
+    private static void emit(ElementSpec spec, int viewportWidth, int viewportHeight,
             DrawContext2d ctx) {
         int x = spec.x().resolve(viewportWidth);
         int y = spec.y().resolve(viewportHeight);

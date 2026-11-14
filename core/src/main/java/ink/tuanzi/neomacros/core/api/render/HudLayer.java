@@ -2,6 +2,7 @@ package ink.tuanzi.neomacros.core.api.render;
 
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DElement;
+import ink.tuanzi.neomacros.core.api.render.components.ElementSpec;
 import ink.tuanzi.neomacros.doc.api.ApiClass;
 import ink.tuanzi.neomacros.doc.api.ApiClassKind;
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
@@ -79,7 +80,7 @@ public final class HudLayer implements ScriptHandle {
         this.zIndex = zIndex;
         this.port = port;
         this.mainExecutor = mainExecutor;
-        this.scene = new HudScene(window);
+        this.scene = new HudScene(this, window);
         CompletableFuture.runAsync(() -> port.addLayer(key, zIndex, scene::paint),
                 mainExecutor);
     }
@@ -206,13 +207,15 @@ public final class HudLayer implements ScriptHandle {
      * @param opts text options: {@code x}, {@code y} (number or percentage
      *             string, default {@code 0}), {@code color} (ARGB number or
      *             {@code '#rgb'}/{@code '#rrggbbaa'}/vanilla color name,
-     *             default white), {@code zIndex} (default {@code 0}),
+     *             default white), {@code scale} (default {@code 1}),
+     *             {@code rotation} (degrees, default {@code 0}),
+     *             {@code zIndex} (default {@code 0}),
      *             {@code visible} (default {@code true})
      * @return the live element handle
      * @zh 按 id 插入或更新文本元素：同 id 原地更新（插入位与句柄不变）；同 id 不同组件类型则替换并使旧句柄失效。
      * @zh-param id 元素 id（不得以 {@code $} 开头）
      * @zh-param text 要绘制的文本
-     * @zh-param opts 文本选项：{@code x}、{@code y}（数字或百分比字符串，默认 {@code 0}）、{@code color}（ARGB 数字或 {@code '#rgb'}/{@code '#rrggbbaa'}/原版颜色名，默认白色）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）
+     * @zh-param opts 文本选项：{@code x}、{@code y}（数字或百分比字符串，默认 {@code 0}）、{@code color}（ARGB 数字或 {@code '#rgb'}/{@code '#rrggbbaa'}/原版颜色名，默认白色）、{@code scale}（默认 {@code 1}）、{@code rotation}（度，默认 {@code 0}）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）
      * @zh-return 存活的元素句柄
      */
     @ApiSince("0.5.0")
@@ -223,16 +226,19 @@ public final class HudLayer implements ScriptHandle {
         ensureAlive();
         requireElementId(id);
         Map<String, Object> options = opts == null ? Map.of() : opts;
-        HudScene.Spec spec = new HudScene.Spec(HudScene.Kind.TEXT,
-                HudScene.Coord.parse(options.getOrDefault("x", 0), "text x"),
-                HudScene.Coord.parse(options.getOrDefault("y", 0), "text y"),
-                HudScene.Coord.at(0),
-                HudScene.Coord.at(0),
+        ElementSpec spec = new ElementSpec(ElementSpec.Kind.TEXT,
+                ElementSpec.Coord.parse(options.getOrDefault("x", 0), "text x"),
+                ElementSpec.Coord.parse(options.getOrDefault("y", 0), "text y"),
+                ElementSpec.Coord.at(0),
+                ElementSpec.Coord.at(0),
                 colorOf(options.get("color"), 0xFFFFFFFF),
                 text == null ? "" : text,
                 intOf(options.get("zIndex"), 0),
-                boolOf(options.get("visible"), true));
-        return scene.upsert(id, HudScene.Kind.TEXT, spec);
+                boolOf(options.get("visible"), true),
+                scaleOf(options.get("scale")),
+                rotationOf(options.get("rotation")),
+                false);
+        return scene.upsert(id, ElementSpec.Kind.TEXT, spec);
     }
 
     /**
@@ -244,12 +250,14 @@ public final class HudLayer implements ScriptHandle {
      * @param opts rect options: {@code x}, {@code y}, {@code w}, {@code h}
      *             (numbers or percentage strings, required), {@code color}
      *             (ARGB number or {@code '#rgb'}/{@code '#rrggbbaa'}/vanilla
-     *             color name, default white), {@code zIndex} (default
-     *             {@code 0}), {@code visible} (default {@code true})
+     *             color name, default white), {@code scale} (default
+     *             {@code 1}), {@code rotation} (degrees, default
+     *             {@code 0}), {@code zIndex} (default {@code 0}),
+     *             {@code visible} (default {@code true})
      * @return the live element handle
      * @zh 按 id 插入或更新填充矩形元素：同 id 语义同 {@link #text}。选项包必须给出矩形（{@code x}、{@code y}、{@code w}、{@code h}）。
      * @zh-param id 元素 id（不得以 {@code $} 开头）
-     * @zh-param opts 矩形选项：{@code x}、{@code y}、{@code w}、{@code h}（数字或百分比字符串，必填）、{@code color}（ARGB 数字或 {@code '#rgb'}/{@code '#rrggbbaa'}/原版颜色名，默认白色）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）
+     * @zh-param opts 矩形选项：{@code x}、{@code y}、{@code w}、{@code h}（数字或百分比字符串，必填）、{@code color}（ARGB 数字或 {@code '#rgb'}/{@code '#rrggbbaa'}/原版颜色名，默认白色）、{@code scale}（默认 {@code 1}）、{@code rotation}（度，默认 {@code 0}）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）
      * @zh-return 存活的元素句柄
      */
     @ApiSince("0.5.0")
@@ -262,7 +270,7 @@ public final class HudLayer implements ScriptHandle {
         if (opts == null) {
             throw new IllegalArgumentException("rect requires x, y, w and h options");
         }
-        HudScene.Spec spec = new HudScene.Spec(HudScene.Kind.RECT,
+        ElementSpec spec = new ElementSpec(ElementSpec.Kind.RECT,
                 requiredCoord(opts, "x"),
                 requiredCoord(opts, "y"),
                 requiredCoord(opts, "w"),
@@ -270,8 +278,11 @@ public final class HudLayer implements ScriptHandle {
                 colorOf(opts.get("color"), 0xFFFFFFFF),
                 "",
                 intOf(opts.get("zIndex"), 0),
-                boolOf(opts.get("visible"), true));
-        return scene.upsert(id, HudScene.Kind.RECT, spec);
+                boolOf(opts.get("visible"), true),
+                scaleOf(opts.get("scale")),
+                rotationOf(opts.get("rotation")),
+                false);
+        return scene.upsert(id, ElementSpec.Kind.RECT, spec);
     }
 
     /**
@@ -393,12 +404,47 @@ public final class HudLayer implements ScriptHandle {
         }
     }
 
-    private static HudScene.Coord requiredCoord(Map<String, Object> opts, String name) {
+    private static ElementSpec.Coord requiredCoord(Map<String, Object> opts, String name) {
         Object value = opts.get(name);
         if (value == null) {
             throw new IllegalArgumentException("rect option '" + name + "' is required");
         }
-        return HudScene.Coord.parse(value, "rect " + name);
+        return ElementSpec.Coord.parse(value, "rect " + name);
+    }
+
+    /**
+     * Scale option: a number greater than zero (JsMacros builder parity —
+     * zero and negative values throw), default {@code 1}. The value is
+     * stored on the element state; the render transform that applies it
+     * ships with the component tasks (G-034).
+     */
+    private static float scaleOf(Object value) {
+        if (value == null) {
+            return 1f;
+        }
+        if (value instanceof Number number) {
+            float scale = number.floatValue();
+            if (!(scale > 0)) {
+                throw new IllegalArgumentException(
+                        "scale must be greater than zero: " + value);
+            }
+            return scale;
+        }
+        throw new IllegalArgumentException("expected a number, got: " + value);
+    }
+
+    /**
+     * Rotation option in degrees, normalized to {@code [-180, 180)} the
+     * same way {@code Draw2DElement.setRotation} does; default {@code 0}.
+     */
+    private static float rotationOf(Object value) {
+        if (value == null) {
+            return 0f;
+        }
+        if (value instanceof Number number) {
+            return ElementSpec.normalizeRotation(number.floatValue());
+        }
+        throw new IllegalArgumentException("expected a number, got: " + value);
     }
 
     /**

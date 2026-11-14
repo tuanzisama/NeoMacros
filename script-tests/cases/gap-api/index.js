@@ -940,6 +940,45 @@ function start() {
     neo.render.clearLayer('gap-api-g033-legacy');
   }
 
+  // G-032B Draw2DElement base face: fluent setters (拍板② — the handle is
+  // its own builder), geometry getters and back references on the real
+  // engine (z-order frames and disposed throws are e2e-A covered by
+  // Draw2DElementScenariosTest over the stub render port).
+  const g032b = neo.hud.layer('gap-api-g032b');
+  const el = g032b.text('t', 'hi', {x: 1, y: 2});
+  check('g032b.fluent-shape', typeof el.setX === 'function'
+      && typeof el.setPos === 'function' && typeof el.setSize === 'function'
+      && typeof el.setScale === 'function' && typeof el.setZIndex === 'function'
+      && typeof el.setVisible === 'function' && typeof el.moveTo === 'function'
+      && el.setX(10).setY(20).setZIndex(3) !== undefined);
+  check('g032b.props-shape', el.x === 10 && el.y === 20
+      && typeof el.width === 'number' && typeof el.height === 'number'
+      && el.scale === 1 && el.rotation === 0
+      && el.rotateCenter === false && el.zIndex === 3 && el.visible === true
+      && el.id === 't' && el.disposed === false);
+  check('g032b.refs', el.layer !== undefined && el.layer.id === 'gap-api-g032b'
+      && el.parent !== undefined && el.parent.id === 'gap-api-g032b');
+  el.setWidth(40).setHeight(20).setScale(2);
+  check('g032b.geometry', el.bounds.x === 10 && el.bounds.y === 20
+      && el.bounds.width === 80 && el.bounds.height === 40
+      && el.scaledWidth === 80 && el.scaledHeight === 40
+      && el.scaledLeft === 10 && el.scaledTop === 20
+      && typeof el.parentWidth === 'number'
+      && typeof el.parentHeight === 'number');
+  el.setX('50%');
+  check('g032b.percent', el.x === '50%' && typeof el.bounds.x === 'number');
+  el.setVisible(false);
+  check('g032b.hidden', el.visible === false);
+  el.setVisible(true);
+  const g032bGone = g032b.text('gone', 'x', {});
+  g032b.remove('gone');
+  let g032bThrew = false;
+  try { g032bGone.setX(1); } catch (e) { g032bThrew = true; }
+  check('g032b.disposed-throw',
+      g032bThrew && g032bGone.disposed === true && g032bGone.x === undefined);
+  neo.hud.removeLayer('gap-api-g032b');
+  check('g032b.remove-layer', g032b.disposed === true);
+
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
     neo.chat.log('[E2E] ' + key + '=' + value);
