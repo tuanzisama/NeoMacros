@@ -359,6 +359,11 @@ public final class StubAdapter implements NeomacrosAdapter {
     }
 
     @Override
+    public ink.tuanzi.neomacros.port.ItemPort item() {
+        return item;
+    }
+
+    @Override
     public ink.tuanzi.neomacros.port.DialogPort dialog() {
         return new ink.tuanzi.neomacros.port.DialogPort() {
         };
@@ -370,6 +375,104 @@ public final class StubAdapter implements NeomacrosAdapter {
     }
 
     private final StubInventory inventory = new StubInventory();
+
+    /** The test-facing item port: reads canned data. */
+    public StubItem itemPort() {
+        return item;
+    }
+
+    private final StubItem item = new StubItem();
+
+    /** Item port stub serving canned item-face answers ({@code null} = undefined). */
+    public static final class StubItem implements ink.tuanzi.neomacros.port.ItemPort {
+
+        /** Canned creative tab display names ({@code null} = undefined). */
+        public volatile java.util.List<String> creativeTabs;
+        /** Canned tab icon stacks, same order as {@link #creativeTabs}. */
+        public volatile java.util.List<ink.tuanzi.neomacros.port.model.ItemStackData> groupIcons;
+        /** Canned item tags ({@code null} = undefined). */
+        public volatile java.util.List<String> tags;
+        /** Canned default stack ({@code null} = undefined). */
+        public volatile ink.tuanzi.neomacros.port.model.ItemStackData defaultStack;
+        /** Canned crafting remainder ({@code null} = undefined). */
+        public volatile ink.tuanzi.neomacros.port.model.ItemStackData recipeRemainder;
+        /** Canned remainder presence ({@code null} = undefined). */
+        public volatile Boolean hasRecipeRemainder;
+        /** Canned main-hand attack damage ({@code null} = undefined). */
+        public volatile Double attackDamage;
+        /** Canned cooldown answers ({@code null} = undefined). */
+        public volatile Boolean onCooldown;
+        public volatile Float cooldownProgress;
+        /** Canned tool and repair evaluations ({@code null} = undefined). */
+        public volatile Boolean correctToolForDrops;
+        public volatile Float destroySpeed;
+        public volatile Boolean repairable;
+
+        @Override
+        public java.util.Optional<java.util.List<String>> creativeTabs(String itemId) {
+            return java.util.Optional.ofNullable(creativeTabs);
+        }
+
+        @Override
+        public java.util.Optional<java.util.List<ink.tuanzi.neomacros.port.model.ItemStackData>>
+                groupIcons(String itemId) {
+            return java.util.Optional.ofNullable(groupIcons);
+        }
+
+        @Override
+        public java.util.Optional<java.util.List<String>> itemTags(String itemId) {
+            return java.util.Optional.ofNullable(tags);
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> defaultStack(
+                String itemId) {
+            return java.util.Optional.ofNullable(defaultStack);
+        }
+
+        @Override
+        public java.util.Optional<ink.tuanzi.neomacros.port.model.ItemStackData> recipeRemainder(
+                String itemId) {
+            return java.util.Optional.ofNullable(recipeRemainder);
+        }
+
+        @Override
+        public java.util.Optional<Boolean> hasRecipeRemainder(String itemId) {
+            return java.util.Optional.ofNullable(hasRecipeRemainder);
+        }
+
+        @Override
+        public java.util.Optional<Double> attackDamage(String itemId) {
+            return java.util.Optional.ofNullable(attackDamage);
+        }
+
+        @Override
+        public java.util.Optional<Boolean> onCooldown(String itemId) {
+            return java.util.Optional.ofNullable(onCooldown);
+        }
+
+        @Override
+        public java.util.Optional<Float> cooldownProgress(String itemId) {
+            return java.util.Optional.ofNullable(cooldownProgress);
+        }
+
+        @Override
+        public java.util.Optional<Boolean> correctToolForDrops(String itemId, String blockId,
+                java.util.Map<String, String> props) {
+            return java.util.Optional.ofNullable(correctToolForDrops);
+        }
+
+        @Override
+        public java.util.Optional<Float> destroySpeed(String itemId, String blockId,
+                java.util.Map<String, String> props) {
+            return java.util.Optional.ofNullable(destroySpeed);
+        }
+
+        @Override
+        public java.util.Optional<Boolean> canBeRepairedWith(String itemId, String materialId) {
+            return java.util.Optional.ofNullable(repairable);
+        }
+    }
 
     /** Inventory port stub serving canned hotbar/main data and recording actions. */
     public static final class StubInventory implements ink.tuanzi.neomacros.port.InventoryPort {

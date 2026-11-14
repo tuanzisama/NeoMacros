@@ -103,11 +103,75 @@ public final class FabricInventoryPort implements InventoryPort {
         if (potion != null) {
             potion.potion().ifPresent(holder -> extras.put("potion", holder.getRegisteredName()));
         }
+        // Item-type facts behind the G-027 item face: component flags live
+        // on the real stack, so they are captured here rather than rebuilt
+        // from the item id later.
+        extras.put("tool", stack.get(net.minecraft.core.component.DataComponents.TOOL) != null);
+        extras.put("wearable",
+                stack.get(net.minecraft.core.component.DataComponents.EQUIPPABLE) != null);
+        var resistant = stack.get(net.minecraft.core.component.DataComponents.DAMAGE_RESISTANT);
+        extras.put("fireproof", resistant != null
+                && net.minecraft.tags.DamageTypeTags.IS_FIRE.equals(resistant.types()));
+        extras.put("blockItem", stack.getItem() instanceof net.minecraft.world.item.BlockItem);
+        if (stack.getItem() instanceof net.minecraft.world.item.BlockItem blockItem) {
+            extras.put("blockId", net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                    .getKey(blockItem.getBlock()).toString());
+        }
+        extras.put("canFitInsideContainerItems",
+                stack.getItem().canFitInsideContainerItems());
+        var enchantable = stack.get(net.minecraft.core.component.DataComponents.ENCHANTABLE);
+        extras.put("enchantability", enchantable != null ? enchantable.value() : 0);
+        var display = stack.get(net.minecraft.core.component.DataComponents.TOOLTIP_DISPLAY);
+        java.util.Set<net.minecraft.core.component.DataComponentType<?>> hidden =
+                display != null ? display.hiddenComponents() : java.util.Set.of();
+        extras.put("enchantmentsHidden",
+                hidden.contains(net.minecraft.core.component.DataComponents.ENCHANTMENTS));
+        extras.put("modifiersHidden",
+                hidden.contains(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS));
+        extras.put("unbreakableHidden",
+                hidden.contains(net.minecraft.core.component.DataComponents.UNBREAKABLE));
+        extras.put("canDestroyHidden",
+                hidden.contains(net.minecraft.core.component.DataComponents.CAN_BREAK));
+        extras.put("canPlaceHidden",
+                hidden.contains(net.minecraft.core.component.DataComponents.CAN_PLACE_ON));
+        extras.put("dyeHidden",
+                hidden.contains(net.minecraft.core.component.DataComponents.DYED_COLOR));
+        var canBreak = stack.get(net.minecraft.core.component.DataComponents.CAN_BREAK);
+        extras.put("hasDestroyRestrictions", canBreak != null);
+        if (canBreak != null) {
+            extras.put("destroyRestrictions", restrictionBlocks(canBreak));
+        }
+        var canPlace = stack.get(net.minecraft.core.component.DataComponents.CAN_PLACE_ON);
+        extras.put("hasPlaceRestrictions", canPlace != null);
+        if (canPlace != null) {
+            extras.put("placeRestrictions", restrictionBlocks(canPlace));
+        }
         return new ItemStackData(idOf(stack), stack.getCount(),
                 stack.getItemName().getString(),
                 damage != null ? damage : 0,
                 maxDamage != null ? maxDamage : 0,
                 java.util.List.of(), java.util.List.of(), extras);
+    }
+
+    /**
+     * Flattens one adventure restriction to the block identifiers its
+     * predicates accept; tag references expand to their member blocks.
+     */
+    private static java.util.List<String> restrictionBlocks(
+            net.minecraft.world.item.AdventureModePredicate predicate) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        var accessor =
+                (ink.tuanzi.neomacros.adapter.mixin.AdventureModePredicateAccessor) predicate;
+        for (var blockPredicate : accessor.neomacros$predicates()) {
+            blockPredicate.blocks().ifPresent(set -> set.stream().forEach(holder -> {
+                var blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                        .getKey(holder.value());
+                if (blockId != null) {
+                    out.add(blockId.toString());
+                }
+            }));
+        }
+        return java.util.List.copyOf(out);
     }
 
     /**
