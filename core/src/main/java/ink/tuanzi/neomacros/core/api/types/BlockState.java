@@ -8,6 +8,7 @@ import ink.tuanzi.neomacros.doc.api.ApiReadOnly;
 import ink.tuanzi.neomacros.doc.api.ApiSince;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -333,6 +334,398 @@ public final class BlockState implements ink.tuanzi.neomacros.core.api.ScriptHan
                 .suffocatesAt(new ink.tuanzi.neomacros.port.model.Pos3d(x, y, z))
                 .orElse(null);
     }
+
+    // ---------------------------------------------------------------------
+    // G-029: the typed state-property query face. Every vanilla property
+    // reads through the props map; the convenience members below cover the
+    // frequent keys with typed values, {@link #getProp(String)} answers any
+    // other key, and {@link #getPropRange(String)} answers numeric ranges.
+    // ---------------------------------------------------------------------
+
+    /**
+     * The value of one vanilla state property (e.g. {@code facing},
+     * {@code half}), or undefined when the state has no such property.
+     * Lookup is case-insensitive; values keep their serialized spelling
+     * ({@code east}, {@code bottom}, {@code inner_left}, {@code true}).
+     *
+     * @zh 单个原版状态属性的值（如 {@code facing}、{@code half}）；状态无该属性为 undefined。属性名大小写不敏感，值保持序列化拼写。
+     * @zh-param name 属性名
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getProp(String name) {
+        return name == null ? null : props.get(name.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /** Whether the state carries the given vanilla property.
+     * @zh 状态是否带有指定原版属性。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public boolean hasProp(String name) {
+        return name != null && props.containsKey(name.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /**
+     * The {@code [min, max]} values one numeric state property can take
+     * (e.g. {@code level} 0-15), read from the block type's defined states;
+     * undefined when the block type is unknown or the property is absent or
+     * not numeric.
+     *
+     * @zh 单个数值型状态属性可取的 {@code [min, max]} 区间（如 {@code level} 0-15），取自方块类型的全部状态；方块类型未知或属性不存在/非数值时为 undefined。
+     * @zh-param name 属性名
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public List<Integer> getPropRange(String name) {
+        if (name == null) {
+            return null;
+        }
+        String key = name.toLowerCase(java.util.Locale.ROOT);
+        ink.tuanzi.neomacros.port.model.BlockTypeData data =
+                ink.tuanzi.neomacros.core.api.ScriptApiEnvironment.adapter().world()
+                        .blockType(id).orElse(null);
+        if (data == null) {
+            return null;
+        }
+        Integer min = null;
+        Integer max = null;
+        for (Map<String, String> state : data.states()) {
+            String value = state.get(key);
+            if (value == null) {
+                continue;
+            }
+            int parsed;
+            try {
+                parsed = Integer.parseInt(value);
+            } catch (NumberFormatException notNumeric) {
+                return null;
+            }
+            min = min == null || parsed < min ? parsed : min;
+            max = max == null || parsed > max ? parsed : max;
+        }
+        return min == null ? null : List.of(min, max);
+    }
+
+    /** The facing direction name ({@code down}/{@code up}/{@code north}/...), or undefined without the property.
+     * @zh 朝向方向名（{@code down}/{@code up}/{@code north} 等）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getFacing() {
+        return getProp("facing");
+    }
+
+    /** The axis name ({@code x}/{@code y}/{@code z}), or undefined without the property.
+     * @zh 轴名（{@code x}/{@code y}/{@code z}）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getAxis() {
+        return getProp("axis");
+    }
+
+    /** The block half ({@code top}/{@code bottom}/{@code upper}/{@code lower}), or undefined without the property.
+     * @zh 方块半部（{@code top}/{@code bottom}/{@code upper}/{@code lower}）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getHalf() {
+        return getProp("half");
+    }
+
+    /** The slab type ({@code top}/{@code bottom}/{@code double}); undefined on non-slab blocks.
+     * @zh台阶类型（{@code top}/{@code bottom}/{@code double}）；非台阶方块为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getSlabType() {
+        return vocabProp("type", SLAB_TYPES);
+    }
+
+    /** The chest type ({@code single}/{@code left}/{@code right}); undefined on non-chest blocks.
+     * @zh 箱体类型（{@code single}/{@code left}/{@code right}）；非箱子方块为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getChestType() {
+        return vocabProp("type", CHEST_TYPES);
+    }
+
+    /** The piston-head type ({@code normal}/{@code sticky}); undefined on non-piston-head blocks.
+     * @zh 活塞头类型（{@code normal}/{@code sticky}）；非活塞头方块为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getPistonType() {
+        return vocabProp("type", PISTON_TYPES);
+    }
+
+    /** The stair shape ({@code straight}/{@code inner_left}/...); undefined on non-stair blocks.
+     * @zh 台阶衔接形状（{@code straight}/{@code inner_left} 等）；非楼梯方块为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getStairShape() {
+        return vocabProp("shape", STAIR_SHAPES);
+    }
+
+    /** The rail shape ({@code north_south}/{@code ascending_east}/...); undefined on non-rail blocks.
+     * @zh 铁轨形状（{@code north_south}/{@code ascending_east} 等）；非铁轨方块为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getRailShape() {
+        return vocabProp("shape", RAIL_SHAPES);
+    }
+
+    /** The door hinge side ({@code left}/{@code right}), or undefined without the property.
+     * @zh 门铰链侧（{@code left}/{@code right}）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getDoorHinge() {
+        return getProp("hinge");
+    }
+
+    /** The note-block instrument ({@code harp}/{@code bell}/...), or undefined without the property.
+     * @zh 音符盒乐器（{@code harp}/{@code bell} 等）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getInstrument() {
+        return getProp("instrument");
+    }
+
+    /** The bed part ({@code head}/{@code foot}), or undefined without the property.
+     * @zh 床的部段（{@code head}/{@code foot}）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getBedPart() {
+        return getProp("part");
+    }
+
+    /** The attach face ({@code floor}/{@code wall}/{@code ceiling}), or undefined without the property.
+     * @zh 依附面（{@code floor}/{@code wall}/{@code ceiling}）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public String getFace() {
+        return getProp("face");
+    }
+
+    /** The current level value (fluid/cauldron/composter), or undefined without the property.
+     * @zh 当前等级值（流体/炼药锅/堆肥桶）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Integer getLevel() {
+        return intProp("level");
+    }
+
+    /** The honey level (0-5), or undefined without the property.
+     * @zh 蜂蜜等级（0-5）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Integer getHoneyLevel() {
+        return intProp("honey_level");
+    }
+
+    /** The redstone power level (0-15), or undefined without the property.
+     * @zh 红石信号强度（0-15）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Integer getPower() {
+        return intProp("power");
+    }
+
+    /** The repeater/comparator delay (1-4), or undefined without the property.
+     * @zh 中继器/比较器延迟（1-4）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Integer getDelay() {
+        return intProp("delay");
+    }
+
+    /** The stability distance (vines/wool/sculk), or undefined without the property.
+     * @zh 稳定距离（藤蔓/羊毛/幽匿）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Integer getDistance() {
+        return intProp("distance");
+    }
+
+    /** The note-block pitch (0-24), or undefined without the property.
+     * @zh 音符盒音高（0-24）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Integer getNote() {
+        return intProp("note");
+    }
+
+    /** Whether the state is waterlogged, or undefined without the property.
+     * @zh 状态是否含水；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean getWaterlogged() {
+        return boolProp("waterlogged");
+    }
+
+    /** Whether the state reports a snowy cover, or undefined without the property.
+     * @zh 状态是否带雪面覆盖；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean getSnowy() {
+        return boolProp("snowy");
+    }
+
+    /** Whether the state is occupied (beds), or undefined without the property.
+     * @zh 状态是否被占用（床）；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean getOccupied() {
+        return boolProp("occupied");
+    }
+
+    /** Whether the piston is extended, or undefined without the property.
+     * @zh 活塞是否伸出；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean getExtended() {
+        return boolProp("extended");
+    }
+
+    /** Whether the leaves are persistent, or undefined without the property.
+     * @zh 树叶是否永不凋落；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean getPersistent() {
+        return boolProp("persistent");
+    }
+
+    /** Whether the block hangs from the face above, or undefined without the property.
+     * @zh 方块是否悬挂在上方；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean getHanging() {
+        return boolProp("hanging");
+    }
+
+    /** Whether the hopper/crafter is enabled, or undefined without the property.
+     * @zh 漏斗/合成器是否启用；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean getEnabled() {
+        return boolProp("enabled");
+    }
+
+    /** Whether the command block is conditional, or undefined without the property.
+     * @zh 命令方块是否为条件模式；无该属性为 undefined。 */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    @ApiReadOnly
+    public Boolean getConditional() {
+        return boolProp("conditional");
+    }
+
+    /** Reads one integer property; absent or non-numeric answers undefined. */
+    private Integer intProp(String key) {
+        String value = getProp(key);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(value);
+        } catch (NumberFormatException notNumeric) {
+            return null;
+        }
+    }
+
+    /** Reads one boolean property; absent or malformed answers undefined. */
+    private Boolean boolProp(String key) {
+        String value = getProp(key);
+        if ("true".equals(value)) {
+            return Boolean.TRUE;
+        }
+        return "false".equals(value) ? Boolean.FALSE : null;
+    }
+
+    /**
+     * Reads one property restricted to a value vocabulary: blocks sharing
+     * the key but not the vocabulary (slab vs chest {@code type}, stair vs
+     * rail {@code shape}) answer undefined, mirroring JsMacros' per-property
+     * lookup that throws on the wrong property instance.
+     */
+    private String vocabProp(String key, java.util.Set<String> vocabulary) {
+        String value = getProp(key);
+        return value != null && vocabulary.contains(value) ? value : null;
+    }
+
+    /** Value vocabulary of the slab {@code type} property. */
+    private static final java.util.Set<String> SLAB_TYPES =
+            java.util.Set.of("top", "bottom", "double");
+
+    /** Value vocabulary of the chest {@code type} property. */
+    private static final java.util.Set<String> CHEST_TYPES =
+            java.util.Set.of("single", "left", "right");
+
+    /** Value vocabulary of the piston-head {@code type} property. */
+    private static final java.util.Set<String> PISTON_TYPES =
+            java.util.Set.of("normal", "sticky");
+
+    /** Value vocabulary of the stair {@code shape} property. */
+    private static final java.util.Set<String> STAIR_SHAPES = java.util.Set.of(
+            "straight", "inner_left", "inner_right", "outer_left", "outer_right");
+
+    /** Value vocabulary of the rail {@code shape} property. */
+    private static final java.util.Set<String> RAIL_SHAPES = java.util.Set.of(
+            "north_south", "east_west", "ascending_east", "ascending_west",
+            "ascending_north", "ascending_south", "south_east", "south_west",
+            "north_west", "north_east");
 
     /** Normalizes one tag reference: an optional {@code #} prefix and a default namespace. */
     private static String normalizeTag(String tag) {
