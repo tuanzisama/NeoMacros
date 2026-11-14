@@ -1203,9 +1203,79 @@ public final class StubAdapter implements NeomacrosAdapter {
         }
     }
 
+    private final StubRenderPort renderPort = new StubRenderPort();
+
+    /** The recording HUD render port behind {@code neo.hud} textures. */
+    public StubRenderPort renderPort() {
+        return renderPort;
+    }
+
     @Override
     public RenderPort render() {
-        throw new UnsupportedPortFeature("render");
+        return renderPort;
+    }
+
+    /**
+     * HUD render recorder: layer registrations and texture uploads are
+     * recorded for assertions (the frame-painting face lands with the
+     * Draw2D layer task and extends this stub).
+     */
+    public static final class StubRenderPort implements RenderPort {
+        /** One recorded texture upload (a fresh pixel snapshot). */
+        public record TextureUpload(String id, int width, int height, int[] argb) {
+            /** Copies the buffer so later mutation cannot rewrite history. */
+            public TextureUpload {
+                argb = argb.clone();
+            }
+
+            /** Row-major ARGB pixel at {@code (x, y)}. */
+            public int pixel(int x, int y) {
+                return argb[y * width + x];
+            }
+        }
+
+        private final java.util.Map<String, java.util.function.BiConsumer<Integer,
+                ink.tuanzi.neomacros.port.model.DrawContext2d>> layers =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        private final List<TextureUpload> uploads = new CopyOnWriteArrayList<>();
+
+        /** Every texture upload in call order. */
+        public List<TextureUpload> uploads() {
+            return List.copyOf(uploads);
+        }
+
+        /** Identifiers of layers currently registered. */
+        public List<String> registeredLayers() {
+            return List.copyOf(layers.keySet());
+        }
+
+        @Override
+        public void addLayer(String id, int z, java.util.function.BiConsumer<Integer,
+                ink.tuanzi.neomacros.port.model.DrawContext2d> painter) {
+            layers.put(id, painter);
+        }
+
+        @Override
+        public void removeLayer(String id) {
+            layers.remove(id);
+        }
+
+        @Override
+        public Supplier<List<String>> layerIds() {
+            return this::registeredLayers;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> putTexture(
+                String id, int width, int height, int[] argb) {
+            uploads.add(new TextureUpload(id, width, height, argb));
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public Supplier<List<String>> textureIds() {
+            return () -> uploads.stream().map(TextureUpload::id).distinct().toList();
+        }
     }
 
     private final StubDraw3D draw3dPort = new StubDraw3D();

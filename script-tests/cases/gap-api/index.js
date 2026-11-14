@@ -811,6 +811,37 @@ function start() {
   }
   check('g025.parseIdentifier-rejects', g025ParseRejected);
 
+  // G-030 CustomImage canvas: shape checks over the texture registry; the
+  // upload promise is asserted by shape here (the stub-driven e2e scenario
+  // covers the settled value and the recorded texture upload).
+  if (typeof neo.CustomImage !== 'function') {
+    check('g030.absent', false);
+  } else {
+    const g030 = new neo.CustomImage(8, 4, 'g030-check');
+    check('g030.identity', g030.name === 'g030-check'
+        && g030.identifier === 'neomacros:image/g030-check'
+        && g030.width === 8 && g030.height === 4);
+    g030.setPixel(0, 0, 0xFF112233);
+    check('g030.pixel', (g030.getPixel(0, 0) | 0) === (0xFF112233 | 0));
+    let g030Bounds = false;
+    try { g030.getPixel(8, 0); } catch (e) { g030Bounds = true; }
+    check('g030.bounds', g030Bounds);
+    g030.setGraphicsColor(0x00FF00FF).fillRect(1, 1, 2, 2);
+    check('g030.draw', (g030.getPixel(2, 2) | 0) === (0xFFFF00FF | 0));
+    check('g030.color', (g030.graphicsColor | 0) === (0xFFFF00FF | 0));
+    g030.setClip(0, 0, 4, 4);
+    const g030Clip = g030.clipBounds;
+    check('g030.clip', g030Clip !== undefined && g030Clip.x === 0
+        && g030Clip.width === 4);
+    const g030Shot = g030.image;
+    check('g030.image', g030Shot !== undefined
+        && g030Shot.width === 8 && g030Shot.height === 4);
+    const g030Update = g030.update();
+    check('g030.update-promise',
+        Boolean(g030Update) && typeof g030Update.then === 'function');
+    g030Update.catch(() => {});
+  }
+
   const pass = Object.values(results).every(Boolean);
   for (const [key, value] of Object.entries(results)) {
     neo.chat.log('[E2E] ' + key + '=' + value);
