@@ -40,6 +40,7 @@
     ,"DownloadedPackSourceAccessor"
     ,"ServerPackPromptAccessor"
     ,"AdventureModePredicateAccessor"
+    ,"CheckboxAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -130,6 +130,11 @@ final class ApiCompletenessSurface {
             PlayerApi.JigsawScreen.class,
             PlayerApi.DialogHandle.class, PlayerApi.DialogAction.class,
             PlayerApi.DialogInput.class,
+            ink.tuanzi.neomacros.core.api.render.screen.BuiltScreen.class,
+            ink.tuanzi.neomacros.core.api.render.screen.ScreenSpec.class,
+            ink.tuanzi.neomacros.core.api.render.screen.ControlSpec.class,
+            ink.tuanzi.neomacros.core.api.render.screen.ControlState.class,
+            ink.tuanzi.neomacros.core.api.render.screen.ScreenCanvas.class,
             TimerHandle.class);
 
     /** Event payload records ({@code @ApiEvent}); wired in the bootstraps. */

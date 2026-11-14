@@ -206,6 +206,9 @@ public final class FabricLifecyclePort implements LifecyclePort {
 
     /** Maps one open screen to its kind label (specific classes first, then containers). */
     private static String screenKind(net.minecraft.client.gui.screens.Screen screen) {
+        if (screen instanceof ink.tuanzi.neomacros.fabric.ScriptScreen) {
+            return "script";
+        }
         if (screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen) {
             return "inventory";
         }

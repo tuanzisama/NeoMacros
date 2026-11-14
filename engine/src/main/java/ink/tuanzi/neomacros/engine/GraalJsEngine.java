@@ -1570,6 +1570,16 @@ public final class GraalJsEngine implements ScriptEngine {
             if (type == boolean.class || type == Boolean.class) {
                 return argument.asBoolean();
             }
+            if (type.isInterface() && argument.canExecute()
+                    && type != java.util.function.Consumer.class) {
+                // Functional-interface parameters adapt the guest function
+                // (the module-binding path already does this in asJava);
+                // the neutral fallthrough would hand back a Consumer and
+                // mismatch the declared parameter type (G-035 gui.on).
+                // Consumer keeps the neutral path: its Object[] argument is
+                // the legacy tuple that expands into individual guest args.
+                return adaptFunction(argument, type);
+            }
             return asNeutral(argument);
         }
 
