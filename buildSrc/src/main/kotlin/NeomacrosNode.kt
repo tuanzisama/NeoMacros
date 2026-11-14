@@ -74,6 +74,10 @@ fun StonecutterBuildExtension.neomacrosReplacements() {
         replace("sound.getIdentifier()", "sound.getLocation()")
         // Chat text draws through drawString on the pre-extract pipeline.
         replace("extractor.text(", "extractor.drawString(")
+        // Item icons and their decorations renamed on the pre-extract
+        // pipeline (GuiGraphics.renderItem / renderItemDecorations).
+        replace("extractor.item(", "extractor.renderItem(")
+        replace("extractor.itemDecorations(", "extractor.renderItemDecorations(")
         // Level/ResourceKey accessor renames. ChunkPos became a record in
         // the new era; the old node carries public final fields.
         replace("getPos().x()", "getPos().x")

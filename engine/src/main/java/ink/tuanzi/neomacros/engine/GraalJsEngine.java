@@ -990,15 +990,16 @@ public final class GraalJsEngine implements ScriptEngine {
             if (value == null || value.isNull()) {
                 return null;
             }
-            try {
-                if (value.hasMember("__neoCell")) {
-                    Value cellValue = value.getMember("__neoCell");
-                    if (cellValue != null && cellValue.isHostObject()) {
-                        return cellValue.asHostObject();
-                    }
-                }
-            } catch (RuntimeException ignored) {
-                // probe misses fall through
+            // Handles unwrap to their host cell first — the same two-level
+            // probe asJava uses. A raw member proxy answers __neoCell
+            // directly; a guest class instance carries the proxy under
+            // __cell, one level down. Without the second level a handle
+            // nested in an options object (G-034B's image: face) would
+            // enumerate into a property-copy map instead of reaching host
+            // code as the live value.
+            Object host = hostCellOf(value);
+            if (host != null) {
+                return host;
             }
             try {
                 if (value.hasMember("__neoRaw")) {

@@ -2,6 +2,8 @@ package ink.tuanzi.neomacros.core.api.render;
 
 import ink.tuanzi.neomacros.core.api.ScriptHandle;
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DElement;
+import ink.tuanzi.neomacros.core.api.render.components.Draw2DImage;
+import ink.tuanzi.neomacros.core.api.render.components.Draw2DItem;
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DLine;
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DRect;
 import ink.tuanzi.neomacros.core.api.render.components.Draw2DText;
@@ -62,6 +64,9 @@ public final class HudLayer implements ScriptHandle {
     private final RenderPort port;
     private final Executor mainExecutor;
     private final HudScene scene;
+    /** Content-addressed ids already uploaded for {@code image:} snapshots. */
+    private final java.util.Set<String> uploadedSnapshots =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
     private volatile int zIndex;
     private volatile boolean disposed;
 
@@ -254,7 +259,8 @@ public final class HudLayer implements ScriptHandle {
                 boolOf(options.get("shadow"), false),
                 1f,
                 false,
-                false);
+                false,
+                null, 0, 0, 0, 0, 0, 0, null, false, null);
         return (Draw2DText) scene.upsert(id, ElementSpec.Kind.TEXT, spec);
     }
 
@@ -288,10 +294,10 @@ public final class HudLayer implements ScriptHandle {
             throw new IllegalArgumentException("rect requires x, y, w and h options");
         }
         ElementSpec spec = new ElementSpec(ElementSpec.Kind.RECT,
-                requiredCoord(opts, "x"),
-                requiredCoord(opts, "y"),
-                requiredCoord(opts, "w"),
-                requiredCoord(opts, "h"),
+                requiredCoord(opts, "x", "rect"),
+                requiredCoord(opts, "y", "rect"),
+                requiredCoord(opts, "w", "rect"),
+                requiredCoord(opts, "h", "rect"),
                 colorOf(opts.get("color"), 0xFFFFFFFF),
                 "",
                 intOf(opts.get("zIndex"), 0),
@@ -302,7 +308,8 @@ public final class HudLayer implements ScriptHandle {
                 false,
                 1f,
                 false,
-                false);
+                false,
+                null, 0, 0, 0, 0, 0, 0, null, false, null);
         return (Draw2DRect) scene.upsert(id, ElementSpec.Kind.RECT, spec);
     }
 
@@ -364,8 +371,261 @@ public final class HudLayer implements ScriptHandle {
                 false,
                 strokeOf(opts.get("width")),
                 x1 > x2,
-                y1 > y2);
+                y1 > y2,
+                null, 0, 0, 0, 0, 0, 0, null, false, null);
         return (Draw2DLine) scene.upsert(id, ElementSpec.Kind.LINE, spec);
+    }
+
+    /**
+     * Inserts or updates a texture-image element under {@code id}: same-id
+     * semantics as {@link #text}. The options bag must carry the
+     * destination box ({@code x}, {@code y}, {@code w}, {@code h}) and
+     * names its source through {@code texture} (a {@code namespace:path}
+     * identifier — {@code img.identifier} of an uploaded
+     * {@code CustomImage} is the G-030 consumption form) or through
+     * {@code image} (an immutable PNG snapshot, decoded and uploaded once
+     * under a content-addressed id; {@code texture} wins when both are
+     * given). The G-032 {@code addImage} overload group folds into this
+     * one member (G-033 overload-fold rule).
+     *
+     * @param id   element id (must not start with {@code $})
+     * @param opts image options: {@code x}, {@code y}, {@code w},
+     *             {@code h} (numbers or percentage strings, required),
+     *             {@code texture} (identifier, namespace optional),
+     *             {@code image} (PNG snapshot uploaded on first use),
+     *             {@code color} (ARGB number or {@code '#rgb'}/
+     *             {@code '#rrggbbaa'}/vanilla color name, default white),
+     *             {@code region} ({@code {x, y, w, h}} source rect in
+     *             texels, default the full destination extent),
+     *             {@code textureWidth}/{@code textureHeight} (whole
+     *             texture size normalizing the texel offsets, default
+     *             {@code 256}), {@code scale} (default {@code 1}),
+     *             {@code rotation} (degrees, default {@code 0}),
+     *             {@code zIndex} (default {@code 0}), {@code visible}
+     *             (default {@code true})
+     * @return the live image element handle
+     * @zh 按 id 插入或更新纹理图像元素：同 id 语义同 {@link #text}。选项包必须给出目标盒（{@code x}、{@code y}、{@code w}、{@code h}），并经 {@code texture}（{@code namespace:path} 标识——已上传 {@code CustomImage} 的 {@code img.identifier} 即 G-030 消费位）或 {@code image}（不可变 PNG 快照，首次使用时解码并以内容寻址 id 上传；两者同给时 {@code texture} 优先）指定来源。G-032 的 {@code addImage} 重载组折叠进本成员（G-033 重载折叠铁律）。
+     * @zh-param id 元素 id（不得以 {@code $} 开头）
+     * @zh-param opts 图像选项：{@code x}、{@code y}、{@code w}、{@code h}（数字或百分比字符串，必填）、{@code texture}（标识，命名空间可省）、{@code image}（PNG 快照，首次使用即上传）、{@code color}（ARGB 数字或 {@code '#rgb'}/{@code '#rrggbbaa'}/原版颜色名，默认白色）、{@code region}（{@code {x, y, w, h}} 源矩形，单位 texel，默认取整个目标尺寸）、{@code textureWidth}/{@code textureHeight}（归一化 texel 偏移的整纹理尺寸，默认 {@code 256}）、{@code scale}（默认 {@code 1}）、{@code rotation}（度，默认 {@code 0}）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）
+     * @zh-return 存活的图像元素句柄
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Draw2DImage image(String id,
+            @ApiType("ImageOptions") Map<String, Object> opts) {
+        ensureAlive();
+        requireElementId(id);
+        if (opts == null) {
+            throw new IllegalArgumentException(
+                    "image requires x, y, w and h options");
+        }
+        Map<String, Object> region = bag(opts.get("region"));
+        TextureSource source = textureSource(opts);
+        ElementSpec spec = new ElementSpec(ElementSpec.Kind.IMAGE,
+                requiredCoord(opts, "x", "image"),
+                requiredCoord(opts, "y", "image"),
+                requiredCoord(opts, "w", "image"),
+                requiredCoord(opts, "h", "image"),
+                colorOf(opts.get("color"), 0xFFFFFFFF),
+                "",
+                intOf(opts.get("zIndex"), 0),
+                boolOf(opts.get("visible"), true),
+                scaleOf(opts.get("scale")),
+                rotationOf(opts.get("rotation")),
+                false,
+                false,
+                1f,
+                false,
+                false,
+                source.id(),
+                intOf(region.get("x"), 0),
+                intOf(region.get("y"), 0),
+                intOf(region.get("w"), 0),
+                intOf(region.get("h"), 0),
+                source.width(),
+                source.height(),
+                null, false, null);
+        return (Draw2DImage) scene.upsert(id, ElementSpec.Kind.IMAGE, spec);
+    }
+
+    /**
+     * Inserts or updates an item-icon element under {@code id}: same-id
+     * semantics as {@link #text}. The stack may be an {@link ItemStack}
+     * (its neutral snapshot is stored) or a bare item id (a one-item
+     * default stack; a bare name takes the {@code minecraft} namespace);
+     * {@code null} draws nothing until {@code setItem} runs. The box is the
+     * fixed 16-by-16 GUI-pixel icon scaled by {@code scale} (JsMacros
+     * parity). The G-032 {@code addItem} overload group folds into this one
+     * member (G-033 overload-fold rule); passing only an options bag in the
+     * stack slot works as the stackless form.
+     *
+     * @param id    element id (must not start with {@code $})
+     * @param stack the stack to draw: an {@link ItemStack}, a bare item id,
+     *              or {@code null}/omitted for an empty icon
+     * @param opts  item options: {@code x}, {@code y} (numbers or
+     *              percentage strings, default {@code 0}), {@code overlay}
+     *              (game decorations, default {@code false}),
+     *              {@code overlayText} (label replacing the stack count),
+     *              {@code scale} (default {@code 1}), {@code rotation}
+     *              (degrees, default {@code 0}), {@code zIndex} (default
+     *              {@code 0}), {@code visible} (default {@code true})
+     * @return the live item element handle
+     * @zh 按 id 插入或更新物品图标元素：同 id 语义同 {@link #text}。堆可为 {@link ItemStack}（存储其中立快照）或裸物品 id（默认单件堆；裸名取 {@code minecraft} 命名空间）；{@code null} 在 {@code setItem} 调用前不绘制。盒为固定的 16×16 GUI 像素图标并按 {@code scale} 缩放（JsMacros 对等）。G-032 的 {@code addItem} 重载组折叠进本成员（G-033 重载折叠铁律）；堆槽位只给选项包时按无堆形态处理。
+     * @zh-param id 元素 id（不得以 {@code $} 开头）
+     * @zh-param stack 要绘制的堆：{@link ItemStack}、裸物品 id，或 {@code null}/省略表示空图标
+     * @zh-param opts 物品选项：{@code x}、{@code y}（数字或百分比字符串，默认 {@code 0}）、{@code overlay}（游戏装饰，默认 {@code false}）、{@code overlayText}（替代堆数量的标签）、{@code scale}（默认 {@code 1}）、{@code rotation}（度，默认 {@code 0}）、{@code zIndex}（默认 {@code 0}）、{@code visible}（默认 {@code true}）
+     * @zh-return 存活的物品元素句柄
+     */
+    @ApiSince("0.5.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public Draw2DItem item(String id,
+            @ApiOptional @ApiType("ItemStack | string") Object stack,
+            @ApiOptional @ApiType("ItemOptions") Map<String, Object> opts) {
+        ensureAlive();
+        requireElementId(id);
+        Map<String, Object> options;
+        if (opts == null && stack instanceof Map<?, ?>) {
+            // layer.item(id, opts): the stack slot carries the bag.
+            options = bag(stack);
+            stack = null;
+        } else {
+            options = opts == null ? Map.of() : opts;
+        }
+        ElementSpec spec = new ElementSpec(ElementSpec.Kind.ITEM,
+                optionalCoord(options.get("x"), "item x"),
+                optionalCoord(options.get("y"), "item y"),
+                ElementSpec.Coord.at(16),
+                ElementSpec.Coord.at(16),
+                0xFFFFFFFF,
+                "",
+                intOf(options.get("zIndex"), 0),
+                boolOf(options.get("visible"), true),
+                scaleOf(options.get("scale")),
+                rotationOf(options.get("rotation")),
+                false,
+                false,
+                1f,
+                false,
+                false,
+                null, 0, 0, 0, 0, 0, 0,
+                stackData(stack),
+                boolOf(options.get("overlay"), false),
+                overlayTextOf(options.get("overlayText")));
+        return (Draw2DItem) scene.upsert(id, ElementSpec.Kind.ITEM, spec);
+    }
+
+    /**
+     * Resolves the texture source of an {@link #image} upsert: an explicit
+     * {@code texture} id wins (its optional dims default to
+     * {@code 256}&times;{@code 256}, JsMacros builder parity), otherwise a
+     * {@code image} snapshot is decoded and uploaded once under a
+     * content-addressed id carrying its own dimensions. A port without the
+     * texture face simply never draws the sprite (the upload future is
+     * observed, not awaited).
+     */
+    private TextureSource textureSource(Map<String, Object> options) {
+        int width = intOf(options.get("textureWidth"), 256);
+        int height = intOf(options.get("textureHeight"), 256);
+        if (options.get("texture") instanceof String name && !name.isEmpty()) {
+            return new TextureSource(ElementSpec.textureIdentifier(name),
+                    width, height);
+        }
+        if (options.get("image") instanceof ink.tuanzi.neomacros.core.api.types.Image snapshot) {
+            return uploadSnapshot(snapshot);
+        }
+        return new TextureSource(null, width, height);
+    }
+
+    /**
+     * Decodes one immutable PNG snapshot and uploads it (once per distinct
+     * content) through {@link RenderPort#putTexture}; identical snapshots
+     * across re-upserts share the id, so a per-frame re-upsert of the same
+     * image never re-uploads.
+     */
+    private TextureSource uploadSnapshot(
+            ink.tuanzi.neomacros.core.api.types.Image snapshot) {
+        byte[] bytes = snapshot.getBytes();
+        String id = "neomacros:image/hud/" + contentHash(bytes);
+        if (uploadedSnapshots.add(id)) {
+            java.awt.image.BufferedImage surface;
+            try {
+                surface = javax.imageio.ImageIO.read(
+                        new java.io.ByteArrayInputStream(bytes));
+            } catch (java.io.IOException e) {
+                throw new java.io.UncheckedIOException(
+                        "failed to decode the image snapshot", e);
+            }
+            if (surface == null) {
+                throw new IllegalArgumentException(
+                        "image snapshot is not a readable PNG");
+            }
+            int width = surface.getWidth();
+            int height = surface.getHeight();
+            int[] argb = surface.getRGB(0, 0, width, height, null, 0, width);
+            // Observed, not awaited: a port without the texture face keeps
+            // compiling and simply draws nothing (UnsupportedPortFeature).
+            port.putTexture(id, width, height, argb).exceptionally(e -> null);
+            return new TextureSource(id, width, height);
+        }
+        return new TextureSource(id, snapshot.getWidth(), snapshot.getHeight());
+    }
+
+    /** First 32 hex chars of the SHA-256 of the snapshot bytes. */
+    private static String contentHash(byte[] bytes) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(bytes);
+            return java.util.HexFormat.of().formatHex(digest, 0, 16);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
+
+    /** Resolves the stack slot of {@link #item}: snapshot, id, or none. */
+    private static ink.tuanzi.neomacros.port.model.ItemStackData stackData(
+            Object stack) {
+        if (stack == null) {
+            return null;
+        }
+        if (stack instanceof ink.tuanzi.neomacros.core.api.types.ItemStack itemStack) {
+            return itemStack.toData();
+        }
+        if (stack instanceof String itemId) {
+            return new ink.tuanzi.neomacros.core.api.types.ItemStackBuilder(
+                    itemId).count(1).build().toData();
+        }
+        throw new IllegalArgumentException(
+                "item stack must be an ItemStack or an item id: " + stack);
+    }
+
+    /** One resolved image source: texture id ({@code null} = none) and dims. */
+    private record TextureSource(String id, int width, int height) {
+    }
+
+    /** Narrow one neutral options bag; anything else reads as empty. */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> bag(Object value) {
+        return value instanceof Map<?, ?> map
+                ? (Map<String, Object>) map : Map.of();
+    }
+
+    /** An optional coordinate: absent means the absolute origin. */
+    private static ElementSpec.Coord optionalCoord(Object value, String what) {
+        return value == null ? ElementSpec.Coord.at(0)
+                : ElementSpec.Coord.parse(value, what);
+    }
+
+    /** The overlay label option: a string, or null for the stack count. */
+    private static String overlayTextOf(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof String text) {
+            return text;
+        }
+        throw new IllegalArgumentException("expected a string, got: " + value);
     }
 
     /**
@@ -517,12 +777,14 @@ public final class HudLayer implements ScriptHandle {
         }
     }
 
-    private static ElementSpec.Coord requiredCoord(Map<String, Object> opts, String name) {
+    private static ElementSpec.Coord requiredCoord(Map<String, Object> opts,
+            String name, String owner) {
         Object value = opts.get(name);
         if (value == null) {
-            throw new IllegalArgumentException("rect option '" + name + "' is required");
+            throw new IllegalArgumentException(
+                    owner + " option '" + name + "' is required");
         }
-        return ElementSpec.Coord.parse(value, "rect " + name);
+        return ElementSpec.Coord.parse(value, owner + " " + name);
     }
 
     /**

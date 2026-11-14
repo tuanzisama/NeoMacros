@@ -1,6 +1,7 @@
 package ink.tuanzi.neomacros.core.api.render.components;
 
 import ink.tuanzi.neomacros.doc.api.ApiInternal;
+import ink.tuanzi.neomacros.port.model.ItemStackData;
 
 import java.util.Locale;
 
@@ -24,9 +25,17 @@ import java.util.Locale;
  * always the min-corner origin with non-negative size, and the flags say
  * whether the element's <i>first</i> corner sits on the far edge).</p>
  *
+ * <p><b>G-034B component fields</b>: {@code texture} plus the
+ * {@code imageX/imageY/regionWidth/regionHeight/textureWidth/textureHeight}
+ * source-rect face of an image element (the {@code Draw2DImage} texture
+ * view), and {@code stack}/{@code overlay}/{@code overlayText} of an item
+ * icon ({@code Draw2DItem}). Kinds that do not use a group keep its
+ * neutral defaults ({@code null} texture/stack, zero region, no overlay).</p>
+ *
  * @zh 单个 HUD 元素的不可变状态快照：以 id 为键的场景单元经 volatile 字段发布当前 spec，渲染线程每帧重新投影（G-001 §2.2 写入即发布）。几何坐标可为缩放像素绝对值或视口百分比，绘制时按当前视口求值。
  * @zh 该 record 为宿主侧数据，不跨越脚本边界。基类句柄经 {@link Draw2DElement.Backend} 读取并重新发布；组件任务（G-034 / G-034B）为其扩展自有字段与 {@code with*} 拷贝方法，基类 API 保持稳定、组件状态随之生长。
  * @zh <b>G-034 组件字段</b>：{@code shadow}（文本投影）、{@code stroke}（线宽——基类 {@code width} 面保持为线的横向跨度，见 {@code Draw2DLine}）、{@code flipX}/{@code flipY}（角点/端点次序：存储盒恒为最小角原点 + 非负尺寸，标志指示<i>第一</i>角是否落在远端）。
+ * @zh <b>G-034B 组件字段</b>：{@code texture} 与图像元素的 {@code imageX/imageY/regionWidth/regionHeight/textureWidth/textureHeight} 源矩形面（{@code Draw2DImage} 纹理视图），以及物品图标的 {@code stack}/{@code overlay}/{@code overlayText}（{@code Draw2DItem}）。不使用某组的 kind 保持其中性默认值（纹理/堆为 {@code null}、区域为 0、无覆盖层）。
  */
 @ApiInternal
 public record ElementSpec(
@@ -45,7 +54,17 @@ public record ElementSpec(
         boolean shadow,
         float stroke,
         boolean flipX,
-        boolean flipY) {
+        boolean flipY,
+        String texture,
+        int imageX,
+        int imageY,
+        int regionWidth,
+        int regionHeight,
+        int textureWidth,
+        int textureHeight,
+        ItemStackData stack,
+        boolean overlay,
+        String overlayText) {
 
     /**
      * Component kinds hosted by the container face. Component tasks append
@@ -56,7 +75,9 @@ public record ElementSpec(
     public enum Kind {
         TEXT,
         RECT,
-        LINE
+        LINE,
+        IMAGE,
+        ITEM
     }
 
     /**
@@ -141,104 +162,225 @@ public record ElementSpec(
     public ElementSpec withX(Coord value) {
         return new ElementSpec(kind, value, y, w, h, color, text, zIndex,
                 visible, scale, rotation, rotateCenter, shadow, stroke,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the y position. */
     public ElementSpec withY(Coord value) {
         return new ElementSpec(kind, x, value, w, h, color, text, zIndex,
                 visible, scale, rotation, rotateCenter, shadow, stroke,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the box width. */
     public ElementSpec withW(Coord value) {
         return new ElementSpec(kind, x, y, value, h, color, text, zIndex,
                 visible, scale, rotation, rotateCenter, shadow, stroke,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the box height. */
     public ElementSpec withH(Coord value) {
         return new ElementSpec(kind, x, y, w, value, color, text, zIndex,
                 visible, scale, rotation, rotateCenter, shadow, stroke,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the packed ARGB color. */
     public ElementSpec withColor(int value) {
         return new ElementSpec(kind, x, y, w, h, value, text, zIndex,
                 visible, scale, rotation, rotateCenter, shadow, stroke,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the displayed text string. */
     public ElementSpec withText(String value) {
         return new ElementSpec(kind, x, y, w, h, color, value, zIndex,
                 visible, scale, rotation, rotateCenter, shadow, stroke,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the element z-order (a z change re-sorts the layer). */
     public ElementSpec withZIndex(int value) {
         return new ElementSpec(kind, x, y, w, h, color, text, value,
                 visible, scale, rotation, rotateCenter, shadow, stroke,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the visibility flag (paint skips invisible elements). */
     public ElementSpec withVisible(boolean value) {
         return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
                 value, scale, rotation, rotateCenter, shadow, stroke,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the render scale (applied by the transform primitive). */
     public ElementSpec withScale(float value) {
         return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
                 visible, value, rotation, rotateCenter, shadow, stroke,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the rotation in degrees, normalized to {@code [-180, 180)}. */
     public ElementSpec withRotation(float value) {
         return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
                 visible, scale, normalizeRotation(value), rotateCenter,
-                shadow, stroke, flipX, flipY);
+                shadow, stroke, flipX, flipY, texture, imageX, imageY,
+                regionWidth, regionHeight, textureWidth, textureHeight,
+                stack, overlay, overlayText);
     }
 
     /** Copy replacing whether rotation pivots about the element center. */
     public ElementSpec withRotateCenter(boolean value) {
         return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
-                visible, scale, rotation, value, shadow, stroke, flipX, flipY);
+                visible, scale, rotation, value, shadow, stroke,
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the text drop-shadow flag (text elements). */
     public ElementSpec withShadow(boolean value) {
         return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
                 visible, scale, rotation, rotateCenter, value, stroke,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing the line stroke thickness in screen pixels. */
     public ElementSpec withStroke(float value) {
         return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
                 visible, scale, rotation, rotateCenter, shadow, value,
-                flipX, flipY);
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing whether the first corner sits on the far x edge. */
     public ElementSpec withFlipX(boolean value) {
         return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
                 visible, scale, rotation, rotateCenter, shadow, stroke,
-                value, flipY);
+                value, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
     }
 
     /** Copy replacing whether the first corner sits on the far y edge. */
     public ElementSpec withFlipY(boolean value) {
         return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
                 visible, scale, rotation, rotateCenter, shadow, stroke,
-                flipX, value);
+                flipX, value, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
+    }
+
+    /** Copy replacing the texture identifier an image element blits from. */
+    public ElementSpec withTexture(String value) {
+        return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
+                visible, scale, rotation, rotateCenter, shadow, stroke,
+                flipX, flipY, value, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
+    }
+
+    /** Copy replacing the source x offset inside the texture, in texels. */
+    public ElementSpec withImageX(int value) {
+        return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
+                visible, scale, rotation, rotateCenter, shadow, stroke,
+                flipX, flipY, texture, value, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
+    }
+
+    /** Copy replacing the source y offset inside the texture, in texels. */
+    public ElementSpec withImageY(int value) {
+        return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
+                visible, scale, rotation, rotateCenter, shadow, stroke,
+                flipX, flipY, texture, imageX, value, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
+    }
+
+    /** Copy replacing the sampled region width in texels ({@code 0} = derive from the destination). */
+    public ElementSpec withRegionWidth(int value) {
+        return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
+                visible, scale, rotation, rotateCenter, shadow, stroke,
+                flipX, flipY, texture, imageX, imageY, value,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                overlayText);
+    }
+
+    /** Copy replacing the sampled region height in texels ({@code 0} = derive from the destination). */
+    public ElementSpec withRegionHeight(int value) {
+        return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
+                visible, scale, rotation, rotateCenter, shadow, stroke,
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                value, textureWidth, textureHeight, stack, overlay,
+                overlayText);
+    }
+
+    /** Copy replacing the whole-texture width used to normalize texel offsets. */
+    public ElementSpec withTextureWidth(int value) {
+        return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
+                visible, scale, rotation, rotateCenter, shadow, stroke,
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, value, textureHeight, stack, overlay,
+                overlayText);
+    }
+
+    /** Copy replacing the whole-texture height used to normalize texel offsets. */
+    public ElementSpec withTextureHeight(int value) {
+        return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
+                visible, scale, rotation, rotateCenter, shadow, stroke,
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, value, stack, overlay,
+                overlayText);
+    }
+
+    /** Copy replacing the item stack an item element draws ({@code null} = nothing). */
+    public ElementSpec withStack(ItemStackData value) {
+        return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
+                visible, scale, rotation, rotateCenter, shadow, stroke,
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, value, overlay,
+                overlayText);
+    }
+
+    /** Copy replacing whether the item draws its game decorations. */
+    public ElementSpec withOverlay(boolean value) {
+        return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
+                visible, scale, rotation, rotateCenter, shadow, stroke,
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, value,
+                overlayText);
+    }
+
+    /** Copy replacing the overlay label ({@code null} draws the stack count). */
+    public ElementSpec withOverlayText(String value) {
+        return new ElementSpec(kind, x, y, w, h, color, text, zIndex,
+                visible, scale, rotation, rotateCenter, shadow, stroke,
+                flipX, flipY, texture, imageX, imageY, regionWidth,
+                regionHeight, textureWidth, textureHeight, stack, overlay,
+                value);
     }
 
     /**
@@ -254,6 +396,24 @@ public record ElementSpec(
             normalized += 360f;
         }
         return normalized - 180f;
+    }
+
+    /**
+     * Resolves a texture identifier the way the JsMacros image face does:
+     * a bare name takes the {@code minecraft} namespace, an empty or null
+     * name means "no texture" (null).
+     *
+     * @param id script texture id (namespace optional) or null
+     * @return the {@code namespace:path} identifier, or null when absent
+     * @zh 按 JsMacros 图像面口径解析纹理标识：裸名取 {@code minecraft} 命名空间，空名/null 表示"无纹理"（返回 null）。
+     * @zh-param id 脚本纹理 id（命名空间可省）或 null
+     * @zh-return {@code namespace:path} 标识；缺席时为 null
+     */
+    public static String textureIdentifier(String id) {
+        if (id == null || id.isEmpty()) {
+            return null;
+        }
+        return id.indexOf(':') >= 0 ? id : "minecraft:" + id;
     }
 
     /**

@@ -23,6 +23,7 @@ public final class RecordingHudRender implements RenderPort {
             new ConcurrentHashMap<>();
     private final Map<String, Integer> zs = new ConcurrentHashMap<>();
     private final List<String> events = new CopyOnWriteArrayList<>();
+    private final List<String> uploads = new CopyOnWriteArrayList<>();
 
     @Override
     public void addLayer(String id, int z, BiConsumer<Integer, DrawContext2d> painter) {
@@ -59,6 +60,18 @@ public final class RecordingHudRender implements RenderPort {
     /** The ordered port-call log: {@code add:id:z}, {@code setz:id:z}, {@code remove:id}. */
     public List<String> events() {
         return List.copyOf(events);
+    }
+
+    /** Recorded texture uploads as {@code id:widthxheight}, in call order. */
+    public List<String> uploads() {
+        return List.copyOf(uploads);
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> putTexture(String id,
+            int width, int height, int[] argb) {
+        uploads.add(id + ":" + width + "x" + height);
+        return java.util.concurrent.CompletableFuture.completedFuture(null);
     }
 
     /** Fires one frame across every registered layer in render order. */
@@ -116,6 +129,29 @@ public final class RecordingHudRender implements RenderPort {
         @Override
         public void sprite(int x, int y, int width, int height, String textureId) {
             sink.add("sprite:" + x + "," + y + "," + width + "," + height + "," + textureId);
+        }
+
+        @Override
+        public void sprite(int x, int y, int width, int height, String textureId,
+                int color, int u, int v, int regionWidth, int regionHeight,
+                int textureWidth, int textureHeight) {
+            sink.add("sprite:" + x + "," + y + "," + width + "," + height + ","
+                    + textureId + "," + hex(color) + "," + u + "," + v + ","
+                    + regionWidth + "," + regionHeight + "," + textureWidth
+                    + "," + textureHeight);
+        }
+
+        @Override
+        public void item(int x, int y,
+                ink.tuanzi.neomacros.port.model.ItemStackData stack,
+                boolean overlay, String overlayText) {
+            if (stack == null) {
+                sink.add("item:" + x + "," + y + ",none");
+                return;
+            }
+            sink.add("item:" + x + "," + y + "," + stack.id() + ","
+                    + stack.count() + "," + overlay
+                    + (overlayText == null ? "" : "," + overlayText));
         }
 
         @Override

@@ -127,11 +127,60 @@ public final class FabricRenderPort implements RenderPort {
                     @Override
                     public void sprite(int x, int y, int width, int height,
                             String textureId) {
+                        sprite(x, y, width, height, textureId, 0xFFFFFFFF,
+                                0, 0, width, height, width, height);
+                    }
+
+                    /**
+                     * The G-034B tinted/region sprite: the 13-argument
+                     * {@code blit} carries the source rect in texels plus
+                     * the ARGB tint and exists with this exact shape on
+                     * all four milestone nodes (javap-verified, so no
+                     * {@code //?} branch). The region width/height slots
+                     * are what let a spritesheet crop sample a different
+                     * extent than the destination draws.
+                     */
+                    @Override
+                    public void sprite(int x, int y, int width, int height,
+                            String textureId, int color, int u, int v,
+                            int regionWidth, int regionHeight,
+                            int textureWidth, int textureHeight) {
                         var texture = Identifier.tryParse(textureId);
                         if (texture != null) {
                             extractor.blit(
                                     net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED,
-                                    texture, x, y, 0f, 0f, width, height, width, height);
+                                    texture, x, y, u, v, width, height,
+                                    regionWidth, regionHeight, textureWidth,
+                                    textureHeight, color);
+                        }
+                    }
+
+                    /**
+                     * The G-034B item icon: {@code extractor.item} on the
+                     * 26.x extractor, rewritten to {@code renderItem} on
+                     * pre-1.21.11 nodes by the replacement table (both
+                     * spellings javap-verified on every milestone node).
+                     * Decorations ride {@code itemDecorations}, whose
+                     * five-argument form takes the overlay label
+                     * ({@code null} draws the stack count — vanilla
+                     * delegates the four-argument form with a null).
+                     */
+                    @Override
+                    public void item(int x, int y,
+                            ink.tuanzi.neomacros.port.model.ItemStackData stack,
+                            boolean overlay, String overlayText) {
+                        if (stack == null) {
+                            return;
+                        }
+                        var mcStack = FabricInventoryPort.mcStack(stack);
+                        if (mcStack.isEmpty()) {
+                            return;
+                        }
+                        extractor.item(mcStack, x, y);
+                        if (overlay) {
+                            var mc = net.minecraft.client.Minecraft.getInstance();
+                            extractor.itemDecorations(mc.font, mcStack, x, y,
+                                    overlayText);
                         }
                     }
                 };
