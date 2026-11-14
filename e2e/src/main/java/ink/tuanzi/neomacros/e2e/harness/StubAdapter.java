@@ -64,6 +64,72 @@ public final class StubAdapter implements NeomacrosAdapter {
         private volatile java.util.function.Consumer<Runnable> loopDispatcher = Runnable::run;
         private final List<java.util.function.Consumer<Double>> scrollSinks = new java.util.concurrent.CopyOnWriteArrayList<>();
 
+        /** Bind table: bind name → bound key translation key (insertion order). */
+        private final java.util.LinkedHashMap<String, String> bindKeys = new java.util.LinkedHashMap<>();
+        /** Physical key states set through {@link #injectKey}. */
+        private final java.util.Map<String, Boolean> keyStates = new java.util.LinkedHashMap<>();
+        /** Bind states set through {@link #injectBind}. */
+        private final java.util.Map<String, Boolean> bindStates = new java.util.LinkedHashMap<>();
+        /** Ordered injection log ({@code key:}/{@code bind:}/{@code rebind:}) for assertions. */
+        private final List<String> injections = new CopyOnWriteArrayList<>();
+
+        /** Seeds the stub with the vanilla movement binds plus the use key. */
+        public StubInput() {
+            bindKeys.put("key.forward", "key.keyboard.w");
+            bindKeys.put("key.back", "key.keyboard.s");
+            bindKeys.put("key.left", "key.keyboard.a");
+            bindKeys.put("key.right", "key.keyboard.d");
+            bindKeys.put("key.jump", "key.keyboard.space");
+            bindKeys.put("key.sneak", "key.keyboard.left.shift");
+            bindKeys.put("key.sprint", "key.keyboard.left.control");
+            bindKeys.put("key.use", "key.mouse.right");
+        }
+
+        /** The ordered injection log, for scenario assertions. */
+        public List<String> injections() {
+            return List.copyOf(injections);
+        }
+
+        @Override
+        public void injectKey(String keyName, boolean down) {
+            keyStates.put(keyName, down);
+            injections.add("key:" + keyName + "=" + down);
+        }
+
+        @Override
+        public void injectBind(String bindName, boolean down) {
+            bindStates.put(bindName, down);
+            injections.add("bind:" + bindName + "=" + down);
+        }
+
+        @Override
+        public boolean bindDown(String bindName) {
+            if (Boolean.TRUE.equals(bindStates.get(bindName))) {
+                return true;
+            }
+            String key = bindKeys.get(bindName);
+            return key != null && Boolean.TRUE.equals(keyStates.get(key));
+        }
+
+        @Override
+        public List<ink.tuanzi.neomacros.port.model.KeybindData> keybinds() {
+            List<ink.tuanzi.neomacros.port.model.KeybindData> rows = new ArrayList<>();
+            for (java.util.Map.Entry<String, String> entry : bindKeys.entrySet()) {
+                rows.add(new ink.tuanzi.neomacros.port.model.KeybindData(
+                        entry.getKey(), entry.getValue()));
+            }
+            return rows;
+        }
+
+        @Override
+        public void setBind(String bindName, String keyName) {
+            if (!bindKeys.containsKey(bindName)) {
+                throw new IllegalArgumentException("unknown keybind: " + bindName);
+            }
+            bindKeys.put(bindName, keyName);
+            injections.add("rebind:" + bindName + "=" + keyName);
+        }
+
         /** Sets the loop dispatcher (the runtime supplies the context loop). */
         public void setLoopDispatcher(java.util.function.Consumer<Runnable> dispatcher) {
             this.loopDispatcher = dispatcher;

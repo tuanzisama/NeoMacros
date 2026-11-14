@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -18,6 +19,8 @@ class InputApiExpansionTest {
     /** Recording bridge: captures every call in order. */
     static final class RecordingBridge implements InputApi.InputBridge {
         final List<String> calls = new ArrayList<>();
+        /** Bind names currently held (drives bindDown / pressedKeys). */
+        final java.util.Set<String> held = new java.util.LinkedHashSet<>();
 
         @Override
         public Object registerKeybind(String keyName, java.util.function.Consumer<Integer> sink) {
@@ -48,11 +51,16 @@ class InputApiExpansionTest {
         @Override
         public void injectBind(String bindName, boolean down) {
             calls.add("bind:" + bindName + "=" + down);
+            if (down) {
+                held.add(bindName);
+            } else {
+                held.remove(bindName);
+            }
         }
 
         @Override
         public boolean bindDown(String bindName) {
-            return false;
+            return held.contains(bindName);
         }
 
         @Override
@@ -121,5 +129,45 @@ class InputApiExpansionTest {
         api.unregister("opaque-handle");
         assertEquals(List.of("unregister:opaque-handle"), bridge.calls,
                 "opaque handles keep flowing through to the bridge");
+    }
+
+    /**
+     * G-028B: the PlayerInput movement/action fields read back through
+     * {@code movementState} and hold through {@code movement}; a held bind
+     * surfaces in {@code pressedKeys} (the KeyTracker read face).
+     */
+    @Test
+    void movementHoldDrivesMovementStateAndPressedKeys() {
+        RecordingBridge bridge = new RecordingBridge();
+        InputApi api = new InputApi(bridge);
+
+        InputApi.Subscription sub = api.movement(java.util.Map.of(
+                "forward", true, "jump", true, "sneak", true, "sprint", true));
+
+        java.util.Map<String, Boolean> state = api.getMovementState();
+        assertEquals(7, state.size(),
+                "movement state covers forward/backward/left/right/jump/sneak/sprint");
+        assertEquals(Boolean.TRUE, state.get("forward"), "movementForward > 0 reads back");
+        assertEquals(Boolean.FALSE, state.get("backward"), "no backward hold");
+        assertEquals(Boolean.TRUE, state.get("jump"), "jumping reads back");
+        assertEquals(Boolean.TRUE, state.get("sneak"), "sneaking reads back");
+        assertEquals(Boolean.TRUE, state.get("sprint"), "sprinting reads back");
+        assertEquals(List.of("key.forward"), api.getPressedKeys(),
+                "a held bind surfaces in pressedKeys");
+
+        sub.cancel();
+        assertEquals(Boolean.FALSE, api.getMovementState().get("forward"),
+                "cancelling the subscription releases the hold");
+        assertTrue(api.getPressedKeys().isEmpty(),
+                "released binds drop out of pressedKeys");
+    }
+
+    @Test
+    void movementRejectsUnknownKeys() {
+        RecordingBridge bridge = new RecordingBridge();
+        InputApi api = new InputApi(bridge);
+        assertThrows(IllegalArgumentException.class,
+                () -> api.movement(java.util.Map.of("up", true)),
+                "unknown movement keys are rejected");
     }
 }

@@ -288,6 +288,13 @@ function start() {
   const moveSub = neo.input.movement({ forward: true });
   moveSub.cancel();
   check('input.movement-subscription', typeof moveSub.cancel === 'function');
+  check('input.release-function', typeof neo.input.release === 'function');
+  const msShape = neo.input.movementState;
+  check('input.movementState-keys',
+      typeof msShape.forward === 'boolean' && typeof msShape.backward === 'boolean'
+      && typeof msShape.left === 'boolean' && typeof msShape.right === 'boolean'
+      && typeof msShape.jump === 'boolean' && typeof msShape.sneak === 'boolean'
+      && typeof msShape.sprint === 'boolean');
   check('player.screen-null-or-object',
       neo.player.screen === null || typeof neo.player.screen === 'object');
   check('chat.getWidth', typeof neo.chat.getWidth('hello') === 'number');

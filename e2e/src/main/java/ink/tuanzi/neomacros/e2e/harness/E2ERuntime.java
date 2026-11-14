@@ -71,6 +71,59 @@ public final class E2ERuntime implements AutoCloseable {
                 TestBridge.class, WorldApi.class, EntityApi.class, PlayerApi.class,
                 ink.tuanzi.neomacros.core.api.java.JavaApi.class,
                 ink.tuanzi.neomacros.core.api.client.ClientApi.class));
+        // The input module rides the stub port so the injection and read
+        // faces (press/release/set/movement, pressedKeys, movementState) are
+        // script-visible in this harness (G-028B).
+        var inputPort = adapter.inputPort();
+        registry.registerInstance(new ink.tuanzi.neomacros.core.api.InputApi(
+                new ink.tuanzi.neomacros.core.api.InputApi.InputBridge() {
+                    @Override
+                    public Object registerKeybind(String keyName,
+                            java.util.function.Consumer<Integer> sink) {
+                        return inputPort.registerKeybind(keyName, sink);
+                    }
+
+                    @Override
+                    public Object registerKeyPress(String keyName, Runnable sink) {
+                        inputPort.registerKeyPress(keyName, sink);
+                        return keyName;
+                    }
+
+                    @Override
+                    public void onScroll(java.util.function.DoubleConsumer sink) {
+                        inputPort.onScroll(sink::accept);
+                    }
+
+                    @Override
+                    public void unregister(Object handle) {
+                        inputPort.unregister(handle);
+                    }
+
+                    @Override
+                    public void injectKey(String keyName, boolean down) {
+                        inputPort.injectKey(keyName, down);
+                    }
+
+                    @Override
+                    public void injectBind(String bindName, boolean down) {
+                        inputPort.injectBind(bindName, down);
+                    }
+
+                    @Override
+                    public boolean bindDown(String bindName) {
+                        return inputPort.bindDown(bindName);
+                    }
+
+                    @Override
+                    public java.util.List<ink.tuanzi.neomacros.port.model.KeybindData> keybinds() {
+                        return inputPort.keybinds();
+                    }
+
+                    @Override
+                    public void setBind(String bindName, String keyName) {
+                        inputPort.setBind(bindName, keyName);
+                    }
+                }));
         registry.registerInstance(new ink.tuanzi.neomacros.core.api.reflect.ReflectApi());
         // The command module registers over a recording registry so scenarios
         // can dispatch typed commands exactly like the Fabric port does.
