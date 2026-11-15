@@ -53,7 +53,7 @@ final class ApiCompletenessSurface {
             WorldApi.class, EntityApi.class, PlayerApi.class, ClientApi.class,
             JavaApi.class, ReflectApi.class, FsApi.class, NetApi.class,
             InputApi.class, CommandApi.class, HudApi.class, RenderApi.class,
-            ink.tuanzi.neomacros.core.api.PermissionsApi.class);
+            ink.tuanzi.neomacros.core.api.PermissionApi.class);
 
     /** Script-facing class types ({@code @ApiClass}). */
     static final List<Class<?>> CLASSES = List.of(

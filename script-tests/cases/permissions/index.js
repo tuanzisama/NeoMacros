@@ -10,27 +10,29 @@ async function start() {
   const check = (key, value) => { results[key] = Boolean(value); };
 
   check('face.shapes',
-      typeof neo.permissions.checkPermission === 'function'
-      && typeof neo.permissions.requestPermission === 'function');
+      typeof neo.permission.checkPermission === 'function'
+      && typeof neo.permission.requestPermission === 'function');
 
   // A fresh install expects false (declared fs, content untrusted); a
   // config that already trusts this content starts at true and the request
   // below resolves without a prompt. Both are valid initial states.
-  const before = neo.permissions.checkPermission('fs');
+  const before = neo.permission.checkPermission('fs');
   neo.chat.log('[E2E] permissions: initial fs=' + before);
   check('face.check-boolean', before === true || before === false);
-  check('face.check-unknown', neo.permissions.checkPermission('bogus') === false);
+  check('face.check-unknown', neo.permission.checkPermission('bogus') === false);
+  check('face.check-list-and',
+      neo.permission.checkPermission(['fs', 'bogus']) === false);
 
   // Undeclared and unknown requests reject with the contract errors.
   let undeclaredRejected = false;
-  try { await neo.permissions.requestPermission('net'); }
+  try { await neo.permission.requestPermission('net'); }
   catch (e) {
     undeclaredRejected = String(e.message || e).includes('not declared');
   }
   check('face.undeclared-rejects', undeclaredRejected);
 
   let unknownRejected = false;
-  try { await neo.permissions.requestPermission('bogus'); }
+  try { await neo.permission.requestPermission('bogus'); }
   catch (e) {
     unknownRejected = String(e.message || e).includes('unknown permission');
   }
@@ -41,7 +43,7 @@ async function start() {
   // deny/escape resolves false. Either decision is valid — the assertion
   // is that the gated fs face matches the decision.
   let granted = null;
-  try { granted = await neo.permissions.requestPermission('fs'); }
+  try { granted = await neo.permission.requestPermission('fs'); }
   catch (e) { granted = 'error: ' + (e.message || e); }
 
   let fsCallable = null;

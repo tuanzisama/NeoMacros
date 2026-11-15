@@ -36,16 +36,16 @@ public final class PermissionRequests {
     }
 
     /**
-     * One pending trust decision. {@code capability} is the specific
-     * capability a script asked for at runtime ({@code null} for a first-load
+     * One pending trust decision. {@code capabilities} lists the specific
+     * capabilities a script asked for at runtime (empty for a first-load
      * prompt, which covers the whole declared set); {@code awaited} marks a
      * runtime request whose script is suspended on the answer;
      * {@code description} is the script's manifest description (may be
      * empty), shown in the prompt UI.
      */
     public record PermissionRequest(String id, String scriptName, String contentHash,
-                                    String capability, List<String> declared, boolean awaited,
-                                    String description) {
+                                    List<String> capabilities, List<String> declared,
+                                    boolean awaited, String description) {
     }
 
     private record Pending(PermissionRequest request, CompletableFuture<Boolean> future) {
@@ -110,7 +110,7 @@ public final class PermissionRequests {
         }
         enqueue(new Pending(new PermissionRequest(
                 java.util.UUID.randomUUID().toString(), scriptName, contentHash,
-                null, List.copyOf(declared), false, description), null));
+                List.of(), List.copyOf(declared), false, description), null));
     }
 
     /**
@@ -244,6 +244,6 @@ public final class PermissionRequests {
             return request;
         }
         return new PermissionRequest(request.id(), request.scriptName(), request.contentHash(),
-                request.capability(), request.declared(), awaited, request.description());
+                request.capabilities(), request.declared(), awaited, request.description());
     }
 }

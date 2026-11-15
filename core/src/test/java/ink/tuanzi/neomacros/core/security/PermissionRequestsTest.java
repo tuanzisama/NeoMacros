@@ -39,9 +39,9 @@ class PermissionRequestsTest {
     }
 
     private static PermissionRequests.PermissionRequest request(String id, String script,
-            String hash, String capability, List<String> declared) {
-        return new PermissionRequests.PermissionRequest(id, script, hash, capability,
-                declared, capability != null, "");
+            String hash, List<String> capabilities, List<String> declared) {
+        return new PermissionRequests.PermissionRequest(id, script, hash, capabilities,
+                declared, !capabilities.isEmpty(), "");
     }
 
     @Test
@@ -50,7 +50,7 @@ class PermissionRequestsTest {
         List<PermissionRequests.PermissionRequest> surfaced = new ArrayList<>();
         rig.requests().onRequest(surfaced::add);
 
-        var future = rig.requests().submit(request("id-1", "alpha", "hash-a", "fs", List.of("fs")));
+        var future = rig.requests().submit(request("id-1", "alpha", "hash-a", List.of("fs"), List.of("fs")));
         rig.requests().submitLoad("beta", "hash-b", "beta description", List.of("net"));
         assertEquals(1, surfaced.size(), "one prompt shows at a time");
         assertEquals("id-1", surfaced.get(0).id());
@@ -80,7 +80,7 @@ class PermissionRequestsTest {
         rig.requests().submitLoad("alpha", "hash-a", "", List.of("fs", "net"));
         assertEquals(1, surfaced.size());
         var awaited = rig.requests().submit(
-                request("id-2", "alpha", "hash-a", "fs", List.of("fs", "net")));
+                request("id-2", "alpha", "hash-a", List.of("fs"), List.of("fs", "net")));
 
         // A repeated load of the same untrusted script replaces the pending
         // prompt; the awaited request stays exactly where it is.
@@ -104,9 +104,9 @@ class PermissionRequestsTest {
         rig.requests().onRequest(surfaced::add);
 
         var sibling = rig.requests().submit(
-                request("id-1", "alpha", "hash-a", "fs", List.of("fs", "net")));
+                request("id-1", "alpha", "hash-a", List.of("fs"), List.of("fs", "net")));
         var showing = rig.requests().submit(
-                request("id-2", "alpha", "hash-a", "net", List.of("fs", "net")));
+                request("id-2", "alpha", "hash-a", List.of("net"), List.of("fs", "net")));
         rig.requests().submitLoad("beta", "hash-b", "", List.of("net"));
         assertEquals(1, surfaced.size());
 
@@ -125,9 +125,9 @@ class PermissionRequestsTest {
         rig.requests().onRequest(surfaced::add);
 
         var denied = rig.requests().submit(
-                request("id-1", "alpha", "hash-a", "fs", List.of("fs")));
+                request("id-1", "alpha", "hash-a", List.of("fs"), List.of("fs")));
         var sibling = rig.requests().submit(
-                request("id-2", "alpha", "hash-a", "net", List.of("fs", "net")));
+                request("id-2", "alpha", "hash-a", List.of("net"), List.of("fs", "net")));
 
         assertEquals("alpha", rig.requests().respond("id-1", PermissionRequests.Decision.DENY));
         assertFalse(denied.join(), "a deny resolves false");
@@ -144,7 +144,7 @@ class PermissionRequestsTest {
         rig.requests().onRequest(surfaced::add);
 
         var denied = rig.requests().submit(
-                request("id-1", "alpha", "hash-a", "fs", List.of("fs")));
+                request("id-1", "alpha", "hash-a", List.of("fs"), List.of("fs")));
         assertEquals("alpha", rig.requests().respond("id-1", PermissionRequests.Decision.DENY));
         assertFalse(denied.join());
         assertTrue(rig.trust().isSessionDenied("hash-a"));
@@ -152,7 +152,7 @@ class PermissionRequestsTest {
         // Runtime requests resolve false immediately; load prompts submit
         // nothing — the refusal holds until the game restarts.
         var again = rig.requests().submit(
-                request("id-2", "alpha", "hash-a", "fs", List.of("fs")));
+                request("id-2", "alpha", "hash-a", List.of("fs"), List.of("fs")));
         assertFalse(again.join(), "a session-denied script resolves false without a prompt");
         rig.requests().submitLoad("alpha", "hash-a", "", List.of("fs"));
         assertEquals(1, surfaced.size(), "no further prompts surfaced");
@@ -166,7 +166,7 @@ class PermissionRequestsTest {
         rig.requests().onRequest(surfaced::add);
 
         var future = rig.requests().submit(
-                request("id-1", "alpha", "hash-a", "fs", List.of("fs")));
+                request("id-1", "alpha", "hash-a", List.of("fs"), List.of("fs")));
         rig.requests().submitLoad("alpha", "hash-a", "", List.of("fs"));
 
         assertEquals("alpha", rig.requests().respond("alpha", PermissionRequests.Decision.IGNORE));
@@ -187,7 +187,7 @@ class PermissionRequestsTest {
         rig.requests().onRequest(surfaced::add);
 
         var future = rig.requests().submit(
-                request("id-1", "alpha", "hash-a", "fs", List.of("fs")));
+                request("id-1", "alpha", "hash-a", List.of("fs"), List.of("fs")));
         rig.requests().submitLoad("alpha", "hash-a", "", List.of("fs"));
         rig.requests().submitLoad("beta", "hash-b", "", List.of("net"));
 
@@ -213,7 +213,7 @@ class PermissionRequestsTest {
         rig.requests().onRequest(surfaced::add);
 
         var future = rig.requests().submit(
-                request("id-1", "alpha", "hash-a", "fs", List.of("fs")));
+                request("id-1", "alpha", "hash-a", List.of("fs"), List.of("fs")));
         rig.requests().submitLoad("alpha", "hash-a", "", List.of("fs"));
         rig.requests().submitLoad("beta", "hash-b", "", List.of("net"));
 

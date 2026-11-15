@@ -1,6 +1,6 @@
 package ink.tuanzi.neomacros.core.module;
 
-import ink.tuanzi.neomacros.core.api.PermissionsApi;
+import ink.tuanzi.neomacros.core.api.PermissionApi;
 import ink.tuanzi.neomacros.core.api.bindgen.LoadTracker;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionViewResolver;
@@ -28,18 +28,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The {@code neo.permissions} face: checkPermission reads the live view,
- * requestPermission rejects undeclared or unknown capabilities, resolves
- * immediately when already granted, and otherwise surfaces a request whose
- * decision grants through the trust gate (persist + immediate flip) or
- * settles false.
+ * The {@code neo.permission} face: checkPermission reads the live view (a
+ * list requires every capability), requestPermission rejects undeclared or
+ * unknown capabilities, resolves immediately when already granted, and
+ * otherwise surfaces one request whose decision grants through the trust
+ * gate (persist + immediate flip) or settles false.
  */
-class PermissionsApiTest {
+class PermissionApiTest {
 
     @TempDir
     Path dir;
 
-    private record Rig(PermissionsApi api, PermissionRequests requests,
+    private record Rig(PermissionApi api, PermissionRequests requests,
                        TrustManager trust, CoreOptions options) {
     }
 
@@ -51,7 +51,7 @@ class PermissionsApiTest {
         config.load();
         var trust = new TrustManager(options);
         var requests = new PermissionRequests(trust);
-        return new Rig(new PermissionsApi(requests), requests, trust, options);
+        return new Rig(new PermissionApi(requests), requests, trust, options);
     }
 
     /** A loaded-module stand-in: manifest declarations, live view, content hash. */
@@ -68,16 +68,21 @@ class PermissionsApiTest {
     @Test
     void checkPermissionReadsTheLiveViewAndTheDirectory() {
         var rig = rig();
-        LoadedModule granted = owner(List.of("fs"),
-                PermissionView.of(Set.of("fs")), "hash-a");
+        LoadedModule granted = owner(List.of("fs", "net"),
+                PermissionView.of(Set.of("fs", "net")), "hash-a");
         LoadedModule denied = owner(List.of("fs"),
                 new PermissionView.GrantableView(Set.of()), "hash-b");
 
         LoadTracker.begin(granted);
         try {
             assertTrue(rig.api().checkPermission("fs"));
-            assertFalse(rig.api().checkPermission("net"), "undeclared stays denied");
+            assertTrue(rig.api().checkPermission(List.of("fs", "net")),
+                    "a list requires every capability");
+            assertFalse(rig.api().checkPermission("command"), "undeclared stays denied");
+            assertFalse(rig.api().checkPermission(List.of("fs", "command")),
+                    "one denied name sinks the whole list");
             assertFalse(rig.api().checkPermission("bogus"), "unknown names are not capabilities");
+            assertFalse(rig.api().checkPermission(List.of("fs", "bogus")));
         } finally {
             LoadTracker.end();
         }
@@ -96,6 +101,24 @@ class PermissionsApiTest {
     }
 
     @Test
+    void checkNormalizesNamesAndRejectsEmptyInput() {
+        var rig = rig();
+        LoadedModule granted = owner(List.of("fs"),
+                PermissionView.of(Set.of("fs")), "hash-a");
+        LoadTracker.begin(granted);
+        try {
+            assertTrue(rig.api().checkPermission(" FS "), "names normalize (trim + case)");
+            assertTrue(rig.api().checkPermission(List.of("FS")), "list entries normalize too");
+            var empty = assertThrows(IllegalArgumentException.class,
+                    () -> rig.api().checkPermission(List.of()));
+            assertTrue(empty.getMessage().contains("empty"));
+            assertThrows(IllegalArgumentException.class, () -> rig.api().checkPermission("  "));
+        } finally {
+            LoadTracker.end();
+        }
+    }
+
+    @Test
     void requestPermissionRejectsUndeclaredAndUnknown() {
         var rig = rig();
         LoadedModule owner = owner(List.of("fs"),
@@ -109,6 +132,11 @@ class PermissionsApiTest {
             assertTrue(undeclared.getMessage()
                             .contains("is not declared in this script's meta.permissions"),
                     () -> "contract text: " + undeclared.getMessage());
+
+            var inList = assertThrows(PermissionError.class,
+                    () -> rig.api().requestPermission(List.of("fs", "net")));
+            assertTrue(inList.getMessage().contains("'net'"),
+                    () -> "the offending name is named: " + inList.getMessage());
 
             var unknown = assertThrows(PermissionError.class,
                     () -> rig.api().requestPermission("Bogus"));
@@ -124,15 +152,18 @@ class PermissionsApiTest {
         var rig = rig();
         List<PermissionRequests.PermissionRequest> surfaced = new ArrayList<>();
         rig.requests().onRequest(surfaced::add);
-        LoadedModule owner = owner(List.of("fs"), PermissionView.of(Set.of("fs")), "hash-ok");
+        LoadedModule owner = owner(List.of("fs", "net"),
+                PermissionView.of(Set.of("fs", "net")), "hash-ok");
         LoadTracker.begin(owner);
         try {
             assertTrue(rig.api().requestPermission("fs").join(),
                     "the granted capability resolves true without a prompt");
+            assertTrue(rig.api().requestPermission(List.of("fs", "net")).join(),
+                    "an all-granted list resolves true without a prompt");
         } finally {
             LoadTracker.end();
         }
-        assertTrue(surfaced.isEmpty(), "no UI request for an already-granted capability");
+        assertTrue(surfaced.isEmpty(), "no UI request for already-granted capabilities");
     }
 
     @Test
@@ -145,17 +176,19 @@ class PermissionsApiTest {
         var view = rig.trust().viewFor("hash-grant", List.of("fs", "net"));
         LoadedModule owner = owner(List.of("fs", "net"), view, "hash-grant");
         LoadTracker.begin(owner);
-        var future = rig.api().requestPermission("fs");
+        var future = rig.api().requestPermission(List.of("fs", "net"));
         LoadTracker.end();
 
         assertEquals(1, surfaced.size(), "the ungranted request surfaces once");
         var request = surfaced.get(0);
         assertEquals("perm-script", request.scriptName());
-        assertEquals("fs", request.capability());
+        assertEquals(List.of("fs", "net"), request.capabilities(),
+                "the requested list rides on the request");
         assertEquals(List.of("fs", "net"), request.declared());
         assertFalse(future.isDone(), "the future waits for the player");
 
-        assertEquals("perm-script", rig.requests().respond(request.id(), PermissionRequests.Decision.GRANT));
+        assertEquals("perm-script", rig.requests().respond(request.id(),
+                PermissionRequests.Decision.GRANT));
         assertTrue(future.join(), "an allow resolves true");
         assertTrue(view.allows("fs"), "the running view flipped immediately");
         assertTrue(view.allows("net"), "the declared set rides with the trust decision");
@@ -168,7 +201,7 @@ class PermissionsApiTest {
         var rig = rig();
         List<PermissionRequests.PermissionRequest> surfaced = new ArrayList<>();
         rig.requests().onRequest(surfaced::add);
-        var view = new PermissionView.GrantableView(Set.of());
+        var view = rig.trust().viewFor("hash-deny", List.of("fs"));
         LoadedModule owner = owner(List.of("fs"), view, "hash-deny");
         LoadTracker.begin(owner);
         var future = rig.api().requestPermission("fs");
@@ -179,7 +212,8 @@ class PermissionsApiTest {
         assertFalse(future.join(), "a deny resolves false");
         assertFalse(view.allows("fs"), "a deny grants nothing");
         assertFalse(rig.trust().isTrusted("hash-deny"), "a deny persists nothing");
-        assertNull(rig.requests().respond(id, PermissionRequests.Decision.DENY), "the id is consumed");
+        assertNull(rig.requests().respond(id, PermissionRequests.Decision.DENY),
+                "the id is consumed");
     }
 
     @Test
@@ -196,8 +230,8 @@ class PermissionsApiTest {
         rig.requests().cancelFor("perm-script");
         assertFalse(future.join(), "unload settles the script's future as denied");
         assertTrue(rig.requests().pending().isEmpty(), "the queue is clear");
-        assertNull(rig.requests().respond(surfaced.get(0).id(), PermissionRequests.Decision.GRANT),
-                "a cancelled id is gone");
+        assertNull(rig.requests().respond(surfaced.get(0).id(),
+                PermissionRequests.Decision.GRANT), "a cancelled id is gone");
     }
 
     @Test
@@ -215,12 +249,13 @@ class PermissionsApiTest {
         LoadTracker.end();
 
         assertEquals(1, surfaced.size(), "only one prompt shows at a time");
-        assertEquals("fs", surfaced.get(0).capability());
+        assertEquals("fs", surfaced.get(0).capabilities().get(0));
         assertFalse(second.isDone(), "the queued request waits");
 
         // An allow grants script-wide: the queued sibling settles with the
         // same decision instead of surfacing its own prompt.
-        assertEquals("perm-script", rig.requests().respond(surfaced.get(0).id(), PermissionRequests.Decision.GRANT));
+        assertEquals("perm-script", rig.requests().respond(surfaced.get(0).id(),
+                PermissionRequests.Decision.GRANT));
         assertTrue(first.join());
         assertTrue(second.join(), "the queued sibling settled by the same grant");
         assertEquals(1, surfaced.size(), "no second prompt was needed");

@@ -467,7 +467,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         // the /neomacros permission command (one grant semantics everywhere).
         permissionRequests = new ink.tuanzi.neomacros.core.security.PermissionRequests(trustManager);
         registry.registerInstance(
-                new ink.tuanzi.neomacros.core.api.PermissionsApi(permissionRequests));
+                new ink.tuanzi.neomacros.core.api.PermissionApi(permissionRequests));
         trustManager.onPrompt(prompt -> {
             String name = prompt.scriptName() != null ? prompt.scriptName() : prompt.contentHash();
             String description = prompt.scriptName() == null ? ""
@@ -1042,10 +1042,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     private static void surfacePermissionRequest(
             ink.tuanzi.neomacros.core.security.PermissionRequests.PermissionRequest request) {
         //? if >=1.21.6 {
-        String caps = request.capability() != null
-                ? capabilityLabel(request.capability())
-                : request.declared().stream().map(NeoMacrosFabric::capabilityLabel)
-                        .collect(java.util.stream.Collectors.joining(", "));
+        List<String> shown = request.capabilities().isEmpty()
+                ? request.declared() : request.capabilities();
+        String caps = shown.stream().map(NeoMacrosFabric::capabilityLabel)
+                .collect(java.util.stream.Collectors.joining(", "));
         List<String> body = new java.util.ArrayList<>();
         if (request.description() != null && !request.description().isEmpty()) {
             body.add(UiText.tr("neomacros.ui.permission_dialog.script_desc",
@@ -1079,10 +1079,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 }));
         //?} else {
         /*
-        String caps = request.capability() != null
-                ? capabilityLabel(request.capability())
-                : request.declared().stream().map(NeoMacrosFabric::capabilityLabel)
-                        .collect(java.util.stream.Collectors.joining(", "));
+        List<String> shown = request.capabilities().isEmpty()
+                ? request.declared() : request.capabilities();
+        String caps = shown.stream().map(NeoMacrosFabric::capabilityLabel)
+                .collect(java.util.stream.Collectors.joining(", "));
         adapter.chat().logClickable(
                 Msg.line(UiText.tr("neomacros.chat.permission_prompt",
                         request.scriptName(), caps)),
