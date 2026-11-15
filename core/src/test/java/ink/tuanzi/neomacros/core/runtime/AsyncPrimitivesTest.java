@@ -75,9 +75,26 @@ class AsyncPrimitivesTest {
 
     @Test
     void sleepCompletesOnLoopAfterDelay() throws Exception {
+        // Park the loop thread so the delayed completion cannot fire before
+        // the capture attaches: under a loaded CI runner the attach could
+        // otherwise lose the race, and a pre-completed future runs its
+        // callback inline on the attaching thread (same flake the waitFor
+        // gate below guards against). FIFO order makes it deterministic:
+        // the completion task is enqueued after the park task, so it can
+        // only run once the park releases — after the capture is attached.
+        CompletableFuture<Void> park = new CompletableFuture<>();
+        loop.execute(() -> {
+            try {
+                park.get(10, TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+                // Any gate failure resumes the loop; the assertions below
+                // still judge the completion.
+            }
+        });
         long start = System.currentTimeMillis();
         CompletableFuture<Void> done = async.sleep(120);
         java.util.concurrent.CompletableFuture<String> completedOn = captureCompletionThread(done);
+        park.complete(null);
         done.get(2, TimeUnit.SECONDS);
         assertTrue(System.currentTimeMillis() - start >= 110);
         awaitCapture(completedOn);
