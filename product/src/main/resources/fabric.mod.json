@@ -6,6 +6,7 @@
   "description": "ECMAScript scripting for Minecraft clients (Fabric only).",
   "authors": ["tuanzi"],
   "license": "MIT",
+  "icon": "assets/neomacros/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": ["ink.tuanzi.neomacros.fabric.NeoMacrosFabric"],
