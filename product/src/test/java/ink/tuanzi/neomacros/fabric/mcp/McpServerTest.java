@@ -31,17 +31,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * End-to-end over a real HTTP listener: the full MCP conversation
  * (initialize → initialized → tools/list → tools/call → DELETE), the
- * transport rules (401/403/404/405/400), the group switches, and the
+ * transport rules (403/404/405/400), the group switches, and the
  * game-backed tools over the e2e stub adapter. No game context needed.
  */
 class McpServerTest {
@@ -51,8 +49,6 @@ class McpServerTest {
         // JDK client treats as restricted unless allowed here.
         System.setProperty("jdk.httpclient.allowRestrictedHeaders", "host");
     }
-
-    private static final String TOKEN = "test-token-0123456789abcdef";
 
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
@@ -73,7 +69,6 @@ class McpServerTest {
     /** Starts the service on an ephemeral port and returns the bound port. */
     private int startService(java.util.function.Consumer<McpSettings> tweak) {
         McpSettings settings = new McpSettings();
-        settings.token = TOKEN;
         settings.port = 0;
         tweak.accept(settings);
         adapter.lifecyclePort().setInWorld(true);
@@ -82,8 +77,8 @@ class McpServerTest {
                 new Pos3d(1, 64, 2), new Rot2d(0, 0), 20, 20, 300));
         adapter.worldPort().time = 6000;
         adapter.worldPort().dimension = "minecraft:overworld";
-        service = new McpService(backend, java.util.function.Supplier::get, adapter, new StubCommands(),
-                () -> settings, () -> "9.9.9-test", token -> { });
+        service = new McpService(backend, java.util.function.Supplier::get, adapter,
+                new StubCommands(), () -> settings, () -> "9.9.9-test");
         try {
             return service.start();
         } catch (IOException e) {
@@ -97,7 +92,6 @@ class McpServerTest {
         HttpRequest.Builder request = HttpRequest.newBuilder(
                         URI.create("http://127.0.0.1:" + port + "/mcp"))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + TOKEN)
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
         if (sessionId != null) {
             request.header("Mcp-Session-Id", sessionId);
@@ -246,24 +240,9 @@ class McpServerTest {
     }
 
     @Test
-    void theTransportEnforcesAuthSessionAndVerbs() throws Exception {
+    void theTransportEnforcesSessionAndVerbs() throws Exception {
         int port = startService(settings -> { });
         String session = initialize(port);
-
-        HttpResponse<String> noToken = client.send(HttpRequest.newBuilder(
-                        URI.create("http://127.0.0.1:" + port + "/mcp"))
-                .POST(HttpRequest.BodyPublishers.ofString("{}")).build(),
-                HttpResponse.BodyHandlers.ofString());
-        assertEquals(401, noToken.statusCode());
-        assertEquals("Bearer realm=\"neomacros-mcp\"",
-                noToken.headers().firstValue("WWW-Authenticate").orElse(""));
-
-        HttpResponse<String> badToken = client.send(HttpRequest.newBuilder(
-                        URI.create("http://127.0.0.1:" + port + "/mcp"))
-                .header("Authorization", "Bearer wrong")
-                .POST(HttpRequest.BodyPublishers.ofString("{}")).build(),
-                HttpResponse.BodyHandlers.ofString());
-        assertEquals(401, badToken.statusCode());
 
         assertEquals(400, post(port,
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}",
@@ -280,13 +259,11 @@ class McpServerTest {
 
         HttpResponse<String> get = client.send(HttpRequest.newBuilder(
                         URI.create("http://127.0.0.1:" + port + "/mcp"))
-                .header("Authorization", "Bearer " + TOKEN)
                 .GET().build(), HttpResponse.BodyHandlers.ofString());
         assertEquals(405, get.statusCode());
 
         HttpResponse<String> badHost = client.send(HttpRequest.newBuilder(
                         URI.create("http://127.0.0.1:" + port + "/mcp"))
-                .header("Authorization", "Bearer " + TOKEN)
                 .header("Host", "attacker.example.com:" + port)
                 .POST(HttpRequest.BodyPublishers.ofString("{}")).build(),
                 HttpResponse.BodyHandlers.ofString());
@@ -294,7 +271,6 @@ class McpServerTest {
 
         HttpResponse<String> terminate = client.send(HttpRequest.newBuilder(
                         URI.create("http://127.0.0.1:" + port + "/mcp"))
-                .header("Authorization", "Bearer " + TOKEN)
                 .header("Mcp-Session-Id", session)
                 .DELETE().build(), HttpResponse.BodyHandlers.ofString());
         assertEquals(204, terminate.statusCode());
@@ -310,25 +286,6 @@ class McpServerTest {
         assertEquals(200, response.statusCode());
         assertEquals(-32700, JsonParser.parseString(response.body()).getAsJsonObject()
                 .getAsJsonObject("error").get("code").getAsInt());
-    }
-
-    @Test
-    void aBlankTokenIsGeneratedAndPersistedOnFirstStart() throws Exception {
-        McpSettings settings = new McpSettings();
-        settings.token = "";
-        settings.port = 0;
-        AtomicReference<String> persisted = new AtomicReference<>();
-        adapter.lifecyclePort().setInWorld(true);
-        service = new McpService(backend, java.util.function.Supplier::get, adapter,
-                new StubCommands(), () -> settings, () -> "9.9.9-test",
-                token -> {
-                    persisted.set(token);
-                    settings.token = token;
-                });
-        service.start();
-        assertNotNull(persisted.get());
-        assertEquals(32, persisted.get().length());
-        assertEquals(persisted.get(), settings.token);
     }
 
     /** A stub backend: the MCP path only touches tasks, eval, and snapshots. */

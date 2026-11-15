@@ -91,6 +91,30 @@ public final class FabricChatPort implements ChatPort {
     }
 
     @Override
+    public void logCopyable(String text, String value) {
+        // Same sealed-ClickEvent and 1.21.11 chat pivot as logLink; the click
+        // copies the value instead of opening it.
+        //? if <1.21.11 {
+        /*
+        runOnMain(() -> {
+            Component line = Component.literal(text).withStyle(style -> style
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.CopyToClipboard(value))
+                    .withUnderlined(true));
+            Minecraft.getInstance().gui.hud.getChat().addMessage(line);
+        });
+        */
+        //?}
+//? if >=1.21.11 {
+        runOnMain(() -> {
+            Component line = Component.literal(text).withStyle(style -> style
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.CopyToClipboard(value))
+                    .withUnderlined(true));
+            Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(line);
+        });
+//?}
+    }
+
+    @Override
     public void renderRichText(java.util.List<ink.tuanzi.neomacros.port.model.TextSegmentData> segments,
             boolean actionBar) {
         runOnMain(() -> {

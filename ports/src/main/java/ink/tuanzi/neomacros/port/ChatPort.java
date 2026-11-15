@@ -115,4 +115,13 @@ public interface ChatPort {
     default void logLink(String text, String url) {
         log(text + " " + url);
     }
+
+    /**
+     * Prints a local chat line whose click copies the value to the clipboard
+     * (the MCP endpoint URL). Implementations without the copy click degrade
+     * to {@link #log(String)}.
+     */
+    default void logCopyable(String text, String value) {
+        log(text);
+    }
 }

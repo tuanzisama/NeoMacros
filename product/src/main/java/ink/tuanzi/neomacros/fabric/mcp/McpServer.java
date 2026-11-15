@@ -17,14 +17,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Supplier;
 
 /**
  * The MCP HTTP endpoint: a single {@code /mcp} context on the JDK server
  * with the Streamable HTTP rules — POST carries JSON-RPC, DELETE ends the
  * session, GET is refused. Every request passes the same hardening order as
- * the panel service (Host allowlist, body cap, bearer token, origin check);
- * the session header is required on everything except {@code initialize},
+ * the panel service (Host allowlist, body cap, origin check); the session
+ * header is required on everything except {@code initialize},
  * and an unknown session answers 404 so the agent re-initializes.
  */
 public final class McpServer {
@@ -33,18 +32,16 @@ public final class McpServer {
 
     private final McpProtocol protocol;
     private final McpSessions sessions;
-    private final Supplier<String> token;
     private volatile HostPolicy hosts;
 
     private HttpServer server;
     private ExecutorService executor;
     private volatile InetSocketAddress boundAddress;
 
-    /** Creates the server over the protocol layer and the token source. */
-    public McpServer(McpProtocol protocol, McpSessions sessions, Supplier<String> token) {
+    /** Creates the server over the protocol layer. */
+    public McpServer(McpProtocol protocol, McpSessions sessions) {
         this.protocol = protocol;
         this.sessions = sessions;
-        this.token = token;
     }
 
     /**
@@ -118,22 +115,12 @@ public final class McpServer {
                 plain(exchange, 413, "request body exceeds 1 MiB");
                 return;
             }
-            // 3. Bearer token.
-            String expected = token.get();
-            if (expected == null || expected.isBlank()
-                    || !McpAuth.tokenMatches(
-                            exchange.getRequestHeaders().getFirst("Authorization"), expected)) {
-                exchange.getResponseHeaders().set("WWW-Authenticate",
-                        "Bearer realm=\"neomacros-mcp\"");
-                plain(exchange, 401, "unauthorized");
-                return;
-            }
-            // 4. Origin check (browsers announce themselves; agents do not).
+            // 3. Origin check (browsers announce themselves; agents do not).
             if (!McpAuth.originAllowed(exchange.getRequestHeaders().getFirst("Origin"))) {
                 plain(exchange, 403, "origin not allowed");
                 return;
             }
-            // 5. Route by verb.
+            // 4. Route by verb.
             if ("DELETE".equals(method)) {
                 terminate(exchange);
                 return;

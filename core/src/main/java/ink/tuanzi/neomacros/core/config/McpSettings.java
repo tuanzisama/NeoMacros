@@ -3,9 +3,9 @@ package ink.tuanzi.neomacros.core.config;
 /**
  * The {@code core.mcp} section: the MCP (Model Context Protocol) server that
  * lets external AI agents read logs and game state and drive the client over
- * Streamable HTTP. The service is off by default; connections authenticate
- * with a bearer token and the listener binds the loopback unless the user
- * widens it. Field defaults are the shipped values.
+ * Streamable HTTP. The service is off by default; the listener binds the
+ * loopback unless the user widens it, and the origin check keeps browsers out.
+ * Field defaults are the shipped values.
  */
 public final class McpSettings {
 
@@ -24,13 +24,6 @@ public final class McpSettings {
     /** Bind address: {@code 127.0.0.1}, {@code 0.0.0.0}, or {@code ::1}. */
     @Option(description = "Bind address: 127.0.0.1, 0.0.0.0, or ::1")
     public String listen = "127.0.0.1";
-
-    /**
-     * The bearer token agents present in the {@code Authorization} header.
-     * Blank means one is generated on the next start and persisted here.
-     */
-    @Option(description = "Bearer token for agent connections")
-    public String token = "";
 
     /**
      * Which log lines the {@code get_logs} tool captures: {@code mod} keeps

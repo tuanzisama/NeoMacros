@@ -22,9 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.BindException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -32,10 +30,9 @@ import java.util.function.Supplier;
 /**
  * The MCP service: owns the log/console/network rings the agent tools read,
  * the session table, and the HTTP server, and maps the {@code core.mcp}
- * settings onto them per start. A blank configured token is generated and
- * persisted on the first start; rotating the token clears every live
- * session. The tool surface assembles from the group switches, so a group
- * turned off in config disappears from {@code tools/list}.
+ * settings onto them per start. The tool surface assembles from the group
+ * switches, so a group turned off in config disappears from
+ * {@code tools/list}.
  */
 public final class McpService {
 
@@ -52,7 +49,6 @@ public final class McpService {
     private final CommandRegistry commands;
     private final Supplier<McpSettings> settings;
     private final Supplier<String> modVersion;
-    private final Consumer<String> tokenPersister;
 
     private LogRing logs;
     private LogTap logTap;
@@ -67,18 +63,17 @@ public final class McpService {
     /**
      * Creates the service over the collaborators the fabric layer owns; the
      * settings supplier is read per start so config changes apply without
-     * recreating the service, and the persister stores generated tokens.
+     * recreating the service.
      */
     public McpService(PanelBackend backend, GameRunner game, NeomacrosAdapter adapter,
                       CommandRegistry commands, Supplier<McpSettings> settings,
-                      Supplier<String> modVersion, Consumer<String> tokenPersister) {
+                      Supplier<String> modVersion) {
         this.backend = backend;
         this.game = game;
         this.adapter = adapter;
         this.commands = commands;
         this.settings = settings;
         this.modVersion = modVersion;
-        this.tokenPersister = tokenPersister;
     }
 
     /** Whether the HTTP listener is up. */
@@ -108,10 +103,6 @@ public final class McpService {
             throw new IllegalStateException("the mcp service is already running");
         }
         McpSettings s = settings.get();
-        if (s.token == null || s.token.isBlank()) {
-            tokenPersister.accept(newToken());
-            s = settings.get();
-        }
         logs = new LogRing(1000);
         console = new ConsoleRing(1000);
         net = new NetRing(500);
@@ -123,7 +114,7 @@ public final class McpService {
         NetTrace.installDispatcher(netDispatcher);
         sessions = new McpSessions();
         McpProtocol protocol = new McpProtocol(modVersion.get(), assembleTools(s), sessions);
-        server = new McpServer(protocol, sessions, () -> settings.get().token);
+        server = new McpServer(protocol, sessions);
         int bound = server.start(s.listen, s.port);
         startedAt = System.currentTimeMillis();
         logs.append(System.currentTimeMillis(), "INFO", "neomacros.mcp",
@@ -159,14 +150,6 @@ public final class McpService {
         LOG.info("mcp server stopped");
     }
 
-    /** Generates a fresh token, persists it, and drops every live session. */
-    public void rotateToken() {
-        tokenPersister.accept(newToken());
-        if (sessions != null) {
-            sessions.clear();
-        }
-    }
-
     /** The current status for the command surface. */
     public Status status() {
         McpSettings s = settings.get();
@@ -177,11 +160,6 @@ public final class McpService {
     /** The connection URL agents register, e.g. {@code http://127.0.0.1:30637/mcp}. */
     public String endpointUrl() {
         return "http://127.0.0.1:" + port() + "/mcp";
-    }
-
-    /** The active token (never blank once started at least once). */
-    public String token() {
-        return settings.get().token;
     }
 
     /** The tools this start serves, filtered by the group switches. */
@@ -200,11 +178,5 @@ public final class McpService {
             tools.addAll(new EvalTools(backend).tools());
         }
         return List.copyOf(tools);
-    }
-
-    private static String newToken() {
-        byte[] bytes = new byte[16];
-        new SecureRandom().nextBytes(bytes);
-        return HexFormat.of().formatHex(bytes);
     }
 }

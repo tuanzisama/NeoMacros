@@ -12,8 +12,8 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 /**
  * The {@code /neomacros mcp} command surface: start/stop for the MCP agent
- * server, the endpoint and bearer token for agent configs, and the token
- * rotation. All feedback goes through the mod chat port.
+ * server and the endpoint line for agent configs, whose click copies the
+ * URL. All feedback goes through the mod chat port.
  */
 final class McpCommands {
 
@@ -64,23 +64,14 @@ final class McpCommands {
                     context.mcp().stop();
                     feedback(context, "neomacros.cmd.mcp.stopped");
                     return Command.SINGLE_SUCCESS;
-                }))
-                .then(literal("token").executes(ctx -> {
-                    sendConnectionDetails(context);
-                    return Command.SINGLE_SUCCESS;
-                }))
-                .then(literal("regen").executes(ctx -> {
-                    context.mcp().rotateToken();
-                    feedback(context, "neomacros.cmd.mcp.regenerated");
-                    sendConnectionDetails(context);
-                    return Command.SINGLE_SUCCESS;
                 }));
     }
 
-    /** The endpoint and token an agent config needs, one line each. */
+    /** The endpoint an agent config needs; the whole line copies on click. */
     private static void sendConnectionDetails(Context context) {
-        feedback(context, "neomacros.cmd.mcp.endpoint", context.mcp().endpointUrl());
-        feedback(context, "neomacros.cmd.mcp.token", context.mcp().token());
+        context.chat().logCopyable(
+                Msg.line(UiText.tr("neomacros.cmd.mcp.endpoint", context.mcp().endpointUrl())),
+                context.mcp().endpointUrl());
     }
 
     /** One chat line through the mod chat port (see NeoMacrosFabric.feedback). */
