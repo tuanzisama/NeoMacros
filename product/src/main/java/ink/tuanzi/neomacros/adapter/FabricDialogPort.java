@@ -136,15 +136,56 @@ public final class FabricDialogPort implements DialogPort {
         CompletableFuture<String> future = new CompletableFuture<>();
         MainThread.run(() -> {
             List<String> ids = new ArrayList<>();
-            Dialog dialog = buildDialog(config, ids);
+            List<String> commands = new ArrayList<>();
+            Dialog dialog = buildDialog(config, ids, commands);
+            // Actions that carry a command click through vanilla's
+            // connectionAccess.runCommand hook; the deciding connection
+            // turns that into the show() future's action value (and closes
+            // the dialog). Plain script dialogs keep the inert connection.
+            boolean deciding = commands.stream().anyMatch(java.util.Objects::nonNull);
             DialogScreen<Dialog> screen = DialogScreens.createFromData(
-                    dialog, FabricLifecyclePort.currentScreen(), NOOP_CONNECTION);
+                    dialog, FabricLifecyclePort.currentScreen(),
+                    deciding ? decidingConnection() : NOOP_CONNECTION);
             scriptScreen = screen;
             scriptFuture = future;
             scriptActionIds = List.copyOf(ids);
             Minecraft.getInstance().gui.setScreen(screen);
         });
         return future;
+    }
+
+    /**
+     * The connection for command-carrying dialogs: vanilla hands the
+     * button's command here on click, and this port treats it as the
+     * chosen action — the command string settles the show() future and the
+     * dialog closes. The consumer above the port decides what the command
+     * means; this layer only relays it.
+     */
+    private DialogConnectionAccess decidingConnection() {
+        return new DialogConnectionAccess() {
+            @Override
+            public void runCommand(String command, Screen screen) {
+                resolveScriptFuture(command);
+                Minecraft.getInstance().gui.setScreen(null);
+            }
+
+            @Override
+            public void disconnect(Component reason) {
+            }
+
+            @Override
+            public void openDialog(net.minecraft.core.Holder<Dialog> dialog, Screen screen) {
+            }
+
+            @Override
+            public void sendCustomAction(net.minecraft.resources.Identifier id, Optional<net.minecraft.nbt.Tag> payload) {
+            }
+
+            @Override
+            public ServerLinks serverLinks() {
+                return ServerLinks.EMPTY;
+            }
+        };
     }
 
     /** Clicks one action on the open dialog, resolving a pending script dialog future. */
@@ -195,7 +236,8 @@ public final class FabricDialogPort implements DialogPort {
     }
 
     /** Builds one dialog record from the plain show() config. */
-    private Dialog buildDialog(Map<String, Object> config, List<String> actionIds) {
+    private Dialog buildDialog(Map<String, Object> config, List<String> actionIds,
+                               List<String> actionCommands) {
         String type = String.valueOf(config.getOrDefault("type", "notice"));
         Component title = Component.literal(str(config.get("title"), "Dialog"));
         boolean canCloseWithEscape = bool(config.get("canCloseWithEscape"), true);
@@ -209,9 +251,18 @@ public final class FabricDialogPort implements DialogPort {
             String label = str(entry.get("label"), String.valueOf(fallback + 1));
             String id = entry.get("id") != null ? str(entry.get("id"), String.valueOf(fallback))
                     : String.valueOf(fallback);
+            String command = entry.get("command") != null
+                    ? String.valueOf(entry.get("command")) : null;
             actionIds.add(id);
+            actionCommands.add(command);
+            // A command-carrying button clicks through vanilla's
+            // connectionAccess.runCommand hook (see decidingConnection);
+            // plain buttons stay inert.
             buttons.add(new ActionButton(new CommonButtonData(Component.literal(label), 150),
-                    Optional.empty()));
+                    command != null
+                            ? Optional.of(new net.minecraft.server.dialog.action.StaticAction(
+                                    new net.minecraft.network.chat.ClickEvent.RunCommand(command)))
+                            : Optional.empty()));
             fallback++;
         }
 

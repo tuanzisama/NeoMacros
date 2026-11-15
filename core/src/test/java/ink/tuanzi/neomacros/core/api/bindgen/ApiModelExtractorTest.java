@@ -143,22 +143,25 @@ class ApiModelExtractorTest {
     }
 
     @Test
-    void deniedMemberRaisesPermissionErrorNotSilentAccess() throws Throwable {
+    void gatedMemberConsultsTheLiveViewPerInvocation() throws Throwable {
         BindingRegistry registry = new BindingRegistry("26.3");
         registry.register(BindgenFixture.class);
         ApiModel.ModuleModel model = registry.model().modules().get(0);
 
-        ModuleBinding denied = ModuleBinding.of(model, new BindgenFixture(), PermissionView.DENY_ALL);
-        ModuleBinding granted = ModuleBinding.of(model, new BindgenFixture(), PermissionView.of(Set.of("fs")));
+        // The gate runs per invocation against the live view, so the same
+        // member flips from denied to callable without a rebuild.
+        var view = new PermissionView.GrantableView(Set.of());
+        ModuleBinding binding = ModuleBinding.of(model, new BindgenFixture(), view);
 
-        ModuleBinding.DeniedMember secret = (ModuleBinding.DeniedMember) denied.members().get("secret");
-        assertThrows(PermissionError.class, secret::invoke,
-                "unauthorized invocation raises PermissionError");
+        ModuleBinding.GatedMember secret =
+                (ModuleBinding.GatedMember) binding.members().get("secret");
         assertEquals("fs", secret.permission());
+        assertThrows(PermissionError.class, () -> secret.invoke(new Object[0]),
+                "unauthorized invocation raises PermissionError");
 
-        ModuleBinding.FunctionMember grantedSecret =
-                (ModuleBinding.FunctionMember) granted.members().get("secret");
-        assertEquals("s3cret", grantedSecret.invoke(new Object[0]));
+        view.grant(Set.of("fs"));
+        assertEquals("s3cret", secret.invoke(new Object[0]),
+                "a runtime grant takes effect without rebuilding the bindings");
     }
 
     @Test

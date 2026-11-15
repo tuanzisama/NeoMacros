@@ -45,7 +45,10 @@ public interface DialogPort {
      * {@code title}, {@code body}, {@code canCloseWithEscape},
      * {@code actions}) and resolves with the action id chosen through
      * {@code clickAction}; manual button clicks resolve with null when the
-     * dialog closes.
+     * dialog closes. An action entry may additionally carry a
+     * {@code command} string: clicking that button resolves the future with
+     * the command string itself (and closes the dialog), so the caller
+     * above the port decides what the command means.
      */
     default java.util.concurrent.CompletableFuture<String> show(java.util.Map<String, Object> config) {
         throw new UnsupportedPortFeature("dialog show");

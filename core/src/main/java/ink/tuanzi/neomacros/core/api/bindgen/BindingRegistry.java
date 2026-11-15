@@ -160,7 +160,8 @@ public final class BindingRegistry {
      * Builds the {@code neo} global tree for one permission view: module
      * name → {@link ModuleBinding}, plus guest classes and event classes as
      * root entries. Members outside the node's {@code @ApiMC} ranges are
-     * omitted; permission-gated members render as denied members.
+     * omitted; permission-annotated members render as gated members whose
+     * capability check runs per invocation against the live view.
      */
     public Map<String, Object> neoTree(PermissionView view) {
         Map<String, Object> tree = new LinkedHashMap<>();

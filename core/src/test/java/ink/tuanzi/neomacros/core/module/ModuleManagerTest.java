@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.core.module;
 import ink.tuanzi.neomacros.core.api.bindgen.BindingRegistry;
 import ink.tuanzi.neomacros.core.api.bindgen.LoadTracker;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
+import ink.tuanzi.neomacros.core.api.bindgen.PermissionViewResolver;
 import ink.tuanzi.neomacros.core.event.EventBus;
 import ink.tuanzi.neomacros.core.event.EventCatalog;
 import ink.tuanzi.neomacros.core.event.ProductionEventSet;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -168,6 +170,27 @@ class ModuleManagerTest {
             assertTrue(manager.loaded("hello").isPresent());
             assertEquals(ScriptCategory.EVENT, module.entry().category());
             assertFalse(module.context().isClosed());
+        }
+    }
+
+    @Test
+    void loadStoresTheResolvedPermissionViewAndHash(@TempDir Path root) throws Exception {
+        writeScript(root, "event", "gated",
+                MANIFEST.formatted("gated") + EVENT_CONFIG + "permissions:\n  - fs\n", "// stub");
+        var engine = new StubEngine();
+        var view = new PermissionView.GrantableView(java.util.Set.of());
+
+        try (ScriptRuntime rt = runtime(engine);
+             ModuleManager manager = new ModuleManager(rt, new BindingRegistry("26.3"),
+                     (name, declared) -> new PermissionViewResolver.ResolvedPermissions(view, "hash-gated"),
+                     root, m -> { })) {
+            LoadedModule module = manager.loadPhase(ScriptMeta.Lifecycle.WORLD).get(0);
+
+            assertSame(view, module.permissionView(),
+                    "the module holds the resolver's live view (runtime grants reach it)");
+            assertEquals("hash-gated", module.contentHash(),
+                    "the module holds the hash runtime grants key on");
+            assertEquals(List.of("fs"), module.entry().manifest().permissions());
         }
     }
 

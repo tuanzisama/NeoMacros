@@ -20,6 +20,32 @@ public interface PermissionView {
     /** View denying every capability. */
     PermissionView DENY_ALL = capability -> false;
 
+    /**
+     * Live view of one loaded script whose granted set can flip at runtime:
+     * the trust gate registers it per content hash, so a runtime grant
+     * ({@code requestPermission} acceptance or the trust command) takes
+     * effect on the next gated call without rebuilding the bindings.
+     */
+    final class GrantableView implements PermissionView {
+
+        private volatile Set<String> allowed;
+
+        /** Creates the view over its initially granted capabilities. */
+        public GrantableView(Set<String> initiallyAllowed) {
+            this.allowed = Set.copyOf(initiallyAllowed);
+        }
+
+        @Override
+        public boolean allows(String capability) {
+            return allowed.contains(capability);
+        }
+
+        /** Replaces the granted set (the next gated call sees the new set). */
+        public void grant(Set<String> capabilities) {
+            this.allowed = Set.copyOf(capabilities);
+        }
+    }
+
     /** Stub view backed by a fixed capability set. */
     static PermissionView of(Set<String> capabilities) {
         return capabilities::contains;

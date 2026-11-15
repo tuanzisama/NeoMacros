@@ -1,5 +1,7 @@
 package ink.tuanzi.neomacros.core.module;
 
+import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
+import ink.tuanzi.neomacros.core.api.bindgen.PermissionViewResolver;
 import ink.tuanzi.neomacros.core.event.Subscription;
 import ink.tuanzi.neomacros.core.runtime.EvalOutcome;
 import ink.tuanzi.neomacros.core.runtime.ScriptContext;
@@ -24,6 +26,8 @@ public final class LoadedModule implements AutoCloseable {
     private final ScriptContext context;
     private volatile ScriptMeta meta;
     private volatile ScriptEngine.EngineSession session;
+    private volatile PermissionView permissionView;
+    private volatile String contentHash;
     private final List<Subscription> subscriptions = new ArrayList<>();
     private final List<Runnable> releaseHooks = new ArrayList<>();
     private volatile Runnable disposeHook;
@@ -39,6 +43,26 @@ public final class LoadedModule implements AutoCloseable {
     /** Installs the engine session opened for this module (loading step). */
     void sessionInstalled(ScriptEngine.EngineSession session) {
         this.session = session;
+    }
+
+    /**
+     * Installs the permission resolution of this load: the view the binding
+     * tree was built against plus the content hash it was keyed on (loading
+     * step, before the tree installs).
+     */
+    void permissions(PermissionViewResolver.ResolvedPermissions resolved) {
+        this.permissionView = resolved.view();
+        this.contentHash = resolved.contentHash();
+    }
+
+    /** The permission view this load ran under (null before binding install). */
+    public PermissionView permissionView() {
+        return permissionView;
+    }
+
+    /** The content hash of the loaded source (null when hashing failed). */
+    public String contentHash() {
+        return contentHash;
     }
 
     /** The discovery entry this module was loaded from. */

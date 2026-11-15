@@ -15,7 +15,24 @@ public final class ModuleBinding {
 
     /** One member of a module binding. */
     public sealed interface BindingMember permits FunctionMember, PropertyMember,
-            ConstantMember, DeniedMember, GuestTypeMember, EventTypeMember {
+            ConstantMember, GatedMember, GuestTypeMember, EventTypeMember {
+    }
+
+    /**
+     * The invocation face shared by plain and gated function members: the
+     * engine renders both through the same promise wrapper and argument
+     * converter.
+     */
+    public interface InvocableMember {
+
+        /** Invokes the member with already-converted Java arguments. */
+        Object invoke(Object[] arguments) throws Throwable;
+
+        /** Declared parameter types for host-to-Java argument conversion. */
+        Class<?>[] parameterTypes();
+
+        /** Returns whether the result maps to a promise. */
+        boolean isAsync();
     }
 
     /**
@@ -77,7 +94,7 @@ public final class ModuleBinding {
      * declared parameter types and returns the raw result (async results are
      * CompletableFuture instances the engine maps to promises).
      */
-    public static final class FunctionMember implements BindingMember {
+    public static final class FunctionMember implements BindingMember, InvocableMember {
         private final java.lang.reflect.Method method;
         private final Object instance;
         private final boolean async;
@@ -142,18 +159,55 @@ public final class ModuleBinding {
         }
     }
 
-    /** Member whose capability is not granted: visible but raising PermissionError. */
-    public static final class DeniedMember implements BindingMember {
+    /**
+     * Permission-gated function member: the {@code @ApiPermission} capability
+     * is consulted against the live view on every invocation, so a runtime
+     * grant (requestPermission acceptance or the trust command) lets
+     * previously denied calls through without rebuilding the bindings.
+     * Denied invocations raise the stable PermissionError contract text.
+     */
+    public static final class GatedMember implements BindingMember, InvocableMember {
+        private final java.lang.reflect.Method method;
+        private final Object instance;
+        private final boolean async;
         private final String permission;
+        private final PermissionView view;
 
-        DeniedMember(String permission) {
+        GatedMember(java.lang.reflect.Method method, Object instance, boolean async,
+                    String permission, PermissionView view) {
+            this.method = method;
+            this.instance = instance;
+            this.async = async;
             this.permission = permission;
+            this.view = view;
         }
 
-        /** Always raises the permission error (the member stays visible). */
-        public Object invoke() {
-            throw new PermissionError("permission '" + permission
-                    + "' is not declared in this script's meta.permissions");
+        /** Raises the PermissionError contract text when the view denies the capability. */
+        public void checkPermission() {
+            if (!view.allows(permission)) {
+                throw new PermissionError("permission '" + permission
+                        + "' is not declared in this script's meta.permissions");
+            }
+        }
+
+        /** Invokes the API method when the live view allows the capability. */
+        public Object invoke(Object[] arguments) throws Throwable {
+            checkPermission();
+            try {
+                return method.invoke(instance, arguments);
+            } catch (InvocationTargetException e) {
+                throw e.getCause() != null ? e.getCause() : e;
+            }
+        }
+
+        /** Declared parameter types for host-to-Java argument conversion. */
+        public Class<?>[] parameterTypes() {
+            return method.getParameterTypes();
+        }
+
+        /** Returns whether the result maps to a promise. */
+        public boolean isAsync() {
+            return async;
         }
 
         /** The required capability key. */
@@ -185,15 +239,20 @@ public final class ModuleBinding {
         return members;
     }
 
-    /** Builds a module binding from a model, an instance, and a permission view. */
+    /**
+     * Builds a module binding from a model, an instance, and a permission
+     * view. Permission-annotated methods always become gated members: the
+     * view is consulted per invocation, so the gate follows runtime grants.
+     */
     public static ModuleBinding of(ApiModel.ModuleModel model, Object instance, PermissionView view) {
         Map<String, BindingMember> members = new LinkedHashMap<>();
         for (ApiModel.PropertyModel property : model.properties()) {
             members.put(property.name(), new PropertyMember(property.getter(), instance));
         }
         for (ApiModel.MethodModel method : model.methods()) {
-            if (method.permission() != null && !view.allows(method.permission())) {
-                members.put(method.name(), new DeniedMember(method.permission()));
+            if (method.permission() != null) {
+                members.put(method.name(), new GatedMember(method.method(), instance,
+                        method.async(), method.permission(), view));
             } else {
                 members.put(method.name(), new FunctionMember(method.method(), instance, method.async()));
             }

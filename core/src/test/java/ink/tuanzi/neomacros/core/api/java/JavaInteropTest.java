@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -74,14 +75,18 @@ class JavaInteropTest {
 
         ModuleBinding denied = (ModuleBinding) registry.neoTree(PermissionView.DENY_ALL)
                 .get("java");
-        ModuleBinding.DeniedMember member =
-                assertInstanceOf(ModuleBinding.DeniedMember.class, denied.members().get("type"));
-        assertEquals("java", member.permission(), "denied member carries the java capability");
+        ModuleBinding.GatedMember member =
+                assertInstanceOf(ModuleBinding.GatedMember.class, denied.members().get("type"));
+        assertEquals("java", member.permission(), "gated member carries the java capability");
 
+        // The whole module is class-level gated: every member stays a gated
+        // member whose per-invocation check passes under the allowing view.
         ModuleBinding allowed = (ModuleBinding) registry.neoTree(PermissionView.ALLOW_ALL)
                 .get("java");
-        assertTrue(allowed.members().get("type") instanceof ModuleBinding.FunctionMember,
-                "the trusted view reaches the API function");
+        ModuleBinding.GatedMember allowedMember =
+                assertInstanceOf(ModuleBinding.GatedMember.class, allowed.members().get("type"));
+        assertDoesNotThrow(allowedMember::checkPermission,
+                "the trusted view passes the gate check");
     }
 
     @Test

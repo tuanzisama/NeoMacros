@@ -1,7 +1,6 @@
 package ink.tuanzi.neomacros.engine;
 
 import ink.tuanzi.neomacros.core.api.bindgen.ModuleBinding;
-import ink.tuanzi.neomacros.core.api.bindgen.PermissionError;
 import ink.tuanzi.neomacros.core.console.ScriptConsole;
 import ink.tuanzi.neomacros.core.console.ScriptConsoleEvent;
 import ink.tuanzi.neomacros.core.runtime.EvalOutcome;
@@ -1252,7 +1251,7 @@ public final class GraalJsEngine implements ScriptEngine {
                 }
                 return executable(arguments -> {
                     try {
-                        return asGuestValue(function.invoke(convertArgs(function, arguments)));
+                        return asGuestValue(function.invoke(convertArgs(function.parameterTypes(), arguments)));
                     } catch (PolyglotException e) {
                         throw e;
                     } catch (Throwable t) {
@@ -1260,10 +1259,23 @@ public final class GraalJsEngine implements ScriptEngine {
                     }
                 });
             }
-            if (member instanceof ModuleBinding.DeniedMember denied) {
+            if (member instanceof ModuleBinding.GatedMember gated) {
+                // Same rendering as a plain function; the live permission
+                // check rides inside invoke (async) or guards it (sync, so a
+                // denial crosses as the unwrapped PermissionError contract).
+                if (gated.isAsync()) {
+                    return makeAsync.execute(executable(arguments ->
+                            invokeAsync(gated, arguments)));
+                }
                 return executable(arguments -> {
-                    throw new PermissionError("permission '" + denied.permission()
-                            + "' is not declared in this script's meta.permissions");
+                    gated.checkPermission();
+                    try {
+                        return asGuestValue(gated.invoke(convertArgs(gated.parameterTypes(), arguments)));
+                    } catch (PolyglotException e) {
+                        throw e;
+                    } catch (Throwable t) {
+                        throw new RuntimeException(t);
+                    }
                 });
             }
             if (member instanceof ModuleBinding.ConstantMember constant) {
@@ -1932,9 +1944,8 @@ public final class GraalJsEngine implements ScriptEngine {
             return cachedUndefined;
         }
 
-        /** Converts guest arguments to the API method's declared Java types. */
-        private Object[] convertArgs(ModuleBinding.FunctionMember function, Value[] arguments) {
-            Class<?>[] types = function.parameterTypes();
+        /** Converts guest arguments to the declared Java parameter types. */
+        private Object[] convertArgs(Class<?>[] types, Value[] arguments) {
             Object[] out = new Object[types.length];
             for (int i = 0; i < types.length; i++) {
                 Value argument = i < arguments.length ? arguments[i] : null;
@@ -2086,7 +2097,7 @@ public final class GraalJsEngine implements ScriptEngine {
         }
 
         /** Invokes an async API function and settles the promise on the loop. */
-        private Object invokeAsync(ModuleBinding.FunctionMember function, Value[] arguments) {
+        private Object invokeAsync(ModuleBinding.InvocableMember function, Value[] arguments) {
             // arguments = [jsArgsArray, resolve, reject]; only [0] carries method params.
             Value jsArgs = arguments[0];
             Value resolve = arguments[1];
@@ -2097,10 +2108,13 @@ public final class GraalJsEngine implements ScriptEngine {
             }
             CompletableFuture<?> future;
             try {
-                future = (CompletableFuture<?>) function.invoke(convertArgs(function, unpacked));
+                future = (CompletableFuture<?>) function.invoke(convertArgs(function.parameterTypes(), unpacked));
             } catch (PolyglotException e) {
                 throw e;
             } catch (Throwable t) {
+                // Permission denials land here too: the gated member raises
+                // PermissionError before any future exists, so the guest sees
+                // a rejected promise carrying the contract message.
                 reject.execute(newGuestErrorHere(String.valueOf(t.getMessage())));
                 return null;
             }

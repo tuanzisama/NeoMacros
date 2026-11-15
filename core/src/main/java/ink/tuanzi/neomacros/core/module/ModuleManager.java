@@ -3,6 +3,7 @@ package ink.tuanzi.neomacros.core.module;
 import ink.tuanzi.neomacros.core.api.bindgen.BindingRegistry;
 import ink.tuanzi.neomacros.core.api.bindgen.LoadTracker;
 import ink.tuanzi.neomacros.core.api.bindgen.PermissionView;
+import ink.tuanzi.neomacros.core.api.bindgen.PermissionViewResolver;
 import ink.tuanzi.neomacros.core.module.manifest.ManifestParseException;
 import ink.tuanzi.neomacros.core.module.manifest.ManifestParser;
 import ink.tuanzi.neomacros.core.module.manifest.ScriptCategory;
@@ -48,7 +49,7 @@ public final class ModuleManager implements AutoCloseable {
 
     private final ScriptRuntime runtime;
     private final BindingRegistry bindings;
-    private final java.util.function.BiFunction<String, List<String>, PermissionView> viewResolver;
+    private final PermissionViewResolver viewResolver;
     private final Path macrosRoot;
     private final Consumer<String> warn;
     // Concurrent maps: mutations serialize on one caller thread, but the
@@ -72,16 +73,18 @@ public final class ModuleManager implements AutoCloseable {
     /** Creates the manager over one macros root with a fixed permission view. */
     public ModuleManager(ScriptRuntime runtime, BindingRegistry bindings, PermissionView permissions,
                          Path macrosRoot, Consumer<String> warn) {
-        this(runtime, bindings, (name, declared) -> permissions, macrosRoot, warn);
+        this(runtime, bindings,
+                (name, declared) -> new PermissionViewResolver.ResolvedPermissions(permissions, null),
+                macrosRoot, warn);
     }
 
     /**
      * Creates the manager with a per-script view resolver (the trust gate):
      * the resolver receives the manifest name and declared capabilities and
-     * returns the binding view for this load.
+     * returns the binding view plus content hash for this load.
      */
     public ModuleManager(ScriptRuntime runtime, BindingRegistry bindings,
-                         java.util.function.BiFunction<String, List<String>, PermissionView> viewResolver,
+                         PermissionViewResolver viewResolver,
                          Path macrosRoot, Consumer<String> warn) {
         this.runtime = runtime;
         this.bindings = bindings;
@@ -260,8 +263,10 @@ public final class ModuleManager implements AutoCloseable {
             ScriptEngine.EngineSession session = runtime.engine()
                     .openSession(context, entry.folder());
             module.sessionInstalled(session);
-            session.installBindings(bindings.neoTree(
-                    viewResolver.apply(name, entry.manifest().permissions())));
+            PermissionViewResolver.ResolvedPermissions resolved =
+                    viewResolver.resolve(name, entry.manifest().permissions());
+            module.permissions(resolved);
+            session.installBindings(bindings.neoTree(resolved.view()));
             session.importModule(name, entry.entryFile());
             session.readExportedFunction("dispose").ifPresent(module::disposeHook);
             if (session.readExportedFunction(STARTUP_EXPORT).isEmpty()) {
@@ -525,7 +530,7 @@ public final class ModuleManager implements AutoCloseable {
         ScriptEngine.EngineSession session = runtime.engine().openSession(context, macrosRoot);
         try {
             session.installBindings(bindings.neoTree(
-                    viewResolver.apply(DEVTOOLS_CONTEXT, List.of())));
+                    viewResolver.resolve(DEVTOOLS_CONTEXT, List.of()).view()));
         } catch (RuntimeException e) {
             try {
                 session.close();

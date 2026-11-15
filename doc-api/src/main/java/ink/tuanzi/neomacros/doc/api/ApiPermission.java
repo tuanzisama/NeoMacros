@@ -9,11 +9,14 @@ import java.lang.annotation.Target;
 /**
  * States the capability catalog entry a call requires.
  *
- * <p>Annotated bindings are wrapped by the permission proxy at binding build
- * time: a script whose declared {@code meta.permissions} do not contain the
- * catalog entry gets a {@code PermissionError} on call instead of reaching
- * the API. API implementations must not re-check permissions
- * themselves; this annotation is the single gating mechanism.</p>
+ * <p>Annotated members become gated bindings: every invocation consults the
+ * script's live permission view, and a script whose declared
+ * {@code meta.permissions} (plus grants) do not contain the catalog entry
+ * gets a {@code PermissionError} on call instead of reaching the API. A
+ * runtime grant (requestPermission acceptance, the trust command) takes
+ * effect on the next call without a rebuild. API implementations must not
+ * re-check permissions themselves; this annotation is the single gating
+ * mechanism.</p>
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -65,6 +66,13 @@ class BindingIntegrationTest {
         @ink.tuanzi.neomacros.doc.api.ApiPermission("fs")
         public String secret() {
             return "s3cret";
+        }
+
+        /** Permission-gated async function. @zh 权限门控异步函数。 */
+        @ApiSince("0.1.0")
+        @ink.tuanzi.neomacros.doc.api.ApiPermission("fs")
+        public CompletableFuture<String> asyncSecret() {
+            return CompletableFuture.completedFuture("a3cret");
         }
 
         /** Modern-node-only function. @zh 仅新节点可用。 */
@@ -173,6 +181,44 @@ class BindingIntegrationTest {
 
         grantedSession.importModule("granted", entry);
         assertEquals("s3cret", grantedSession.global("__secret").asString());
+    }
+
+    @Test
+    void asyncGatedDenialRejectsThePromise() throws Exception {
+        Path entry = writeModule("denied-async.mjs",
+                "try { await neo.fixture.asyncSecret(); globalThis.__err = 'not-reached'; }\n"
+                + "catch (e) { globalThis.__err = String(e.message || e); }\n");
+
+        session.importModule("denied-async", entry);
+        String err = sessionGlobal("__err").asString();
+        assertTrue(err.contains("permission"),
+                () -> "async denial rejects the promise: " + err);
+    }
+
+    @Test
+    void runtimeGrantTakesEffectWithoutReinstall() throws Exception {
+        BindingRegistry registry = new BindingRegistry("26.3");
+        registry.register(FixtureFacade.class);
+        // The session installs once against the live view we hold; a grant
+        // must reach the already-rendered gated members (no re-install).
+        var view = new PermissionView.GrantableView(Set.of());
+        var grantableContext = runtime.createContext("grantable");
+        var grantableSession = (GraalJsEngine.GraalJsSession) engine.openSession(grantableContext, scriptsDir);
+        grantableSession.installBindings(registry.neoTree(view));
+
+        Path entry = writeModule("grantable.mjs",
+                "try { neo.fixture.secret(); globalThis.__step1 = 'ok'; }\n"
+                + "catch (e) { globalThis.__step1 = String(e.message || e); }\n");
+        grantableSession.importModule("grantable", entry);
+        assertTrue(grantableSession.global("__step1").asString().contains("permission"),
+                "the deny state surfaces before the grant");
+
+        view.grant(Set.of("fs"));
+
+        var outcome = grantableSession.eval("globalThis.__step2 = neo.fixture.secret()");
+        assertFalse(outcome.threw(), () -> "post-grant eval failed: " + outcome.errorMessage());
+        assertEquals("s3cret", grantableSession.global("__step2").asString(),
+                "a runtime grant lets the same member through without a re-install");
     }
 
     @Test

@@ -119,6 +119,71 @@ class TrustManagerTest {
     }
 
     @Test
+    void revokeAllClearsGrantsDenialsAndFlipsTheRunningView(@TempDir Path dir) {
+        var options = options(dir);
+        var prompts = new ArrayList<TrustManager.TrustPrompt>();
+        var manager = manager(options, prompts);
+
+        // Persisted trust + live flip.
+        PermissionView view = manager.viewFor("hash-r", List.of("fs"));
+        manager.trustLive("hash-r", java.util.Set.of("fs"));
+        assertTrue(view.allows("fs"));
+
+        manager.revokeAll("hash-r");
+        assertFalse(view.allows("fs"), "the running view flips back to denying immediately");
+        assertFalse(manager.isTrusted("hash-r"));
+
+        // Nothing is remembered: the next load prompts again.
+        manager.viewFor("hash-r", List.of("fs"));
+        assertEquals(2, prompts.size(), "the load prompt returns after a revoke");
+
+        // Session grants and session denials do not survive a revoke either.
+        manager.grantSession("hash-s", List.of("fs"));
+        manager.denySession("hash-s");
+        manager.revokeAll("hash-s");
+        var sView = manager.viewFor("hash-s", List.of("fs"));
+        assertFalse(sView.allows("fs"), "a session grant does not survive a revoke");
+        assertEquals(3, prompts.size(), "the denial was cleared too: the prompt fires again");
+    }
+
+    @Test
+    void sessionDenialSuppressesPromptsUntilRestart(@TempDir Path dir) {
+        var options = options(dir);
+        var prompts = new ArrayList<TrustManager.TrustPrompt>();
+        var manager = manager(options, prompts);
+
+        manager.denySession("hash-d");
+        var view = manager.viewFor("hash-d", List.of("fs"));
+
+        assertFalse(view.allows("fs"), "a denied hash still runs under a denying view");
+        assertTrue(prompts.isEmpty(), "a denied hash fires no prompt this session");
+        assertTrue(manager.isSessionDenied("hash-d"));
+
+        // A different hash is unaffected.
+        manager.viewFor("hash-e", List.of("fs"));
+        assertEquals(1, prompts.size());
+    }
+
+    @Test
+    void trustLiveFlipsTheRunningViewWithoutReload(@TempDir Path dir) {
+        var options = options(dir);
+        var prompts = new ArrayList<TrustManager.TrustPrompt>();
+        var manager = manager(options, prompts);
+
+        // Load: declared + untrusted → a denying but grantable live view.
+        PermissionView view = manager.viewFor("hash-live", List.of("fs", "net"));
+        assertFalse(view.allows("fs"));
+        assertEquals(1, prompts.size());
+
+        // Grant: persists trust and flips the very same view instance.
+        manager.trustLive("hash-live", java.util.Set.of("fs", "net"));
+        assertTrue(view.allows("fs"));
+        assertTrue(view.allows("net"));
+        assertFalse(view.allows("command"), "undeclared capabilities stay denied");
+        assertTrue(manager.isTrusted("hash-live"), "the grant persists in the trust table");
+    }
+
+    @Test
     void packetCapabilityIsInTheDirectoryAndGatesLikeTheOthers(@TempDir Path dir) {
         // 拍板甲: buffer.send() walks the wire under the `packet` key.
         assertTrue(TrustManager.CAPABILITIES.contains("packet"),

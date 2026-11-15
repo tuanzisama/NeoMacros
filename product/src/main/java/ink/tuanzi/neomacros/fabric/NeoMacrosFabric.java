@@ -1,5 +1,7 @@
 package ink.tuanzi.neomacros.fabric;
 
+import ink.tuanzi.neomacros.core.security.PermissionRequests;
+
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -75,7 +77,7 @@ public final class NeoMacrosFabric implements ClientModInitializer {
     private static ModuleManager modules;
     private static NeomacrosAdapterImpl adapter;
     private static TrustManager trustManager;
-    private static java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts;
+    private static ink.tuanzi.neomacros.core.security.PermissionRequests permissionRequests;
     private static boolean quitOnDone;
     private static ink.tuanzi.neomacros.core.task.TaskRegistry tasks;
     private static ink.tuanzi.neomacros.fabric.web.WebService webService;
@@ -459,30 +461,29 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         runtime.eventBus().setWildcardIgnores(extraIgnores);
 
         trustManager = new TrustManager(options);
-        // Pending first-load trust requests by script name; /neomacros trust
-        // <name> resolves the grant through this map.
-        pendingTrusts = new java.util.concurrent.ConcurrentHashMap<>();
+        // The single pending-decision table: first-load trust prompts and
+        // runtime requestPermission calls both queue here, surfaced by the
+        // onRequest listener below and settled through the dialog buttons or
+        // the /neomacros permission command (one grant semantics everywhere).
+        permissionRequests = new ink.tuanzi.neomacros.core.security.PermissionRequests(trustManager);
+        registry.registerInstance(
+                new ink.tuanzi.neomacros.core.api.PermissionsApi(permissionRequests));
         trustManager.onPrompt(prompt -> {
             String name = prompt.scriptName() != null ? prompt.scriptName() : prompt.contentHash();
-            pendingTrusts.put(name, prompt.contentHash());
-            // The category tag rides on the label so the line reads
-            // "name (category)"; absent when only the hash is known.
-            String label = Msg.name(name) + entry(name)
-                    .map(e -> Msg.dim(UiText.tr("neomacros.ui.category."
-                            + e.category().dirName())))
-                    .orElse("");
-            String caps = String.join(", ", prompt.requested());
-            adapter.chat().logClickable(
-                    Msg.line(UiText.tr("neomacros.chat.trust_prompt",
-                            label, Msg.num(caps))),
-                    "/neomacros trust " + name);
+            String description = prompt.scriptName() == null ? ""
+                    : entry(prompt.scriptName())
+                            .map(e -> e.manifest().description()).orElse("");
+            permissionRequests.submitLoad(name, prompt.contentHash(), description,
+                    prompt.requested());
         });
 
-        var viewResolver = new java.util.function.BiFunction<String, List<String>, PermissionView>() {
+        var viewResolver = new ink.tuanzi.neomacros.core.api.bindgen.PermissionViewResolver() {
             @Override
-            public PermissionView apply(String scriptName, List<String> declared) {
+            public ink.tuanzi.neomacros.core.api.bindgen.PermissionViewResolver.ResolvedPermissions resolve(
+                    String scriptName, List<String> declared) {
                 if (declared == null || declared.isEmpty()) {
-                    return PermissionView.ALLOW_ALL;
+                    return new ink.tuanzi.neomacros.core.api.bindgen.PermissionViewResolver.ResolvedPermissions(
+                            PermissionView.ALLOW_ALL, null);
                 }
                 java.nio.file.Path source = modules.entries().stream()
                         .filter(entry -> entry.name().equals(scriptName))
@@ -490,14 +491,17 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                         .findFirst()
                         .orElse(null);
                 if (source == null || !Files.isRegularFile(source)) {
-                    return PermissionView.DENY_ALL;
+                    return new ink.tuanzi.neomacros.core.api.bindgen.PermissionViewResolver.ResolvedPermissions(
+                            PermissionView.DENY_ALL, null);
                 }
                 try {
                     String hash = TrustManager.hashOf(Files.readString(source));
-                    return trustManager.viewFor(scriptName, hash, declared);
+                    return new ink.tuanzi.neomacros.core.api.bindgen.PermissionViewResolver.ResolvedPermissions(
+                            trustManager.viewFor(scriptName, hash, declared), hash);
                 } catch (IOException e) {
                     LOGGER.warn("neomacros: cannot hash {} for trust: {}", scriptName, e.getMessage());
-                    return PermissionView.DENY_ALL;
+                    return new ink.tuanzi.neomacros.core.api.bindgen.PermissionViewResolver.ResolvedPermissions(
+                            PermissionView.DENY_ALL, null);
                 }
             }
         };
@@ -537,6 +541,13 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 adapter.input().unregisterScriptBinding(module.meta().name())));
         modules.onUnload(module ->
                 PerformanceApi.drop(module.meta().name()));
+        // A pending runtime permission request outlives nothing: its script
+        // unloading settles the script's future as denied and frees the slot.
+        modules.onUnload(module ->
+                permissionRequests.cancelFor(module.entry().name()));
+        // Surface each runtime permission request: a confirmation dialog on
+        // nodes with the vanilla dialog system, a clickable chat line below.
+        permissionRequests.onRequest(NeoMacrosFabric::surfacePermissionRequest);
 
         // Web panel subsystem: state backend over the module manager, device
         // registry beside options.json, and the service mapping core.web. The
@@ -579,15 +590,10 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 notice -> presentUpdateNotice(notice, panelEvents));
         updateChecker.start();
         // The MCP agent server reads the same rings' data through its own
-        // instances and shares the backend/command registry; a generated
-        // token lands in the config with everything else.
+        // instances and shares the backend/command registry.
         mcpService = new ink.tuanzi.neomacros.fabric.mcp.McpService(
                 webRuntime, webRuntime, adapter, commandPort,
-                () -> options.mcp, () -> runtimeVersion,
-                token -> {
-                    options.mcp.token = token;
-                    configManager.save();
-                });
+                () -> options.mcp, () -> runtimeVersion);
         // Error presentation chain: script failures become a throttled
         // clickable chat line pointing at the recent-errors viewer screen.
         var errorPresenter = new ink.tuanzi.neomacros.core.runtime.ErrorPresenter(
@@ -701,7 +707,8 @@ public final class NeoMacrosFabric implements ClientModInitializer {
             runtime.mainThread().runQueuedTasks();
             ink.tuanzi.neomacros.adapter.BlockScanScheduler.tick();
         });
-        registerCommands(trustManager, errorPresenter, pendingTrusts, updateChecker, adapter.chat());
+        registerCommands(errorPresenter, updateChecker, adapter.chat(),
+                permissionRequests);
         preRegisterScriptBindings();
         // Raw keyboard source: the cancellable path fans the edge out to the
         // key:press event (sync subscribers may cancel, which also swallows
@@ -962,6 +969,44 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                 .findFirst();
     }
 
+    /** The typed display name of one script: {@code {category}:{name}}. */
+    private static String typedName(ScriptEntry e) {
+        return e.category().dirName() + ":" + e.name();
+    }
+
+    /** The typed name of a script from the cached discovery (bare fallback). */
+    private static String typedNameOf(String scriptName) {
+        return modules.entries().stream()
+                .filter(e -> e.name().equals(scriptName))
+                .map(NeoMacrosFabric::typedName)
+                .findFirst()
+                .orElse(scriptName);
+    }
+
+    /**
+     * Resolves a typed ({@code {category}:{name}}) or bare script reference
+     * to its discovered entry: commands accept both, suggestions always
+     * offer the typed form. Runs on the module worker.
+     */
+    private static Optional<ScriptEntry> resolveScript(String reference) {
+        int separator = reference.indexOf(':');
+        if (separator >= 0) {
+            String type = reference.substring(0, separator);
+            String name = reference.substring(separator + 1);
+            return modules.discover().stream()
+                    .filter(e -> e.category().dirName().equals(type) && e.name().equals(name))
+                    .findFirst();
+        }
+        return entry(reference);
+    }
+
+    /** Suggests every discovered script as {@code {category}:{name}} (cached entries only). */
+    private static final SuggestionProvider<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>
+            SUGGEST_TYPED = (ctx, builder) -> {
+        modules.entries().forEach(e -> builder.suggest(typedName(e)));
+        return builder.buildFuture();
+    };
+
     private static String string(CommandContext<?> ctx, String arg) {
         return StringArgumentType.getString(ctx, arg);
     }
@@ -983,12 +1028,106 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         adapter.chat().log(Msg.line(message));
     }
 
+    /**
+     * Surfaces one pending trust decision: a dialog on nodes with the
+     * vanilla dialog system (>=1.21.6) — for first-load prompts and runtime
+     * requests alike, one prompt at a time — showing the script (name and
+     * manifest description), the requested capabilities with their localized
+     * names, and Allow / Ignore / Deny buttons. Allow persists trust for the
+     * whole script and flips the running view immediately; deny remembers
+     * the refusal for this session; ignore and escape settle the script's
+     * future as false and remember nothing. Nodes without the dialog system
+     * fall back to a clickable chat line.
+     */
+    private static void surfacePermissionRequest(
+            ink.tuanzi.neomacros.core.security.PermissionRequests.PermissionRequest request) {
+        //? if >=1.21.6 {
+        String caps = request.capability() != null
+                ? capabilityLabel(request.capability())
+                : request.declared().stream().map(NeoMacrosFabric::capabilityLabel)
+                        .collect(java.util.stream.Collectors.joining(", "));
+        List<String> body = new java.util.ArrayList<>();
+        if (request.description() != null && !request.description().isEmpty()) {
+            body.add(UiText.tr("neomacros.ui.permission_dialog.script_desc",
+                    request.scriptName(), request.description()));
+        } else {
+            body.add(UiText.tr("neomacros.ui.permission_dialog.script", request.scriptName()));
+        }
+        body.add(UiText.tr("neomacros.ui.permission_dialog.requests", caps));
+        body.add(UiText.tr("neomacros.ui.permission_dialog.hint"));
+        adapter.dialog().show(java.util.Map.of(
+                        "type", "multi_action",
+                        "title", UiText.tr("neomacros.ui.permission_dialog.title"),
+                        "canCloseWithEscape", true,
+                        "columns", 1,
+                        "body", body,
+                        "actions", java.util.List.of(
+                                decisionAction("neomacros.ui.permission_dialog.allow", "allow", request),
+                                decisionAction("neomacros.ui.permission_dialog.ignore", "ignore", request),
+                                decisionAction("neomacros.ui.permission_dialog.deny", "deny", request))))
+                .thenAccept(actionValue -> ModuleWorker.execute(() -> {
+                    // A command-carrying button resolves the future with its
+                    // command string; escape or a stale close resolves null.
+                    // Both end up here: null counts as ignore (nothing
+                    // remembered), and only a grant mutates the trust table.
+                    var decision = decisionOf(actionValue);
+                    String applied = permissionRequests.respond(request.id(), decision);
+                    if (decision == PermissionRequests.Decision.GRANT
+                            && applied != null) {
+                        configManager.save();
+                    }
+                }));
+        //?} else {
+        /*
+        String caps = request.capability() != null
+                ? capabilityLabel(request.capability())
+                : request.declared().stream().map(NeoMacrosFabric::capabilityLabel)
+                        .collect(java.util.stream.Collectors.joining(", "));
+        adapter.chat().logClickable(
+                Msg.line(UiText.tr("neomacros.chat.permission_prompt",
+                        request.scriptName(), caps)),
+                "/neomacros permission allow " + request.scriptName());
+        */
+        //?}
+    }
+
+    /** The localized display name of one capability, with its key for correlation. */
+    private static String capabilityLabel(String capability) {
+        return UiText.tr("neomacros.ui.capability." + capability) + " (" + capability + ")";
+    }
+
+    /** One decision button: localized label plus the command that settles the request. */
+    private static java.util.Map<String, Object> decisionAction(String labelKey, String verb,
+            ink.tuanzi.neomacros.core.security.PermissionRequests.PermissionRequest request) {
+        return java.util.Map.of(
+                "label", UiText.tr(labelKey),
+                "id", verb,
+                "command", "/neomacros permission " + verb + " " + request.id());
+    }
+
+    /** Parses a dialog action value into a decision; null (escape) ignores. */
+    private static PermissionRequests.Decision decisionOf(
+            String actionValue) {
+        if (actionValue != null) {
+            String[] parts = actionValue.split(" ");
+            if (parts.length == 4 && parts[0].equals("neomacros")
+                    && parts[1].equals("permission")) {
+                return switch (parts[2]) {
+                    case "allow" -> PermissionRequests.Decision.GRANT;
+                    case "deny" -> PermissionRequests.Decision.DENY;
+                    default -> PermissionRequests.Decision.IGNORE;
+                };
+            }
+        }
+        return PermissionRequests.Decision.IGNORE;
+    }
+
     /** Registers the root {@code /neomacros} command, its subcommands and the {@code /nm} alias. */
-    private static void registerCommands(TrustManager trustManager,
+    private static void registerCommands(
             ink.tuanzi.neomacros.core.runtime.ErrorPresenter errorPresenter,
-            java.util.concurrent.ConcurrentHashMap<String, String> pendingTrusts,
             ink.tuanzi.neomacros.fabric.update.UpdateChecker updateChecker,
-            ink.tuanzi.neomacros.port.ChatPort chat) {
+            ink.tuanzi.neomacros.port.ChatPort chat,
+            ink.tuanzi.neomacros.core.security.PermissionRequests permissionRequests) {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             var root = dispatcher.register(literal("neomacros")
                     .executes(ctx -> {
@@ -1056,14 +1195,16 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                         return Command.SINGLE_SUCCESS;
                                     })))
                     .then(literal("enable")
-                            .then(argument("script", StringArgumentType.word())
-                                    .suggests(SUGGEST_ANY)
+                            .then(argument("script", StringArgumentType.string())
+                                    .suggests(SUGGEST_TYPED)
                                     .executes(ctx -> {
-                                        String name = string(ctx, "script");
+                                        String target = string(ctx, "script");
                                         // Validation, the config write, and the load
                                         // all run on the worker: nothing on the game
                                         // thread beyond parsing the command itself.
                                         ModuleWorker.execute(() -> {
+                                            String name = resolveScript(target)
+                                                    .map(ScriptEntry::name).orElse(target);
                                             if (entry(name).isEmpty()) {
                                                 feedback(ctx, "neomacros.cmd.unknown_script",
                                                         Msg.name(name));
@@ -1080,11 +1221,13 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                         return Command.SINGLE_SUCCESS;
                                     })))
                     .then(literal("disable")
-                            .then(argument("script", StringArgumentType.word())
-                                    .suggests(SUGGEST_ANY)
+                            .then(argument("script", StringArgumentType.string())
+                                    .suggests(SUGGEST_TYPED)
                                     .executes(ctx -> {
-                                        String name = string(ctx, "script");
+                                        String target = string(ctx, "script");
                                         ModuleWorker.execute(() -> {
+                                            String name = resolveScript(target)
+                                                    .map(ScriptEntry::name).orElse(target);
                                             if (entry(name).isEmpty()) {
                                                 feedback(ctx, "neomacros.cmd.unknown_script",
                                                         Msg.name(name));
@@ -1098,40 +1241,105 @@ public final class NeoMacrosFabric implements ClientModInitializer {
                                         });
                                         return Command.SINGLE_SUCCESS;
                                     })))
-                    .then(literal("trust")
-                            .then(argument("script", StringArgumentType.greedyString())
-                                    .suggests((ctx, builder) -> {
-                                        pendingTrusts.keySet().forEach(builder::suggest);
-                                        return builder.buildFuture();
-                                    })
-                                    .executes(ctx -> {
-                                        String name = string(ctx, "script");
-                                        String hash = pendingTrusts.get(name);
-                                        if (hash == null) {
-                                            feedback(ctx, "neomacros.cmd.no_pending_trust_from",
-                                                    Msg.name(name));
-                                            return 0;
-                                        }
-                                        trustManager.trust(hash);
-                                        pendingTrusts.remove(name);
-                                        // The grant and its apply ride the module
-                                        // worker together: a script that prompted
-                                        // was loaded under the denying view, so the
-                                        // reload brings the granted capabilities
-                                        // live without a manual reload command.
-                                        ModuleWorker.execute(() -> {
-                                            configManager.save();
-                                            boolean live = modules.loaded(name).isPresent();
-                                            if (live) {
-                                                modules.reload(name);
-                                            }
-                                            feedback(ctx, live
-                                                    ? "neomacros.cmd.trusted_reloaded"
-                                                    : "neomacros.cmd.trusted_apply",
-                                                    Msg.name(name));
-                                        });
-                                        return Command.SINGLE_SUCCESS;
-                                    })))
+                    .then(literal("permission")
+                            .then(literal("allow")
+                                    .then(argument("target", StringArgumentType.greedyString())
+                                            .suggests((ctx, builder) -> {
+                                                // Typed script names first (script-wide
+                                                // grant), then exact request ids.
+                                                for (var req : permissionRequests.pending()) {
+                                                    builder.suggest(typedNameOf(req.scriptName()));
+                                                    builder.suggest(req.id());
+                                                }
+                                                return builder.buildFuture();
+                                            })
+                                            .executes(ctx -> {
+                                                String target = string(ctx, "target");
+                                                ModuleWorker.execute(() -> {
+                                                    // Script completions are typed
+                                                    // ({category}:{name}); requests match
+                                                    // on the bare manifest name.
+                                                    String script = resolveScript(target)
+                                                            .map(ScriptEntry::name).orElse(target);
+                                                    String applied = permissionRequests
+                                                            .respond(script,
+                                                                    PermissionRequests.Decision.GRANT);
+                                                    if (applied != null) {
+                                                        // The grant mutated the trust
+                                                        // table; persist it alongside
+                                                        // the decision.
+                                                        configManager.save();
+                                                        feedbackText(ctx,
+                                                                UiText.tr("neomacros.cmd.permission_allowed",
+                                                                        applied));
+                                                    } else {
+                                                        feedbackText(ctx,
+                                                                UiText.tr("neomacros.cmd.no_pending_permission",
+                                                                        target));
+                                                    }
+                                                });
+                                                return Command.SINGLE_SUCCESS;
+                                            })))
+                            .then(literal("deny")
+                                    .then(argument("target", StringArgumentType.greedyString())
+                                            .suggests((ctx, builder) -> {
+                                                for (var req : permissionRequests.pending()) {
+                                                    builder.suggest(typedNameOf(req.scriptName()));
+                                                    builder.suggest(req.id());
+                                                }
+                                                return builder.buildFuture();
+                                            })
+                                            .executes(ctx -> {
+                                                String target = string(ctx, "target");
+                                                ModuleWorker.execute(() -> {
+                                                    String script = resolveScript(target)
+                                                            .map(ScriptEntry::name).orElse(target);
+                                                    String settled = permissionRequests
+                                                            .respond(script,
+                                                                    PermissionRequests.Decision.DENY);
+                                                    feedbackText(ctx, UiText.tr(settled != null
+                                                            ? "neomacros.cmd.permission_denied"
+                                                            : "neomacros.cmd.no_pending_permission",
+                                                            settled != null ? settled : target));
+                                                });
+                                                return Command.SINGLE_SUCCESS;
+                                            })))
+                            .then(literal("revoke")
+                                    .then(argument("script", StringArgumentType.string())
+                                            .suggests(SUGGEST_TYPED)
+                                            .executes(ctx -> {
+                                                String target = string(ctx, "script");
+                                                ModuleWorker.execute(() -> {
+                                                    Optional<ScriptEntry> resolved =
+                                                            resolveScript(target);
+                                                    if (resolved.isEmpty()) {
+                                                        feedback(ctx, "neomacros.cmd.unknown_script",
+                                                                Msg.name(target));
+                                                        return;
+                                                    }
+                                                    ScriptEntry script = resolved.get();
+                                                    try {
+                                                        String hash = TrustManager.hashOf(
+                                                                Files.readString(script.entryFile()));
+                                                        // Every grant for the current
+                                                        // content goes: the persisted
+                                                        // entry, any session grant, any
+                                                        // session denial, and the running
+                                                        // view flips back to denying — the
+                                                        // gated calls throw again on the
+                                                        // next call, no reload.
+                                                        trustManager.revokeAll(hash);
+                                                        configManager.save();
+                                                        feedback(ctx, "neomacros.cmd.revoked",
+                                                                Msg.name(script.name()));
+                                                    } catch (IOException e) {
+                                                        feedbackText(ctx, UiText.tr(
+                                                                "neomacros.cmd.revoke_failed",
+                                                                script.name(), e.getMessage()));
+                                                    }
+                                                });
+                                                return Command.SINGLE_SUCCESS;
+                                            }))))
                     .then(literal("errors").executes(ctx -> {
                         var recent = errorPresenter.recent();
                         var lines = new java.util.ArrayList<String>(recent);

@@ -33,6 +33,12 @@ public final class TrustManager {
     private final CoreOptions options;
     private final List<Consumer<TrustPrompt>> promptListeners = new CopyOnWriteArrayList<>();
     private final Map<String, List<String>> sessionGrants = new LinkedHashMap<>();
+    /** Live views of currently loaded declared scripts, keyed by content hash. */
+    private final Map<String, PermissionView.GrantableView> liveViews =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    /** Content hashes the player denied this session (no more prompts until restart). */
+    private final Set<String> sessionDenials =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /** One pending first-load trust question. */
     public record TrustPrompt(String scriptName, String contentHash, List<String> requested) {
@@ -62,23 +68,32 @@ public final class TrustManager {
     /**
      * Resolves the view for one script load: trusted content gets exactly its
      * declared capabilities; untrusted content with declared capabilities
-     * fires a prompt and runs under a denying view until a decision lands;
-     * no declaration means an all-allowing view for the base surface. The
-     * script name rides on the prompt so the chat line can label it.
+     * fires a prompt and runs under a denying (but grantable) view until a
+     * decision lands — unless the player denied this hash this session, in
+     * which case it runs denied silently; no declaration means an
+     * all-allowing view for the base surface. Every declared view is a live
+     * {@link PermissionView.GrantableView} registered per hash, so a runtime
+     * grant flips the running script's members without a reload. The script
+     * name rides on the prompt so the prompt UI can label it. Two scripts
+     * sharing one content hash share the live view; the last load wins the
+     * registration.
      */
     public PermissionView viewFor(String scriptName, String contentHash, List<String> declared) {
         List<String> effective = declared == null ? List.of() : declared;
         if (effective.isEmpty()) {
             return PermissionView.ALLOW_ALL;
         }
-        if (isTrusted(contentHash) || sessionGrants.containsKey(contentHash)) {
-            return PermissionView.of(new java.util.HashSet<>(effective));
+        boolean granted = isTrusted(contentHash) || sessionGrants.containsKey(contentHash);
+        var view = new PermissionView.GrantableView(
+                granted ? new java.util.HashSet<>(effective) : java.util.Set.of());
+        liveViews.put(contentHash, view);
+        if (!granted && !sessionDenials.contains(contentHash)) {
+            var prompt = new TrustPrompt(scriptName, contentHash, List.copyOf(effective));
+            for (Consumer<TrustPrompt> listener : promptListeners) {
+                listener.accept(prompt);
+            }
         }
-        var prompt = new TrustPrompt(scriptName, contentHash, List.copyOf(effective));
-        for (Consumer<TrustPrompt> listener : promptListeners) {
-            listener.accept(prompt);
-        }
-        return PermissionView.DENY_ALL;
+        return view;
     }
 
     /** Hash-only variant for callers without a script name. */
@@ -98,9 +113,37 @@ public final class TrustManager {
         options.setTrust(trust);
     }
 
+    /**
+     * Persists trust for one content hash and flips its live view, so the
+     * running script's gated members allow the capabilities immediately
+     * (no reload). The granted set is the script's declared capability set.
+     */
+    public void trustLive(String contentHash, Set<String> capabilities) {
+        trust(contentHash);
+        PermissionView.GrantableView live = liveViews.get(contentHash);
+        if (live != null) {
+            live.grant(capabilities);
+        }
+    }
+
     /** Grants capabilities for this session only (not persisted). */
     public void grantSession(String contentHash, List<String> capabilities) {
         sessionGrants.put(contentHash, new ArrayList<>(capabilities));
+    }
+
+    /**
+     * Denies one content hash for this session: no prompts fire for it and
+     * runtime requests resolve false without surfacing, until the game
+     * restarts. Nothing is persisted (the player is asked again next
+     * session).
+     */
+    public void denySession(String contentHash) {
+        sessionDenials.add(contentHash);
+    }
+
+    /** Returns whether the player denied this content hash this session. */
+    public boolean isSessionDenied(String contentHash) {
+        return sessionDenials.contains(contentHash);
     }
 
     /** Revokes a persisted trust entry (revoke action or management UI). */
@@ -108,6 +151,23 @@ public final class TrustManager {
         Map<String, List<String>> trust = new LinkedHashMap<>(options.getTrust());
         trust.remove(contentHash);
         options.setTrust(trust);
+    }
+
+    /**
+     * Revokes every grant for one content hash: the persisted entry, any
+     * session grant, any session denial, and the running script's live view
+     * flips back to denying its declared set (gated calls throw again
+     * immediately, no reload). The player is asked again on the next load or
+     * runtime request.
+     */
+    public void revokeAll(String contentHash) {
+        revoke(contentHash);
+        sessionGrants.remove(contentHash);
+        sessionDenials.remove(contentHash);
+        PermissionView.GrantableView live = liveViews.get(contentHash);
+        if (live != null) {
+            live.grant(java.util.Set.of());
+        }
     }
 
     /** Trusted content hashes (diagnostics and the management panel). */

@@ -51,18 +51,18 @@ class PacketPermissionGateTest {
         BindingRegistry registry = new BindingRegistry("26.3");
         registry.register(ClientApi.class);
 
-        ModuleBinding denied = (ModuleBinding) registry
-                .neoTree(PermissionView.DENY_ALL).get("client");
-        ModuleBinding.DeniedMember deniedSend = (ModuleBinding.DeniedMember)
-                denied.members().get("sendPacket");
-        assertEquals("java", deniedSend.permission());
-        assertThrows(PermissionError.class, deniedSend::invoke,
+        var view = new PermissionView.GrantableView(java.util.Set.of());
+        ModuleBinding binding = (ModuleBinding) registry.neoTree(view).get("client");
+        ModuleBinding.GatedMember gatedSend = (ModuleBinding.GatedMember)
+                binding.members().get("sendPacket");
+        assertEquals("java", gatedSend.permission());
+        assertThrows(PermissionError.class, () -> gatedSend.invoke(new Object[0]),
                 "an undeclared java capability raises PermissionError");
 
-        ModuleBinding granted = (ModuleBinding) registry
-                .neoTree(PermissionView.of(Set.of("java"))).get("client");
-        assertInstanceOf(ModuleBinding.FunctionMember.class,
-                granted.members().get("sendPacket"));
+        // The gate follows a runtime grant without a rebuild.
+        view.grant(java.util.Set.of("java"));
+        assertInstanceOf(ModuleBinding.GatedMember.class,
+                binding.members().get("sendPacket"));
 
         // The packet face members carry no permission of their own.
         ModuleBinding stillDenied = (ModuleBinding) registry
