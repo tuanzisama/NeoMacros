@@ -43,6 +43,9 @@
     ,"AdventureModePredicateAccessor"
     ,"CheckboxAccessor"
     ,"CycleButtonAccessor"
+    ,"AbstractRecipeBookScreenAccessor"
+    ,"RecipeBookComponentAccessor"
+    ,"StackedItemContentsAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

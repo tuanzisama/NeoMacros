@@ -912,6 +912,17 @@ public final class StubAdapter implements NeomacrosAdapter {
         public volatile int craftingH = 0;
         /** The canned recipe-book visibility ({@code null} = no book screen). */
         public volatile Boolean recipeBook = null;
+        /** Canned recipe-book entries ({@code null} = no recipe-book screen). */
+        public volatile java.util.List<ink.tuanzi.neomacros.port.InventoryPort.RecipeEntryData>
+                recipeEntries = null;
+        /** The recipe keys {@code recipeBookRecipes(true)} keeps. */
+        public volatile java.util.Set<String> craftableKeys = java.util.Set.of();
+        /** Canned can-craft answers by recipe key (missing key = unknown). */
+        public final java.util.Map<String, Boolean> canCraftAnswers =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        /** Canned craftable amounts by recipe key (missing key = unknown). */
+        public final java.util.Map<String, Integer> craftableAmounts =
+                new java.util.concurrent.ConcurrentHashMap<>();
         /** The canned anvil rename-box text ({@code null} = no anvil screen). */
         public volatile String anvilName = null;
         /** The canned fuel-value table ({@code null} = the level hides it). */
@@ -997,6 +1008,49 @@ public final class StubAdapter implements NeomacrosAdapter {
         @Override
         public java.util.concurrent.CompletableFuture<Void> setRecipeBookOpen(boolean open) {
             return record("recipeBook:" + open);
+        }
+
+        @Override
+        public java.util.List<ink.tuanzi.neomacros.port.InventoryPort.RecipeEntryData> recipeBookRecipes(
+                boolean craftable) {
+            var entries = recipeEntries;
+            if (entries == null) {
+                return null;
+            }
+            if (!craftable) {
+                return java.util.List.copyOf(entries);
+            }
+            var out = new java.util.ArrayList<ink.tuanzi.neomacros.port.InventoryPort.RecipeEntryData>();
+            for (var entry : entries) {
+                if (craftableKeys.contains(entry.recipeKey())) {
+                    out.add(entry);
+                }
+            }
+            return out;
+        }
+
+        @Override
+        public Boolean recipeCanCraft(String recipeKey) {
+            return canCraftAnswers.get(recipeKey);
+        }
+
+        @Override
+        public Integer recipeCraftableAmount(String recipeKey) {
+            return craftableAmounts.get(recipeKey);
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> craftRecipe(
+                String recipeKey, boolean craftAll) {
+            if (recipeEntries == null) {
+                // Mirrors the real port: crafting without an open recipe-book
+                // screen settles as a rejection, never a no-op resolve.
+                var failed = new java.util.concurrent.CompletableFuture<Void>();
+                failed.completeExceptionally(new IllegalStateException(
+                        "no recipe-book screen is open; open one before crafting"));
+                return failed;
+            }
+            return record("craft:" + recipeKey + ":" + craftAll);
         }
 
         @Override

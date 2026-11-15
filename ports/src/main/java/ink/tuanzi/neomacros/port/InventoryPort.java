@@ -314,6 +314,69 @@ public interface InventoryPort {
         throw new UnsupportedOperationException("inventory actions");
     }
 
+    /**
+     * One recipe-book entry: an opaque adapter-scoped recipe key, its recipe
+     * book category id, the resolved output stack, and the ingredient slots
+     * with the accepted stacks per slot.
+     *
+     * <p>The recipe key is only meaningful to the adapter that produced it
+     * (the client display id on nodes whose recipe book syncs display
+     * entries, the recipe identifier on legacy nodes); the core carries it
+     * opaquely and passes it back for follow-up queries.</p>
+     *
+     * @param recipeKey   opaque adapter-scoped recipe key
+     * @param category    namespaced recipe book category id
+     * @param output      the output stack of one craft, or null when the
+     *                    output cannot be resolved (no level)
+     * @param ingredients one outer entry per ingredient slot; the inner list
+     *                    holds the stacks the slot accepts (alternatives)
+     */
+    record RecipeEntryData(String recipeKey, String category, ItemStackData output,
+            List<List<ItemStackData>> ingredients) {
+
+        public RecipeEntryData {
+            ingredients = List.copyOf(ingredients == null ? List.of() : ingredients);
+        }
+    }
+
+    /**
+     * The recipe book entries of the open recipe-book screen's tabs, or
+     * {@code null} without an open recipe-book screen. {@code craftable}
+     * limits the list to the entries craftable from the player's inventory
+     * plus the open menu's craft slots.
+     */
+    default List<RecipeEntryData> recipeBookRecipes(boolean craftable) {
+        return null;
+    }
+
+    /**
+     * Whether one craft of the entry is possible from the player's inventory
+     * plus the open menu's craft slots, or {@code null} when the entry is
+     * unknown or the check cannot run.
+     */
+    default Boolean recipeCanCraft(String recipeKey) {
+        return null;
+    }
+
+    /**
+     * How many crafts of the entry the player's inventory plus the open
+     * menu's craft slots allow, or {@code null} when the entry is unknown or
+     * the check cannot run.
+     */
+    default Integer recipeCraftableAmount(String recipeKey) {
+        return null;
+    }
+
+    /**
+     * Requests one craft of the entry through the recipe book of the open
+     * screen the entry came from (the vanilla recipe placement click);
+     * rejects when that screen is closed.
+     */
+    default java.util.concurrent.CompletableFuture<Void> craftRecipe(
+            String recipeKey, boolean craftAll) {
+        throw new UnsupportedOperationException("inventory actions");
+    }
+
     // === container menu face ===
 
     /**

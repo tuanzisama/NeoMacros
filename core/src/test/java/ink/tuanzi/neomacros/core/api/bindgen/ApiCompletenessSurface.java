@@ -116,6 +116,7 @@ final class ApiCompletenessSurface {
             Chunk.class,
             PlayerApi.FurnaceInventory.class,
             PlayerApi.ContainerInventory.class, PlayerApi.RecipeInventory.class,
+            PlayerApi.Recipe.class,
             PlayerApi.CraftingInventory.class,
             PlayerApi.AnvilInventory.class, PlayerApi.EnchantInventory.class,
             PlayerApi.GrindstoneInventory.class, PlayerApi.StonecutterInventory.class,

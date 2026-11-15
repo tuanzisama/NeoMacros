@@ -2841,6 +2841,180 @@ public final class PlayerApi {
             Boolean open = inventoryPort().recipeBookOpen();
             return inventoryPort().setRecipeBookOpen(open == null || !open);
         }
+
+        /**
+         * The recipe book entries currently reported craftable from the
+         * player's inventory plus this menu's craft slots, or
+         * {@code undefined} without an open recipe-book screen.
+         *
+         * @zh 配方书条目中当前可从玩家物品栏加本菜单合成格合成的部分；无配方书界面时为 undefined。
+         */
+        @ApiSince("0.6.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Recipe[]")
+        public List<Recipe> getCraftableRecipes() {
+            return getRecipes(true);
+        }
+
+        /**
+         * The recipe book entries of the open recipe-book screen's tabs,
+         * optionally limited to the entries craftable from the player's
+         * inventory plus this menu's craft slots, or {@code undefined}
+         * without an open recipe-book screen.
+         *
+         * @zh 打开的配方书界面的条目；{@code craftable} 为 true 时只保留当前可合成的部分。无配方书界面时为 undefined。
+         * @zh-param craftable 是否只保留当前可合成的条目
+         */
+        @ApiSince("0.6.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiType("Recipe[]")
+        public List<Recipe> getRecipes(boolean craftable) {
+            List<ink.tuanzi.neomacros.port.InventoryPort.RecipeEntryData> entries =
+                    inventoryPort().recipeBookRecipes(craftable);
+            if (entries == null) {
+                return null;
+            }
+            List<Recipe> out = new java.util.ArrayList<>();
+            for (ink.tuanzi.neomacros.port.InventoryPort.RecipeEntryData entry : entries) {
+                out.add(new Recipe(entry));
+            }
+            return out;
+        }
+    }
+
+    /**
+     * One recipe-book entry: the output stack, the accepted ingredient
+     * alternatives per slot, craftability checks against the player's
+     * inventory, and the craft action through its recipe-book screen.
+     *
+     * <p>Handles are snapshots of one book entry; the craftability checks
+     * re-query the live inventory on every call, and {@link #craft} acts
+     * through whatever recipe-book screen is open when it runs.</p>
+     *
+     * @zh 一条配方书条目：产物物品、每格可接受的材料可选项、针对玩家物品栏的可合成检查，以及经其配方书界面的合成动作。句柄是单条书目条目的快照；可合成检查每次调用都实时回读物品栏，{@link #craft} 经执行时打开的配方书界面生效。
+     */
+    @ApiClass(name = "Recipe", kind = ApiClassKind.HANDLE,
+            wraps = "net.minecraft.world.item.crafting.display.RecipeDisplayEntry")
+    @ApiSince("0.6.0")
+    @ApiMC("*")
+    @ApiLoader("*")
+    public static final class Recipe
+            implements ink.tuanzi.neomacros.core.api.ScriptHandle {
+
+        private final ink.tuanzi.neomacros.port.InventoryPort.RecipeEntryData entry;
+
+        Recipe(ink.tuanzi.neomacros.port.InventoryPort.RecipeEntryData entry) {
+            this.entry = entry;
+        }
+
+        /** The recipe's book entry key. Unstable across menu switches and sessions.
+         * @zh 配方书条目键；跨菜单切换与会话不保证稳定。 */
+        @ApiSince("0.6.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getRecipeKey() {
+            return entry.recipeKey();
+        }
+
+        /** The namespaced recipe book category id (e.g. {@code minecraft:crafting}).
+         * @zh 配方书分类 id（如 {@code minecraft:crafting}）。 */
+        @ApiSince("0.6.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public String getCategory() {
+            return entry.category();
+        }
+
+        /** The output stack of one craft, or {@code undefined} when unresolvable.
+         * @zh 一次合成的产物物品；无法解析时为 undefined。 */
+        @ApiSince("0.6.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public ItemStack getOutput() {
+            return entry.output() == null ? null : ItemStack.of(entry.output());
+        }
+
+        /**
+         * The ingredient slots with the stacks each slot accepts, as
+         * {@code [slot][alternative]}; empty cells read as empty lists.
+         *
+         * @zh 材料格及每格接受的物品，按 {@code [格][可选项]} 索引；空格为空数组。
+         */
+        @ApiSince("0.6.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        @ApiType("ItemStack[][]")
+        public List<List<ItemStack>> getIngredients() {
+            List<List<ItemStack>> out = new java.util.ArrayList<>();
+            for (List<ink.tuanzi.neomacros.port.model.ItemStackData> slot : entry.ingredients()) {
+                List<ItemStack> alternatives = new java.util.ArrayList<>();
+                for (ink.tuanzi.neomacros.port.model.ItemStackData stack : slot) {
+                    alternatives.add(ItemStack.of(stack));
+                }
+                out.add(alternatives);
+            }
+            return out;
+        }
+
+        /**
+         * Whether one craft is possible from the player's inventory plus the
+         * open menu's craft slots, or with the optional amount, whether at
+         * least that many crafts are possible.
+         *
+         * @zh 玩家物品栏加打开菜单的合成格能否合成一次；给定 amount 时判断能否合成至少该次数。
+         * @zh-param amount 需要的最少合成次数（默认 1）
+         */
+        @ApiSince("0.6.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public boolean canCraft(@ApiOptional @ApiType("number") Integer amount) {
+            if (amount != null && amount <= 1) {
+                Integer times = inventoryPort().recipeCraftableAmount(entry.recipeKey());
+                return times != null && times >= amount;
+            }
+            Boolean once = inventoryPort().recipeCanCraft(entry.recipeKey());
+            return once != null && once;
+        }
+
+        /**
+         * How many crafts the player's inventory plus the open menu's craft
+         * slots allow, or {@code undefined} when the entry is unknown.
+         *
+         * @zh 玩家物品栏加打开菜单的合成格允许的合成次数；条目未知时为 undefined。
+         */
+        @ApiSince("0.6.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        @ApiReadOnly
+        public Integer getCraftableAmount() {
+            return inventoryPort().recipeCraftableAmount(entry.recipeKey());
+        }
+
+        /**
+         * Requests one craft through the recipe book of the open screen;
+         * {@code craftAll} crafts as many times as the ingredients allow.
+         * Rejects when no recipe-book screen is open.
+         *
+         * @zh 经打开界面的配方书请求合成一次；{@code craftAll} 为 true 时按材料允许的最大次数合成。无配方书界面打开时拒绝。
+         * @zh-param craftAll 是否按可合成最大次数合成
+         */
+        @ApiSince("0.6.0")
+        @ApiMC("*")
+        @ApiLoader("*")
+        public CompletableFuture<Void> craft(@ApiOptional @ApiType("boolean") Boolean craftAll) {
+            return inventoryPort().craftRecipe(entry.recipeKey(), Boolean.TRUE.equals(craftAll));
+        }
+
+        @Override
+        public String toString() {
+            return "Recipe(" + entry.recipeKey() + ")";
+        }
     }
 
     /**

@@ -794,6 +794,172 @@ public final class FabricInventoryPort implements InventoryPort {
         });
     }
 
+    // === recipe book face ===
+
+    /** The open recipe-book screen parts one entry query needs (main thread). */
+    private record BookScope(LocalPlayer player,
+            net.minecraft.client.gui.screens.recipebook.RecipeBookComponent<?> component,
+            net.minecraft.world.inventory.RecipeBookMenu menu) {
+    }
+
+    /** The currently open recipe-book screen, or null without one (main thread). */
+    private BookScope recipeBookScope() {
+        LocalPlayer player = player();
+        var screen = FabricLifecyclePort.currentScreen();
+        if (player == null
+                || !(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen<?> bookScreen)
+                || !(player.containerMenu instanceof net.minecraft.world.inventory.RecipeBookMenu menu)) {
+            return null;
+        }
+        var component = ((ink.tuanzi.neomacros.adapter.mixin.AbstractRecipeBookScreenAccessor) bookScreen)
+                .neomacros$recipeBookComponent();
+        return new BookScope(player, component, menu);
+    }
+
+    /** Fills the stacked-contents finder from the inventory plus the open recipe menu. */
+    private net.minecraft.world.entity.player.StackedItemContents recipeFinder(LocalPlayer player) {
+        var finder = new net.minecraft.world.entity.player.StackedItemContents();
+        player.getInventory().fillStackedContents(finder);
+        if (player.containerMenu instanceof net.minecraft.world.inventory.RecipeBookMenu menu) {
+            menu.fillCraftSlotsStackedContents(finder);
+        }
+        return finder;
+    }
+
+    /** Re-resolves one book entry by its opaque key, or null when gone (main thread). */
+    private net.minecraft.world.item.crafting.display.RecipeDisplayEntry resolveEntry(String recipeKey) {
+        LocalPlayer player = player();
+        if (player == null || Minecraft.getInstance().level == null) {
+            return null;
+        }
+        Integer index;
+        try {
+            index = Integer.valueOf(recipeKey);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        var wanted = new net.minecraft.world.item.crafting.display.RecipeDisplayId(index);
+        for (var collection : player.getRecipeBook().getCollections()) {
+            for (var entry : collection.getRecipes()) {
+                if (entry.id().equals(wanted)) {
+                    return entry;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Snapshots one display entry into the neutral recipe record. */
+    private InventoryPort.RecipeEntryData entryData(
+            net.minecraft.world.item.crafting.display.RecipeDisplayEntry entry,
+            net.minecraft.util.context.ContextMap context) {
+        String category = net.minecraft.core.registries.BuiltInRegistries.RECIPE_BOOK_CATEGORY
+                .getKey(entry.category()).toString();
+        ItemStackData output = null;
+        for (ItemStack result : entry.resultItems(context)) {
+            if (!result.isEmpty()) {
+                output = stackDataOf(result);
+                break;
+            }
+        }
+        List<List<ItemStackData>> ingredients = new ArrayList<>();
+        for (net.minecraft.world.item.crafting.Ingredient ingredient
+                : entry.craftingRequirements().orElseGet(List::of)) {
+            List<ItemStackData> alternatives = new ArrayList<>();
+            ingredient.items().forEach(holder -> {
+                ItemStack probe = new ItemStack(holder.value());
+                if (!probe.isEmpty()) {
+                    alternatives.add(stackDataOf(probe));
+                }
+            });
+            ingredients.add(alternatives);
+        }
+        return new InventoryPort.RecipeEntryData(
+                Integer.toString(entry.id().index()), category, output, ingredients);
+    }
+
+    @Override
+    public List<InventoryPort.RecipeEntryData> recipeBookRecipes(boolean craftable) {
+        return MainThread.run(() -> {
+            BookScope scope = recipeBookScope();
+            if (scope == null || Minecraft.getInstance().level == null) {
+                return null;
+            }
+            var finder = craftable ? recipeFinder(scope.player()) : null;
+            var context = net.minecraft.world.item.crafting.display.SlotDisplayContext
+                    .fromLevel(Minecraft.getInstance().level);
+            List<InventoryPort.RecipeEntryData> out = new ArrayList<>();
+            var seen = new java.util.LinkedHashSet<net.minecraft.world.item.crafting.display.RecipeDisplayId>();
+            for (var tabInfo : ((ink.tuanzi.neomacros.adapter.mixin.RecipeBookComponentAccessor)
+                    scope.component()).neomacros$tabInfos()) {
+                for (var collection : scope.player().getRecipeBook()
+                        .getCollection(tabInfo.category())) {
+                    for (var entry : collection.getRecipes()) {
+                        if (craftable && !entry.canCraft(finder)) {
+                            continue;
+                        }
+                        if (seen.add(entry.id())) {
+                            out.add(entryData(entry, context));
+                        }
+                    }
+                }
+            }
+            return out;
+        });
+    }
+
+    @Override
+    public Boolean recipeCanCraft(String recipeKey) {
+        return MainThread.run(() -> {
+            LocalPlayer player = player();
+            var entry = resolveEntry(recipeKey);
+            if (player == null || entry == null) {
+                return null;
+            }
+            return entry.canCraft(recipeFinder(player));
+        });
+    }
+
+    @Override
+    public Integer recipeCraftableAmount(String recipeKey) {
+        return MainThread.run(() -> {
+            LocalPlayer player = player();
+            var entry = resolveEntry(recipeKey);
+            if (player == null || entry == null || entry.craftingRequirements().isEmpty()) {
+                return null;
+            }
+            var finder = recipeFinder(player);
+            var raw = ((ink.tuanzi.neomacros.adapter.mixin.StackedItemContentsAccessor) finder)
+                    .neomacros$raw();
+            return raw.tryPickAll(entry.craftingRequirements().get(), Integer.MAX_VALUE, null);
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> craftRecipe(String recipeKey, boolean craftAll) {
+        return dispatch(() -> {
+            LocalPlayer player = player();
+            // The player's own inventoryMenu is a RecipeBookMenu, so the menu
+            // check alone would let a closed-screen craft fall through into
+            // the 2x2 grid; require the recipe-book screen itself to be open.
+            if (player == null
+                    || !(FabricLifecyclePort.currentScreen()
+                            instanceof net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen)
+                    || !(player.containerMenu instanceof net.minecraft.world.inventory.RecipeBookMenu)
+                    || Minecraft.getInstance().level == null) {
+                throw new IllegalStateException(
+                        "no recipe-book screen is open; open one before crafting");
+            }
+            var entry = resolveEntry(recipeKey);
+            if (entry == null) {
+                throw new IllegalStateException(
+                        "recipe is no longer in the recipe book; re-read the list");
+            }
+            Minecraft.getInstance().gameMode.handlePlaceRecipe(
+                    player.containerMenu.containerId, entry.id(), craftAll);
+        });
+    }
+
     // === container menu face ===
 
     @Override
