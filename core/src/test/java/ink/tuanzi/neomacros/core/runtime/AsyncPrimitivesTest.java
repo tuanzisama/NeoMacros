@@ -73,28 +73,34 @@ class AsyncPrimitivesTest {
         }
     }
 
-    @Test
-    void sleepCompletesOnLoopAfterDelay() throws Exception {
-        // Park the loop thread so the delayed completion cannot fire before
-        // the capture attaches: under a loaded CI runner the attach could
-        // otherwise lose the race, and a pre-completed future runs its
-        // callback inline on the attaching thread (same flake the waitFor
-        // gate below guards against). FIFO order makes it deterministic:
-        // the completion task is enqueued after the park task, so it can
-        // only run once the park releases — after the capture is attached.
-        CompletableFuture<Void> park = new CompletableFuture<>();
+    /**
+     * Parks the loop thread until the returned gate completes: while parked,
+     * no queued completion can fire, so the completion-thread captures below
+     * always attach to a pending future. A pre-completed future would run
+     * its callback inline on the attaching thread — the CI flake this whole
+     * group guards against. FIFO order makes the release deterministic: the
+     * completion task only runs after the gate opens, on the loop thread.
+     */
+    private CompletableFuture<Void> parkLoop() {
+        CompletableFuture<Void> gate = new CompletableFuture<>();
         loop.execute(() -> {
             try {
-                park.get(10, TimeUnit.SECONDS);
+                gate.get(10, TimeUnit.SECONDS);
             } catch (Exception ignored) {
-                // Any gate failure resumes the loop; the assertions below
-                // still judge the completion.
+                // A gate failure resumes the loop; the assertions still
+                // judge the completion itself.
             }
         });
+        return gate;
+    }
+
+    @Test
+    void sleepCompletesOnLoopAfterDelay() throws Exception {
+        CompletableFuture<Void> gate = parkLoop();
         long start = System.currentTimeMillis();
         CompletableFuture<Void> done = async.sleep(120);
         java.util.concurrent.CompletableFuture<String> completedOn = captureCompletionThread(done);
-        park.complete(null);
+        gate.complete(null);
         done.get(2, TimeUnit.SECONDS);
         assertTrue(System.currentTimeMillis() - start >= 110);
         awaitCapture(completedOn);
@@ -103,8 +109,10 @@ class AsyncPrimitivesTest {
 
     @Test
     void ticksAndNextTickCompleteOnLoop() throws Exception {
+        CompletableFuture<Void> gate = parkLoop();
         CompletableFuture<Void> nextTick = async.nextTick();
         java.util.concurrent.CompletableFuture<String> completedOn = captureCompletionThread(nextTick);
+        gate.complete(null);
         tickClock.tick();
         nextTick.get(2, TimeUnit.SECONDS);
         awaitCapture(completedOn);
@@ -113,15 +121,13 @@ class AsyncPrimitivesTest {
 
     @Test
     void waitForPassesWhenConditionMet() throws Exception {
-        // The gate keeps the future pending until the capture is attached:
-        // an immediately-true condition can complete on the loop thread
-        // before whenComplete attaches, and the callback then runs inline
-        // on the test thread, flaking the completion-thread assertion.
+        CompletableFuture<Void> gate = parkLoop();
         java.util.concurrent.atomic.AtomicBoolean ready =
                 new java.util.concurrent.atomic.AtomicBoolean();
-        CompletableFuture<Boolean> done = async.waitFor(unused -> ready.get(), 500);
+        CompletableFuture<Boolean> done = async.waitFor(unused -> ready.get(), 2000);
         java.util.concurrent.CompletableFuture<String> completedOn = captureCompletionThread(done);
         ready.set(true);
+        gate.complete(null);
         assertTrue(done.get(2, TimeUnit.SECONDS));
         awaitCapture(completedOn);
         assertEquals(loop.threadName(), completedOn.get());
@@ -197,10 +203,15 @@ class AsyncPrimitivesTest {
         assertEquals("rejected", bridged.get(2, TimeUnit.SECONDS));
     }
 
-    /** Captures the thread that completes the future; attach before completion. */
+    /**
+     * Captures the thread that completes the future; attach before
+     * completion. An exceptional completion appends the error so a failing
+     * assertion shows which completion path fired.
+     */
     private java.util.concurrent.CompletableFuture<String> captureCompletionThread(CompletableFuture<?> future) {
         java.util.concurrent.CompletableFuture<String> thread = new java.util.concurrent.CompletableFuture<>();
-        future.whenComplete((value, error) -> thread.complete(Thread.currentThread().getName()));
+        future.whenComplete((value, error) -> thread.complete(Thread.currentThread().getName()
+                + (error != null ? " error=" + error : "")));
         return thread;
     }
 }
