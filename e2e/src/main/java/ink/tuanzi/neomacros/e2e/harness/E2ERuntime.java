@@ -340,6 +340,14 @@ public final class E2ERuntime implements AutoCloseable {
                 registry.registerGuestType("Ws", ink.tuanzi.neomacros.core.api.NetApi.Ws.class);
                 registry.registerGuestType("FileHandle",
                         ink.tuanzi.neomacros.core.api.FsApi.FileHandle.class);
+                registry.registerGuestType("ReflectClass",
+                        ink.tuanzi.neomacros.core.api.reflect.ReflectClass.class);
+                registry.registerGuestType("ReflectField",
+                        ink.tuanzi.neomacros.core.api.reflect.ReflectField.class);
+                registry.registerGuestType("ReflectMethod",
+                        ink.tuanzi.neomacros.core.api.reflect.ReflectMethod.class);
+                registry.registerGuestType("ReflectConstructor",
+                        ink.tuanzi.neomacros.core.api.reflect.ReflectConstructor.class);
                 registry.registerGuestType("Image", ink.tuanzi.neomacros.core.api.types.Image.class);
                 registry.registerGuestType("CustomImage",
                         ink.tuanzi.neomacros.core.api.types.CustomImage.class);

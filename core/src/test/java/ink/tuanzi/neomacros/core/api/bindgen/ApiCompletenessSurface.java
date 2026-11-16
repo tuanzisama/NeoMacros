@@ -16,6 +16,10 @@ import ink.tuanzi.neomacros.core.api.entity.SpeciesEntities;
 import ink.tuanzi.neomacros.core.api.java.JavaApi;
 import ink.tuanzi.neomacros.core.api.player.PlayerApi;
 import ink.tuanzi.neomacros.core.api.reflect.ReflectApi;
+import ink.tuanzi.neomacros.core.api.reflect.ReflectClass;
+import ink.tuanzi.neomacros.core.api.reflect.ReflectConstructor;
+import ink.tuanzi.neomacros.core.api.reflect.ReflectField;
+import ink.tuanzi.neomacros.core.api.reflect.ReflectMethod;
 import ink.tuanzi.neomacros.core.api.render.RenderApi;
 import ink.tuanzi.neomacros.core.api.world.WorldApi;
 import ink.tuanzi.neomacros.core.api.types.Block;
@@ -82,6 +86,8 @@ final class ApiCompletenessSurface {
             ink.tuanzi.neomacros.core.api.render.components.Draw2DItem.class,
             ink.tuanzi.neomacros.core.api.types.PacketBuffer.class,
             FsApi.FileHandle.class, NetApi.Ws.class,
+            ReflectClass.class, ReflectField.class,
+            ReflectMethod.class, ReflectConstructor.class,
             SpeciesEntities.MobEntity.class, SpeciesEntities.AnimalEntity.class, SpeciesEntities.TamableAnimalEntity.class,
             SpeciesEntities.SheepEntity.class, SpeciesEntities.WolfEntity.class, SpeciesEntities.CatEntity.class,
             SpeciesEntities.VillagerEntity.class, SpeciesEntities.CreeperEntity.class, SpeciesEntities.ZombieEntity.class,

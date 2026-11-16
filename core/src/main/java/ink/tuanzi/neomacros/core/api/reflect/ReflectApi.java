@@ -9,19 +9,19 @@ import ink.tuanzi.neomacros.doc.api.ApiSince;
 import ink.tuanzi.neomacros.doc.api.ApiType;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
  * The {@code neo.reflect} module: meta-level tools for the escape layer.
  * Where {@code neo.java} proxies objects, this module resolves exact
- * signatures (including private members), invokes reflectively, and
- * constructs instances. The whole module rides the {@code java} permission
- * gate.
+ * signatures (including private members) into {@code ReflectClass} /
+ * {@code ReflectField} / {@code ReflectMethod} / {@code ReflectConstructor}
+ * handles — the {@code java.lang.reflect} surface of fields, methods,
+ * constructors, modifiers and annotations — and invokes reflectively. The
+ * whole module rides the {@code java} permission gate.
  *
- * @zh {@code neo.reflect}：穿透层的元级工具箱。{@code neo.java} 代理对象，本模块解析精确签名（含私有成员）、反射调用与构造实例。整模块走 {@code java} 权限闸。
+ * @zh {@code neo.reflect}：穿透层的元级工具箱。{@code neo.java} 代理对象，本模块把精确签名（含私有成员）解析为 {@code ReflectClass} / {@code ReflectField} / {@code ReflectMethod} / {@code ReflectConstructor} 句柄——字段、方法、构造器、修饰符与注解的 {@code java.lang.reflect} 面——并以反射方式调用。整模块走 {@code java} 权限闸。
  */
 @ApiModule(name = "reflect", category = "系统")
 @ApiPermission("java")
@@ -51,31 +51,31 @@ public final class ReflectApi {
     /**
      * Resolves one declared method with an exact parameter signature,
      * including private overloads. Parameter types arrive as an array of
-     * class-name strings or {@code JavaClass} values. Returns the
-     * {@code java.lang.reflect.Method} proxy, or undefined on a miss.
+     * class-name strings or {@code ReflectClass} values. Returns the
+     * {@code ReflectMethod} handle, or undefined on a miss.
      *
-     * @zh 按精确参数签名解析已声明方法（含私有重载）。参数类型为数组（类名字符串或 {@code JavaClass}）。返回 {@code java.lang.reflect.Method} 代理；未命中为 undefined。
-     * @zh-param target 实例或类（{@code JavaClass}）
+     * @zh 按精确参数签名解析已声明方法（含私有重载）。参数类型为数组（类名字符串或 {@code ReflectClass}）。返回 {@code ReflectMethod} 句柄；未命中为 undefined。
+     * @zh-param target 实例或类
      * @zh-param name 方法名
      * @zh-param paramTypes 参数类型数组（可省略）
+     * @zh-return 方法句柄或 undefined
      */
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    @ApiType("JavaObject")
-    public Object method(@ApiType("JavaObject | JavaClass") Object target, String name,
-            @ApiType("Array<string | JavaClass>") Object paramTypes) {
+    public ReflectMethod method(
+            @ApiType("ReflectClass | JavaObject | JavaClass") Object target, String name,
+            @ApiOptional @ApiType("Array<string | JavaClass | ReflectClass>") Object paramTypes) {
         Class<?> owner = ownerOf(target);
-        List<Class<?>> signature = signatureOf(paramTypes);
+        List<Class<?>> signature = ReflectSupport.signatureOf(paramTypes, resolver);
         for (Class<?> type = owner; type != null; type = type.getSuperclass()) {
             for (Method candidate : type.getDeclaredMethods()) {
                 if (!candidate.getName().equals(name)
                         || candidate.getParameterCount() != signature.size()) {
                     continue;
                 }
-                if (matches(candidate.getParameterTypes(), signature)) {
-                    candidate.setAccessible(true);
-                    return candidate;
+                if (ReflectSupport.matches(candidate.getParameterTypes(), signature)) {
+                    return ReflectSupport.methodHandle(candidate, resolver);
                 }
             }
         }
@@ -84,25 +84,54 @@ public final class ReflectApi {
 
     /**
      * Resolves one declared field, including private fields. Returns the
-     * {@code java.lang.reflect.Field} proxy, or undefined on a miss.
+     * {@code ReflectField} handle, or undefined on a miss.
      *
-     * @zh 解析已声明字段（含私有）。返回 {@code java.lang.reflect.Field} 代理；未命中为 undefined。
-     * @zh-param target 实例或类（{@code JavaClass}）
+     * @zh 解析已声明字段（含私有）。返回 {@code ReflectField} 句柄；未命中为 undefined。
+     * @zh-param target 实例或类
      * @zh-param name 字段名
+     * @zh-return 字段句柄或 undefined
      */
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
-    @ApiType("JavaObject")
-    public Object field(@ApiType("JavaObject | JavaClass") Object target, String name) {
+    public ReflectField field(
+            @ApiType("ReflectClass | JavaObject | JavaClass") Object target, String name) {
         Class<?> owner = ownerOf(target);
         for (Class<?> type = owner; type != null; type = type.getSuperclass()) {
             try {
-                Field candidate = type.getDeclaredField(name);
-                candidate.setAccessible(true);
-                return candidate;
+                return ReflectSupport.fieldHandle(type.getDeclaredField(name), resolver);
             } catch (NoSuchFieldException ignored) {
                 // walk the superclass chain
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Resolves one declared constructor with an exact parameter signature,
+     * including private constructors. Parameter types arrive as an array of
+     * class-name strings or {@code ReflectClass} values. Returns the
+     * {@code ReflectConstructor} handle, or undefined on a miss.
+     *
+     * @zh 按精确参数签名解析已声明构造器（含私有）。参数类型为数组（类名字符串或 {@code ReflectClass}）。返回 {@code ReflectConstructor} 句柄；未命中为 undefined。
+     * @zh-param target 实例或类
+     * @zh-param paramTypes 参数类型数组（可省略）
+     * @zh-return 构造器句柄或 undefined
+     */
+    @ApiSince("0.7.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public ReflectConstructor constructor(
+            @ApiType("ReflectClass | JavaObject | JavaClass") Object target,
+            @ApiOptional @ApiType("Array<string | JavaClass | ReflectClass>") Object paramTypes) {
+        Class<?> owner = ownerOf(target);
+        List<Class<?>> signature = ReflectSupport.signatureOf(paramTypes, resolver);
+        for (Constructor<?> candidate : owner.getDeclaredConstructors()) {
+            if (candidate.getParameterCount() != signature.size()) {
+                continue;
+            }
+            if (ReflectSupport.matches(candidate.getParameterTypes(), signature)) {
+                return ReflectSupport.constructorHandle(candidate, resolver);
             }
         }
         return null;
@@ -114,9 +143,10 @@ public final class ReflectApi {
      * types.
      *
      * @zh 反射调用已解析的方法。target 省略（undefined）即静态调用；数字参数按声明类型自动转换。
-     * @zh-param method {@code method()} 返回的 Method
+     * @zh-param method {@code method()} 返回的 ReflectMethod（或原始 Method 代理）
      * @zh-param target 接收者实例；静态调用省略
      * @zh-param args 参数数组（可省略）
+     * @zh-return 调用结果
      */
     @ApiSince("0.2.0")
     @ApiLoader("*")
@@ -125,33 +155,45 @@ public final class ReflectApi {
     public Object invoke(@ApiType("JavaObject") Object method,
             @ApiOptional @ApiType("JavaObject") Object target,
             @ApiOptional @ApiType("Array<JsonValue | JavaObject>") Object args) throws Exception {
-        if (!(method instanceof Method handle)) {
+        Method handle;
+        if (method instanceof ReflectMethod resolved) {
+            handle = resolved.member();
+        } else if (method instanceof Method raw) {
+            handle = raw;
+        } else {
             throw new IllegalArgumentException("method must come from reflect.method()");
         }
-        Object[] argv = positional(args, handle.getParameterCount());
+        Object[] argv = ReflectSupport.positional(args, handle.getParameterCount());
         Object[] converted = new Object[argv.length];
         for (int i = 0; i < argv.length; i++) {
-            converted[i] = coerce(argv[i], handle.getParameterTypes()[i]);
+            converted[i] = ReflectSupport.coerce(argv[i], handle.getParameterTypes()[i]);
         }
-        return handle.invoke(isStatic(handle) ? null : target, converted);
+        return ReflectSupport.marshal(handle.invoke(ReflectSupport.isStatic(handle) ? null
+                : ReflectSupport.unwrap(target), converted));
     }
 
     /**
      * Reflectively constructs one instance of the class with the matching
-     * constructor.
+     * constructor — or, given a {@code ReflectConstructor} handle from
+     * {@code constructor()}, that exact constructor.
      *
-     * @zh 反射构造类实例（按参数匹配构造器）。
-     * @zh-param cls {@code JavaClass} 或类名字符串
+     * @zh 反射构造类实例（按参数匹配构造器）；传入 {@code constructor()} 得到的 {@code ReflectConstructor} 句柄时使用该精确构造器。
+     * @zh-param cls {@code ReflectClass} / {@code JavaClass} / 类名字符串 / {@code ReflectConstructor} 句柄
      * @zh-param args 构造参数数组（可省略）
+     * @zh-return 新实例
      */
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
     @ApiType("JavaObject")
-    public Object newInstance(@ApiType("JavaClass | string") Object cls,
+    public Object newInstance(@ApiType("ReflectClass | JavaClass | string | ReflectConstructor")
+            Object cls,
             @ApiOptional @ApiType("Array<JsonValue | JavaObject>") Object args) throws Exception {
-        Class<?> type = classOf(cls);
-        Object[] argv = positional(args, -1);
+        if (cls instanceof ReflectConstructor resolved) {
+            return ReflectSupport.marshal(resolved.newInstance(args));
+        }
+        Class<?> type = ReflectSupport.classOf(cls, resolver);
+        Object[] argv = ReflectSupport.positional(args, -1);
         for (Constructor<?> candidate : type.getDeclaredConstructors()) {
             if (candidate.getParameterCount() != argv.length) {
                 continue;
@@ -160,7 +202,7 @@ public final class ReflectApi {
             boolean usable = true;
             for (int i = 0; i < argv.length; i++) {
                 try {
-                    converted[i] = coerce(argv[i], candidate.getParameterTypes()[i]);
+                    converted[i] = ReflectSupport.coerce(argv[i], candidate.getParameterTypes()[i]);
                 } catch (IllegalArgumentException e) {
                     usable = false;
                     break;
@@ -168,7 +210,7 @@ public final class ReflectApi {
             }
             if (usable) {
                 candidate.setAccessible(true);
-                return candidate.newInstance(converted);
+                return ReflectSupport.marshal(candidate.newInstance(converted));
             }
         }
         throw new IllegalArgumentException(
@@ -176,158 +218,85 @@ public final class ReflectApi {
     }
 
     /**
-     * The fully-qualified class name of any Java value (works on non-proxied
-     * values too), or undefined for undefined/null.
+     * Loads one class by name through the mapping layer as a
+     * {@code ReflectClass} handle — the {@code Class.forName} entry point
+     * of the reflection surface.
      *
-     * @zh 任意 Java 值的全限定类名（非代理值同样可用）；undefined/null 返回 undefined。
+     * @zh 按类名经映射层加载类，返回 {@code ReflectClass} 句柄——反射面的 {@code Class.forName} 入口。
+     * @zh-param name 类名（基本类型名如 {@code int} 同样接受）
+     * @zh-return 类句柄
+     */
+    @ApiSince("0.7.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public ReflectClass forName(String name) throws ClassNotFoundException {
+        return new ReflectClass(ReflectSupport.byName(name, resolver), resolver);
+    }
+
+    /**
+     * The class handle of any Java value ({@code obj.getClass()}
+     * equivalent) — a class value answers itself. Undefined for
+     * undefined/null.
+     *
+     * @zh 任意 Java 值的类句柄（{@code obj.getClass()} 等价）；传入类值返回自身。undefined/null 返回 undefined。
+     * @zh-param value 任意值
+     * @zh-return 类句柄或 undefined
+     */
+    @ApiSince("0.7.0")
+    @ApiLoader("*")
+    @ApiMC("*")
+    public ReflectClass classOf(@ApiType("JsonValue | JavaObject") Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof ReflectClass handle) {
+            return handle;
+        }
+        Object raw = ReflectSupport.unwrap(value);
+        if (raw instanceof Class<?> type) {
+            return new ReflectClass(type, resolver);
+        }
+        return new ReflectClass(raw.getClass(), resolver);
+    }
+
+    /**
+     * The fully-qualified class name of any Java value (works on non-proxied
+     * values too); reflect handles unwrap to what they wrap. Undefined for
+     * undefined/null.
+     *
+     * @zh 任意 Java 值的全限定类名（非代理值同样可用）；反射句柄解包为其包装的值。undefined/null 返回 undefined。
      */
     @ApiSince("0.2.0")
     @ApiLoader("*")
     @ApiMC("*")
     public String className(@ApiType("JsonValue | JavaObject") Object value) {
-        return value == null ? null : value.getClass().getName();
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof ReflectClass handle) {
+            return handle.target().getName();
+        }
+        if (value instanceof ReflectField handle) {
+            return handle.member().getClass().getName();
+        }
+        if (value instanceof ReflectMethod handle) {
+            return handle.member().getClass().getName();
+        }
+        if (value instanceof ReflectConstructor handle) {
+            return handle.member().getClass().getName();
+        }
+        return value.getClass().getName();
     }
 
     /** The owner class of a target (the class itself, or the instance's). */
     private static Class<?> ownerOf(Object target) {
-        if (target instanceof Class<?> type) {
+        Object raw = ReflectSupport.unwrap(target);
+        if (raw instanceof Class<?> type) {
             return type;
         }
-        if (target == null) {
+        if (raw == null) {
             throw new IllegalArgumentException("reflect target is required");
         }
-        return target.getClass();
-    }
-
-    /** Resolves one class argument (JavaClass value, Class, or name string). */
-    private Class<?> classOf(Object value) throws ClassNotFoundException {
-        if (value instanceof Class<?> type) {
-            return type;
-        }
-        if (value instanceof String name) {
-            return Class.forName(resolver.resolve(name), true,
-                    ReflectApi.class.getClassLoader());
-        }
-        throw new IllegalArgumentException(
-                "class must be a JavaClass or a class-name string: " + value);
-    }
-
-    /** Parses the parameter-type array into classes. */
-    private List<Class<?>> signatureOf(Object paramTypes) {
-        List<Class<?>> out = new ArrayList<>();
-        if (paramTypes instanceof List<?> list) {
-            for (Object entry : list) {
-                if (entry == null) {
-                    out.add(Object.class);
-                } else {
-                    try {
-                        out.add(classOf(entry));
-                    } catch (ClassNotFoundException e) {
-                        throw new IllegalArgumentException("unknown parameter type: " + entry, e);
-                    }
-                }
-            }
-        }
-        return out;
-    }
-
-    /** Exact-type signature match with primitive widening compatibility. */
-    private static boolean matches(Class<?>[] declared, List<Class<?>> wanted) {
-        for (int i = 0; i < declared.length; i++) {
-            Class<?> w = wanted.get(i);
-            if (declared[i] == w || declared[i].isAssignableFrom(w)) {
-                continue;
-            }
-            if (w.isPrimitive() && unwrap(declared[i]) == w) {
-                continue;
-            }
-            return false;
-        }
-        return true;
-    }
-
-    /** The primitive type behind a wrapper class, or null. */
-    private static Class<?> unwrap(Class<?> type) {
-        if (type == Integer.class) {
-            return int.class;
-        }
-        if (type == Long.class) {
-            return long.class;
-        }
-        if (type == Boolean.class) {
-            return boolean.class;
-        }
-        if (type == Double.class) {
-            return double.class;
-        }
-        if (type == Float.class) {
-            return float.class;
-        }
-        if (type == Short.class) {
-            return short.class;
-        }
-        if (type == Byte.class) {
-            return byte.class;
-        }
-        if (type == Character.class) {
-            return char.class;
-        }
-        return null;
-    }
-
-    /** Coerces one argument value to the declared parameter type. */
-    private static Object coerce(Object value, Class<?> type) {
-        if (value == null) {
-            return null;
-        }
-        if (type.isInstance(value)) {
-            return value;
-        }
-        if (value instanceof Number number) {
-            if (type == int.class || type == Integer.class) {
-                return number.intValue();
-            }
-            if (type == long.class || type == Long.class) {
-                return number.longValue();
-            }
-            if (type == double.class || type == Double.class) {
-                return number.doubleValue();
-            }
-            if (type == float.class || type == Float.class) {
-                return number.floatValue();
-            }
-            if (type == short.class || type == Short.class) {
-                return number.shortValue();
-            }
-            if (type == byte.class || type == Byte.class) {
-                return number.byteValue();
-            }
-        }
-        if (value instanceof Boolean b && (type == boolean.class || type == Boolean.class)) {
-            return b;
-        }
-        if (value instanceof String s && type == String.class) {
-            return s;
-        }
-        if (value instanceof Character c && (type == char.class || type == Character.class)) {
-            return c;
-        }
-        throw new IllegalArgumentException(
-                "cannot convert argument to " + type.getName() + ": " + value);
-    }
-
-    /** Reads the positional array (undefined stays empty; -1 keeps the array). */
-    private static Object[] positional(Object args, int expected) {
-        List<?> list = args instanceof List<?> l ? l : List.of();
-        Object[] out = new Object[expected < 0 ? list.size() : Math.max(expected, list.size())];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = i < list.size() ? list.get(i) : null;
-        }
-        return out;
-    }
-
-    /** Whether the method is static. */
-    private static boolean isStatic(Method method) {
-        return java.lang.reflect.Modifier.isStatic(method.getModifiers());
+        return raw.getClass();
     }
 }

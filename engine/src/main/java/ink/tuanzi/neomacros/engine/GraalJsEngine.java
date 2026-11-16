@@ -2011,6 +2011,23 @@ public final class GraalJsEngine implements ScriptEngine {
             if (host != null && (type == Object.class || type.isInstance(host))) {
                 return host;
             }
+            // Interop proxies (JavaObject/JavaClass) carry their raw host
+            // value under __neoRaw: hand it back untouched — the neutral
+            // snapshot below would copy collections and detach them from
+            // the object the script still holds (the same probe asNeutral
+            // runs on the neutral path).
+            try {
+                if (value.hasMember("__neoRaw")) {
+                    Value rawValue = value.getMember("__neoRaw");
+                    Object raw = rawValue != null && rawValue.isHostObject()
+                            ? rawValue.asHostObject() : null;
+                    if (raw != null && (type == Object.class || type.isInstance(raw))) {
+                        return raw;
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                // plain guest values without the probe fall through
+            }
             if (type == String.class) {
                 return value.asString();
             }

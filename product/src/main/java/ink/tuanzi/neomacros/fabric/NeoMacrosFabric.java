@@ -216,6 +216,14 @@ public final class NeoMacrosFabric implements ClientModInitializer {
         registry.registerGuestType("FileHandle",
                 ink.tuanzi.neomacros.core.api.FsApi.FileHandle.class);
         registry.registerGuestType("Ws", ink.tuanzi.neomacros.core.api.NetApi.Ws.class);
+        registry.registerGuestType("ReflectClass",
+                ink.tuanzi.neomacros.core.api.reflect.ReflectClass.class);
+        registry.registerGuestType("ReflectField",
+                ink.tuanzi.neomacros.core.api.reflect.ReflectField.class);
+        registry.registerGuestType("ReflectMethod",
+                ink.tuanzi.neomacros.core.api.reflect.ReflectMethod.class);
+        registry.registerGuestType("ReflectConstructor",
+                ink.tuanzi.neomacros.core.api.reflect.ReflectConstructor.class);
         registry.registerGuestType("MobEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.MobEntity.class);
         registry.registerGuestType("AnimalEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.AnimalEntity.class);
         registry.registerGuestType("TamableAnimalEntity", ink.tuanzi.neomacros.core.api.entity.SpeciesEntities.TamableAnimalEntity.class);
