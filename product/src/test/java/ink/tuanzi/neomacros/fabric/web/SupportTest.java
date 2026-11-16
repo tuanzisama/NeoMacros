@@ -292,6 +292,89 @@ class SupportTest {
         assertEquals(0, hub.connectionCount());
     }
 
+    @Test
+    void oversizedBroadcastsSplitIntoReassemblableSegments() throws Exception {
+        SseHub hub = new SseHub(System::currentTimeMillis);
+        var out = new ByteArrayOutputStream();
+        hub.open(out, "127.0.0.1");
+
+        // Well past the frame cap, with multi-byte characters so the UTF-8
+        // bound of the slice sizing gets exercised alongside plain ASCII.
+        String payload = "{\"v\":\"" + "中".repeat(40_000) + "x".repeat(40_000) + "\"}";
+        hub.broadcast("console", payload);
+
+        String stream = out.toString(StandardCharsets.UTF_8);
+        assertTrue(stream.startsWith("retry: 3000"));
+        assertFalse(stream.contains("\nevent: console\n"),
+                "an oversized payload never rides the plain event frame");
+
+        List<String> frames = new java.util.ArrayList<>();
+        for (String frame : stream.split("(?=event: segment\n)")) {
+            if (frame.startsWith("event: segment\n")) {
+                frames.add(frame);
+            }
+        }
+        assertTrue(frames.size() > 1, "the payload must arrive as multiple segments");
+
+        StringBuilder rebuilt = new StringBuilder();
+        long broadcastId = -1;
+        int total = -1;
+        for (int i = 0; i < frames.size(); i++) {
+            String frame = frames.get(i);
+            assertTrue(frame.getBytes(StandardCharsets.UTF_8).length <= SseHub.MAX_EVENT_BYTES,
+                    () -> "segment frame stays under the cap: " + frame.length());
+            Map<String, Object> segment = segmentEnvelope(frame);
+            if (broadcastId == -1) {
+                broadcastId = ((Number) segment.get("id")).longValue();
+                total = ((Number) segment.get("total")).intValue();
+            }
+            assertEquals(broadcastId, ((Number) segment.get("id")).longValue(),
+                    "one broadcast shares one segment group id");
+            assertEquals("console", segment.get("ev"));
+            assertEquals(i, ((Number) segment.get("i")).intValue(),
+                    "segments arrive in order");
+            rebuilt.append(segment.get("data"));
+        }
+        assertEquals(total, frames.size(), "total announces the full group size");
+        assertEquals(payload, rebuilt.toString(),
+                "reassembling the slices reproduces the original payload exactly");
+        assertEquals(1, hub.connectionCount());
+    }
+
+    @Test
+    void segmentSlicesNeverSplitASurrogatePair() throws Exception {
+        SseHub hub = new SseHub(System::currentTimeMillis);
+        var out = new ByteArrayOutputStream();
+        hub.open(out, "127.0.0.1");
+
+        // The 7-char prefix shifts the astral pairs onto odd indices so the
+        // 16384-char slice boundary lands inside a surrogate pair; the slice
+        // boundary must step back so each slice re-escapes cleanly.
+        String payload = "{\"v\":\"x" + "😀".repeat(30_000) + "\"}";
+        hub.broadcast("console", payload);
+
+        String stream = out.toString(StandardCharsets.UTF_8);
+        StringBuilder rebuilt = new StringBuilder();
+        for (String frame : stream.split("(?=event: segment\n)")) {
+            if (frame.startsWith("event: segment\n")) {
+                rebuilt.append(segmentEnvelope(frame).get("data"));
+            }
+        }
+        assertEquals(payload, rebuilt.toString(),
+                "surrogate pairs survive slicing and JSON re-escaping");
+    }
+
+    /** Parses one segment frame's data line into a plain map. */
+    private static Map<String, Object> segmentEnvelope(String frame) {
+        String data = frame.substring("event: segment\ndata: ".length(),
+                frame.length() - "\n\n".length());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> parsed = (Map<String, Object>)
+                ink.tuanzi.neomacros.fabric.web.json.Jsons.plain(
+                        ink.tuanzi.neomacros.fabric.web.json.Jsons.parse(data));
+        return parsed;
+    }
+
     // ---- HostPolicy -------------------------------------------------------
 
     @Test

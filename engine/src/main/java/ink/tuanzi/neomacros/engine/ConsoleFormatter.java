@@ -38,11 +38,23 @@ final class ConsoleFormatter {
 
     private final Context context;
     private final AtomicInteger budget;
+    private final boolean fullLength;
 
     /** Creates the formatter; {@code nodeBudget} bounds this emission. */
     ConsoleFormatter(Context context, int nodeBudget) {
+        this(context, nodeBudget, false);
+    }
+
+    /**
+     * Creates the formatter; {@code fullLength} lifts the string and stack
+     * length caps (the DevTools eval result must reach the editor intact —
+     * oversized payloads ride the SSE segment frames instead), while the
+     * structural caps (items/props/depth/nodes) stay to bound loop work.
+     */
+    ConsoleFormatter(Context context, int nodeBudget, boolean fullLength) {
         this.context = context;
         this.budget = new AtomicInteger(nodeBudget);
+        this.fullLength = fullLength;
     }
 
     /** Renders one root-level value as a node map. */
@@ -53,6 +65,14 @@ final class ConsoleFormatter {
     /** Caps a stack capture to the contract length. */
     static String capStack(String stack) {
         return cap(stack, MAX_STACK);
+    }
+
+    /**
+     * Applies a contract length cap unless this formatter runs full-length
+     * (eval results deliver strings and stacks intact).
+     */
+    private String capResult(String text, int limit) {
+        return fullLength ? (text == null ? "" : text) : cap(text, limit);
     }
 
     /** One-line display text for a node (previews inside obj/arr nodes). */
@@ -82,7 +102,7 @@ final class ConsoleFormatter {
             return undefinedOrNull(value);
         }
         if (value.isString()) {
-            return stringNode(cap(value.asString(), MAX_STRING));
+            return stringNode(capResult(value.asString(), MAX_STRING));
         }
         if (value.isBoolean()) {
             Map<String, Object> out = tagged("bool");
@@ -112,7 +132,7 @@ final class ConsoleFormatter {
         if (value.hasMembers()) {
             return objectNode(value, depth);
         }
-        return stringNode(cap(safeToString(value), MAX_STRING));
+        return stringNode(capResult(safeToString(value), MAX_STRING));
     }
 
     /** Distinguishes guest {@code undefined} from {@code null} (both read isNull). */
@@ -156,7 +176,7 @@ final class ConsoleFormatter {
         Map<String, Object> out = tagged("err");
         out.put("name", stringMember(value, "name", "Error"));
         out.put("msg", stringMember(value, "message", ""));
-        out.put("stack", cap(stringMember(value, "stack", ""), MAX_STACK));
+        out.put("stack", capResult(stringMember(value, "stack", ""), MAX_STACK));
         return out;
     }
 
@@ -230,7 +250,7 @@ final class ConsoleFormatter {
             Map<String, Object> out = tagged("err");
             out.put("name", failure.getClass().getName());
             out.put("msg", failure.getMessage() == null ? "" : failure.getMessage());
-            out.put("stack", capStack(toStringOf(failure)));
+            out.put("stack", capResult(toStringOf(failure), MAX_STACK));
             return out;
         }
         Map<String, Object> out = tagged("host");

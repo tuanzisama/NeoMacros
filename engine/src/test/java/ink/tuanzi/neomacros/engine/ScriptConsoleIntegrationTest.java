@@ -146,6 +146,20 @@ class ScriptConsoleIntegrationTest {
     }
 
     @Test
+    void longLogStringsStayContractCapped() throws Exception {
+        // Console emissions keep the 2000-char cap; only DevTools eval
+        // results (full-length formatter) travel uncapped.
+        Path entry = writeModule("console-long.mjs",
+                "console.log('x'.repeat(5000));\n");
+        session.importModule("console-long", entry);
+
+        ScriptConsoleEvent event = next();
+        String text = (String) arg(event, 0).get("v");
+        assertEquals(2001, text.length(), "2000 chars plus the ellipsis");
+        assertTrue(text.endsWith("…"));
+    }
+
+    @Test
     void nullUndefinedAndSpecials() throws Exception {
         Path entry = writeModule("console-specials.mjs",
                 "console.log(null, undefined);\n"

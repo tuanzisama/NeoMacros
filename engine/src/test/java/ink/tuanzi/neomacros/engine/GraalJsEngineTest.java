@@ -77,6 +77,15 @@ class GraalJsEngineTest {
     }
 
     @Test
+    void evalResultsCarryStringsAtFullLength() throws ScriptError {
+        var outcome = session.eval("'x'.repeat(5000)");
+        assertFalse(outcome.threw());
+        assertEquals("str", outcome.value().get("t"));
+        assertEquals(5000, ((String) outcome.value().get("v")).length(),
+                "the DevTools eval result is not length-truncated");
+    }
+
+    @Test
     void importEscapingModuleFolderIsRejected() throws Exception {
         Path moduleRoot = Files.createDirectories(scriptsDir.resolve("module"));
         Path neighbor = Files.createDirectories(scriptsDir.resolve("neighbor"));

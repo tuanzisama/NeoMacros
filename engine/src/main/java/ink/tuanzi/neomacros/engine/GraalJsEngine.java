@@ -746,7 +746,8 @@ public final class GraalJsEngine implements ScriptEngine {
 
         /** Renders one settled value as a value outcome (loop thread). */
         private EvalOutcome valueOutcome(Value value, long startNanos) {
-            ConsoleFormatter formatter = new ConsoleFormatter(context, ConsoleFormatter.MAX_NODES);
+            ConsoleFormatter formatter = new ConsoleFormatter(
+                    context, ConsoleFormatter.MAX_NODES, true);
             return EvalOutcome.ofValue(formatter.node(value), elapsedMs(startNanos));
         }
 
@@ -756,7 +757,8 @@ public final class GraalJsEngine implements ScriptEngine {
             if (thrown == null || thrown.isNull()) {
                 return EvalOutcome.ofError("Error", "promise rejected without a reason", null, durationMs);
             }
-            ConsoleFormatter formatter = new ConsoleFormatter(context, ConsoleFormatter.MAX_NODES);
+            ConsoleFormatter formatter = new ConsoleFormatter(
+                    context, ConsoleFormatter.MAX_NODES, true);
             Map<String, Object> node = formatter.node(thrown);
             if ("err".equals(node.get("t"))) {
                 return EvalOutcome.ofError(String.valueOf(node.get("name")),
@@ -811,9 +813,6 @@ public final class GraalJsEngine implements ScriptEngine {
                         .append(" (").append(location.getSource().getName())
                         .append(':').append(location.getStartLine())
                         .append(':').append(location.getStartColumn()).append(')');
-                if (sb.length() > 2000) {
-                    break;
-                }
             }
             return sb.toString();
         }

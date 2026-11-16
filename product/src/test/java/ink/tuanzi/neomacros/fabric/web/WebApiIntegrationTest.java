@@ -730,6 +730,85 @@ class WebApiIntegrationTest {
                         .getBytes(StandardCharsets.UTF_8)).statusCode());
     }
 
+    @Test
+    void oversizedEvalResultsRideSegmentedSseAndReassemble() throws Exception {
+        StubBackend backend = start(DIRECT);
+        // A result string far past the 64 KiB frame cap: the HTTP response
+        // carries it whole, the SSE tail splits it into segment frames.
+        String big = "y".repeat(200_000);
+        backend.evalOutcome = new PanelBackend.EvalExecution("devtools",
+                ink.tuanzi.neomacros.core.runtime.EvalOutcome.ofValue(
+                        Map.of("t", "str", "v", big), 1));
+
+        // Open the stream before evaluating so no segment is missed.
+        HttpResponse<String> ticketResponse = signed("POST", "/api/v1/events/ticket",
+                new byte[0]);
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl()
+                + "/api/v1/events?ticket="
+                + JsonParser.parseString(ticketResponse.body()).getAsJsonObject()
+                .get("ticket").getAsString()))
+                .timeout(Duration.ofSeconds(10))
+                .GET().build();
+        HttpResponse<InputStream> stream = client.send(request,
+                HttpResponse.BodyHandlers.ofInputStream());
+        assertEquals(200, stream.statusCode());
+        InputStream input = stream.body();
+        readUntil(input, "\n\n");
+
+        // The broadcast runs on the eval request thread and blocks once the
+        // socket buffer fills, so the segments must be drained concurrently
+        // with the POST — reading only after the response would deadlock.
+        var reassembled = new java.util.concurrent.CompletableFuture<JsonObject>();
+        Thread reader = new Thread(() -> {
+            try {
+                StringBuilder payload = new StringBuilder();
+                int total = -1;
+                int received = 0;
+                long groupId = -1;
+                while (total < 0 || received < total) {
+                    String frame = readUntil(input, "\n\n");
+                    if (!frame.contains("event: segment")) {
+                        continue;
+                    }
+                    String data = frame.substring(frame.indexOf("data: ") + "data: ".length());
+                    JsonObject segment = JsonParser.parseString(data).getAsJsonObject();
+                    if (groupId < 0) {
+                        groupId = segment.get("id").getAsLong();
+                        total = segment.get("total").getAsInt();
+                    }
+                    if (segment.get("id").getAsLong() != groupId
+                            || segment.get("total").getAsInt() != total) {
+                        throw new AssertionError("one broadcast stays in one segment group");
+                    }
+                    payload.append(segment.get("data").getAsString());
+                    received++;
+                }
+                reassembled.complete(JsonParser.parseString(payload.toString()).getAsJsonObject());
+            } catch (Throwable t) {
+                reassembled.completeExceptionally(t);
+            }
+        }, "segment-reader");
+        reader.setDaemon(true);
+        reader.start();
+
+        HttpResponse<String> response = signed("POST", "/api/v1/console/eval",
+                Jsons.stringify(Map.of("expression", "'y'.repeat(200000)"))
+                        .getBytes(StandardCharsets.UTF_8));
+        assertEquals(200, response.statusCode());
+        JsonObject echoed = JsonParser.parseString(response.body()).getAsJsonObject()
+                .getAsJsonArray("entries").get(1).getAsJsonObject();
+        assertEquals(200_000, echoed.getAsJsonArray("args").get(0)
+                .getAsJsonObject().get("v").getAsString().length(),
+                "the HTTP response carries the whole result");
+
+        JsonObject entry = reassembled.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        assertEquals(big, entry.getAsJsonArray("args").get(0)
+                .getAsJsonObject().get("v").getAsString(),
+                "the reassembled segments reproduce the full result");
+        reader.join(5_000);
+        input.close();
+    }
+
     // ---- network replay -------------------------------------------------------
 
     @Test
